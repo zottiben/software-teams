@@ -1,0 +1,23 @@
+name: generic
+description: Generic project adapter (minimal defaults)
+
+tech_stack: {}
+
+quality_gates:
+  lint: "echo 'No linter configured'"
+  test: "echo 'No tests configured'"
+
+dependency_install: []
+
+worktree:
+  databases: []
+  env_setup: []
+  migrations: []
+  seeders: []
+  web_server:
+    setup: "# No web server setup needed"
+    cleanup: "# No cleanup needed"
+
+conventions:
+  file_naming: {}
+  patterns: []

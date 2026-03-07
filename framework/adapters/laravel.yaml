@@ -1,0 +1,46 @@
+name: laravel
+description: Laravel project adapter
+
+tech_stack:
+  backend: php
+  framework: laravel
+  database: mysql
+  testing: pest
+  linting: pint
+  analysis: phpstan
+
+quality_gates:
+  lint: "composer check-style"
+  analyse: "composer stan"
+  test: "composer test"
+
+dependency_install:
+  - "composer install"
+  - "bun install --linker=hoisted"
+
+worktree:
+  databases:
+    - prefix: "wt_"
+      connection: default
+    - prefix: "wt_"
+      connection: secondary
+  env_setup:
+    - "cp .env.example .env"
+    - "php artisan key:generate"
+  migrations:
+    - "php artisan migrate --no-interaction"
+  seeders:
+    - "php artisan db:seed --no-interaction"
+  web_server:
+    setup: "# Configure local web server (e.g. Herd, Valet, Nginx)"
+    cleanup: "# Remove local web server config"
+
+conventions:
+  file_naming:
+    controllers: "PascalCase"
+    actions: "PascalCase"
+    models: "PascalCase"
+    migrations: "snake_case"
+  patterns:
+    - "Action/DTO/FormRequest pattern"
+    - "declare(strict_types=1) in every PHP file"

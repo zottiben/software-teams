@@ -64,12 +64,16 @@ A componentised, context-efficient AI development framework for Claude Code. JDI
 
 ## Getting Started
 
-### 1. Bootstrap the Framework
-
-Run the bootstrap script to initialise JDI in your project:
+### 1. Install JDI
 
 ```bash
-.claude/jedi/bin/bootstrap.sh
+bun install -g @zottiben/jedi
+```
+
+Then initialise in your project:
+
+```bash
+jdi init
 ```
 
 Or run the init command directly inside Claude Code:
@@ -79,10 +83,11 @@ Or run the init command directly inside Claude Code:
 ```
 
 This creates:
+- `.jdi/framework/` — Framework files (agents, components, teams, etc.)
 - `.claude/commands/jdi/` — Slash command stubs for all JDI commands
 - `.jdi/` — Project state directory with plans, config, and research
 
-Use `--force` to regenerate all command stubs (overwrites existing files).
+Use `--force` to regenerate all files (overwrites existing).
 
 ### 2. Plan a Feature
 
@@ -135,7 +140,7 @@ All commands are invoked as slash commands inside Claude Code.
 | `/jdi:generate-pr` | Agent | Generate and create a pull request |
 | `/jdi:pr-review` | Agent | Review a PR and post line comments to GitHub |
 | `/jdi:pr-feedback` | Agent | Address PR review comments |
-| `/jdi:worktree` | Direct | Create an isolated git worktree with full environment |
+| `/jdi:worktree` | Direct | Create an isolated git worktree with full project environment |
 | `/jdi:worktree-remove` | Direct | Remove a worktree and clean up all resources |
 | `/jdi:status` | Direct | Show current framework state and suggest next action |
 
@@ -147,8 +152,8 @@ All commands are invoked as slash commands inside Claude Code.
 
 | Flag | Description |
 |------|-------------|
-| `--worktree` | Create an isolated git worktree with full environment (databases, server, deps, migrations, seeders) before planning |
-| `--worktree-lightweight` | Create a worktree with minimal setup (deps, migrate, type generation only) |
+| `--worktree` | Create an isolated git worktree with full project environment (databases, deps, migrations, seeders per adapter config) before planning |
+| `--worktree-lightweight` | Create a worktree with minimal setup (deps + migrate only) |
 
 #### `/jdi:implement-plan`
 
@@ -165,7 +170,7 @@ If `state.yaml` has `worktree.active: true` (set by `create-plan --worktree`), t
 
 | Flag | Description |
 |------|-------------|
-| `--lightweight` | Skip databases and local server setup — just deps and migrate |
+| `--lightweight` | Skip databases, web server setup — just deps and migrate |
 | `--base <branch>` | Base branch to create worktree from (default: `master`) |
 
 #### `/jdi:worktree-remove`
@@ -199,20 +204,20 @@ Plans are written to `.jdi/plans/{phase}-{plan}-PLAN.md` and can be reviewed bef
 
 ### Git Worktrees
 
-JDI provides full-environment git worktrees for isolated development. Unlike the built-in `EnterWorktree` tool, JDI worktrees set up the complete development environment:
+JDI provides full-environment git worktrees for isolated development. Unlike the built-in `EnterWorktree` tool, JDI worktrees set up the complete project environment via adapter configs:
 
 **Full worktree** (`--worktree`):
-- Creates project databases with worktree-specific names
-- Configures `.env` with worktree-specific settings
-- Installs dependencies (backend and frontend)
-- Runs framework setup (key generation, migrations, seeders)
-- Configures local development server with SSL
+- Creates project databases per adapter config
+- Configures environment files with worktree-specific settings
+- Installs dependencies per adapter config
+- Runs project bootstrap (migrations, seeders, post-setup)
+- Configures web server per adapter config
 
 **Lightweight worktree** (`--worktree-lightweight`):
 - Installs dependencies and runs migrations only
-- Skips databases, local server, SSL, seeders
+- Skips databases, web server setup, seeders, and post-setup
 
-Worktree names are derived from ticket IDs and task descriptions (e.g., `"PROJ-1234 Add user auth"` becomes `proj-1234-add-user-auth`). Cleanup via `/jdi:worktree-remove` drops databases, unlinks the local server, removes the worktree, and deletes the branch.
+Worktree names are derived from ticket IDs and task descriptions (e.g., `"PROJ-1234 Add user auth"` becomes `proj-1234-add-user-auth`). Cleanup via `/jdi:worktree-remove` reverses all setup, removes the worktree, and deletes the branch.
 
 ### Agent Teams
 
@@ -285,8 +290,8 @@ JDI runs multi-level verification after implementation:
 | `requirements` | All v1 requirements coverage |
 
 **Quality gates** run automatically:
-- Backend: linting, static analysis, tests (e.g. `composer check-style` / `composer stan` / `composer test`)
-- Frontend: linting, type checking, tests (e.g. `bun run lint` / `bun run typecheck` / `bun run test:vitest`)
+- `composer check-style` / `composer stan` / `composer test` (PHP)
+- `bun run lint` / `bun run typecheck` / `bun run test:vitest` (TypeScript)
 
 Backend tests are a **mandatory blocking gate** — verification fails if `composer test` fails.
 
@@ -353,7 +358,7 @@ When processing PR comments, JDI detects learning phrases like:
 - "we prefer to"
 - "convention is"
 
-These patterns are automatically captured to learnings files in `.claude/jedi/learnings/` (categorised by backend, frontend, testing, devops, general) for future reference.
+These patterns are automatically captured to learnings files in `.jdi/framework/learnings/` (categorised by backend, frontend, testing, devops, general) for future reference.
 
 ---
 
@@ -365,42 +370,42 @@ JDI has 16 specialised agents, each with a defined spec and clear boundaries:
 
 | Agent | Role | Spec |
 |-------|------|------|
-| `jdi-backend` | Backend Engineer (PHP/Laravel) | `.claude/jedi/agents/jdi-backend.md` |
-| `jdi-frontend` | Frontend Engineer (React/TypeScript) | `.claude/jedi/agents/jdi-frontend.md` |
-| `jdi-architect` | Systems Architect | `.claude/jedi/agents/jdi-architect.md` |
-| `jdi-executor` | Senior Fullstack Engineer | `.claude/jedi/agents/jdi-executor.md` |
+| `jdi-backend` | Backend Engineer (PHP/Laravel) | `.jdi/framework/agents/jdi-backend.md` |
+| `jdi-frontend` | Frontend Engineer (React/TypeScript) | `.jdi/framework/agents/jdi-frontend.md` |
+| `jdi-architect` | Systems Architect | `.jdi/framework/agents/jdi-architect.md` |
+| `jdi-executor` | Senior Fullstack Engineer | `.jdi/framework/agents/jdi-executor.md` |
 
 ### Product and Research
 
 | Agent | Role | Spec |
 |-------|------|------|
-| `jdi-planner` | Product Manager / Planner | `.claude/jedi/agents/jdi-planner.md` |
-| `jdi-researcher` | Senior Analyst | `.claude/jedi/agents/jdi-researcher.md` |
-| `jdi-product-lead` | Product Lead | `.claude/jedi/agents/jdi-product-lead.md` |
-| `jdi-ux-designer` | Lead UI/UX Designer | `.claude/jedi/agents/jdi-ux-designer.md` |
+| `jdi-planner` | Product Manager / Planner | `.jdi/framework/agents/jdi-planner.md` |
+| `jdi-researcher` | Senior Analyst | `.jdi/framework/agents/jdi-researcher.md` |
+| `jdi-product-lead` | Product Lead | `.jdi/framework/agents/jdi-product-lead.md` |
+| `jdi-ux-designer` | Lead UI/UX Designer | `.jdi/framework/agents/jdi-ux-designer.md` |
 
 ### Quality Assurance
 
 | Agent | Role | Spec |
 |-------|------|------|
-| `jdi-quality` | Lead QA Developer | `.claude/jedi/agents/jdi-quality.md` |
-| `jdi-verifier` | Senior QA Developer | `.claude/jedi/agents/jdi-verifier.md` |
+| `jdi-quality` | Lead QA Developer | `.jdi/framework/agents/jdi-quality.md` |
+| `jdi-verifier` | Senior QA Developer | `.jdi/framework/agents/jdi-verifier.md` |
 
 ### DevOps
 
 | Agent | Role | Spec |
 |-------|------|------|
-| `jdi-devops` | DevOps Engineer | `.claude/jedi/agents/jdi-devops.md` |
+| `jdi-devops` | DevOps Engineer | `.jdi/framework/agents/jdi-devops.md` |
 
 ### Supporting
 
 | Agent | Role | Spec |
 |-------|------|------|
-| `jdi-committer` | Commit specialist | `.claude/jedi/agents/jdi-committer.md` |
-| `jdi-pr-generator` | PR generation | `.claude/jedi/agents/jdi-pr-generator.md` |
-| `jdi-pr-feedback` | PR feedback handler | `.claude/jedi/agents/jdi-pr-feedback.md` |
-| `jdi-debugger` | Debugging specialist | `.claude/jedi/agents/jdi-debugger.md` |
-| `jdi-head-engineering` | Head of Engineering (oversight) | `.claude/jedi/agents/jdi-head-engineering.md` |
+| `jdi-committer` | Commit specialist | `.jdi/framework/agents/jdi-committer.md` |
+| `jdi-pr-generator` | PR generation | `.jdi/framework/agents/jdi-pr-generator.md` |
+| `jdi-pr-feedback` | PR feedback handler | `.jdi/framework/agents/jdi-pr-feedback.md` |
+| `jdi-debugger` | Debugging specialist | `.jdi/framework/agents/jdi-debugger.md` |
+| `jdi-head-engineering` | Head of Engineering (oversight) | `.jdi/framework/agents/jdi-head-engineering.md` |
 
 All agents inherit the `<JDI:AgentBase />` protocol which defines sandbox awareness, structured returns, communication patterns, and component resolution.
 
@@ -491,52 +496,45 @@ context:
 
 ## Directory Structure
 
+### Package Source (this repo)
+
 ```
-.claude/jedi/                        # Framework source (gitignored)
-├── agents/                          # Agent specifications (16 agents)
-│   ├── jdi-backend.md
-│   ├── jdi-frontend.md
-│   ├── jdi-architect.md
-│   ├── jdi-executor.md
-│   ├── jdi-planner.md
-│   ├── jdi-researcher.md
-│   ├── jdi-product-lead.md
-│   ├── jdi-ux-designer.md
-│   ├── jdi-quality.md
-│   ├── jdi-verifier.md
-│   ├── jdi-devops.md
-│   ├── jdi-committer.md
-│   ├── jdi-pr-generator.md
-│   ├── jdi-pr-feedback.md
-│   ├── jdi-debugger.md
-│   └── jdi-head-engineering.md
+src/                                 # CLI source (TypeScript)
+├── commands/                        # CLI commands (init, plan, status, components)
+├── utils/                           # Utilities (detect-project, state, resolve-components)
+└── index.ts                         # Entry point
+
+framework/                           # Distributable framework (single source of truth)
+├── agents/                          # Agent specifications (20 agents)
+├── commands/                        # Command stub templates (copied to .claude/commands/jdi/)
 ├── components/                      # Reusable component instructions
 │   ├── execution/                   # Commit, Verify, CodebaseContext
 │   ├── planning/                    # TaskBreakdown, WaveComputation
 │   ├── quality/                     # PRReview, PRReviewLocal
 │   └── meta/                        # AgentBase, ComplexityRouter, TeamRouter, StateUpdate
 ├── teams/                           # Team definitions (5 teams)
-│   ├── engineering.md
-│   ├── product-research.md
-│   ├── quality-assurance.md
-│   ├── devops.md
-│   └── micro-management.md
+├── adapters/                        # Project-type configs (laravel, nextjs, node, generic)
 ├── config/                          # Configuration templates
-│   ├── jdi-config.yaml
-│   ├── state.yaml
-│   └── variables.yaml
 ├── hooks/                           # Pre-commit, checkpoint, worktree cleanup
 ├── rules/                           # Commit rules, deviation rules
-├── templates/                       # PLAN, PROJECT, REQUIREMENTS, ROADMAP, STATE, SUMMARY
+├── templates/                       # PLAN, PROJECT, REQUIREMENTS, ROADMAP templates
+├── learnings/                       # Empty category shells for PR review learnings
+└── jedi.md                          # Full framework architecture doc
+```
+
+### Installed in User Projects (via `jdi init`)
+
+```
+.jdi/framework/                        # Framework files (installed by jdi init)
+├── agents/                          # Agent specifications
+├── components/                      # Reusable component instructions
+├── teams/                           # Team definitions
+├── config/                          # Configuration templates
+├── hooks/                           # Pre-commit, checkpoint, worktree cleanup
+├── rules/                           # Commit rules, deviation rules
+├── templates/                       # Scaffolding templates
 ├── learnings/                       # Patterns learned from PR reviews
-│   ├── backend.md
-│   ├── frontend.md
-│   ├── testing.md
-│   ├── devops.md
-│   └── general.md
-├── workflows/                       # Workflow definitions
-├── jedi.md                          # Full framework architecture doc
-└── README.md                        # This file
+└── jedi.md                          # Full framework architecture doc
 
 .claude/commands/jdi/                # Slash command stubs (~300 tokens each)
 ├── create-plan.md
@@ -551,7 +549,7 @@ context:
 ├── init.md
 └── status.md
 
-.jdi/                                # Project state (gitignored, created by /jdi:init)
+.jdi/                                # Project state (created by /jdi:init)
 ├── plans/                           # Implementation plans
 ├── research/                        # Research documentation
 ├── codebase/                        # Codebase analysis (SUMMARY.md)
@@ -559,7 +557,8 @@ context:
 ├── config/
 │   ├── state.yaml                   # Runtime state
 │   ├── variables.yaml               # Shared variables
-│   └── jdi-config.yaml              # Global config
+│   ├── jdi-config.yaml              # Global config
+│   └── adapter.yaml                 # Project-type adapter config
 ├── PROJECT.yaml                     # Project context
 ├── REQUIREMENTS.yaml                # Scoped requirements
 └── ROADMAP.yaml                     # Phase structure

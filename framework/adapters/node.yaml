@@ -1,0 +1,29 @@
+name: node
+description: Generic Node.js project adapter
+
+tech_stack:
+  runtime: node
+  testing: vitest
+  linting: eslint
+
+quality_gates:
+  lint: "bun run lint"
+  typecheck: "bun run typecheck"
+  test: "bun run test"
+
+dependency_install:
+  - "bun install"
+
+worktree:
+  databases: []
+  env_setup:
+    - "cp .env.example .env"
+  migrations: []
+  seeders: []
+  web_server:
+    setup: "# No web server setup needed"
+    cleanup: "# No cleanup needed"
+
+conventions:
+  file_naming: {}
+  patterns: []

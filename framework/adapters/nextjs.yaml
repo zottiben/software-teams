@@ -1,0 +1,36 @@
+name: nextjs
+description: Next.js project adapter
+
+tech_stack:
+  frontend: typescript
+  framework: nextjs
+  runtime: node
+  testing: vitest
+  linting: eslint
+
+quality_gates:
+  lint: "bun run lint"
+  typecheck: "bun run typecheck"
+  test: "bun run test"
+
+dependency_install:
+  - "bun install"
+
+worktree:
+  databases: []
+  env_setup:
+    - "cp .env.example .env.local"
+  migrations: []
+  seeders: []
+  web_server:
+    setup: "# Next.js dev server starts automatically"
+    cleanup: "# No cleanup needed"
+
+conventions:
+  file_naming:
+    components: "PascalCase.tsx"
+    hooks: "useHookName.ts"
+    utils: "camelCase.ts"
+  patterns:
+    - "No any or unknown types"
+    - "Server components by default"
