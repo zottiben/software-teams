@@ -14,6 +14,8 @@ import { worktreeCommand } from "./commands/worktree";
 import { worktreeRemoveCommand } from "./commands/worktree-remove";
 import { planReviewCommand } from "./commands/plan-review";
 import { planApproveCommand } from "./commands/plan-approve";
+import { actionCommand } from "./commands/action";
+import { setupActionCommand } from "./commands/setup-action";
 import pkg from "../package.json";
 
 const main = defineCommand({
@@ -37,6 +39,8 @@ const main = defineCommand({
     "worktree-remove": worktreeRemoveCommand,
     "plan-review": planReviewCommand,
     "plan-approve": planApproveCommand,
+    action: actionCommand,
+    "setup-action": setupActionCommand,
   },
 });
 

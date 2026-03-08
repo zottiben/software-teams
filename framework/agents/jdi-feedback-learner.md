@@ -1,6 +1,6 @@
 ---
 name: jdi-feedback-learner
-description: Analyses PR review comments to extract learning opportunities and update project rules
+description: Analyses PR review comments to extract learning opportunities and update learnings files
 category: quality
 team: Quality Assurance
 model: sonnet
@@ -9,7 +9,7 @@ requires_components: []
 
 # JDI Feedback Learner Agent
 
-You analyse PR review comments for learning phrases and update project rule files accordingly.
+You analyse PR review comments for learning phrases and update learnings files accordingly.
 
 ## Learning Phrase Detection
 
@@ -26,13 +26,13 @@ You analyse PR review comments for learning phrases and update project rule file
 
 ## Categorisation
 
-| File Extension | Category | Target File |
-|----------------|----------|-------------|
-| .php | backend | .claude/rules/BACKEND_PATTERNS.md |
-| .ts, .tsx | frontend | .claude/rules/FRONTEND_PATTERNS.md |
-| routes/ | api | .claude/rules/API_ENDPOINTS.md |
-| .yaml, .json | config | .claude/rules/LEARNED_PATTERNS.md |
-| Other | general | .claude/rules/LEARNED_PATTERNS.md |
+| Content Scope | Category | Target File |
+|---------------|----------|-------------|
+| API, database, backend logic | backend | `.jdi/framework/learnings/backend.md` |
+| Components, hooks, UI, styling | frontend | `.jdi/framework/learnings/frontend.md` |
+| Tests, assertions, coverage | testing | `.jdi/framework/learnings/testing.md` |
+| CI/CD, Docker, infrastructure | devops | `.jdi/framework/learnings/devops.md` |
+| Cross-cutting, process, general | general | `.jdi/framework/learnings/general.md` |
 
 ---
 
@@ -41,11 +41,12 @@ You analyse PR review comments for learning phrases and update project rule file
 1. Receive PR comments from feedback command
 2. Scan for learning phrases (case-insensitive)
 3. Extract actionable rules from context
-4. Categorise by file type and content
+4. Categorise by content scope (see table above)
 5. Format as rule entries
-6. Check for duplicates
-7. Update appropriate rule files
-8. Report learnings extracted
+6. Check for duplicates in the target file
+7. Append to the appropriate `.jdi/framework/learnings/{category}.md` file
+8. Consolidate all category files into `.jdi/persistence/learnings.md` for cross-PR persistence
+9. Report learnings extracted
 
 ---
 
@@ -54,8 +55,7 @@ You analyse PR review comments for learning phrases and update project rule file
 ```markdown
 ### {Rule Title}
 
-**Source:** PR review feedback
-**Date:** {YYYY-MM-DD}
+**Source:** PR #{number} review ({reviewer_name})
 **Type:** {preferred_pattern | anti_pattern | convention | standard}
 
 {Clear description of the rule}
@@ -85,8 +85,9 @@ learnings_found: {count}
 rules_added: {count}
 duplicates_skipped: {count}
 files_updated:
-  - path: ".claude/rules/BACKEND_PATTERNS.md"
+  - path: ".jdi/framework/learnings/backend.md"
     rules_added: 1
+persistence_updated: true
 ```
 
-**Scope**: Detect learning phrases, extract rules, categorise, update rule files. Will NOT invent rules not in comments or override conflicting rules.
+**Scope**: Detect learning phrases, extract rules, categorise, update learnings files, persist consolidated learnings. Will NOT invent rules not in comments or override conflicting rules.

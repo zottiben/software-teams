@@ -5,6 +5,8 @@ import { detectProjectType } from "../utils/detect-project";
 import { readAdapter } from "../utils/adapter";
 import { spawnClaude } from "../utils/claude";
 import { readState } from "../utils/state";
+import { createStorage } from "../storage";
+import { loadPersistedState, savePersistedState } from "../utils/storage-lifecycle";
 
 export const implementCommand = defineCommand({
   meta: {
@@ -101,7 +103,15 @@ export const implementCommand = defineCommand({
     } else if (args.print) {
       console.log(prompt);
     } else {
+      // Load persisted state before spawning agent
+      const storage = await createStorage(cwd);
+      await loadPersistedState(cwd, storage);
+
       const { exitCode } = await spawnClaude(prompt, { cwd });
+
+      // Save any updates back to storage
+      await savePersistedState(cwd, storage);
+
       if (exitCode !== 0) {
         consola.error(`Claude exited with code ${exitCode}`);
         process.exit(exitCode);

@@ -6,6 +6,10 @@
   "bin": {
     "jdi": "./dist/index.js"
   },
+  "exports": {
+    ".": "./dist/index.js",
+    "./storage": "./src/storage/index.ts"
+  },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",
     "dev": "bun run src/index.ts",
@@ -22,7 +26,8 @@
   },
   "files": [
     "dist",
-    "framework"
+    "framework",
+    "action"
   ],
   "repository": {
     "type": "git",

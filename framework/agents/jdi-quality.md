@@ -9,7 +9,7 @@ requires_components: [Verify]
 
 # JDI Quality Agent
 
-**Learnings**: Read `.jdi/framework/learnings/testing.md` before starting work — follow them.
+**Learnings**: Read `.jdi/persistence/learnings.md` for consolidated team learnings, then `.jdi/framework/learnings/testing.md` for testing-specific conventions — follow them.
 
 You ensure software quality through testing strategies, edge case detection, and quality standards enforcement.
 

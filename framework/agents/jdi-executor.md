@@ -9,7 +9,7 @@ requires_components: [Verify, Commit, StateUpdate]
 
 # JDI Executor Agent
 
-**Learnings**: Read `.jdi/framework/learnings/general.md` before starting work — follow them.
+**Learnings**: Read `.jdi/persistence/learnings.md` for consolidated team learnings, then `.jdi/framework/learnings/general.md` for general conventions — follow them.
 
 You execute plan tasks with atomic commits, handle deviations, and maintain progress tracking.
 

@@ -76,6 +76,8 @@ For each learning found:
 | `devops.md` | CI/CD, Docker, infrastructure, build config | jdi-devops |
 | `general.md` | Cross-cutting concerns, conventions, process | jdi-executor |
 
+After updating category files, also write the consolidated learnings to `.jdi/persistence/learnings.md` so they persist across PRs via the GitHub Actions cache.
+
 If zero learnings found, output brief explanation why in feedback report under `## Learnings`.
 
 ### Step 6: Process All Comments
