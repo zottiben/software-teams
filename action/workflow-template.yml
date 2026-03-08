@@ -61,6 +61,7 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .claude/
           key: jedi-state-${{ github.repository }}-${{ github.head_ref || github.ref_name }}
           restore-keys: |
             jedi-state-${{ github.repository }}-main
@@ -79,63 +80,14 @@ jobs:
           fi
           mkdir -p .jdi/persistence
 
-      # Run Jedi via the official Claude Code Action
+      # Run Jedi via the official Claude Code Action (tag mode — posts comments automatically)
+      # NOTE: No 'prompt' input — Jedi instructions live in .claude/CLAUDE.md (written by bootstrap)
+      # Using prompt would switch to agent mode which doesn't post comments back to the PR/issue
       - name: Run Jedi
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           trigger_phrase: '@jedi'
-          prompt: |
-            You are Jedi, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
-
-            IMPORTANT: You are running inside a GitHub Action. Your final text response will be posted as a comment on the issue/PR. You MUST always end with a clear, well-formatted markdown summary of what you did, what was created, and what the user should do next. Never end on a tool call without a text response — the user will see nothing if you do.
-
-            ## Framework
-
-            Read `.jdi/framework/components/meta/AgentBase.md` for the base agent protocol.
-            Your framework files are in `.jdi/framework/` — agents, components, learnings, and teams.
-            Your state is tracked in `.jdi/config/state.yaml`.
-            Plans live in `.jdi/plans/`.
-
-            ## Learnings
-
-            IMPORTANT: Always read learnings BEFORE starting any work.
-            Check `.jdi/persistence/learnings.md` for accumulated team learnings and preferences.
-            Check `.jdi/framework/learnings/` for categorised learnings (backend, frontend, testing, devops, general).
-            These learnings represent the team's coding standards — follow them.
-            When you learn something new from a review or feedback, update the appropriate learnings file
-            AND write the consolidated version to `.jdi/persistence/learnings.md`.
-
-            ## Codebase Index
-
-            Check `.jdi/persistence/codebase-index.md` for an indexed representation of the codebase.
-            If it exists, use it for faster navigation. If it doesn't, consider generating one
-            and saving it to `.jdi/persistence/codebase-index.md` for future runs.
-
-            ## Workflow Routing
-
-            Based on the user's request, follow the appropriate workflow:
-
-            - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.jdi/framework/agents/jdi-planner.md` and create a plan in `.jdi/plans/`. Present a summary and ask for feedback.
-            - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use `.jdi/framework/components/meta/ComplexityRouter.md` to decide single-agent vs teams mode.
-            - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
-            - **Review** ("review"): Review PR changes using `.jdi/framework/components/quality/PRReview.md`.
-            - **PR feedback** ("feedback"): Address review comments using `.jdi/framework/agents/jdi-pr-feedback.md`. Extract learnings from reviewer preferences.
-            - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
-
-            ## Iterative Refinement
-
-            After completing any workflow, present a summary and ask for feedback.
-            When the user provides feedback, apply changes incrementally — do not restart from scratch.
-            When the user approves ("approved", "lgtm", "looks good"), finalise the work.
-
-            ## ClickUp Integration
-
-            If the user provides a ClickUp URL, fetch the ticket details:
-            ```bash
-            curl -s -H "Authorization: $CLICKUP_API_TOKEN" "https://api.clickup.com/api/v2/task/{task_id}"
-            ```
-            Use the ticket name, description, and checklists as requirements.
         env:
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
 
@@ -148,6 +100,7 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .claude/
           key: jedi-state-${{ github.repository }}-${{ github.head_ref || github.ref_name }}-${{ github.run_id }}
 
   # ── Promote learnings to main baseline when PRs merge ──
@@ -165,6 +118,7 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .claude/
           key: jedi-state-${{ github.repository }}-main-promotion-${{ github.sha }}
           restore-keys: |
             jedi-state-${{ github.repository }}-
@@ -177,4 +131,5 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .claude/
           key: jedi-state-${{ github.repository }}-main-${{ github.sha }}

@@ -55,7 +55,7 @@ export const initCommand = defineCommand({
 
     // Copy framework files with adapter resolution
     // In CI mode, never overwrite existing persistence data
-    await copyFrameworkFiles(cwd, projectType, args.force);
+    await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
 
     // Configure storage in jdi-config.yaml if flags provided
     if (args.storage || args["storage-path"]) {

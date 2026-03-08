@@ -5,7 +5,8 @@ import type { ProjectType } from "./detect-project";
 export async function copyFrameworkFiles(
   cwd: string,
   projectType: ProjectType,
-  force: boolean
+  force: boolean,
+  ci: boolean = false,
 ): Promise<void> {
   const frameworkDir = join(import.meta.dir, "../framework");
 
@@ -57,32 +58,69 @@ export async function copyFrameworkFiles(
     await Bun.write(dest, content);
   }
 
-  // Write CLAUDE.md routing if not present
+  // Write CLAUDE.md — CI mode gets full framework instructions, local mode gets skill routing
   const claudeMdPath = join(cwd, ".claude", "CLAUDE.md");
-  const routingHeader = "## JDI Workflow Routing";
-  if (!existsSync(claudeMdPath)) {
-    await Bun.write(claudeMdPath, `${routingHeader}
+  const claudeDir = join(cwd, ".claude");
+  if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });
 
-Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
+  if (ci) {
+    // CI mode: full framework instructions for GitHub Action (no skills available)
+    await Bun.write(claudeMdPath, `# Jedi AI Development Framework
 
-- Plan/ticket analysis → \`/jdi:create-plan\`
-- Implement/build/execute → \`/jdi:implement-plan\`
-- Review PR → \`/jdi:pr-review\`
-- Address PR feedback → \`/jdi:pr-feedback\`
-- Commit changes → \`/jdi:commit\`
-- Generate/create PR → \`/jdi:generate-pr\`
-- Quick/small fix → \`/jdi:quick\`
+You are Jedi, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
 
-Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
+## Framework
+
+Read \`.jdi/framework/components/meta/AgentBase.md\` for the base agent protocol.
+Your framework files are in \`.jdi/framework/\` — agents, components, learnings, and teams.
+Your state is tracked in \`.jdi/config/state.yaml\`.
+Plans live in \`.jdi/plans/\`.
+
+## Learnings
+
+IMPORTANT: Always read learnings BEFORE starting any work.
+Check \`.jdi/persistence/learnings.md\` for accumulated team learnings and preferences.
+Check \`.jdi/framework/learnings/\` for categorised learnings (backend, frontend, testing, devops, general).
+These learnings represent the team's coding standards — follow them.
+When you learn something new from a review or feedback, update the appropriate learnings file
+AND write the consolidated version to \`.jdi/persistence/learnings.md\`.
+
+## Codebase Index
+
+Check \`.jdi/persistence/codebase-index.md\` for an indexed representation of the codebase.
+If it exists, use it for faster navigation. If it doesn't, consider generating one
+and saving it to \`.jdi/persistence/codebase-index.md\` for future runs.
+
+## Workflow Routing
+
+Based on the user's request, follow the appropriate workflow:
+
+- **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read \`.jdi/framework/agents/jdi-planner.md\` and create a plan in \`.jdi/plans/\`. Present a summary and ask for feedback.
+- **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use \`.jdi/framework/components/meta/ComplexityRouter.md\` to decide single-agent vs teams mode.
+- **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
+- **Review** ("review"): Review PR changes using \`.jdi/framework/components/quality/PRReview.md\`.
+- **PR feedback** ("feedback"): Address review comments using \`.jdi/framework/agents/jdi-pr-feedback.md\`. Extract learnings from reviewer preferences.
+- **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
 ## Iterative Refinement
 
-After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
+After completing any workflow, present a summary and ask for feedback.
+When the user provides feedback, apply changes incrementally — do not restart from scratch.
+When the user approves ("approved", "lgtm", "looks good"), finalise the work.
+
+## ClickUp Integration
+
+If the user provides a ClickUp URL, fetch the ticket details:
+\`\`\`bash
+curl -s -H "Authorization: $CLICKUP_API_TOKEN" "https://api.clickup.com/api/v2/task/{task_id}"
+\`\`\`
+Use the ticket name, description, and checklists as requirements.
 `);
   } else {
-    const existing = await Bun.file(claudeMdPath).text();
-    if (!existing.includes(routingHeader)) {
-      await Bun.write(claudeMdPath, existing + "\n" + `${routingHeader}
+    // Local mode: skill routing for Claude Code CLI
+    const routingHeader = "## JDI Workflow Routing";
+    if (!existsSync(claudeMdPath)) {
+      await Bun.write(claudeMdPath, `${routingHeader}
 
 Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
 
@@ -100,6 +138,28 @@ Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" �
 
 After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
 `);
+    } else {
+      const existing = await Bun.file(claudeMdPath).text();
+      if (!existing.includes(routingHeader)) {
+        await Bun.write(claudeMdPath, existing + "\n" + `${routingHeader}
+
+Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
+
+- Plan/ticket analysis → \`/jdi:create-plan\`
+- Implement/build/execute → \`/jdi:implement-plan\`
+- Review PR → \`/jdi:pr-review\`
+- Address PR feedback → \`/jdi:pr-feedback\`
+- Commit changes → \`/jdi:commit\`
+- Generate/create PR → \`/jdi:generate-pr\`
+- Quick/small fix → \`/jdi:quick\`
+
+Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
+
+## Iterative Refinement
+
+After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
+`);
+      }
     }
   }
 }
