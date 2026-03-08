@@ -38,13 +38,19 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    # Bun is required to run the Jedi CLI
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
     # Ensure Jedi framework is initialised in the repo
     - name: Bootstrap Jedi framework
       shell: bash
       run: |
         if [ ! -d ".jdi/framework" ]; then
           echo "Jedi framework not found — initialising..."
-          npx @benzotti/jedi@${{ inputs.jedi_version }} init --ci
+          bunx @benzotti/jedi@${{ inputs.jedi_version }} init --ci
         fi
 
         # Ensure persistence directory exists

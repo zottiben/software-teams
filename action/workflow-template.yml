@@ -65,11 +65,16 @@ jobs:
             jedi-state-${{ github.repository }}-main
             jedi-state-${{ github.repository }}-
 
+      # Bun is required to run the Jedi CLI
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       # Bootstrap Jedi framework if not present (first run or cache miss)
       - name: Bootstrap Jedi
         run: |
           if [ ! -d ".jdi/framework" ]; then
-            npx @benzotti/jedi@latest init --ci
+            bunx @benzotti/jedi@latest init --ci
           fi
           mkdir -p .jdi/persistence
 
