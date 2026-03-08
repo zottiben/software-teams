@@ -80,6 +80,13 @@ jobs:
           fi
           mkdir -p .jdi/persistence
 
+          # Exclude Jedi working directories from git so they don't get committed
+          # or conflict with branch checkouts — they live in the cache only
+          mkdir -p .git/info
+          for pattern in '.jdi/' '.claude/'; do
+            grep -qxF "$pattern" .git/info/exclude 2>/dev/null || echo "$pattern" >> .git/info/exclude
+          done
+
       # Run Jedi via the official Claude Code Action (tag mode — posts comments automatically)
       # NOTE: No 'prompt' input — Jedi instructions live in .claude/CLAUDE.md (written by bootstrap)
       # Using prompt would switch to agent mode which doesn't post comments back to the PR/issue

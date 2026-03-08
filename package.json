@@ -1,6 +1,6 @@
 {
   "name": "@benzotti/jedi",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "JDI - Context-efficient AI development framework for Claude Code",
   "type": "module",
   "bin": {
