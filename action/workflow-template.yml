@@ -53,9 +53,9 @@ jobs:
 
       # Restore persisted Jedi state (learnings + codebase-index)
       # 1. Exact match for this branch
-      # 2. Fall back to main baseline (accumulated from all merged PRs)
-      # 3. Fall back to any branch prefix match
+      # 2. Fall back to main baseline (learnings only — plans are cleared below)
       - name: Restore Jedi state
+        id: cache
         uses: actions/cache@v4
         with:
           path: |
@@ -66,7 +66,6 @@ jobs:
           key: jedi-state-${{ github.repository }}-${{ github.head_ref || github.ref_name }}
           restore-keys: |
             jedi-state-${{ github.repository }}-main
-            jedi-state-${{ github.repository }}-
 
       # Bun is required to run the Jedi CLI
       - uses: oven-sh/setup-bun@v2
@@ -80,6 +79,15 @@ jobs:
             bunx @benzotti/jedi@latest init --ci
           fi
           mkdir -p .jdi/persistence
+
+          # If cache was restored from fallback (not exact branch match),
+          # clear plans and state — they're branch-local, only learnings carry forward
+          if [ "${{ steps.cache.outputs.cache-hit }}" != "true" ]; then
+            echo "Cache miss or fallback — clearing plan state"
+            rm -rf .jdi/plans/*
+            mkdir -p .jdi/config
+            printf 'active_plan: null\ncurrent_wave: null\nmode: null\n' > .jdi/config/state.yaml
+          fi
 
           # Exclude Jedi working directories from git so they don't get committed
           # or conflict with branch checkouts — they live in the cache only
