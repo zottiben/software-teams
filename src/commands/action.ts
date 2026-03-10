@@ -307,9 +307,13 @@ export const actionCommand = defineCommand({
         `## Instructions`,
         `Review the previous conversation above. The user is iterating on work Jedi already started.`,
         ``,
+        `IMPORTANT: Always be conversational. If the user asks a question, ANSWER IT FIRST before taking any action.`,
+        `Explain your reasoning, then describe what you'll do (if anything), then do it.`,
+        `Never silently make changes without explaining why.`,
+        ``,
+        `- If the feedback is a **question** ("why did you...", "what about...", "can you explain..."), answer it conversationally first. If the answer implies a change is needed, explain that and then apply it.`,
         `- If the feedback is an **approval** ("approved", "lgtm", "looks good", "ship it"), finalise the current work — create commits and/or a PR as appropriate.`,
-        `- If the feedback is a **refinement** ("change task 2", "use a different approach", "add error handling"), apply the requested changes to the existing plan or implementation. Present an updated summary when done.`,
-        `- If the feedback is a **question**, answer it with full context from the conversation.`,
+        `- If the feedback is a **refinement** ("change task 2", "use a different approach", "add error handling"), explain what you're changing and why, then apply the changes. Present an updated summary when done.`,
         ``,
         `Read state.yaml and any existing plan files to understand what was previously done. Apply changes incrementally — do not restart from scratch.`,
       ].join("\n");
@@ -337,7 +341,16 @@ export const actionCommand = defineCommand({
               ? `\nUse the ClickUp ticket above as the primary requirements source.`
               : ``,
             ``,
-            `Follow the planning workflow in your spec. Present the plan summary when complete and ask for feedback. The user will respond via another GitHub comment.`,
+            `Follow the planning workflow in your spec. When presenting the plan:`,
+            `1. Start with a brief summary of the approach`,
+            `2. Include the FULL plan in a collapsible details block using this format:`,
+            `   <details>`,
+            `   <summary>View full plan</summary>`,
+            `   `,
+            `   [full plan content here as markdown]`,
+            `   `,
+            `   </details>`,
+            `3. Ask for feedback. The user will respond via another GitHub comment.`,
           ].join("\n");
           break;
 
