@@ -341,6 +341,14 @@ export const actionCommand = defineCommand({
               ? `\nUse the ClickUp ticket above as the primary requirements source.`
               : ``,
             ``,
+            `## Scope Rules`,
+            `IMPORTANT: Only plan what was explicitly requested. Do NOT add extras like testing, linting, formatting, CI, or tooling unless the user asked for them.`,
+            `If something is ambiguous, ask — do not guess.`,
+            ``,
+            `## Learnings`,
+            `Before planning, read .jdi/persistence/learnings.md and .jdi/framework/learnings/ if they exist. Apply any team preferences found.`,
+            ``,
+            `## Presentation`,
             `Follow the planning workflow in your spec. When presenting the plan:`,
             `1. Start with a brief summary of the approach`,
             `2. Include the FULL plan in a collapsible details block using this format:`,
@@ -350,7 +358,8 @@ export const actionCommand = defineCommand({
             `   [full plan content here as markdown]`,
             `   `,
             `   </details>`,
-            `3. Ask for feedback. The user will respond via another GitHub comment.`,
+            `3. After the plan, suggest 3-5 optional additions the user might want (e.g. "Would you also like testing? linting? state management?"). These are NOT part of the plan.`,
+            `4. Ask for feedback. The user will respond via another GitHub comment.`,
           ].join("\n");
           break;
 
