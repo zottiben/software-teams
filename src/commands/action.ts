@@ -313,7 +313,7 @@ export const actionCommand = defineCommand({
         `Never silently make changes without explaining why.`,
         ``,
         `- If the feedback is a **question** ("why did you...", "what about...", "can you explain..."), answer it conversationally first. If the answer implies a change is needed, explain that and then apply it.`,
-        `- If the feedback is an **approval** ("approved", "lgtm", "looks good", "ship it"), finalise the current work — create commits and/or a PR as appropriate.`,
+        `- If the feedback is an **approval** ("approved", "lgtm", "looks good", "ship it"), finalise the current work — commit all outstanding changes and push to the current branch. Do NOT ask — just do it.`,
         `- If the feedback is a **refinement** ("change task 2", "use a different approach", "add error handling"), explain what you're changing and why, then apply the changes. Present an updated summary with the full updated plan in a collapsible block:`,
         `   <details>`,
         `   <summary>View full plan</summary>`,
@@ -409,7 +409,15 @@ export const actionCommand = defineCommand({
             historyBlock,
             `## Task`,
             `Execute the current implementation plan. Read state.yaml for the active plan path.`,
-            `Follow the implement-plan orchestration. Present a summary when complete and ask for feedback.`,
+            `Follow the implement-plan orchestration.`,
+            ``,
+            `## Auto-Commit`,
+            `You are running inside a GitHub Action on a PR branch. After implementing all changes:`,
+            `1. Stage all changed files with \`git add\` (only files you changed — NOT .jdi/ or .claude/)`,
+            `2. Commit with a conventional commit message (e.g. "feat: implement X")`,
+            `3. Push to the current branch with \`git push\``,
+            `Do NOT ask the user — just commit and push. The user will review the PR diff directly.`,
+            `Present a summary of what was implemented and committed.`,
           ].join("\n");
           break;
 
@@ -421,7 +429,14 @@ export const actionCommand = defineCommand({
             historyBlock,
             `## Task`,
             `Make this quick change: ${intent.description}`,
-            `Keep changes minimal and focused. Commit when done. Present what you changed.`,
+            `Keep changes minimal and focused.`,
+            ``,
+            `## Auto-Commit`,
+            `You are running inside a GitHub Action on a PR branch. After making changes:`,
+            `1. Stage all changed files with \`git add\` (only files you changed — NOT .jdi/ or .claude/)`,
+            `2. Commit with a conventional commit message`,
+            `3. Push to the current branch with \`git push\``,
+            `Do NOT ask the user — just commit and push. Present what you changed.`,
           ].join("\n");
           break;
 
@@ -485,7 +500,14 @@ export const actionCommand = defineCommand({
           ``,
           `## Task`,
           `Execute the most recently created implementation plan in .jdi/plans/.`,
-          `Follow the implement-plan orchestration. Present a summary when complete.`,
+          `Follow the implement-plan orchestration.`,
+          ``,
+          `## Auto-Commit`,
+          `You are running inside a GitHub Action on a PR branch. After implementing all changes:`,
+          `1. Stage all changed files with \`git add\` (only files you changed — NOT .jdi/ or .claude/)`,
+          `2. Commit with a conventional commit message (e.g. "feat: implement X")`,
+          `3. Push to the current branch with \`git push\``,
+          `Do NOT ask the user — just commit and push. Present a summary of what was implemented and committed.`,
         ].join("\n");
 
         const implResult = await spawnClaude(implementPrompt, {

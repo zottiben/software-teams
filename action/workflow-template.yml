@@ -96,6 +96,12 @@ jobs:
             grep -qxF "$pattern" .git/info/exclude 2>/dev/null || echo "$pattern" >> .git/info/exclude
           done
 
+      # Configure git for Jedi commits (used when implementing changes on PR branches)
+      - name: Configure git
+        run: |
+          git config user.name "jedi[bot]"
+          git config user.email "jedi[bot]@users.noreply.github.com"
+
       # Install Claude Code CLI (required by Jedi for AI invocations)
       - name: Install Claude Code
         run: bun install -g @anthropic-ai/claude-code

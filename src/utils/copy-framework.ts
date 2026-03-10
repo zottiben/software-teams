@@ -116,11 +116,19 @@ Based on the user's request, follow the appropriate workflow:
 - **PR feedback** ("feedback"): Address review comments using \`.jdi/framework/agents/jdi-pr-feedback.md\`. Extract learnings from reviewer preferences.
 - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
+## Auto-Commit (CI Mode)
+
+You are running inside a GitHub Action on a PR branch. After implementing or making changes:
+1. Stage all changed files with \`git add\` (only files you changed — NOT .jdi/ or .claude/)
+2. Commit with a conventional commit message (e.g. "feat: implement X")
+3. Push to the current branch with \`git push\`
+Do NOT ask the user whether to commit — just do it. The user will review the PR diff directly.
+
 ## Iterative Refinement
 
 After completing any workflow, present a summary and ask for feedback.
 When the user provides feedback, apply changes incrementally — do not restart from scratch.
-When the user approves ("approved", "lgtm", "looks good"), finalise the work.
+When the user approves ("approved", "lgtm", "looks good"), finalise the work — commit and push all outstanding changes.
 
 ## ClickUp Integration
 
