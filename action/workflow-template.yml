@@ -82,6 +82,7 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .jdi/plans/
             .claude/
           key: jedi-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
           restore-keys: |
@@ -165,6 +166,7 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .jdi/plans/
             .claude/
           key: jedi-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
 
@@ -183,6 +185,7 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .jdi/plans/
             .claude/
           key: jedi-state-${{ github.repository }}-main-promotion-${{ github.sha }}
           restore-keys: |
@@ -196,5 +199,6 @@ jobs:
             .jdi/persistence/
             .jdi/framework/
             .jdi/config/
+            .jdi/plans/
             .claude/
           key: jedi-state-${{ github.repository }}-main-${{ github.sha }}
