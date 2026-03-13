@@ -10,7 +10,7 @@ import { extractClickUpId, fetchClickUpTicket, formatTicketAsContext } from "../
 import { checkAuthorization } from "../utils/auth";
 import { sanitizeUserInput, fenceUserInput } from "../utils/sanitize";
 import { readState, writeState } from "../utils/state";
-import { applyDryRunMode } from "../utils/prompt-builder";
+import { applyDryRunMode, buildLearningsBlock } from "../utils/prompt-builder";
 import { runQualityGates } from "../utils/verify";
 import { formatVerificationResults } from "../utils/github";
 import {
@@ -366,6 +366,8 @@ export const actionCommand = defineCommand({
         ``,
         ...contextLines,
         ``,
+        ...buildLearningsBlock(techStack),
+        ``,
         fenceUserInput("conversation-history", conversationHistory),
         ``,
         `## Feedback on Implementation`,
@@ -497,6 +499,8 @@ export const actionCommand = defineCommand({
             `Read ${resolve(cwd, ".jdi/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
             ``,
             ...contextLines,
+            ``,
+            ...buildLearningsBlock(techStack),
             historyBlock,
             `## Task`,
             `Execute the current implementation plan. Read state.yaml for the active plan path.`,
@@ -517,6 +521,8 @@ export const actionCommand = defineCommand({
             `Read ${baseProtocol} for the base agent protocol.`,
             ``,
             ...contextLines,
+            ``,
+            ...buildLearningsBlock(techStack),
             historyBlock,
             `## Task`,
             `Make this quick change:`,
@@ -596,6 +602,8 @@ export const actionCommand = defineCommand({
           `Read ${resolve(cwd, ".jdi/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
           ``,
           ...contextLines,
+          ``,
+          ...buildLearningsBlock(techStack),
           ``,
           `## Task`,
           `Execute the most recently created implementation plan in .jdi/plans/.`,

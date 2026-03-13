@@ -84,6 +84,28 @@ export function buildAutoCommitBlock(commitType: "feat" | "fix" | "any"): string
   ];
 }
 
+/**
+ * Build tech-stack-aware learnings instructions.
+ * Maps tech stack keywords to the relevant learnings files.
+ * Always includes general.md; domain files added based on stack.
+ */
+export function buildLearningsBlock(techStack: string): string[] {
+  const lower = techStack.toLowerCase();
+  const base = ".jdi/framework/learnings";
+  const files = [`${base}/general.md`];
+
+  if (/php|laravel/.test(lower)) files.push(`${base}/backend.md`);
+  if (/react|typescript|\.ts|frontend|vite/.test(lower)) files.push(`${base}/frontend.md`);
+  if (/test|vitest|pest/.test(lower)) files.push(`${base}/testing.md`);
+  if (/docker|ci|deploy/.test(lower)) files.push(`${base}/devops.md`);
+
+  return [
+    `## Learnings`,
+    `Read these learnings files and follow any conventions found (learnings override defaults):`,
+    ...files.map((f) => `- ${f}`),
+  ];
+}
+
 function agentPaths(cwd: string) {
   return {
     baseProtocol: resolve(cwd, ".jdi/framework/components/meta/AgentBase.md"),
@@ -117,6 +139,8 @@ export function buildImplementPrompt(ctx: PromptContext, planPath: string, overr
     ``,
     ...buildProjectContext(ctx),
     ``,
+    ...buildLearningsBlock(ctx.techStack),
+    ``,
     `## Task`,
     `Execute implementation plan: ${resolve(ctx.cwd, planPath)}${overrideFlag ? `\nOverride: ${overrideFlag}` : ""}`,
     ``,
@@ -148,6 +172,8 @@ export function buildQuickPrompt(ctx: PromptContext, description: string): strin
     `## Context`,
     `- Working directory: ${ctx.cwd}`,
     `- Project type: ${ctx.projectType}`,
+    ``,
+    ...buildLearningsBlock(ctx.techStack),
     ``,
     `## Instructions`,
     `1. Make the minimal change needed to accomplish the task`,
@@ -240,6 +266,8 @@ export function buildPostImplFeedbackPrompt(ctx: PromptContext, feedback: string
     `Read ${baseProtocol} for the base agent protocol.`,
     ``,
     ...buildProjectContext(ctx),
+    ``,
+    ...buildLearningsBlock(ctx.techStack),
     ``,
     fenceUserInput("conversation-history", conversationHistory),
     ``,
