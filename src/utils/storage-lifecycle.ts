@@ -40,6 +40,16 @@ export async function loadPersistedState(
     learningsPath = dir;
   }
 
+  // Final fallback: check if learnings already exist on disk (e.g. committed to repo).
+  // This handles the case where cache has been evicted but learnings were persisted via git.
+  if (!learningsPath && existsSync(dir)) {
+    const { readdirSync } = await import("fs");
+    const files = readdirSync(dir).filter((f) => f.endsWith(".md"));
+    if (files.length > 0) {
+      learningsPath = dir;
+    }
+  }
+
   const codebaseIndex = await storage.load("codebase-index");
   if (codebaseIndex) {
     const cbDir = join(cwd, ".jdi", "codebase");

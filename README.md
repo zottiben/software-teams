@@ -1,13 +1,6 @@
-```
-     ██╗███████╗██████╗ ██╗
-     ██║██╔════╝██╔══██╗██║
-     ██║█████╗  ██║  ██║██║
-██   ██║██╔══╝  ██║  ██║██║
-╚█████╔╝███████╗██████╔╝██║
- ╚════╝ ╚══════╝╚═════╝ ╚═╝
-```
+# Jedi
 
-**Context-efficient AI development framework for Claude Code.**
+**Multi-agent development framework for Claude Code — plan, implement, review, and ship with specialist agents and minimal token overhead.**
 
 [![npm version](https://img.shields.io/npm/v/@benzotti/jedi)](https://www.npmjs.com/package/@benzotti/jedi) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
