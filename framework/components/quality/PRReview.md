@@ -74,9 +74,20 @@ If context provided:
 
 Read each changed file in its entirety (not just the diff). **NEVER** use limit/offset.
 
+### Step 5b: Cross-Reference Learnings (MANDATORY)
+
+If learnings files were loaded (via the command stub or agent prompt), cross-reference every changed file against the team's learnings:
+
+1. For each finding from the review checklist, check if a learning exists that addresses it — cite the learning in your comment.
+2. Flag any code that **violates** a documented learning (e.g. a learning says "always use path aliases" but the PR uses relative imports).
+3. **Praise** code that follows learnings the team has documented — this reinforces good patterns.
+4. If no learnings were loaded, skip this step (but note it in your review summary as a gap).
+
+Learnings-based findings should use the same severity classification as other findings. A violation of a documented team convention is at minimum a **minor** finding.
+
 ### Step 6: Perform Code Review
 
-Apply <JDI:PRReview:Checklist /> to analyse each change.
+Apply <JDI:PRReview:Checklist /> to analyse each change. Include learnings violations alongside standard checklist findings.
 
 ### Step 7: Categorise Findings (Internal)
 

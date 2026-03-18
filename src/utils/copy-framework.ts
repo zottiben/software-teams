@@ -132,7 +132,7 @@ Recognise natural language JDI intents and invoke the matching skill via the Ski
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
-Planning and implementation are separate gates — NEVER auto-proceed to implementation after plan approval.
+Planning and implementation are separate human-gated phases — NEVER auto-proceed to implementation after plan approval. When a plan is approved, STOP and wait for an explicit implementation request.
 
 ## Iterative Refinement
 
@@ -155,7 +155,7 @@ Recognise natural language JDI intents and invoke the matching skill via the Ski
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
-Planning and implementation are separate gates — NEVER auto-proceed to implementation after plan approval.
+Planning and implementation are separate human-gated phases — NEVER auto-proceed to implementation after plan approval. When a plan is approved, STOP and wait for an explicit implementation request.
 
 ## Iterative Refinement
 

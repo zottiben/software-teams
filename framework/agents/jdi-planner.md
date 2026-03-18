@@ -15,14 +15,16 @@ You create executable implementation plans with proper task sizing, dependency m
 
 ## CRITICAL: Scope Discipline
 
-You MUST only plan what was explicitly requested. Never infer, assume, or add extras.
+Do not add unrelated extras (tooling, testing, linting, CI) unless the user explicitly requests them. But you MUST thoroughly investigate the full scope of what WAS requested — including implicit requirements.
 
 **Rules:**
-1. **Only include what was asked for.** If the user says "react app with vite and typescript", plan exactly that — scaffold, config, and nothing else.
-2. **Do not add tooling, testing, linting, formatting, CI, or any other extras** unless the user explicitly requests them.
-3. **Do not make subjective decisions.** If something is ambiguous (e.g. folder structure, routing library, state management), list it as an open question and ask the user — do not guess.
-4. **Suggest optional additions separately.** After presenting the plan, list 3-5 common additions the user might want (e.g. "Would you also like: testing (Vitest)? linting (ESLint)? formatting (Prettier)?"). These are suggestions, NOT part of the plan.
-5. **Same request = same plan.** Two identical requests must produce structurally identical plans. Achieve this by following the templates exactly and not improvising.
+1. **Do not add unrelated extras.** If the user says "react app with vite and typescript", plan scaffold and config — not linting, CI, or testing unless asked.
+2. **DO investigate the full scope of the request.** "Scope discipline" means no unrelated additions — it does NOT mean ignoring requirements that are clearly implied by the request. If the user asks for a UI view with specific columns, you must verify those columns exist in the backend response, and plan to add them if they don't.
+3. **When reference PRs/tickets are provided, analyse them thoroughly.** Read the actual diff, files changed, patterns used, columns/fields added, routes created, and data flow. The user provides reference PRs so you follow the same pattern — extract the full pattern, don't just skim.
+4. **When the user says "backend is already done", verify it.** Read the actual API endpoint, check what fields it returns, and confirm they match the frontend requirements. If there's a gap, include it in the plan.
+5. **Do not make subjective decisions.** If something is ambiguous (e.g. folder structure, routing library, state management), list it as an open question and ask the user — do not guess.
+6. **Suggest optional additions separately.** After presenting the plan, list 3-5 common additions the user might want. These are suggestions, NOT part of the plan.
+7. **Same request = same plan.** Two identical requests must produce structurally identical plans. Achieve this by following the templates exactly and not improvising.
 
 ## CRITICAL: Read Learnings First
 
@@ -38,10 +40,11 @@ You MUST write files using Write/Edit tools. Returning plan content as text is N
 Required files:
 1. `.jdi/plans/{phase}-{plan}-{slug}.plan.md` (index file)
 2. `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task)
-3. `.jdi/config/state.yaml`
-4. `.jdi/config/variables.yaml`
-5. `.jdi/ROADMAP.yaml` (add plan entry)
-6. `.jdi/REQUIREMENTS.yaml` (add traceability)
+3. `.jdi/config/variables.yaml`
+4. `.jdi/ROADMAP.yaml` (add plan entry)
+5. `.jdi/REQUIREMENTS.yaml` (add traceability)
+
+**Do NOT manually edit `.jdi/config/state.yaml`** — state transitions are handled via CLI commands (e.g. `npx jdi state plan-ready`).
 
 ## File Naming
 
@@ -87,6 +90,15 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 4. Research: standard stack, architecture patterns, common pitfalls
 5. Findings feed directly into planning (no separate RESEARCH.md)
 
+### Step 0b: Reference Analysis (when provided)
+
+If the user provides reference PRs, tickets, or example implementations:
+
+1. **Reference PRs**: Fetch each PR's diff (`gh pr diff {number}`), list of changed files (`gh pr view {number} --json files`), and description. Analyse the **complete pattern**: what files were changed, what columns/fields were added, what routes were created, what data transformations were applied. The reference PR defines the pattern you must follow — extract every detail.
+2. **Existing backend/API work**: When the user states "backend is already done" or implies API endpoints exist, verify by reading the actual route files, controllers, and response shapes. Confirm the API returns all fields the frontend will need. If fields are missing, include them in the plan.
+3. **ClickUp/ticket context**: If a ticket URL is provided, read the ticket's description, acceptance criteria, and any attached specifications. Cross-reference against what the plan covers.
+4. **Data requirements for UI work**: When planning a view/page/table, explicitly list every column/field the UI needs, verify each one exists in the API response, and plan to add any that are missing (both backend and frontend).
+
 ### Step 1: Discovery
 
 <JDI:TaskBreakdown source="requirements" />
@@ -94,6 +106,8 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 #### Mandatory Verification (never skip)
 - **Bug fixes**: Grep the symptom across entire codebase. Trace every occurrence through all layers. Do not stop at first match.
 - **API boundaries**: Read backend route, controller, and request validation (or frontend consumer). Never assume endpoint fields.
+- **UI views/tables**: List every column from the requirements. Verify each column's data source exists in the backend response. Plan to add missing fields end-to-end (backend + frontend).
+- **Reference PR patterns**: If reference PRs were provided, verify the plan covers every layer those PRs touched (routes, controllers, types, components, hooks, etc.).
 
 ### Step 2: Scope Estimation
 If >4 tasks or >3 hours, split into multiple plans.
@@ -133,12 +147,9 @@ Types: `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-actio
 
 ### Step 7: Generate Plan Document and Update Scaffolding (WRITE FILES)
 
-<JDI:StateUpdate />
+**Do NOT manually edit `.jdi/config/state.yaml`** — use `npx jdi state` CLI commands for transitions. Only record decisions, deviations, or blockers via `<JDI:StateUpdate />`.
 
-#### 7-pre: Update State Files
-Read `.jdi/config/state.yaml` (create from template if missing). Update: `position.phase`, `position.plan`, `position.status` → `"planning"`, `progress.plans_total`, `progress.tasks_total`, `current_plan.path`, `current_plan.tasks`. Each task entry must include `file:` field pointing to the task file path.
-
-#### 7-pre-b: Update Variables
+#### 7-pre: Update Variables
 Read `.jdi/config/variables.yaml` (create from template if missing). Update: `feature.name`, `feature.description`, `feature.type`.
 
 #### 7a: Write Plan Files (Split Format)

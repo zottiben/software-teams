@@ -3,7 +3,7 @@ import { consola } from "consola";
 import { resolve } from "path";
 import { exec } from "../utils/git";
 import { spawnClaude } from "../utils/claude";
-import { buildReviewPrompt } from "../utils/prompt-builder";
+import { buildReviewPrompt, gatherPromptContext } from "../utils/prompt-builder";
 
 export const reviewCommand = defineCommand({
   meta: {
@@ -62,8 +62,9 @@ export const reviewCommand = defineCommand({
       }
     }
 
+    const ctx = await gatherPromptContext(process.cwd());
     const prompt = buildReviewPrompt(
-      { cwd: process.cwd(), projectType: "", techStack: "", qualityGates: "", learningsPath: null, codebaseIndexPath: null, adapter: null },
+      ctx,
       String(prNum),
       meta,
       diffResult.stdout,

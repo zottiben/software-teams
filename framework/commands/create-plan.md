@@ -22,10 +22,16 @@ Create an implementation plan using a single planner agent (includes research).
 4. Quick Mode Detection — suggest /jdi:quick for trivial tasks
 5. Spawn `jdi-planner` agent (subagent_type="general-purpose") — creates PLAN.md with tasks, deps, waves
 6. Collect and execute deferred ops
-7. Update state.yaml: status → `"plan_ready"`, worktree state if active
-8. Initialise review: `review.status` → `"draft"`, `review.revision` → 1, `review.scope` → `"plan"`
-9. **Present summary** (name, objective, task table, files) then ask: _"Provide feedback to refine, or say **approved** to finalise."_
-10. **Review loop**: approval → update state to `"approved"`, confirm. Feedback → revise plan in-place, increment revision, re-present summary. Repeat until approved. This is natural conversation — no separate command needed.
+7. **Update state via CLI** — do NOT manually edit state.yaml. Run:
+   ```bash
+   npx jdi state plan-ready --plan-path ".jdi/plans/{plan-file}" --plan-name "{plan name}"
+   ```
+8. **Present summary** (name, objective, task table, files) then ask: _"Provide feedback to refine, or say **approved** to finalise."_
+9. **Review loop**: Feedback → revise plan in-place, increment revision, re-present summary. Repeat until approved. Approval → run `npx jdi state approved`, then **STOP**.
+
+## HARD STOP — Planning Gate
+
+After the user approves the plan, your work is **DONE**. Output: _"Plan approved and finalised. Run `/jdi:implement-plan` when ready to execute."_ Then **STOP completely**. Do NOT invoke `/jdi:implement-plan`, do NOT spawn implementation agents, do NOT begin writing source code. Planning and implementation are separate human-gated phases.
 
 Agent base (read FIRST for cache): .jdi/framework/components/meta/AgentBase.md | Agent spec: .jdi/framework/agents/jdi-planner.md
 

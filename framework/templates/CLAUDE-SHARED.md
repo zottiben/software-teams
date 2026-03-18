@@ -30,13 +30,27 @@ When you learn something new from a review or feedback, update the appropriate c
 
 ## Scope Discipline
 
-Only do what was explicitly requested. Do not add extras, tooling, or features the user did not ask for.
+Do not add unrelated extras, tooling, or features the user did not ask for. But DO investigate the full scope of what was requested — including implicit requirements that are clearly part of the ask (e.g. if a UI view needs columns, verify the backend provides them).
 If something is ambiguous, ask — do not guess.
 NEVER use time estimates (minutes, hours, etc). Use S/M/L t-shirt sizing for all task and plan sizing.
 Follow response templates exactly as instructed in the prompt — do not improvise the layout or structure.
 
-## Approval Gate
+## Approval Gate — HARD STOP
 
-Planning and implementation are separate gates — NEVER auto-proceed to implementation after planning or plan refinement.
-When the user provides refinement feedback on a plan, ONLY update the plan files in `.jdi/plans/`. Do NOT implement code.
-Implementation only happens when the user explicitly approves ("approved", "lgtm", "looks good", "ship it") or explicitly requests implementation ("implement", "build", "execute").
+Planning and implementation are **separate human-gated phases**. NEVER auto-proceed to implementation after planning or plan refinement.
+
+- When the user says "approved" / "lgtm" / "looks good" to a **plan**: this means the plan is finalised. It does NOT mean "go implement it." Finalise the plan review, output _"Plan approved. Run `/jdi:implement-plan` when ready."_, then **STOP**.
+- When the user provides refinement feedback on a plan, ONLY update the plan files in `.jdi/plans/`. Do NOT implement code.
+- Implementation ONLY happens when the user explicitly requests it: "implement", "build", "execute", or `/jdi:implement-plan`.
+
+## State Management
+
+Do NOT manually edit `.jdi/config/state.yaml` for status transitions. Use the CLI instead:
+
+- `npx jdi state plan-ready --plan-path "{path}" --plan-name "{name}"` — after plan creation
+- `npx jdi state approved` — after plan approval
+- `npx jdi state executing` — before implementation starts
+- `npx jdi state complete` — after implementation finishes
+- `npx jdi state advance-task {task-id}` — after each task completes
+
+You may only append to `decisions`, `deviations`, or `blockers` arrays in state.yaml directly via `<JDI:StateUpdate />`.

@@ -6,7 +6,13 @@ description: Record decisions, deviations, and blockers in state.yaml
 
 # StateUpdate
 
-> **Status transitions are handled by the TypeScript framework.** Do NOT update `position`, `progress`, `current_plan`, `review`, or `session` fields in state.yaml — the CLI manages these automatically.
+> **Status transitions are handled via CLI commands.** Do NOT manually edit `position`, `progress`, `current_plan`, `review`, or `session` fields in state.yaml. Use these commands instead:
+>
+> - `npx jdi state plan-ready --plan-path "{path}" --plan-name "{name}"`
+> - `npx jdi state approved`
+> - `npx jdi state executing`
+> - `npx jdi state complete`
+> - `npx jdi state advance-task {task-id}`
 
 Use state.yaml ONLY to record decisions, deviations, or blockers:
 

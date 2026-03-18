@@ -15,18 +15,18 @@ Execute a PLAN.md with complexity-based routing.
 
 1. Read codebase context (`.jdi/codebase/SUMMARY.md` if exists)
 2. Read plan index file and state.yaml — parse frontmatter for tasks, deps, waves, tech_stack
-3. **Format detection:** If frontmatter contains `task_files:`, this is a split plan — task details are in separate files. If absent, legacy monolithic plan — all tasks inline.
-4. **Complexity routing** (`<JDI:ComplexityRouter />`): Simple (≤3 tasks, single stack/wave) → single agent. Complex → Agent Teams swarm. Override: `--team` / `--single`
-5. **Tech routing**: PHP → jdi-backend | TS/React → jdi-frontend | Full-stack → both
-6. Execute:
+3. **Read learnings:** Always read `.jdi/framework/learnings/general.md`. Then read domain-specific learnings based on tech_stack from plan frontmatter: PHP → `backend.md`, TS/React → `frontend.md`. Follow any conventions found — learnings override defaults.
+4. **Format detection:** If frontmatter contains `task_files:`, this is a split plan — task details are in separate files. If absent, legacy monolithic plan — all tasks inline.
+5. **Complexity routing** (`<JDI:ComplexityRouter />`): Simple (≤3 tasks, single stack/wave) → single agent. Complex → Agent Teams swarm. Override: `--team` / `--single`
+6. **Tech routing**: PHP → jdi-backend | TS/React → jdi-frontend | Full-stack → both
+7. Execute:
    - **Single agent:** Pass `PLAN: {index-path}`. For split plans, agent reads task files one at a time via `file:` field in state.yaml.
    - **Agent Teams:** For split plans, pass `TASK_FILE: {task-file-path}` in each agent's spawn prompt so they load only their assigned task file(s). For legacy plans, pass `PLAN: {plan-path}` as before.
-7. Collect and execute deferred ops (files, commits)
-8. Run verification (tests, lint, typecheck)
-9. Cleanup → update state
-10. Initialise review: `review.status` → `"draft"`, `review.revision` → 1, `review.scope` → `"implementation"`
+8. Collect and execute deferred ops (files, commits)
+9. Run verification (tests, lint, typecheck)
+10. **Update state via CLI** — do NOT manually edit state.yaml. Run `npx jdi state executing` before execution and `npx jdi state complete` after. Use `npx jdi state advance-task {task-id}` after each task completes.
 11. **Present summary** (tasks completed, files changed, verification results, deviations) then ask: _"Provide feedback to adjust, or say **approved** to finalise."_
-12. **Review loop**: approval → update state to `"complete"`, suggest commit/PR. Feedback → apply code changes, run tests, increment revision, re-present. Repeat until approved. Natural conversation — no separate command needed.
+12. **Review loop**: Feedback → apply code changes, run tests, increment revision, re-present. Approval → suggest commit/PR. Natural conversation — no separate command needed.
 
 Agent base (read FIRST for cache): .jdi/framework/components/meta/AgentBase.md | Agent specs: .jdi/framework/agents/jdi-backend.md, .jdi/framework/agents/jdi-frontend.md
 Orchestration: .jdi/framework/components/meta/AgentTeamsOrchestration.md | Routing: .jdi/framework/components/meta/ComplexityRouter.md

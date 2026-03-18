@@ -16,6 +16,7 @@ import { planReviewCommand } from "./commands/plan-review";
 import { planApproveCommand } from "./commands/plan-approve";
 import { actionCommand } from "./commands/action";
 import { setupActionCommand } from "./commands/setup-action";
+import { stateCommand } from "./commands/state";
 import pkg from "../package.json";
 
 const main = defineCommand({
@@ -41,6 +42,7 @@ const main = defineCommand({
     "plan-approve": planApproveCommand,
     action: actionCommand,
     "setup-action": setupActionCommand,
+    state: stateCommand,
   },
 });
 
