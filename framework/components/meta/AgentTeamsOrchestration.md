@@ -11,7 +11,7 @@ description: Agent Teams orchestration quick-reference
 1. **Pre-flight** — Read command spec, `<JDI:CodebaseContext />`, read state.yaml, set status to "executing". Read each task file's `agent:` frontmatter field so you know which specialist to spawn per task (see `.jdi/framework/components/meta/AgentRouter.md`).
 2. **Create Team** — `TeamCreate(team_name: "{team-name}")`
 3. **Create Tasks** — TaskCreate per work unit, set `addBlockedBy` dependencies
-4. **Spawn Teammates** — Task tool with `subagent_type: "{task.agent}"` (the pin from the task file frontmatter — e.g. `unity-ui-specialist`, `gameplay-programmer`). Never hardcode `general-purpose` when a pin exists. Verify the pinned agent is installed before spawning; if not, downgrade to `general-purpose` and record `agent_downgrade:` in the summary. Include in prompt: agent spec path, team context, task assignments.
+4. **Spawn Teammates** — Task tool with `subagent_type: "{task.agent}"` (the pin from the task file frontmatter — e.g. `unity-ui-specialist`, `gameplay-programmer`). Never hardcode `general-purpose` when a pin exists. Verify the pinned agent is installed before spawning; if not, downgrade to `general-purpose` and record `agent_downgrade:` in the summary. Include in prompt: agent spec path, team context, task assignments. **Scope tightly** — one task per spawn, exact file targets, capped exploration, short reports (<400 words). See `AgentBase.md` § Budget Discipline.
 5. **Coordinate** — Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
 6. **Cleanup** — shutdown_request to all → TeamDelete → set status "complete" → report (include which specialist ran which task and any downgrade events)
 

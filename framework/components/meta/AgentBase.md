@@ -11,6 +11,19 @@ Standards inherited by all JDI agents via `<JDI:AgentBase />`. Default loads Cor
 - Batch file reads: issue all Read calls in a single turn rather than sequentially.
 - Batch git operations: combine related commands into a single Bash call where possible.
 
+## Budget Discipline
+
+You have a finite per-invocation budget (tokens, tool calls, wall time). Long runs can be terminated mid-task before you produce your final report. To survive:
+
+1. **Batch reads in parallel** — one turn with all Read calls, not sequential.
+2. **Cap exploration** — read only the files your spawn prompt names. If more are needed, report what you need and stop rather than wandering.
+3. **Write fixes before verifying** — Edit calls persist even if you are later truncated. Save the report for last.
+4. **Short reports (<400 words)** — terse file list + one sentence per change. Long formal reports are where truncation bites.
+5. **One concern per invocation** — address what was asked, do not expand scope.
+6. **Don't re-read files you just edited** — the harness tracks state.
+
+If your work exceeds one invocation, complete what you can, return a progress report naming exactly what remains, and let the orchestrator re-spawn you.
+
 ## Component Resolution
 
 When a spec contains `<JDI:*>` tags:

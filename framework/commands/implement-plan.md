@@ -24,6 +24,7 @@ Execute a PLAN.md with complexity-based routing.
 9. Execute:
    - **Single agent:** Spawn with `subagent_type: {plan.primary_agent}` (NOT `general-purpose`). Pass `PLAN: {index-path}`. For split plans, the agent reads task files one at a time via `file:` field in state.yaml.
    - **Agent Teams:** For split plans, spawn ONE Task tool call per task with `subagent_type: {task.agent}` (the pin from the task file frontmatter), passing `TASK_FILE: {task-file-path}` so it loads only its assigned task. For legacy plans, pass `PLAN: {plan-path}` and use `primary_agent`.
+   - **Prompt scoping** — one task = one spawn. Never bundle multiple tasks into one prompt. Give exact file paths, cap exploration ("read only your TASK_FILE + its named targets"), and request short reports (<400 words). Agents can be truncated mid-task; scoped prompts survive the budget ceiling.
 10. Collect and execute deferred ops (files, commits)
 11. Run verification (tests, lint, typecheck)
 12. **Update state via CLI** — do NOT manually edit state.yaml. Run `npx jdi state executing` before execution and `npx jdi state complete` after. Use `npx jdi state advance-task {task-id}` after each task completes.
