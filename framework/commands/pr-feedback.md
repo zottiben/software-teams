@@ -1,20 +1,75 @@
 ---
 name: pr-feedback
-description: "JDI: Address PR feedback"
+description: "JDI: Address PR review comments systematically"
+allowed-tools: Read, Bash, Task
+argument-hint: "<pr-number-or-url>"
+context: |
+  !git branch --show-current 2>/dev/null
 ---
 
 # /jdi:pr-feedback
 
-Address PR review comments systematically.
+Address review comments on a pull request via the `jdi-pr-feedback` specialist.
 
-## Delegation
+**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
 
-**Agent:** jdi-pr-feedback
+---
 
-Use Task tool with subagent_type="general-purpose" and prompt:
+## Orchestration
 
-Read ./.jdi/framework/components/meta/AgentBase.md for the base protocol.
-You are jdi-pr-feedback. Read ./.jdi/framework/agents/jdi-pr-feedback.md for instructions.
-If your spec has requires_components in frontmatter, batch-read all listed components before starting.
+### 1. Parse PR Reference
 
-Address feedback for PR: $ARGUMENTS
+Extract the PR number from `$ARGUMENTS`. Accept a bare number or a full GitHub URL. If neither is present, STOP and ask for one.
+
+### 2. Fetch Unresolved Comments
+
+Run `gh api repos/{owner}/{repo}/pulls/{number}/comments` (or equivalent) to confirm there are unresolved comments. If there are none, STOP:
+
+> "PR #{number} has no unresolved review comments. Nothing to address."
+
+### 3. Delegate to jdi-pr-feedback
+
+Spawn the specialist via Task tool. JDI specialists spawn as `general-purpose` with identity injected via prompt text:
+
+```
+Task(
+  subagent_type="general-purpose",
+  prompt="You are jdi-pr-feedback. Read .jdi/framework/agents/jdi-pr-feedback.md
+  for your full role and instructions. Also read
+  .jdi/framework/components/meta/AgentBase.md for the JDI base protocol.
+  If your spec has requires_components in frontmatter, batch-read all listed
+  components before starting.
+
+  Address feedback for PR: {pr-number}"
+)
+```
+
+### 4. Present Result
+
+After the specialist returns, summarise: comments addressed, files touched, commits made. End with:
+
+> "Feedback applied. Review the diff, then run `/jdi:commit` or push when ready."
+
+**Wait for the user's response. Do NOT auto-push.**
+
+---
+
+## Edge Cases
+
+| Situation | Response |
+|-----------|----------|
+| No PR reference | STOP at step 1. Ask for a number or URL. |
+| No unresolved comments | STOP at step 2. Nothing to do. |
+| Specialist cannot address a specific comment | Surface the blocker; the user decides whether to override or defer. |
+| Working tree dirty before start | Ask whether to stash, commit, or abort. Do NOT silently mix unrelated changes. |
+| PR is closed or merged | STOP and report — feedback on closed PRs is not actionable via this skill. |
+
+---
+
+## Collaborative Protocol
+
+<JDI:StrictnessProtocol />
+
+---
+
+**PR to address:** $ARGUMENTS

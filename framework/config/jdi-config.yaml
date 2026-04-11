@@ -45,7 +45,7 @@ models:
     quality:
       planner: opus
       architect: opus
-      executor: opus
+      programmer: opus
       verifier: sonnet
       researcher: sonnet
       phase_researcher: sonnet
@@ -57,7 +57,7 @@ models:
     balanced:
       planner: opus
       architect: opus
-      executor: sonnet
+      programmer: sonnet
       verifier: sonnet
       researcher: sonnet
       phase_researcher: sonnet
@@ -69,7 +69,7 @@ models:
     budget:
       planner: sonnet
       architect: sonnet
-      executor: sonnet
+      programmer: sonnet
       verifier: haiku
       researcher: haiku
       phase_researcher: haiku
@@ -80,7 +80,7 @@ models:
   # Override specific agents (null = use profile default)
   overrides:
     planner: null
-    executor: null
+    programmer: null
     verifier: null
     researcher: null
 

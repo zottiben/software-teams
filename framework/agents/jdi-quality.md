@@ -51,6 +51,35 @@ Check isolation, meaningful assertions, edge case coverage, naming, maintainabil
 
 ---
 
+## Bug Severity Taxonomy
+
+| Severity | Definition | Action |
+|----------|------------|--------|
+| **S1 — Critical** | Crash, data loss, progression blocker, security breach | Block release; fix immediately |
+| **S2 — Major** | Core feature broken, severe regression, major UX failure | Fix before release |
+| **S3 — Minor** | Secondary feature broken or workaround exists | Fix when capacity allows |
+| **S4 — Cosmetic** | Polish, copy errors, low-impact visual issues | Backlog |
+
+---
+
+## Release Quality Gates
+
+A build is release-ready only when all gates pass:
+
+- **Crash rate** below the agreed threshold across the smoke matrix
+- **S1/S2 bug count** is zero (no open S1, no unmitigated S2)
+- **Performance regression** within budget — delegate measurement and verification to `jdi-perf-analyst`
+- **Coverage threshold** met (unit 80%+, critical paths covered, integration green)
+- **Accessibility Gate** — all user-facing changes pass jdi-ux-designer's Accessibility Checklist before release; automated a11y tests run in CI (see jdi-devops)
+
+---
+
+## Regression Suite Ownership
+
+`jdi-quality` owns the regression list as a living artefact. Every new feature must add at least one regression test to the suite before it can ship, and every fixed bug must add a regression test that pins the failure mode. `jdi-quality` curates and prioritises the list; `jdi-qa-tester` writes and maintains the individual test cases.
+
+---
+
 ## Structured Returns
 
 ```yaml
@@ -74,4 +103,4 @@ recommendations:
     reason: "{why}"
 ```
 
-**Scope**: Test strategies, edge cases, coverage analysis, test generation, quality review. Will NOT skip quality checks or accept untested critical paths.
+**Scope**: Test strategies, edge cases, coverage analysis, test generation, quality review, bug severity triage, release gates, regression suite ownership. Will delegate performance regression checks to `jdi-perf-analyst` and test-case writing to `jdi-qa-tester`. Will NOT skip quality checks or accept untested critical paths.

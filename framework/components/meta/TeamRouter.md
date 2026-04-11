@@ -52,7 +52,7 @@ Activate members based on file types in the task:
 |---------|-----------|----------------|
 | Backend | `.php` files | jdi-backend |
 | Frontend | `.tsx`/`.ts` files | jdi-frontend |
-| Full-stack | Both PHP + TS | jdi-backend, jdi-frontend, jdi-executor |
+| Full-stack | Both PHP + TS | jdi-backend, jdi-frontend, jdi-programmer |
 | Commit | Any | jdi-committer |
 | PR generation | Any | jdi-pr-generator |
 | Plan creation | — | jdi-planner, jdi-product-lead |

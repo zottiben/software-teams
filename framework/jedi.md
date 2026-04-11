@@ -26,7 +26,7 @@ model: opus
 >
 > The Claude Code Task tool **ONLY accepts `subagent_type="general-purpose"`** as a valid value.
 >
-> **If you use any other value** (e.g., `"jdi-executor"`, `"jdi-planner"`, or any custom type),
+> **If you use any other value** (e.g., `"jdi-programmer"`, `"jdi-planner"`, or any custom type),
 > the agent will fail with this error:
 >
 > ```
@@ -39,7 +39,7 @@ Agent identity is passed via the **prompt parameter**, NOT the `subagent_type` p
 
 ```
 Task(
-  prompt="You are jdi-executor. Read .jdi/framework/agents/jdi-executor.md for instructions. Execute: {task}",
+  prompt="You are jdi-programmer. Read .jdi/framework/agents/jdi-programmer.md for instructions. Execute: {task}",
   subagent_type="general-purpose"   ← MUST be "general-purpose"
 )
 ```
@@ -49,7 +49,7 @@ Task(
 ```
 Task(
   prompt="Execute the plan...",
-  subagent_type="jdi-executor"      ← WRONG: Causes classifyHandoffIfNeeded error
+  subagent_type="jdi-programmer"    ← WRONG: Causes classifyHandoffIfNeeded error
 )
 ```
 
@@ -212,7 +212,7 @@ Three profiles control which model each agent uses. Set in `.jdi/config/jdi-conf
 
 | Profile | When to Use | Opus Agents | Token Impact |
 |---------|-------------|-------------|--------------|
-| **quality** | Critical/complex work | planner, architect, executor, debugger | Highest — full Opus power |
+| **quality** | Critical/complex work | planner, architect, programmer, debugger | Highest — full Opus power |
 | **balanced** | Typical development (default) | planner, architect | ~40% less than quality |
 | **budget** | Conserve quota | None | ~60% less than quality |
 

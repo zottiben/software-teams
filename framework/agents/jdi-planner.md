@@ -82,11 +82,19 @@ Use t-shirt sizes instead of time estimates:
 
 Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
+## Optional: Section-by-Section Approval Mode
+
+- Triggered when user says "approve section by section" or "walk me through"
+- Planner presents: Objective → Context → Tasks → Verification one at a time, waits for approval before next
+- Default remains whole-plan-at-once — this mode is opt-in only
+
 ---
 
 ## Execution Flow
 
 ### Step 0: Research (Integrated)
+
+> **Trust skill pre-discovery:** If the spawning skill passed `PRE_DISCOVERED_CONTEXT`, trust it — do not re-read scaffolding (saves tokens). If not passed, fall back to reading scaffolding directly as usual.
 
 1. Read `.jdi/PROJECT.yaml`, `.jdi/ROADMAP.yaml`, `.jdi/REQUIREMENTS.yaml`
 2. Read codebase analysis (`.jdi/codebase/SUMMARY.md`, `CONVENTIONS.md`) if available
@@ -98,23 +106,41 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 <JDI:AgentRouter mode="discover" />
 
-Before breaking down tasks, you MUST enumerate the Claude Code agents
-available to this session by listing `.claude/agents/` (project-local, if it
-exists) and `~/.claude/agents/` (user-global). Read each `.md` file's YAML
-frontmatter and extract `name` and `description`. Project-local agents
-override user-global agents on name collision.
+Before breaking down tasks, you MUST enumerate every agent available to this
+session. Read each discovered `.md` file's YAML frontmatter for `name` and
+`description`, and record a `source:` field so `implement-plan` picks the
+correct spawn pattern. Merge these roots (earlier overrides later on name
+collision):
+
+1. **`.jdi/framework/agents/jdi-*.md`** (primary — `source: jdi`). If the
+   `.jdi/` install is absent, fall back to `framework/agents/jdi-*.md` in the
+   repo root (self-hosting jedi repo).
+2. **`.claude/agents/*.md`** — project-local Claude Code subagents
+   (`source: claude-code`).
+3. **`~/.claude/agents/*.md`** — user-global Claude Code subagents
+   (`source: claude-code`).
 
 This catalogue is written into the plan index frontmatter as `available_agents`
 and is used in Step 3 to pin each task to a specialist via the `agent:` field
 in its task file frontmatter.
 
-If discovery returns zero specialists (no `.claude/agents/` on either root),
-record `available_agents: []`, set `primary_agent: general-purpose`, and use
+> **Why the `source:` split matters:** JDI specialists live in
+> `framework/agents/` — they are NOT registered Claude Code subagents.
+> `implement-plan` must spawn them via `subagent_type="general-purpose"` and
+> inject identity via prompt text. Registered Claude Code subagents
+> (`source: claude-code`) can be spawned by name directly. See
+> `.jdi/framework/jedi.md` Critical Constraints and
+> `.jdi/framework/components/meta/AgentRouter.md` §4.
+
+If discovery returns zero specialists (no `.jdi/` install, no
+`framework/agents/`, and no `.claude/agents/` on either root), record
+`available_agents: []`, set `primary_agent: general-purpose`, and use
 tech-stack defaults. Never silently skip this step — `available_agents` MUST
 appear in the plan index even when empty.
 
-See `.jdi/framework/components/meta/AgentRouter.md` for the full routing tables
-(Unity / Unreal / Godot / non-game).
+See `.jdi/framework/components/meta/AgentRouter.md` §1 for the full discovery
+routine and §2 for the routing tables (Jedi meta-framework / Unity / Unreal /
+Godot / non-game).
 
 ### Step 0b: Reference Analysis (when provided)
 
@@ -128,6 +154,8 @@ If the user provides reference PRs, tickets, or example implementations:
 ### Step 1: Discovery
 
 <JDI:TaskBreakdown source="requirements" />
+
+Apply Priority Bands (see `TaskBreakdown.md`) — every task gets a `priority:` field in its frontmatter (`must`, `should`, or `nice`).
 
 #### Mandatory Verification (never skip)
 - **Bug fixes**: Grep the symptom across entire codebase. Trace every occurrence through all layers. Do not stop at first match.
@@ -208,7 +236,8 @@ Read `.jdi/config/variables.yaml` (create from template if missing). Update: `fe
 #### 7a: Write Plan Files (Split Format)
 1. Derive `slug` from the plan name using File Naming rules above
 2. Write index file to `.jdi/plans/{phase}-{plan}-{slug}.plan.md` — follow template from `.jdi/framework/templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
-3. Write each task to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow template from `.jdi/framework/templates/PLAN-TASK.md`. One file per task.
+3. Populate Sprint Goal, Definition of Done, Carryover, and Risks sections in the PLAN index from the context passed by `create-plan` (sprint context, REQUIREMENTS.yaml risks, prior SUMMARY.md carryover candidates).
+4. Write each task to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow template from `.jdi/framework/templates/PLAN-TASK.md`. One file per task.
 
 #### 7b: Update ROADMAP.yaml
 Add plan entry to appropriate phase section with wave and sizing.

@@ -299,7 +299,7 @@ Jedi detects learning phrases from PR reviews ("we usually do this", "convention
 | `jdi-backend` | Backend Engineer |
 | `jdi-frontend` | Frontend Engineer |
 | `jdi-architect` | Systems Architect |
-| `jdi-executor` | Senior Fullstack Engineer |
+| `jdi-programmer` | Senior Fullstack Engineer |
 
 ### Product and Research
 | Agent | Role |

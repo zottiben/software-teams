@@ -1,0 +1,79 @@
+# SilentDiscovery Component
+
+The mandatory state-reading preamble that runs before any user-facing prompt in a JDI skill. Its purpose: make sure you never re-ask the user for facts that are already on disk.
+
+When a command references `<JDI:SilentDiscovery />`, you MUST gather context from the filesystem before presenting any question, routing decision, or recommendation. Store what you find internally as `DISCOVERED_STATE` — do NOT print discovery output to the user unless a later step explicitly calls for it.
+
+---
+
+## What to Read
+
+Read these files if they exist. If a file is missing, record that in `DISCOVERED_STATE` as `missing: true` and continue — do not error.
+
+| File | Purpose |
+|------|---------|
+| `.jdi/config/state.yaml` | Current phase, plan, task, and status. Source of truth for "where are we?" |
+| `.jdi/PROJECT.yaml` | Tech stack, project name, team configuration |
+| `.jdi/REQUIREMENTS.yaml` | Risks, constraints, non-functional requirements |
+| `.jdi/ROADMAP.yaml` | Phase structure, upcoming plans, milestones |
+| `.jdi/plans/*.plan.md` (glob) | Existing plan index files — check frontmatter for `provides`, `status`, completion |
+| `.jdi/codebase/SUMMARY.md` | Codebase index, if present |
+
+Additionally, if the skill is worktree-aware, read:
+
+| File | Purpose |
+|------|---------|
+| `.jdi/config/state.yaml → worktree` | Active worktree path and status |
+
+---
+
+## What to Derive
+
+From the raw reads above, compute and store these derived fields in `DISCOVERED_STATE`:
+
+- **`active_phase`** — current phase number and name (from ROADMAP.yaml + state.yaml position)
+- **`next_plan_number`** — next available plan id in the active phase (scan existing plan files)
+- **`tech_stack`** — from PROJECT.yaml
+- **`open_risks`** — from REQUIREMENTS.yaml `risks:` block (empty list if none)
+- **`prior_provides`** — union of all `provides:` fields from completed plans (cross-phase dependency map)
+- **`returning_user`** — true if any prior plans are completed or the current plan is in a non-initial status
+- **`missing_scaffolding`** — list of scaffolding files that didn't exist
+
+---
+
+## Discipline Rules
+
+These rules are non-negotiable when this component is referenced:
+
+1. **Silent by default.** Never print `DISCOVERED_STATE` as a conversation opener. It informs your recommendations; it is not the first thing the user sees.
+
+2. **Never re-ask what's already known.** If a fact is in `DISCOVERED_STATE`, treat it as authoritative. Do not ask "what's your tech stack?" if `DISCOVERED_STATE.tech_stack` is set.
+
+3. **Missing ≠ empty.** A missing file means "I don't know" — not "the user has no preferences". Record `missing: true` and surface it only if a later step needs that file.
+
+4. **Surface selectively.** When routing or recommending, pull the specific field you need and mention it briefly ("I can see you're on phase {n}, plan {id}..."). Do not dump the whole `DISCOVERED_STATE` object.
+
+5. **Refresh, don't stale.** If the skill has multiple passes (e.g. `/jdi:build` option D re-runs discovery after user input), re-read the files — do not rely on the first pass's findings for the second pass.
+
+---
+
+## Pass-Through to Spawned Agents
+
+When a skill that uses SilentDiscovery spawns a subagent (e.g. `create-plan` spawns `jdi-planner`), pass `DISCOVERED_STATE` into the spawn prompt as a named block:
+
+```
+Context already discovered: {DISCOVERED_STATE serialised as yaml}
+Do NOT re-read these scaffolding files. Surface open questions ONLY for facts you cannot infer from this block.
+```
+
+This avoids the common failure where the orchestrator reads scaffolding, spawns an agent, and the agent reads the same scaffolding again.
+
+---
+
+## Usage
+
+```
+<JDI:SilentDiscovery />
+```
+
+Referenced at the top of a skill's numbered workflow, typically as step 1 or 2. Always runs before any user-facing prompt.

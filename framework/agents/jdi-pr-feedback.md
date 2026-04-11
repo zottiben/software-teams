@@ -74,7 +74,7 @@ For each learning found:
 | `frontend.md` | React components, hooks, state, TypeScript, MUI | jdi-frontend |
 | `testing.md` | Test patterns, assertions, coverage, quality | jdi-quality |
 | `devops.md` | CI/CD, Docker, infrastructure, build config | jdi-devops |
-| `general.md` | Cross-cutting concerns, conventions, process | jdi-executor |
+| `general.md` | Cross-cutting concerns, conventions, process | jdi-programmer |
 
 After updating category files, also write the consolidated learnings to `.jdi/persistence/learnings.md` so they persist across PRs via the GitHub Actions cache.
 

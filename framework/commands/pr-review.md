@@ -1,33 +1,92 @@
 ---
 name: pr-review
-description: "JDI: Review pull request"
+description: "JDI: Review pull request with learnings-aware analysis"
+allowed-tools: Read, Bash, Task
+argument-hint: "<pr-number-or-url> [--no-comments]"
+context: |
+  !git branch --show-current 2>/dev/null
 ---
 
 # /jdi:pr-review
 
-Review a pull request with learnings-aware analysis.
+Review a pull request against the team's learnings and coding standards.
+
+**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
+
+---
 
 ## Flags
 
-- `--no-comments` — Do not post comments to GitHub. Write review to `.jdi/reviews/PR-{number}-review.md` instead.
+- `--no-comments` — Do not post comments to GitHub. Write the review to `.jdi/reviews/PR-{number}-review.md` instead.
 
-## Delegation
+---
 
-Parse flags from $ARGUMENTS. Map `--no-comments` to `post="false"`.
+## Orchestration
 
-Use Task tool with subagent_type="general-purpose" and prompt:
+### 1. Parse PR Reference
 
-Read ./.jdi/framework/components/meta/AgentBase.md for the base protocol.
+Extract the PR number from `$ARGUMENTS`. Accept either a bare number (`123`) or a GitHub URL (`https://github.com/org/repo/pull/123`). If neither form is present, STOP:
 
-Read learnings before reviewing — these represent the team's coding standards and MUST be cross-referenced during review:
-- Always read: `.jdi/framework/learnings/general.md`
-- For PHP/Laravel PRs: also read `.jdi/framework/learnings/backend.md`
-- For React/TypeScript PRs: also read `.jdi/framework/learnings/frontend.md`
-- For test changes: also read `.jdi/framework/learnings/testing.md`
-- For CI/Docker changes: also read `.jdi/framework/learnings/devops.md`
-Apply learnings as additional review criteria — flag violations and praise adherence.
+> "I need a PR number or URL. Try `/jdi:pr-review 123` or `/jdi:pr-review https://github.com/org/repo/pull/123`."
 
-Read ./.jdi/framework/components/quality/PRReview.md for review instructions.
-{If --no-comments flag was present: Include `post="false"` parameter — invoke as `<JDI:PRReview post="false" />`}
+### 2. Parse Flags
 
-Review PR: $ARGUMENTS
+Check for `--no-comments`. Map to the `post="false"` parameter for the `PRReview` component.
+
+### 3. Verify PR Exists
+
+Run `gh pr view {number}` to confirm the PR is reachable. If `gh` errors, STOP and report the failure — do NOT fabricate a review.
+
+### 4. Delegate to Reviewer
+
+Spawn the reviewer via Task tool. JDI specialists spawn as `general-purpose` with identity injected via prompt text:
+
+```
+Task(
+  subagent_type="general-purpose",
+  prompt="Read .jdi/framework/components/meta/AgentBase.md for the base protocol.
+
+  Read learnings before reviewing — these represent the team's coding standards
+  and MUST be cross-referenced during review:
+  - Always: .jdi/framework/learnings/general.md
+  - PHP/Laravel PRs: also .jdi/framework/learnings/backend.md
+  - React/TypeScript PRs: also .jdi/framework/learnings/frontend.md
+  - Test changes: also .jdi/framework/learnings/testing.md
+  - CI/Docker changes: also .jdi/framework/learnings/devops.md
+
+  Apply learnings as additional review criteria — flag violations and praise adherence.
+
+  Read .jdi/framework/components/quality/PRReview.md for review instructions.
+  {If --no-comments: invoke as <JDI:PRReview post=\"false\" />}
+
+  Review PR: {pr-number}"
+)
+```
+
+### 5. Present Result
+
+After the reviewer returns, summarise: number of comments posted (or file path of the written review), severity breakdown, and any blocking issues.
+
+Then **STOP**. Do NOT merge, approve, or take any follow-up action.
+
+---
+
+## Edge Cases
+
+| Situation | Response |
+|-----------|----------|
+| No PR reference in arguments | STOP at step 1. Ask for a number or URL. |
+| `gh pr view` fails (not logged in, wrong repo) | Report the error verbatim. Do NOT attempt a workaround. |
+| PR is already merged | Note it in the summary and review anyway — learnings may still apply. |
+| PR is a draft | Review as normal; flag that the PR is draft in the summary. |
+| `.jdi/framework/learnings/` missing | Reviewer falls back to base review criteria. Record the missing learnings in the summary. |
+
+---
+
+## Collaborative Protocol
+
+<JDI:StrictnessProtocol />
+
+---
+
+**PR to review:** $ARGUMENTS

@@ -9,6 +9,8 @@ type: implementation
 autonomous: true
 wave: 1
 gap_closure: false
+sprint_goal: ""
+carryover: []
 
 # Split plan task files (omit for legacy monolithic plans)
 task_files:
@@ -49,6 +51,12 @@ primary_agent: general-purpose
 
 ---
 
+## Sprint Goal
+
+{One sentence describing what this plan achieves toward the active milestone.}
+
+---
+
 ## Context
 
 **Read before executing:**
@@ -60,6 +68,15 @@ primary_agent: general-purpose
 
 **Previous work:**
 - {What's already done that this builds on}
+
+### Carryover
+
+| Task | Source Plan | Reason | New Estimate |
+|------|-------------|--------|--------------|
+
+### Risks
+
+Risks should be pulled from the `risks` block in `.jdi/REQUIREMENTS.yaml`. List the relevant ones here for execution-time reference.
 
 </section>
 
@@ -91,6 +108,13 @@ After all tasks complete, verify:
 - [ ] {Overall verification 2}
 - [ ] Tests pass: `{test command}`
 - [ ] Types check: `{type check command}`
+
+## Definition of Done
+
+- [ ] All Must Have tasks complete
+- [ ] All tasks pass acceptance criteria
+- [ ] No S1/S2 bugs (per jdi-quality taxonomy)
+- [ ] REQUIREMENTS.yaml updated for deviations
 
 ## Success Criteria
 

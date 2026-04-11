@@ -31,9 +31,11 @@ params:
 ## Task Format
 
 ```markdown
-<task id="{N}" type="auto|checkpoint:*" tdd="true|false" wave="{W}">
+<task id="{N}" type="auto|checkpoint:*" tdd="true|false" wave="{W}" priority="must|should|nice">
 
 ## Task {N}: {Name}
+
+**Priority:** must | should | nice
 
 **Objective:** {What this task accomplishes}
 
@@ -81,3 +83,13 @@ When breaking down from REQUIREMENTS.yaml: map REQ-IDs to tasks, track which tas
 - **shallow**: 4-6 high-level tasks per feature
 - **standard**: 6-10 balanced tasks (default)
 - **deep**: 10-20 fine-grained tasks for complex/unfamiliar work
+
+---
+
+## Priority Bands
+
+Every task MUST be tagged with one of three priority bands:
+
+- **Must Have** (critical path — plan fails if not delivered)
+- **Should Have** (planned but droppable under pressure)
+- **Nice to Have** (delivered only with surplus capacity)

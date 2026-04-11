@@ -47,7 +47,7 @@ Assign waves based on dependency resolution. Plans in the same wave can execute 
 ### Step 4: Output
 
 **Inline**: Update each plan's frontmatter `wave` field.
-**JSON**: Return wave structure for executor with wave number, plan IDs, and parallelism flag.
+**JSON**: Return wave structure for programmer with wave number, plan IDs, and parallelism flag.
 
 ## Cross-Phase Dependencies
 

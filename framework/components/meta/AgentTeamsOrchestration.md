@@ -11,7 +11,11 @@ description: Agent Teams orchestration quick-reference
 1. **Pre-flight** — Read command spec, `<JDI:CodebaseContext />`, read state.yaml, set status to "executing". Read each task file's `agent:` frontmatter field so you know which specialist to spawn per task (see `.jdi/framework/components/meta/AgentRouter.md`).
 2. **Create Team** — `TeamCreate(team_name: "{team-name}")`
 3. **Create Tasks** — TaskCreate per work unit, set `addBlockedBy` dependencies
-4. **Spawn Teammates** — Task tool with `subagent_type: "{task.agent}"` (the pin from the task file frontmatter — e.g. `unity-ui-specialist`, `gameplay-programmer`). Never hardcode `general-purpose` when a pin exists. Verify the pinned agent is installed before spawning; if not, downgrade to `general-purpose` and record `agent_downgrade:` in the summary. Include in prompt: agent spec path, team context, task assignments. **Scope tightly** — one task per spawn, exact file targets, capped exploration, short reports (<400 words). See `AgentBase.md` § Budget Discipline.
+4. **Spawn Teammates** — Task tool, one call per task. The spawn pattern depends on the `source:` field in `available_agents` (see `AgentRouter.md` §4):
+    - **`source: jdi`** (JDI framework specialists like `jdi-backend`, `jdi-frontend`, `jdi-qa-tester`) — `subagent_type: "general-purpose"` and inject identity via prompt text: `"You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions."` This is the common case.
+    - **`source: claude-code`** (user-added registered subagents like `unity-ui-specialist`) — `subagent_type: "{task.agent}"` directly; Claude Code loads the spec natively.
+    - Verify the agent exists before spawning. For `jdi`, check `.jdi/framework/agents/{name}.md`. For `claude-code`, check `.claude/agents/{name}.md` or `~/.claude/agents/{name}.md`. Missing spec → downgrade to `general-purpose` and record `agent_downgrade:` in the summary.
+    - Include in prompt: agent spec path, team context, task assignments. **Scope tightly** — one task per spawn, exact file targets, capped exploration, short reports (<400 words). See `AgentBase.md` § Budget Discipline.
 5. **Coordinate** — Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
 6. **Cleanup** — shutdown_request to all → TeamDelete → set status "complete" → report (include which specialist ran which task and any downgrade events)
 
@@ -44,14 +48,15 @@ by `jdi-planner` via `AgentRouter` at plan time. The table below is the
 
 ---
 
-## Specialist Spawn Prompt Template (~200 tokens)
+## Specialist Spawn Prompt Templates (~200 tokens)
+
+### `source: jdi` — JDI framework specialist (common case)
 
 ```
-You are {task.agent}. Your Claude Code agent definition has already been
-loaded from .claude/agents/{task.agent}.md (or ~/.claude/agents/{task.agent}.md)
-— follow it. Also read .jdi/framework/components/meta/AgentBase.md for the
-JDI base protocol. If your Claude Code agent definition has requires_components
-in frontmatter, batch-read them before starting.
+You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for your
+full role and instructions. Also read .jdi/framework/components/meta/AgentBase.md
+for the JDI base protocol. If your spec has requires_components in frontmatter,
+batch-read them before starting.
 
 TEAM: {team-name}
 PLAN: {plan-path}
@@ -71,9 +76,22 @@ Report: files_modified, files_to_create, commits_pending.
 No git commit (use commits_pending).
 ```
 
-The `subagent_type` passed to the Task tool is the `agent:` pin from the task
-file frontmatter — NOT `general-purpose`. See
-`.jdi/framework/components/meta/AgentRouter.md` for full rules.
+Spawned via `Task(subagent_type="general-purpose", ...)` — see
+`.jdi/framework/jedi.md` Critical Constraints for why.
+
+### `source: claude-code` — registered Claude Code subagent
+
+```
+Your agent definition has already been loaded by Claude Code from
+.claude/agents/{task.agent}.md — follow it. Also read
+.jdi/framework/components/meta/AgentBase.md for the JDI base protocol.
+
+<same TEAM / PLAN / TASK_FILE / WORKING_DIR block + steps + report as above>
+```
+
+Spawned via `Task(subagent_type="{task.agent}", ...)` — Claude Code validates
+the subagent type against its registered list. See
+`.jdi/framework/components/meta/AgentRouter.md` §4 for full rules.
 
 ---
 

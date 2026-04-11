@@ -40,21 +40,28 @@ reasoning: "{why this mode was chosen}"
 Spawn one specialist agent directly via Task tool. Follow cache-optimised load
 order (AgentBase first).
 
-**Pinning rule:** read `primary_agent` from the plan index frontmatter. If set
-and the agent is installed (verify against `.claude/agents/{name}.md` or
-`~/.claude/agents/{name}.md`), use it as the `subagent_type`. If unset or not
-installed, fall back to `general-purpose` and record a `agent_downgrade:` note
-in the summary. Never silently default to `general-purpose` when a pin exists.
-See `.jdi/framework/components/meta/AgentRouter.md`.
+**Pinning rule:** read `primary_agent` from the plan index frontmatter and the
+matching `source:` from `available_agents`. Verify the agent exists:
+
+- `source: jdi` → check `.jdi/framework/agents/{name}.md` (or
+  `framework/agents/{name}.md` in the self-hosting jedi repo)
+- `source: claude-code` → check `.claude/agents/{name}.md` or
+  `~/.claude/agents/{name}.md`
+
+If unset or not found, fall back to `general-purpose` and record an
+`agent_downgrade:` note in the summary. Never silently default to
+`general-purpose` when a pin exists.
+See `.jdi/framework/components/meta/AgentRouter.md` §4 for full spawn rules.
+
+### JDI specialist (source: jdi — the common case)
 
 ```
 Task(
-  subagent_type: "{plan.primary_agent}",   # e.g. unity-specialist — NOT hardcoded
+  subagent_type: "general-purpose",   # MUST be general-purpose for JDI agents
   name: "{plan.primary_agent}",
-  prompt: "You are {plan.primary_agent}. Your Claude Code agent definition has
-already been loaded from .claude/agents/{name}.md (or ~/.claude/agents/{name}.md)
-— follow it. Also read .jdi/framework/components/meta/AgentBase.md for the
-JDI base protocol.
+  prompt: "You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md
+for your full role and instructions. Also read
+.jdi/framework/components/meta/AgentBase.md for the JDI base protocol.
 
 ## Project Context
 - Type: {project_type}
@@ -67,6 +74,19 @@ Execute all tasks in the plan sequentially. PLAN: {plan-path}.
 For split plans (task_files in frontmatter), read each task file one at a time
 from the file: field in state.yaml.
 Report: files_modified, files_to_create, commits_pending."
+)
+```
+
+### Claude Code registered specialist (source: claude-code)
+
+```
+Task(
+  subagent_type: "{plan.primary_agent}",   # e.g. unity-specialist
+  name: "{plan.primary_agent}",
+  prompt: "Your agent definition has already been loaded from .claude/agents/.
+Also read .jdi/framework/components/meta/AgentBase.md for the JDI base protocol.
+
+<same Project Context + Task sections as above>"
 )
 ```
 

@@ -67,6 +67,26 @@ Output: PR number, title, URL, files changed, commit count.
 
 ---
 
+## Version Management
+
+- Follow semver strictly
+- Version bump rule: patch for fixes, minor for features, major for breaking changes
+- Bump `package.json` on release-ready PRs
+
+## Rollback Plan
+
+- Every PR that changes runtime behaviour must include a rollback strategy in the PR description (revert commit, feature flag, migration rollback)
+- Rollback section is mandatory for plans touching DB or state schema
+- Link to rollback runbook if one exists
+
+## Changelog
+
+- Append user-facing changes to `CHANGELOG.md` or equivalent
+- Categorise as Added / Changed / Fixed / Removed
+- Reference plan id and PR number
+
+---
+
 ## Structured Returns
 
 ```yaml
