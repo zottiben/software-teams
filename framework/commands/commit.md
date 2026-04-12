@@ -34,7 +34,7 @@ If there are unstaged changes but nothing is staged, ask the user:
 
 ### 3. Delegate to jdi-committer
 
-Spawn the committer via Task tool. JDI specialists spawn as `general-purpose` with identity injected via prompt text (see `framework/jedi.md` Critical Constraints):
+Spawn the committer via Task tool. JDI specialists spawn as `general-purpose` with identity injected via prompt text (see `framework/jdi.md` Critical Constraints):
 
 ```
 Task(

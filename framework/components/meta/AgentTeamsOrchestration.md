@@ -77,7 +77,7 @@ No git commit (use commits_pending).
 ```
 
 Spawned via `Task(subagent_type="general-purpose", ...)` — see
-`.jdi/framework/jedi.md` Critical Constraints for why.
+`.jdi/framework/jdi.md` Critical Constraints for why.
 
 ### `source: claude-code` — registered Claude Code subagent
 

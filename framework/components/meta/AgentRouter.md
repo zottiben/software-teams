@@ -25,13 +25,13 @@ into the plan and implement-plan must use them.
 The planner MUST perform discovery before task breakdown. JDI specialists live
 in the framework itself, not in Claude Code's subagent registry — the
 orchestrator reads their specs and injects identity via prompt text when
-spawning (see `framework/jedi.md` Critical Constraints).
+spawning (see `framework/jdi.md` Critical Constraints).
 
 Merge these roots in order (earlier roots override later ones on name
 collision):
 
 1. `.jdi/framework/agents/jdi-*.md` — JDI specialists installed in the project
-   (primary source for any project using JDI). When working on the jedi repo
+   (primary source for any project using JDI). When working on the JDI repo
    itself, fall back to `framework/agents/jdi-*.md` in the repo root.
 2. `.claude/agents/*.md` — project-local Claude Code subagents (user-added
    specialists, takes precedence over user-global)
@@ -145,9 +145,9 @@ signal hierarchy (highest to lowest):
 | Security review / vuln audit / secrets / privacy | `jdi-security` |
 | Test case writing / regression checklist / post-task verify | `jdi-qa-tester` |
 
-### Jedi meta-framework routing
+### JDI meta-framework routing
 
-Use these pins when the work being done is on the Jedi framework itself
+Use these pins when the work being done is on the JDI framework itself
 (editing files under `framework/`, writing plans about JDI, etc.).
 
 | Signal | Preferred agent |
@@ -204,7 +204,7 @@ correct pattern for that source.
 > specialists live in `framework/agents/` — NOT in `.claude/agents/` — so they
 > are NOT registered subagent types. Passing `subagent_type="jdi-backend"`
 > (or any other JDI agent name) errors with `classifyHandoffIfNeeded is not
-> defined`. See `framework/jedi.md` Critical Constraints.
+> defined`. See `framework/jdi.md` Critical Constraints.
 >
 > The workaround: spawn `subagent_type="general-purpose"` and inject the JDI
 > agent's identity via the prompt text. Registered Claude Code specialists
@@ -298,7 +298,7 @@ The implement-plan pass MUST:
 2. Read the matching `source:` from the plan's `available_agents` catalogue to
    pick the correct spawn pattern (see §4).
 3. Surface any downgrade in the summary.
-4. Prefer `.jdi/framework/agents/` (or `framework/agents/` in the jedi repo)
+4. Prefer `.jdi/framework/agents/` (or `framework/agents/` in the JDI repo)
    over `.claude/agents/` over `~/.claude/agents/` on name collision.
 
 ---

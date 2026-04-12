@@ -185,7 +185,7 @@ In plan summary, include:
 If unsure which rule applies:
 - Default to Rule 4 (ask)
 - It's better to ask than to make unwanted changes
-- User can always say "jedi" to proceed
+- User can always say "JDI" to proceed
 
 ---
 

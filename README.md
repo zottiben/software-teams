@@ -1,10 +1,10 @@
-# Jedi
+# JDI
 
-**Multi-agent development framework for Claude Code — plan, implement, review, and ship with specialist agents and minimal token overhead.**
+**JDI aka Jedi — Multi-agent development framework for Claude Code — plan, implement, review, and ship with specialist agents and minimal token overhead.**
 
 [![npm version](https://img.shields.io/npm/v/@benzotti/jedi)](https://www.npmjs.com/package/@benzotti/jedi) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Jedi orchestrates specialised agents to plan, implement, review, and ship features — from single-file fixes to full-stack multi-wave implementations. It runs in three modes: **Claude Code app**, **CLI**, and **GitHub Actions**.
+JDI orchestrates specialised agents to plan, implement, review, and ship features — from single-file fixes to full-stack multi-wave implementations. It runs in three modes: **Claude Code app**, **CLI**, and **GitHub Actions**.
 
 ---
 
@@ -26,13 +26,13 @@ Jedi orchestrates specialised agents to plan, implement, review, and ship featur
 
 ## Usage Modes
 
-Jedi runs in three modes with identical capabilities:
+JDI runs in three modes with identical capabilities:
 
 | Mode | How | Best For |
 |------|-----|----------|
 | **Claude Code App** | `/jdi:create-plan`, `/jdi:implement-plan`, etc. | Interactive development with Claude Code |
 | **CLI** | `jdi plan`, `jdi implement`, `jdi quick`, etc. | Terminal workflows, scripting, CI |
-| **GitHub Actions** | Comment `Hey Jedi plan ...` on issues/PRs | Autonomous code generation from issue comments |
+| **GitHub Actions** | Comment `Hey JDI plan ...` on issues/PRs | Autonomous code generation from issue comments |
 
 ---
 
@@ -74,9 +74,9 @@ jdi setup-action
 
 Then on any issue or PR, comment:
 ```
-Hey Jedi plan Add user authentication
-Hey Jedi implement
-Hey Jedi quick fix the broken login button
+Hey JDI plan Add user authentication
+Hey JDI implement
+Hey JDI quick fix the broken login button
 ```
 
 See [GitHub Actions Setup](#github-actions-setup) for details.
@@ -87,7 +87,7 @@ See [GitHub Actions Setup](#github-actions-setup) for details.
 
 | Slash Command | CLI Equivalent | Description |
 |---------------|----------------|-------------|
-| `/jdi:init` | `jdi init` | Initialise Jedi in the current project |
+| `/jdi:init` | `jdi init` | Initialise JDI in the current project |
 | `/jdi:create-plan` | `jdi plan <desc>` | Create an implementation plan |
 | `/jdi:implement-plan` | `jdi implement [plan]` | Execute a plan (single-agent or Agent Teams) |
 | `/jdi:quick` | `jdi quick <desc>` | Quick focused change without orchestration |
@@ -148,31 +148,31 @@ Run `jdi setup-action` to generate the workflow file, or manually copy `action/w
 
 | Variable | Description |
 |----------|-------------|
-| `JEDI_AUTH_ENABLED` | Set to `true` to restrict Jedi to write collaborators |
+| `JEDI_AUTH_ENABLED` | Set to `true` to restrict JDI to write collaborators |
 | `JEDI_ALLOWED_USERS` | Comma-separated list of allowed GitHub usernames |
 
 ### Comment Syntax
 
 | Command | Description |
 |---------|-------------|
-| `Hey Jedi plan <description>` | Create an implementation plan |
-| `Hey Jedi implement` | Execute the current plan |
-| `Hey Jedi implement --dry-run` | Preview implementation without writing |
-| `Hey Jedi quick <description>` | Make a quick change |
-| `Hey Jedi review` | Review the current PR |
-| `Hey Jedi do <clickup-url>` | Full flow: plan + implement from ticket |
-| `Hey Jedi ping` | Check framework status |
+| `Hey JDI plan <description>` | Create an implementation plan |
+| `Hey JDI implement` | Execute the current plan |
+| `Hey JDI implement --dry-run` | Preview implementation without writing |
+| `Hey JDI quick <description>` | Make a quick change |
+| `Hey JDI review` | Review the current PR |
+| `Hey JDI do <clickup-url>` | Full flow: plan + implement from ticket |
+| `Hey JDI ping` | Check framework status |
 
 ### Conversation Flow
 
-1. Comment `Hey Jedi plan ...` to start planning
-2. Jedi posts the plan and asks for feedback
+1. Comment `Hey JDI plan ...` to start planning
+2. JDI posts the plan and asks for feedback
 3. Reply with refinement feedback (e.g. "change task 2 to use Redis instead")
 4. Say "approved" or "lgtm" to lock the plan
-5. Comment `Hey Jedi implement` to execute
+5. Comment `Hey JDI implement` to execute
 6. Reply with follow-up feedback to iterate on the implementation
 
-Jedi maintains conversation context across comments — no need to repeat earlier instructions.
+JDI maintains conversation context across comments — no need to repeat earlier instructions.
 
 ---
 
@@ -188,16 +188,16 @@ Jedi maintains conversation context across comments — no need to repeat earlie
 
 ### Dry-Run Mode
 
-Preview what Jedi would change without writing any files:
+Preview what JDI would change without writing any files:
 
 ```bash
 jdi implement --dry-run
 jdi quick --dry-run "add error handling to the API"
 ```
 
-Or in GitHub Actions: `Hey Jedi implement --dry-run`
+Or in GitHub Actions: `Hey JDI implement --dry-run`
 
-In dry-run mode, Jedi can only read files — writes, commits, and pushes are blocked.
+In dry-run mode, JDI can only read files — writes, commits, and pushes are blocked.
 
 ### Plan-Aware PR Generation
 
@@ -208,7 +208,7 @@ In dry-run mode, Jedi can only read files — writes, commits, and pushes are bl
 
 ### Automated Verification Runner
 
-After implementation (both CLI and GitHub Actions), Jedi automatically runs quality gates defined in `adapter.yaml`:
+After implementation (both CLI and GitHub Actions), JDI automatically runs quality gates defined in `adapter.yaml`:
 
 ```yaml
 quality_gates:
@@ -228,7 +228,7 @@ Full-environment git worktrees for isolated development:
 
 ### Agent Teams
 
-For complex plans (>3 tasks, multiple tech stacks, or multiple waves), Jedi uses Claude Code's Agent Teams to orchestrate multiple specialist agents working in parallel.
+For complex plans (>3 tasks, multiple tech stacks, or multiple waves), JDI uses Claude Code's Agent Teams to orchestrate multiple specialist agents working in parallel.
 
 ### Complexity Router
 
@@ -285,7 +285,7 @@ All state lives in YAML files on disk — no context pollution:
 
 ### PR Feedback Learning
 
-Jedi detects learning phrases from PR reviews ("we usually do this", "convention is") and captures them to categorised learnings files in `.jdi/framework/learnings/` for future reference.
+JDI detects learning phrases from PR reviews ("we usually do this", "convention is") and captures them to categorised learnings files in `.jdi/framework/learnings/` for future reference.
 
 ---
 
@@ -369,9 +369,9 @@ quality:
 
 ## Security
 
-Jedi v0.1.30 includes several security hardening measures:
+JDI v0.1.30 includes several security hardening measures:
 
-- **Opt-in authorization gate**: Restrict Jedi to write collaborators or an explicit allow-list via `JEDI_AUTH_ENABLED` and `JEDI_ALLOWED_USERS` repo variables
+- **Opt-in authorization gate**: Restrict JDI to write collaborators or an explicit allow-list via `JEDI_AUTH_ENABLED` and `JEDI_ALLOWED_USERS` repo variables
 - **Prompt injection defense**: User input is sanitized (injection preambles stripped) and wrapped in XML fences with untrusted-content warnings
 - **Shell injection prevention**: All workflow arguments are individually quoted — no unquoted variable expansion
 - **Comment pagination limits**: Comment fetching is bounded to 100 items
@@ -401,7 +401,7 @@ framework/                           # Distributable framework
 ├── adapters/                        # Project-type configs
 ├── templates/                       # PLAN, PLAN-TASK, SUMMARY, CLAUDE-SHARED, PROJECT/REQUIREMENTS/ROADMAP.yaml
 ├── learnings/                       # Category shells for PR review learnings
-└── jedi.md                          # Framework architecture doc
+└── jdi.md                           # Framework architecture doc
 
 action/                              # GitHub Actions
 └── workflow-template.yml            # Workflow template for `jdi setup-action`
@@ -415,7 +415,7 @@ action/                              # GitHub Actions
 
 Commands are ultra-minimal stubs (~300 tokens). Agents read specs and components on-demand in their isolated context. Take this with a grain of salt 🧂.
 
-| Scenario | Without Jedi | With Jedi | Savings |
+| Scenario | Without JDI | With JDI | Savings |
 |----------|-------------|----------|---------|
 | Single command | ~6,900 tokens | ~300 tokens | 95% |
 | 5-command workflow | ~34,500 tokens | ~1,500 tokens | 96% |

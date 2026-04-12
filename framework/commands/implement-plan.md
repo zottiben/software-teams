@@ -70,7 +70,7 @@ For every task file listed in `task_files:`, record the `agent:` field from its 
 
 For each pinned agent, read the matching `source:` from the plan's `available_agents` catalogue and confirm the spec exists:
 
-- **`source: jdi`** — check `.jdi/framework/agents/{name}.md` (installed projects) or `framework/agents/{name}.md` (self-hosting jedi repo)
+- **`source: jdi`** — check `.jdi/framework/agents/{name}.md` (installed projects) or `framework/agents/{name}.md` (self-hosting JDI repo)
 - **`source: claude-code`** — check `.claude/agents/{name}.md` (project-local) or `~/.claude/agents/{name}.md` (user-global)
 
 If the spec is NOT found, downgrade to `general-purpose` (with a `jdi-backend` / `jdi-frontend` spec load in the prompt) and record an `agent_downgrade:` entry listing the original pin, the downgrade target, and the reason. This entry MUST appear in the final summary — never silently change a pin.
@@ -101,7 +101,7 @@ Run `bun run src/index.ts state executing` (in installed projects: `npx jdi stat
 
 ### 8. Spawn and Execute
 
-**Platform constraint:** JDI specialists (`source: jdi`) are NOT registered Claude Code subagents and MUST be spawned via `subagent_type="general-purpose"` with identity injected via prompt text (`"You are {agent}. Read .jdi/framework/agents/{agent}.md..."`). Registered Claude Code subagents (`source: claude-code`) are spawned directly by name. See `framework/jedi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
+**Platform constraint:** JDI specialists (`source: jdi`) are NOT registered Claude Code subagents and MUST be spawned via `subagent_type="general-purpose"` with identity injected via prompt text (`"You are {agent}. Read .jdi/framework/agents/{agent}.md..."`). Registered Claude Code subagents (`source: claude-code`) are spawned directly by name. See `framework/jdi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
 
 **Single-agent mode:**
 - `source: jdi` → `Task(subagent_type="general-purpose", prompt="You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md... PLAN: {index-path}")`

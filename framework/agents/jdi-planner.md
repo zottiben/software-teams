@@ -114,7 +114,7 @@ collision):
 
 1. **`.jdi/framework/agents/jdi-*.md`** (primary — `source: jdi`). If the
    `.jdi/` install is absent, fall back to `framework/agents/jdi-*.md` in the
-   repo root (self-hosting jedi repo).
+   repo root (self-hosting JDI repo).
 2. **`.claude/agents/*.md`** — project-local Claude Code subagents
    (`source: claude-code`).
 3. **`~/.claude/agents/*.md`** — user-global Claude Code subagents
@@ -129,7 +129,7 @@ in its task file frontmatter.
 > `implement-plan` must spawn them via `subagent_type="general-purpose"` and
 > inject identity via prompt text. Registered Claude Code subagents
 > (`source: claude-code`) can be spawned by name directly. See
-> `.jdi/framework/jedi.md` Critical Constraints and
+> `.jdi/framework/jdi.md` Critical Constraints and
 > `.jdi/framework/components/meta/AgentRouter.md` §4.
 
 If discovery returns zero specialists (no `.jdi/` install, no
@@ -139,7 +139,7 @@ tech-stack defaults. Never silently skip this step — `available_agents` MUST
 appear in the plan index even when empty.
 
 See `.jdi/framework/components/meta/AgentRouter.md` §1 for the full discovery
-routine and §2 for the routing tables (Jedi meta-framework / Unity / Unreal /
+routine and §2 for the routing tables (JDI meta-framework / Unity / Unreal /
 Godot / non-game).
 
 ### Step 0b: Reference Analysis (when provided)

@@ -44,7 +44,7 @@ order (AgentBase first).
 matching `source:` from `available_agents`. Verify the agent exists:
 
 - `source: jdi` → check `.jdi/framework/agents/{name}.md` (or
-  `framework/agents/{name}.md` in the self-hosting jedi repo)
+  `framework/agents/{name}.md` in the self-hosting JDI repo)
 - `source: claude-code` → check `.claude/agents/{name}.md` or
   `~/.claude/agents/{name}.md`
 

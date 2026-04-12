@@ -1,9 +1,9 @@
 ---
-description: Entry Point and Architecture for the Jedi (JDI) framework
+description: Entry Point and Architecture for the JDI framework
 model: opus
 ---
 
-# Jedi (JDI) Framework
+# JDI Framework
 
 **Entry Point** | Componentised prompts, Context-efficient, agent-delegated development framework.
 
@@ -333,4 +333,4 @@ Agent spawn prompts MUST follow this load order to maximise Anthropic API prompt
 
 ---
 
-*Jedi - Context-efficient development through agent delegation.*
+*JDI aka Jedi - Context-efficient development through agent delegation.*

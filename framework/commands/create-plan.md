@@ -71,13 +71,13 @@ Append these to `PRE_DISCOVERED_CONTEXT`.
 
 Enumerate available agents in this order (earlier roots override later ones on name collision). For each discovered `.md` file, read the frontmatter `name:` and `description:` and record a `source:` field so `implement-plan` picks the correct spawn pattern.
 
-1. **JDI framework specialists (primary — `source: jdi`)** — list `.jdi/framework/agents/jdi-*.md` (installed projects). If that directory does not exist, fall back to `framework/agents/jdi-*.md` (self-hosting jedi repo).
+1. **JDI framework specialists (primary — `source: jdi`)** — list `.jdi/framework/agents/jdi-*.md` (installed projects). If that directory does not exist, fall back to `framework/agents/jdi-*.md` (self-hosting JDI repo).
 2. **Project-local Claude Code subagents (`source: claude-code`)** — list `.claude/agents/*.md`.
 3. **User-global Claude Code subagents (`source: claude-code`)** — list `~/.claude/agents/*.md`.
 
 Store the merged catalogue as `AVAILABLE_AGENTS`. If none of the roots exist, set `AVAILABLE_AGENTS = []`. Do NOT fail.
 
-> **Why source matters:** JDI specialists (`jdi-backend`, `jdi-frontend`, etc.) are NOT registered Claude Code subagents — they live in `framework/agents/`. `implement-plan` must spawn them via `subagent_type="general-purpose"` with identity injected via prompt text. Registered Claude Code subagents (`source: claude-code`) can be spawned by name directly. See `framework/jedi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
+> **Why source matters:** JDI specialists (`jdi-backend`, `jdi-frontend`, etc.) are NOT registered Claude Code subagents — they live in `framework/agents/`. `implement-plan` must spawn them via `subagent_type="general-purpose"` with identity injected via prompt text. Registered Claude Code subagents (`source: claude-code`) can be spawned by name directly. See `framework/jdi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
 
 See `framework/components/meta/AgentRouter.md` §1 for the full discovery + routing rules the planner will apply.
 
