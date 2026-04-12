@@ -1,5 +1,5 @@
-name: 'Jedi AI Developer'
-description: 'AI-powered development workflows using the Jedi framework, powered by anthropic/claude-code-action'
+name: 'JDI AI Developer'
+description: 'AI-powered development workflows using the JDI framework, powered by anthropic/claude-code-action'
 author: 'benzotti'
 
 inputs:
@@ -17,9 +17,9 @@ inputs:
   trigger_phrase:
     description: 'The trigger phrase to look for in comments'
     required: false
-    default: 'Hey Jedi'
-  jedi_version:
-    description: 'Version of @benzotti/jedi to install for init'
+    default: 'Hey jdi'
+  jdi_version:
+    description: 'Version of @benzotti/jdi to install for init'
     required: false
     default: 'latest'
   claude_code_action_version:
@@ -38,33 +38,33 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    # Bun is required to run the Jedi CLI
+    # Bun is required to run the JDI CLI
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
 
-    # Ensure Jedi framework is initialised in the repo
-    - name: Bootstrap Jedi framework
+    # Ensure JDI framework is initialised in the repo
+    - name: Bootstrap JDI framework
       shell: bash
       run: |
         if [ ! -d ".jdi/framework" ]; then
-          echo "Jedi framework not found — initialising..."
-          bunx @benzotti/jedi@${{ inputs.jedi_version }} init --ci
+          echo "JDI framework not found — initialising..."
+          bunx @benzotti/jdi@${{ inputs.jdi_version }} init --ci
         fi
 
         # Ensure persistence directory exists
         mkdir -p .jdi/persistence
 
-    # Run Claude Code Action with Jedi-specific configuration
-    - name: Run Claude with Jedi framework
+    # Run Claude Code Action with JDI-specific configuration
+    - name: Run Claude with JDI framework
       id: claude
       uses: anthropics/claude-code-action@${{ inputs.claude_code_action_version }}
       with:
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         prompt: |
-          You are Jedi, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
+          You are JDI, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
 
           IMPORTANT: You are running inside a GitHub Action. Your final text response will be posted as a comment on the issue/PR. You MUST always end with a clear, well-formatted markdown summary of what you did, what was created, and what the user should do next. Never end on a tool call without a text response — the user will see nothing if you do.
 

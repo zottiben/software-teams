@@ -17,16 +17,16 @@ import {
   postGitHubComment,
   updateGitHubComment,
   reactToComment,
-  formatJediComment,
+  formatJdiComment,
   formatErrorComment,
   fetchCommentThread,
   buildConversationContext,
 } from "../../utils/github";
 
-type JediCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
+type JdiCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
 
 interface ParsedIntent {
-  command: JediCommand;
+  command: JdiCommand;
   description: string;
   clickUpUrl: string | null;
   fullFlow: boolean;
@@ -43,10 +43,10 @@ function parseComment(
   const hasDryRun = /--dry-run/i.test(comment);
   const cleanComment = comment.replace(/--dry-run/gi, "").trim();
 
-  // Strip "Hey Jedi" prefix (case-insensitive)
-  const match = cleanComment.match(/hey\s+jedi\s+(.+)/is);
+  // Strip "Hey jdi" prefix (case-insensitive)
+  const match = cleanComment.match(/hey\s+jdi\s+(.+)/is);
   if (!match) {
-    // No "Hey Jedi" prefix — if this is a follow-up in an existing conversation,
+    // No "Hey jdi" prefix — if this is a follow-up in an existing conversation,
     // treat the entire comment as feedback
     if (isFollowUp) {
       return {
@@ -112,7 +112,7 @@ function parseComment(
     return { ...base, command: "quick", description };
   }
 
-  // If there's an existing conversation, treat ambiguous "Hey Jedi" messages as refinement feedback
+  // If there's an existing conversation, treat ambiguous "Hey jdi" messages as refinement feedback
   if (isFollowUp) {
     return { ...base, command: "plan", description: body, clickUpUrl: null, isFeedback: true };
   }
@@ -124,12 +124,12 @@ function parseComment(
 export const runCommand = defineCommand({
   meta: {
     name: "run",
-    description: "GitHub Action entry point — parse 'Hey Jedi' comment and run workflow",
+    description: "GitHub Action entry point — parse 'Hey jdi' comment and run workflow",
   },
   args: {
     comment: {
       type: "positional",
-      description: "The raw comment body containing 'Hey Jedi' mention",
+      description: "The raw comment body containing 'Hey jdi' mention",
       required: true,
     },
     "comment-id": {
@@ -165,8 +165,8 @@ export const runCommand = defineCommand({
     const commentAuthor = args["comment-author"] ?? process.env.COMMENT_AUTHOR ?? "";
     const allowedUsers = args["allowed-users"] ?? process.env.ALLOWED_USERS ?? "";
 
-    // Opt-in authorization gate — only active if JEDI_AUTH_ENABLED or --allowed-users is set
-    if (commentAuthor && (allowedUsers || process.env.JEDI_AUTH_ENABLED)) {
+    // Opt-in authorization gate — only active if JDI_AUTH_ENABLED or --allowed-users is set
+    if (commentAuthor && (allowedUsers || process.env.JDI_AUTH_ENABLED)) {
       const authResult = await checkAuthorization(repo!, commentAuthor, allowedUsers || undefined);
       if (!authResult.authorized) {
         consola.warn(`Auth denied: ${authResult.reason}`);
@@ -174,7 +174,7 @@ export const runCommand = defineCommand({
           await reactToComment(repo, commentId, "confused").catch(() => {});
         }
         if (repo && issueNumber) {
-          const denyBody = formatJediComment("auth", `Access denied: ${authResult.reason}`);
+          const denyBody = formatJdiComment("auth", `Access denied: ${authResult.reason}`);
           await postGitHubComment(repo, issueNumber, denyBody).catch(() => {});
         }
         return;
@@ -197,7 +197,7 @@ export const runCommand = defineCommand({
 
       if (isFollowUp) {
         consola.info(
-          `Continuing conversation (${context.previousJediRuns} previous Jedi run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
+          `Continuing conversation (${context.previousJdiRuns} previous JDI run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
         );
       }
       // Sanitize conversation history (may contain user-controlled content)
@@ -207,7 +207,7 @@ export const runCommand = defineCommand({
     // Parse intent — pass isFollowUp so ambiguous messages become feedback
     const intent = parseComment(args.comment, isFollowUp);
     if (!intent) {
-      consola.error("Could not parse 'Hey Jedi' intent from comment");
+      consola.error("Could not parse 'Hey jdi' intent from comment");
       process.exit(1);
     }
 
@@ -226,7 +226,7 @@ export const runCommand = defineCommand({
     // Post a thinking placeholder comment
     let placeholderCommentId: number | null = null;
     if (repo && issueNumber) {
-      const thinkingBody = `<h3>🧠 Jedi <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
+      const thinkingBody = `<h3>🧠 JDI <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
       placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
     }
 
@@ -241,8 +241,8 @@ export const runCommand = defineCommand({
       } as any;
       await writeState(cwd, state);
 
-      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey Jedi implement\`** when you're ready to go.`;
-      const finalBody = formatJediComment("plan", approvalBody);
+      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey jdi implement\`** when you're ready to go.`;
+      const finalBody = formatJdiComment("plan", approvalBody);
 
       if (repo && placeholderCommentId) {
         await updateGitHubComment(repo, placeholderCommentId, finalBody).catch((err) => {
@@ -274,7 +274,7 @@ export const runCommand = defineCommand({
 
       let version = "unknown";
       try {
-        const pkgPath = join(cwd, "node_modules/@benzotti/jedi/package.json");
+        const pkgPath = join(cwd, "node_modules/@benzotti/jdi/package.json");
         if (existsSync(pkgPath)) {
           const pkg = JSON.parse(await Bun.file(pkgPath).text());
           version = pkg.version;
@@ -293,7 +293,7 @@ export const runCommand = defineCommand({
         `| Version | \`${version}\` |`,
       ].join("\n");
 
-      const finalBody = formatJediComment("ping", statusBody);
+      const finalBody = formatJdiComment("ping", statusBody);
 
       if (repo && placeholderCommentId) {
         await updateGitHubComment(repo, placeholderCommentId, finalBody).catch((err) => {
@@ -375,7 +375,7 @@ export const runCommand = defineCommand({
         fenceUserInput("user-request", intent.description),
         ``,
         `## Instructions`,
-        `The user is iterating on code that Jedi already implemented. Review the conversation above to understand what was built.`,
+        `The user is iterating on code that JDI already implemented. Review the conversation above to understand what was built.`,
         `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
         `Apply changes incrementally to the existing code — do not rewrite from scratch.`,
         ``,
@@ -653,11 +653,11 @@ export const runCommand = defineCommand({
       let commentBody: string;
 
       if (success && fullResponse) {
-        commentBody = formatJediComment(actionLabel, fullResponse);
+        commentBody = formatJdiComment(actionLabel, fullResponse);
       } else if (!success) {
         commentBody = formatErrorComment(actionLabel, "Check workflow logs for details.");
       } else {
-        commentBody = formatJediComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
+        commentBody = formatJdiComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
       }
 
       if (placeholderCommentId) {

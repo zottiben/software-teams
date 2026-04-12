@@ -1,6 +1,6 @@
 import { join } from "path";
 import { existsSync, mkdirSync } from "fs";
-import type { JediStorage } from "../storage";
+import type { JdiStorage } from "../storage";
 
 const LEARNINGS_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
 
@@ -10,7 +10,7 @@ const LEARNINGS_CATEGORIES = ["general", "backend", "frontend", "testing", "devo
  */
 export async function loadPersistedState(
   cwd: string,
-  storage: JediStorage,
+  storage: JdiStorage,
 ): Promise<{ learningsPath: string | null; codebaseIndexPath: string | null }> {
   let learningsPath: string | null = null;
   let codebaseIndexPath: string | null = null;
@@ -67,7 +67,7 @@ export async function loadPersistedState(
  */
 export async function savePersistedState(
   cwd: string,
-  storage: JediStorage,
+  storage: JdiStorage,
 ): Promise<{ learningsSaved: boolean; codebaseIndexSaved: boolean }> {
   let learningsSaved = false;
   let codebaseIndexSaved = false;

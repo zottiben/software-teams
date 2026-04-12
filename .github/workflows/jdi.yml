@@ -1,33 +1,33 @@
-# Jedi AI Developer — GitHub Actions Workflow
-# Copy this file to .github/workflows/jedi.yml in your repository
+# JDI AI Developer — GitHub Actions Workflow
+# Copy this file to .github/workflows/jdi.yml in your repository
 #
 # Prerequisites:
 #   1. Set ANTHROPIC_API_KEY secret in your repo settings
-#   2. That's it — Jedi bootstraps everything else automatically
+#   2. That's it — JDI bootstraps everything else automatically
 #
 # Optional:
 #   - Set CLICKUP_API_TOKEN secret for ClickUp ticket integration
-#   - Set JEDI_COMMIT_LEARNINGS=true repo variable to persist learnings in git
-#   - Set JEDI_LEARNINGS_REPO variable to push learnings to a central repo (e.g. org/jedi-learnings)
-#   - Set JEDI_LEARNINGS_TOKEN secret (PAT with Contents read/write on the learnings repo)
-#   - Run `npx @benzotti/jedi init` locally to customise framework files
+#   - Set JDI_COMMIT_LEARNINGS=true repo variable to persist learnings in git
+#   - Set JDI_LEARNINGS_REPO variable to push learnings to a central repo (e.g. org/jdi-learnings)
+#   - Set JDI_LEARNINGS_TOKEN secret (PAT with Contents read/write on the learnings repo)
+#   - Run `npx @benzotti/jdi init` locally to customise framework files
 #
-# Usage: Comment on any issue or PR with "Hey Jedi" followed by a command:
-#   Hey Jedi plan <description>        — Create an implementation plan
-#   Hey Jedi quick <description>       — Make a small, focused change
-#   Hey Jedi review                    — Review the current PR
-#   Hey Jedi feedback                  — Address PR review comments
-#   Hey Jedi do <clickup-ticket-url>   — Full flow: plan + implement from ticket
-#   Hey Jedi ping                      — Check framework status
+# Usage: Comment on any issue or PR with "Hey jdi" followed by a command:
+#   Hey jdi plan <description>        — Create an implementation plan
+#   Hey jdi quick <description>       — Make a small, focused change
+#   Hey jdi review                    — Review the current PR
+#   Hey jdi feedback                  — Address PR review comments
+#   Hey jdi do <clickup-ticket-url>   — Full flow: plan + implement from ticket
+#   Hey jdi ping                      — Check framework status
 #
-# Conversation: Jedi supports back-and-forth iteration. After Jedi responds,
+# Conversation: JDI supports back-and-forth iteration. After JDI responds,
 # reply with feedback to refine, or say "approved" to finalise.
 #
-# Learnings: Jedi accumulates team preferences across PRs automatically.
-# By default learnings live in the GitHub Actions cache. Set JEDI_COMMIT_LEARNINGS=true
+# Learnings: JDI accumulates team preferences across PRs automatically.
+# By default learnings live in the GitHub Actions cache. Set JDI_COMMIT_LEARNINGS=true
 # to persist them in git (recommended — cache entries expire after 7 days of inactivity).
 
-name: Jedi
+name: JDI
 
 on:
   issue_comment:
@@ -46,15 +46,15 @@ permissions:
   id-token: write
 
 jobs:
-  # ── Triggered by "Hey Jedi" comments on issues/PRs or PR reviews ──
-  jedi:
+  # ── Triggered by "Hey jdi" comments on issues/PRs or PR reviews ──
+  jdi:
     if: >-
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'Hey Jedi'))
-      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, 'Hey Jedi'))
-      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, 'Hey Jedi'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'Hey jdi'))
+      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, 'Hey jdi'))
+      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, 'Hey jdi'))
     runs-on: ubuntu-latest
     steps:
-      # Bun is required to run the Jedi CLI
+      # Bun is required to run the JDI CLI
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -65,7 +65,7 @@ jobs:
       - name: Resolve PR branch
         id: pr
         run: |
-          bunx @benzotti/jedi@latest action resolve-branch \
+          bunx @benzotti/jdi@latest action resolve-branch \
             --repo "$REPO" \
             ${PR_HEAD_REF:+--pr-head-ref "$PR_HEAD_REF"} \
             ${PR_NUMBER:+--pr-number "$PR_NUMBER"}
@@ -79,10 +79,10 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.branch || github.head_ref || github.ref }}
 
-      # Restore persisted Jedi state (learnings + codebase-index)
+      # Restore persisted JDI state (learnings + codebase-index)
       # 1. Exact match for this branch
       # 2. Fall back to main baseline (learnings only — plans are cleared below)
-      - name: Restore Jedi state
+      - name: Restore JDI state
         id: cache
         uses: actions/cache@v4
         with:
@@ -92,45 +92,45 @@ jobs:
             .jdi/config/
             .jdi/plans/
             .claude/
-          key: jedi-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
+          key: jdi-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
           restore-keys: |
-            jedi-state-${{ github.repository }}-main
+            jdi-state-${{ github.repository }}-main
 
-      # Bootstrap Jedi framework if not present (first run or cache miss)
-      - name: Bootstrap Jedi
+      # Bootstrap JDI framework if not present (first run or cache miss)
+      - name: Bootstrap JDI
         run: |
-          bunx @benzotti/jedi@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+          bunx @benzotti/jdi@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
 
       # Fetch shared learnings from an external repo if configured.
       # This merges cross-project learnings into the local framework before agents run.
       - name: Fetch shared learnings
-        if: vars.JEDI_LEARNINGS_REPO != ''
+        if: vars.JDI_LEARNINGS_REPO != ''
         run: |
-          bunx @benzotti/jedi@latest action fetch-learnings --learnings-repo "$LEARNINGS_REPO"
+          bunx @benzotti/jdi@latest action fetch-learnings --learnings-repo "$LEARNINGS_REPO"
         env:
-          LEARNINGS_REPO: ${{ vars.JEDI_LEARNINGS_REPO }}
-          LEARNINGS_TOKEN: ${{ secrets.JEDI_LEARNINGS_TOKEN || github.token }}
+          LEARNINGS_REPO: ${{ vars.JDI_LEARNINGS_REPO }}
+          LEARNINGS_TOKEN: ${{ secrets.JDI_LEARNINGS_TOKEN || github.token }}
 
-      # Configure git for Jedi commits (used when implementing changes on PR branches)
+      # Configure git for JDI commits (used when implementing changes on PR branches)
       - name: Configure git
         run: |
-          git config user.name "jedi[bot]"
-          git config user.email "jedi[bot]@users.noreply.github.com"
+          git config user.name "jdi[bot]"
+          git config user.email "jdi[bot]@users.noreply.github.com"
 
-      # Install Claude Code CLI (required by Jedi for AI invocations)
+      # Install Claude Code CLI (required by JDI for AI invocations)
       - name: Install Claude Code
         run: bun install -g @anthropic-ai/claude-code
 
-      # Run Jedi CLI directly — full pipeline with routing, agents, and comment posting
+      # Run JDI CLI directly — full pipeline with routing, agents, and comment posting
       # IMPORTANT: All user input is passed via env vars to avoid shell injection.
       # All arguments are individually quoted to prevent shell expansion.
       #
       # Auth gate (opt-in):
-      #   Set repo variable JEDI_AUTH_ENABLED=true to restrict Jedi to write collaborators.
-      #   Set JEDI_ALLOWED_USERS to a comma-separated list for explicit allow-listing.
-      - name: Run Jedi
+      #   Set repo variable JDI_AUTH_ENABLED=true to restrict JDI to write collaborators.
+      #   Set JDI_ALLOWED_USERS to a comma-separated list for explicit allow-listing.
+      - name: Run JDI
         run: |
-          bunx @benzotti/jedi@latest action run "$COMMENT_BODY" \
+          bunx @benzotti/jdi@latest action run "$COMMENT_BODY" \
             --repo "$REPO" \
             ${COMMENT_ID:+--comment-id "$COMMENT_ID"} \
             ${PR_NUMBER:+--pr-number "$PR_NUMBER"} \
@@ -145,14 +145,14 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
           COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.event.review.user.login || '' }}
           REPO: ${{ github.repository }}
-          JEDI_AUTH_ENABLED: ${{ vars.JEDI_AUTH_ENABLED || '' }}
-          ALLOWED_USERS: ${{ vars.JEDI_ALLOWED_USERS || '' }}
+          JDI_AUTH_ENABLED: ${{ vars.JDI_AUTH_ENABLED || '' }}
+          ALLOWED_USERS: ${{ vars.JDI_ALLOWED_USERS || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
 
-      # Save Jedi state — framework, config, persistence all cached together
-      - name: Save Jedi state
+      # Save JDI state — framework, config, persistence all cached together
+      - name: Save JDI state
         if: always()
         uses: actions/cache/save@v4
         with:
@@ -162,10 +162,10 @@ jobs:
             .jdi/config/
             .jdi/plans/
             .claude/
-          key: jedi-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
+          key: jdi-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
 
   # ── Promote learnings to main baseline when PRs merge ──
-  # Only runs when Jedi was actually used on the merged PR
+  # Only runs when JDI was actually used on the merged PR
   promote-learnings:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -174,10 +174,10 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Check if Jedi was involved
+      - name: Check if JDI was involved
         id: check
         run: |
-          bunx @benzotti/jedi@latest action promote-learnings \
+          bunx @benzotti/jdi@latest action promote-learnings \
             --check-only \
             --repo "$REPO" \
             --sha "${{ github.sha }}"
@@ -188,7 +188,7 @@ jobs:
       - uses: actions/checkout@v4
         if: steps.check.outputs.skip != 'true'
 
-      - name: Restore Jedi state from merged branch
+      - name: Restore JDI state from merged branch
         if: steps.check.outputs.skip != 'true'
         id: restore
         uses: actions/cache@v4
@@ -199,9 +199,9 @@ jobs:
             .jdi/config/
             .jdi/plans/
             .claude/
-          key: jedi-state-${{ github.repository }}-main-promotion-${{ github.sha }}
+          key: jdi-state-${{ github.repository }}-main-promotion-${{ github.sha }}
           restore-keys: |
-            jedi-state-${{ github.repository }}-${{ steps.check.outputs.branch }}-
+            jdi-state-${{ github.repository }}-${{ steps.check.outputs.branch }}-
 
       - name: Promote to main baseline
         if: steps.check.outputs.skip != 'true' && steps.restore.outputs.cache-hit != ''
@@ -213,30 +213,30 @@ jobs:
             .jdi/config/
             .jdi/plans/
             .claude/
-          key: jedi-state-${{ github.repository }}-main-${{ github.sha }}
+          key: jdi-state-${{ github.repository }}-main-${{ github.sha }}
 
       # Opt-in: commit learnings so they survive cache eviction.
-      # Set repo variable JEDI_COMMIT_LEARNINGS=true to enable.
+      # Set repo variable JDI_COMMIT_LEARNINGS=true to enable.
       #
       # Where learnings are committed:
       #   - Same repo (default): .jdi/framework/learnings/ on main
-      #   - External repo: set JEDI_LEARNINGS_REPO (e.g. org/jedi-learnings)
-      #     and JEDI_LEARNINGS_TOKEN secret. Learnings are stored under
-      #     jedi/learnings/ in the external repo and merged (not replaced).
+      #   - External repo: set JDI_LEARNINGS_REPO (e.g. org/jdi-learnings)
+      #     and JDI_LEARNINGS_TOKEN secret. Learnings are stored under
+      #     jdi/learnings/ in the external repo and merged (not replaced).
       - name: Commit learnings to repo
         if: >-
           steps.check.outputs.skip != 'true'
           && steps.restore.outputs.cache-hit != ''
-          && vars.JEDI_COMMIT_LEARNINGS == 'true'
+          && vars.JDI_COMMIT_LEARNINGS == 'true'
         run: |
-          git config user.name "jedi[bot]"
-          git config user.email "jedi[bot]@users.noreply.github.com"
-          bunx @benzotti/jedi@latest action promote-learnings \
+          git config user.name "jdi[bot]"
+          git config user.email "jdi[bot]@users.noreply.github.com"
+          bunx @benzotti/jdi@latest action promote-learnings \
             --repo "$REPO" \
             --sha "${{ github.sha }}" \
             --pr-number "${{ steps.check.outputs.pr_number }}" \
             --branch "${{ steps.check.outputs.branch }}" \
             ${LEARNINGS_REPO:+--learnings-repo "$LEARNINGS_REPO"}
         env:
-          LEARNINGS_REPO: ${{ vars.JEDI_LEARNINGS_REPO || '' }}
-          LEARNINGS_TOKEN: ${{ secrets.JEDI_LEARNINGS_TOKEN || github.token }}
+          LEARNINGS_REPO: ${{ vars.JDI_LEARNINGS_REPO || '' }}
+          LEARNINGS_TOKEN: ${{ secrets.JDI_LEARNINGS_TOKEN || github.token }}

@@ -1,8 +1,8 @@
 import { join, resolve } from "path";
 import { existsSync, mkdirSync } from "fs";
-import type { JediStorage } from "./interface";
+import type { JdiStorage } from "./interface";
 
-export class FsStorage implements JediStorage {
+export class FsStorage implements JdiStorage {
   private basePath: string;
 
   constructor(basePath: string = ".jdi/persistence") {

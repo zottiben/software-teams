@@ -4,15 +4,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync
 import { join } from "path";
 
 /**
- * Ensure the Jedi framework is initialized.
- * If `.jdi/framework` is missing, run `bunx @benzotti/jedi@latest init --ci`.
+ * Ensure the JDI framework is initialized.
+ * If `.jdi/framework` is missing, run `bunx @benzotti/jdi@latest init --ci`.
  * Also ensures `.jdi/persistence/` exists.
  */
 export function ensureFramework(cwd: string): void {
   const frameworkDir = join(cwd, ".jdi/framework");
   if (!existsSync(frameworkDir)) {
     consola.info("Framework not found — initializing...");
-    const result = Bun.spawnSync(["bunx", "@benzotti/jedi@latest", "init", "--ci"], {
+    const result = Bun.spawnSync(["bunx", "@benzotti/jdi@latest", "init", "--ci"], {
       cwd,
       stdout: "inherit",
       stderr: "inherit",
@@ -78,7 +78,7 @@ export function setupGitExclude(cwd: string): void {
 export const bootstrapCommand = defineCommand({
   meta: {
     name: "bootstrap",
-    description: "Bootstrap Jedi framework, clear stale state, and configure git excludes",
+    description: "Bootstrap JDI framework, clear stale state, and configure git excludes",
   },
   args: {
     "cache-hit": {

@@ -6,7 +6,7 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 
 /**
- * Sparse-clone the `jedi/learnings/` directory from an external repo.
+ * Sparse-clone the `jdi/learnings/` directory from an external repo.
  * Returns true if the clone succeeded and the directory exists.
  */
 export function cloneLearningsRepo(repo: string, token: string, tmpDir: string): boolean {
@@ -22,14 +22,14 @@ export function cloneLearningsRepo(repo: string, token: string, tmpDir: string):
     return false;
   }
 
-  // Set sparse checkout to only fetch jedi/learnings/
-  Bun.spawnSync(["git", "sparse-checkout", "set", "jedi/learnings"], {
+  // Set sparse checkout to only fetch jdi/learnings/
+  Bun.spawnSync(["git", "sparse-checkout", "set", "jdi/learnings"], {
     cwd: tmpDir,
     stdout: "pipe",
     stderr: "pipe",
   });
 
-  return existsSync(join(tmpDir, "jedi/learnings"));
+  return existsSync(join(tmpDir, "jdi/learnings"));
 }
 
 /**
@@ -96,7 +96,7 @@ export const fetchLearningsCommand = defineCommand({
   args: {
     "learnings-repo": {
       type: "string",
-      description: "External learnings repository (e.g. org/jedi-learnings)",
+      description: "External learnings repository (e.g. org/jdi-learnings)",
     },
     "learnings-token": {
       type: "string",
@@ -120,7 +120,7 @@ export const fetchLearningsCommand = defineCommand({
     const learningsDir = join(cwd, ".jdi/framework/learnings");
     mkdirSync(learningsDir, { recursive: true });
 
-    const tmpDir = mkdtempSync(join(tmpdir(), "jedi-learnings-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "jdi-learnings-"));
 
     try {
       const cloned = cloneLearningsRepo(learningsRepo, token, tmpDir);
@@ -128,7 +128,7 @@ export const fetchLearningsCommand = defineCommand({
         return;
       }
 
-      const sourceDir = join(tmpDir, "jedi/learnings");
+      const sourceDir = join(tmpDir, "jdi/learnings");
       const result = mergeLearnings(sourceDir, learningsDir);
       consola.success(`Learnings fetch complete (copied: ${result.copied}, merged: ${result.merged})`);
     } finally {

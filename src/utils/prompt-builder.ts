@@ -279,7 +279,7 @@ export function buildPostImplFeedbackPrompt(ctx: PromptContext, feedback: string
     fenceUserInput("user-request", feedback),
     ``,
     `## Instructions`,
-    `The user is iterating on code that Jedi already implemented. Review the conversation above to understand what was built.`,
+    `The user is iterating on code that JDI already implemented. Review the conversation above to understand what was built.`,
     `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
     `Apply changes incrementally to the existing code — do not rewrite from scratch.`,
     ``,

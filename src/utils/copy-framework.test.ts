@@ -29,7 +29,7 @@ function setupFrameworkSource() {
     mkdirSync(join(frameworkSourceDir, "adapters"), { recursive: true });
     mkdirSync(join(frameworkSourceDir, "teams"), { recursive: true });
 
-    writeFileSync(join(frameworkSourceDir, "jedi.md"), "# JDI Framework");
+    writeFileSync(join(frameworkSourceDir, "jdi.md"), "# JDI Framework");
     writeFileSync(join(frameworkSourceDir, "agents", "jdi-planner.md"), "# Planner");
     writeFileSync(join(frameworkSourceDir, "components", "meta", "AgentBase.md"), "# AgentBase");
     writeFileSync(join(frameworkSourceDir, "commands", "create-plan.md"), "# Create Plan");
@@ -66,7 +66,7 @@ describe("copyFrameworkFiles", () => {
 
     expect(existsSync(join(dir, ".jdi", "framework", "agents"))).toBe(true);
     expect(existsSync(join(dir, ".jdi", "framework", "components"))).toBe(true);
-    expect(existsSync(join(dir, ".jdi", "framework", "jedi.md"))).toBe(true);
+    expect(existsSync(join(dir, ".jdi", "framework", "jdi.md"))).toBe(true);
   });
 
   test("copies command stubs to .claude/commands/jdi/", async () => {
@@ -138,7 +138,7 @@ describe("copyFrameworkFiles", () => {
     await copyFrameworkFiles(dir, "generic", false);
 
     // Overwrite a file with custom content
-    const customPath = join(dir, ".jdi", "framework", "jedi.md");
+    const customPath = join(dir, ".jdi", "framework", "jdi.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     // Run again without force
@@ -153,7 +153,7 @@ describe("copyFrameworkFiles", () => {
     await copyFrameworkFiles(dir, "generic", false);
 
     // Overwrite a file with custom content
-    const customPath = join(dir, ".jdi", "framework", "jedi.md");
+    const customPath = join(dir, ".jdi", "framework", "jdi.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     // Run again with force

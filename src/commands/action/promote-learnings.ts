@@ -14,19 +14,19 @@ function writeGitHubOutput(key: string, value: string): void {
   console.log(`${key}=${value}`);
 }
 
-export interface JediInvolvement {
+export interface JdiInvolvement {
   skip: boolean;
   branch?: string;
   prNumber?: number;
 }
 
 /**
- * Check if Jedi was involved in the PR associated with a commit.
+ * Check if JDI was involved in the PR associated with a commit.
  * Looks for:
- * - Comments from github-actions[bot] mentioning jedi/Jedi
- * - Commits authored by jedi[bot]
+ * - Comments from github-actions[bot] mentioning jdi/JDI
+ * - Commits authored by jdi[bot]
  */
-export function checkJediInvolvement(repo: string, sha: string): JediInvolvement {
+export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
   // Find the PR associated with this commit
   const prResult = Bun.spawnSync(
     ["gh", "api", `repos/${repo}/commits/${sha}/pulls`, "--jq", ".[0].number // empty"],
@@ -41,27 +41,27 @@ export function checkJediInvolvement(repo: string, sha: string): JediInvolvement
 
   const prNumber = parseInt(prNumberStr, 10);
 
-  // Check for Jedi comments
+  // Check for JDI comments
   const commentsResult = Bun.spawnSync(
     [
       "gh", "api", `repos/${repo}/issues/${prNumber}/comments`, "--paginate",
-      "--jq", `[.[] | select(.user.login == "github-actions[bot]" and (.body | test("jedi|Jedi")))] | length`,
+      "--jq", `[.[] | select(.user.login == "github-actions[bot]" and (.body | test("jdi|JDI")))] | length`,
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
-  const jediActivity = parseInt(commentsResult.stdout.toString().trim() || "0", 10);
+  const jdiActivity = parseInt(commentsResult.stdout.toString().trim() || "0", 10);
 
-  // Check for jedi[bot] commits
+  // Check for jdi[bot] commits
   const commitsResult = Bun.spawnSync(
     [
       "gh", "api", `repos/${repo}/pulls/${prNumber}/commits`, "--paginate",
-      "--jq", `[.[] | select(.commit.author.name == "jedi[bot]")] | length`,
+      "--jq", `[.[] | select(.commit.author.name == "jdi[bot]")] | length`,
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
-  const jediCommits = parseInt(commitsResult.stdout.toString().trim() || "0", 10);
+  const jdiCommits = parseInt(commitsResult.stdout.toString().trim() || "0", 10);
 
-  if (jediActivity > 0 || jediCommits > 0) {
+  if (jdiActivity > 0 || jdiCommits > 0) {
     // Get the branch name
     const branchResult = Bun.spawnSync(
       ["gh", "api", `repos/${repo}/pulls/${prNumber}`, "--jq", ".head.ref"],
@@ -70,12 +70,12 @@ export function checkJediInvolvement(repo: string, sha: string): JediInvolvement
     const branch = branchResult.stdout.toString().trim();
 
     consola.info(
-      `Jedi was active on PR #${prNumber} (comments: ${jediActivity}, commits: ${jediCommits}) — promoting learnings`,
+      `JDI was active on PR #${prNumber} (comments: ${jdiActivity}, commits: ${jdiCommits}) — promoting learnings`,
     );
     return { skip: false, branch, prNumber };
   }
 
-  consola.info(`No Jedi activity on PR #${prNumber} — skipping`);
+  consola.info(`No JDI activity on PR #${prNumber} — skipping`);
   return { skip: true };
 }
 
@@ -134,8 +134,8 @@ export function commitLearningsToSameRepo(learningsDir: string, prNumber?: numbe
   }
 
   const message = prNumber
-    ? `chore(jedi): update team learnings\n\nAuto-committed by Jedi after PR #${prNumber} merged.\nThese learnings are accumulated from PR reviews and feedback.`
-    : `chore(jedi): update team learnings`;
+    ? `chore(jdi): update team learnings\n\nAuto-committed by JDI after PR #${prNumber} merged.\nThese learnings are accumulated from PR reviews and feedback.`
+    : `chore(jdi): update team learnings`;
 
   const commitResult = Bun.spawnSync(["git", "commit", "-m", message], {
     stdout: "pipe",
@@ -172,7 +172,7 @@ export function commitLearningsToExternalRepo(
   prNumber?: number,
   sourceRepo?: string,
 ): boolean {
-  const tmpDir = mkdtempSync(join(tmpdir(), "jedi-promote-"));
+  const tmpDir = mkdtempSync(join(tmpdir(), "jdi-promote-"));
 
   try {
     const cloneUrl = `https://x-access-token:${token}@github.com/${externalRepo}.git`;
@@ -186,18 +186,18 @@ export function commitLearningsToExternalRepo(
       return false;
     }
 
-    const remoteSubdir = join(tmpDir, "jedi/learnings");
+    const remoteSubdir = join(tmpDir, "jdi/learnings");
     mkdirSync(remoteSubdir, { recursive: true });
 
     // Merge learnings from local into the external repo
     mergeLearnings(learningsDir, remoteSubdir);
 
     // Configure git in the cloned repo
-    Bun.spawnSync(["git", "config", "user.name", "jedi[bot]"], { cwd: tmpDir });
-    Bun.spawnSync(["git", "config", "user.email", "jedi[bot]@users.noreply.github.com"], { cwd: tmpDir });
+    Bun.spawnSync(["git", "config", "user.name", "jdi[bot]"], { cwd: tmpDir });
+    Bun.spawnSync(["git", "config", "user.email", "jdi[bot]@users.noreply.github.com"], { cwd: tmpDir });
 
     // Stage changes
-    Bun.spawnSync(["bash", "-c", `git add "jedi/learnings"/*.md`], {
+    Bun.spawnSync(["bash", "-c", `git add "jdi/learnings"/*.md`], {
       cwd: tmpDir,
       stdout: "pipe",
       stderr: "pipe",
@@ -217,7 +217,7 @@ export function commitLearningsToExternalRepo(
 
     const source = sourceRepo || "unknown";
     const prRef = prNumber ? `PR #${prNumber}` : "merge";
-    const message = `chore(jedi): update learnings from ${source}\n\nSource: ${prRef} on ${source}\nLearnings accumulated from PR reviews and feedback.`;
+    const message = `chore(jdi): update learnings from ${source}\n\nSource: ${prRef} on ${source}\nLearnings accumulated from PR reviews and feedback.`;
 
     const commitResult = Bun.spawnSync(["git", "commit", "-m", message], {
       cwd: tmpDir,
@@ -241,7 +241,7 @@ export function commitLearningsToExternalRepo(
       return false;
     }
 
-    consola.success(`Learnings committed to ${externalRepo}/jedi/learnings`);
+    consola.success(`Learnings committed to ${externalRepo}/jdi/learnings`);
     return true;
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
@@ -251,7 +251,7 @@ export function commitLearningsToExternalRepo(
 export const promoteLearningsCommand = defineCommand({
   meta: {
     name: "promote-learnings",
-    description: "Check Jedi involvement and promote learnings after PR merge",
+    description: "Check JDI involvement and promote learnings after PR merge",
   },
   args: {
     repo: {
@@ -290,7 +290,7 @@ export const promoteLearningsCommand = defineCommand({
     const sha = args.sha;
 
     if (args["check-only"]) {
-      const involvement = checkJediInvolvement(repo, sha);
+      const involvement = checkJdiInvolvement(repo, sha);
       writeGitHubOutput("skip", String(involvement.skip));
       if (involvement.branch) {
         writeGitHubOutput("branch", involvement.branch);

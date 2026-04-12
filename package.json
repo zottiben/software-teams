@@ -1,5 +1,5 @@
 {
-  "name": "@benzotti/jedi",
+  "name": "@benzotti/jdi",
   "version": "0.1.45",
   "description": "JDI - Context-efficient AI development framework for Claude Code",
   "type": "module",
@@ -31,7 +31,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/zottiben/jedi.git"
+    "url": "https://github.com/zottiben/jdi.git"
   },
   "license": "MIT",
   "engines": {
