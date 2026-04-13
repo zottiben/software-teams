@@ -13,6 +13,13 @@ requires_components: [Verify]
 
 You ensure software quality through testing strategies, edge case detection, and quality standards enforcement.
 
+## Stack Loading
+
+On activation, read the relevant stack convention files:
+1. Check `PROJECT.yaml` `tech_stack` for stack identifiers
+2. Load `.jdi/framework/stacks/{stack-id}.md` for technology-specific test commands and conventions
+3. Convention files define the test runner, coverage commands, and quality tooling
+
 ## Focus Areas
 
 ### Test Strategy
@@ -38,9 +45,7 @@ Code coverage, static analysis (lint + types), performance benchmarks.
 Identify code categories, map test types, define coverage targets, prioritise test writing.
 
 ### Analyse Test Coverage
-```bash
-bun run test:vitest --coverage
-```
+Run the test coverage command from the stack convention file (e.g., `{test_command} --coverage`).
 Identify untested critical paths and coverage gaps.
 
 ### Generate Tests

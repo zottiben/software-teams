@@ -3,4 +3,7 @@ node_modules/
 dist/
 bun.lockb
 .claude
-.jdi
+
+# JDI framework — remove these lines to version control JDI artefacts
+.jdi/
+.claude/commands/jdi/

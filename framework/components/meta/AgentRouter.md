@@ -78,8 +78,7 @@ available_agents:
 ```
 
 If discovery returns zero agents (no JDI install and no `.claude/agents/`),
-the planner records `available_agents: []` and falls back to the legacy
-tech-stack default (`jdi-backend` / `jdi-frontend` / `general-purpose`) so
+the planner records `available_agents: []` and falls back to the domain default (`jdi-backend` / `jdi-frontend` / `general-purpose`) so
 the empty state is explicit rather than silent.
 
 ---
@@ -96,7 +95,7 @@ signal hierarchy (highest to lowest):
 | 3 | Task type + tech_stack | Unity C# gameplay → `gameplay-programmer` or `unity-specialist` |
 | 4 | Task objective keywords | "shader", "VFX", "render pipeline" → `unity-shader-specialist` |
 | 5 | Checkpoint type | `checkpoint:human-verify` → `qa-tester` |
-| 6 | Tech-stack default | PHP → `jdi-backend`, TS/React → `jdi-frontend`, C#/Unity → `unity-specialist` |
+| 6 | Domain default | Backend code → `jdi-backend`, frontend code → `jdi-frontend`, C#/Unity → `unity-specialist` |
 | 7 | Fallback | `general-purpose` (only if no specialists exist) |
 
 ### Unity routing cheat sheet (common case for game projects)
@@ -137,13 +136,22 @@ signal hierarchy (highest to lowest):
 
 | Signal | Preferred agent |
 |--------|-----------------|
-| PHP backend | `jdi-backend` |
-| TypeScript / React frontend | `jdi-frontend` |
-| Full-stack | `jdi-backend` + `jdi-frontend` |
+| Backend code (server-side logic, APIs, data layer) | `jdi-backend` |
+| Frontend code (UI components, client-side logic, styling) | `jdi-frontend` |
+| Full-stack (changes span both backend and frontend) | `jdi-backend` + `jdi-frontend` |
 | Orchestration / sprint / risk / scope | `jdi-producer` |
 | Performance profiling / budgets / regression | `jdi-perf-analyst` |
 | Security review / vuln audit / secrets / privacy | `jdi-security` |
 | Test case writing / regression checklist / post-task verify | `jdi-qa-tester` |
+
+#### Domain Detection Heuristics
+
+When task files don't clearly indicate domain, use these patterns:
+
+- **Backend signals**: `server/`, `api/`, `app/`, `src/server/`, `controllers/`, `models/`, `migrations/`, `routes/`, `handlers/`, `services/`, `repositories/`, `cmd/`, `internal/`, `pkg/`
+- **Frontend signals**: `components/`, `views/`, `pages/`, `hooks/`, `stores/`, `styles/`, `public/`, `src/client/`, `src/app/` (when alongside components), `templates/` (UI), `layouts/`
+- **DevOps signals**: `docker/`, `.github/`, `ci/`, `deploy/`, `infra/`, `terraform/`, `helm/`, `k8s/`, `Dockerfile`, `docker-compose*`, `nginx/`, `scripts/`
+- **Ambiguous**: `src/`, `lib/`, `utils/`, `helpers/`, `shared/` — check file extensions and imports to determine domain
 
 ### JDI meta-framework routing
 
@@ -272,7 +280,7 @@ Agent(
 )
 ```
 
-Tasks with no `agent:` field fall back to the tech-stack default
+Tasks with no `agent:` field fall back to the domain default
 (`jdi-backend` / `jdi-frontend`) spawned via the `source: jdi` pattern.
 
 ### Mixed fallbacks

@@ -400,6 +400,7 @@ framework/                           # Distributable framework
 ├── teams/                           # Team definitions (5 teams)
 ├── adapters/                        # Project-type configs
 ├── templates/                       # PLAN, PLAN-TASK, SUMMARY, CLAUDE-SHARED, PROJECT/REQUIREMENTS/ROADMAP.yaml
+├── stacks/                          # Stack convention files (php-laravel, react-typescript, etc.)
 ├── learnings/                       # Category shells for PR review learnings
 └── jdi.md                           # Framework architecture doc
 

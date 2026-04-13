@@ -54,6 +54,38 @@ Patterns added:
 
 Skip if the marker comment `# JDI framework` is already in `.gitignore`. Create `.gitignore` if it doesn't exist.
 
+### Step 5.5: Detect and Configure Tech Stack
+
+Detect the project's technology stack by scanning for signature files in the project root.
+
+**Backend detection:**
+- `composer.json` + `artisan` → `php-laravel`
+- `composer.json` (without artisan) → `php`
+- `go.mod` → `go`
+- `requirements.txt` or `pyproject.toml` + `manage.py` → `python-django`
+- `requirements.txt` or `pyproject.toml` (without manage.py) → `python`
+- `Gemfile` + `config/routes.rb` → `ruby-rails`
+- `*.csproj` or `*.sln` → `dotnet`
+- `package.json` with express/fastify/nest in dependencies → `node-express`
+
+**Frontend detection:**
+- `package.json` with `react` in dependencies → `react-typescript` (if also has typescript) or `react`
+- `package.json` with `vue` in dependencies → `vue-typescript` or `vue`
+- `package.json` with `svelte` in dependencies → `svelte`
+- `package.json` with `@angular/core` in dependencies → `angular`
+- `package.json` with `next` in dependencies → `nextjs`
+
+**DevOps detection:**
+- `Dockerfile` + `k8s/` or `kubernetes/` directory → `docker-k8s`
+- `serverless.yml` or `serverless.ts` → `serverless`
+- `Procfile` → `heroku`
+
+**Procedure:**
+1. Run detection heuristics above against the project root
+2. If detection is ambiguous or finds nothing, ask the user: "What backend stack does this project use?" and "What frontend stack?"
+3. Write detected/chosen values into PROJECT.yaml `tech_stack` field
+4. Verify matching convention files exist in `.jdi/framework/stacks/`. If a convention file exists for the detected stack, log it. If not, log: "No convention file found for {stack} — agents will use generic domain principles. You can create one at `.jdi/framework/stacks/{stack}.md` using `_template.md` as a guide."
+
 ### Step 6: Initialise Config Files
 
 ```bash

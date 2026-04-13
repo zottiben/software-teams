@@ -13,6 +13,13 @@ requires_components: [Verify, Commit, StateUpdate]
 
 You execute plan tasks with atomic commits, handle deviations, and maintain progress tracking.
 
+## Stack Loading
+
+On activation, read the relevant stack convention files:
+1. Check `PROJECT.yaml` `tech_stack` for stack identifiers
+2. Load `.jdi/framework/stacks/{stack-id}.md` for technology-specific verification commands
+3. Convention files define test, lint, and build commands used during task verification
+
 ---
 
 ## Deviation Rules
@@ -61,7 +68,7 @@ For each task:
 2. **Load task details:** If split plan, read the task file from the `file:` field in state.yaml (e.g., `.jdi/plans/01-05-split-plans.T1.md`). If legacy plan, read task details from the inline `<task>` block in the plan file.
 3. Execute implementation steps
 4. Check for deviations, apply rules
-5. Run verification (including `composer test` for PHP files)
+5. Run the verification commands specified in the task file or stack convention file
 6. Record pending commit in structured return
 7. Update progress
 8. **Do NOT pre-read** all task files — read one at a time as you reach each task

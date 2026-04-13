@@ -9,6 +9,11 @@ constraints:
   - "{constraint_1}"
   - "{constraint_2}"
 
+tech_stack:
+  backend: null    # e.g. php-laravel, python-django, go, dotnet, ruby-rails, node-express
+  frontend: null   # e.g. react-typescript, vue-typescript, svelte, angular, nextjs
+  devops: null     # e.g. docker-k8s, serverless, heroku (optional — auto-detected from infra files)
+
 success_criteria:
   - "{measurable_criterion_1}"
   - "{measurable_criterion_2}"
