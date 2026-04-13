@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { resolve, join } from "path";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 
@@ -79,6 +79,27 @@ export const initCommand = defineCommand({
         const content = await Bun.file(src).text();
         await Bun.write(dest, content);
       }
+    }
+
+    // Add JDI entries to .gitignore
+    const gitignorePath = join(cwd, ".gitignore");
+    const jdiMarker = "# JDI framework";
+    const jdiEntries = [
+      "",
+      `${jdiMarker} — remove these lines to version control JDI artefacts`,
+      ".jdi/",
+      ".claude/commands/jdi/",
+    ].join("\n");
+
+    let existingGitignore = "";
+    if (existsSync(gitignorePath)) {
+      existingGitignore = readFileSync(gitignorePath, "utf-8");
+    }
+    if (!existingGitignore.includes(jdiMarker)) {
+      const newContent = existingGitignore
+        ? existingGitignore.trimEnd() + "\n" + jdiEntries + "\n"
+        : jdiEntries.trimStart() + "\n";
+      await Bun.write(gitignorePath, newContent);
     }
 
     // Configure storage in jdi-config.yaml if flags provided

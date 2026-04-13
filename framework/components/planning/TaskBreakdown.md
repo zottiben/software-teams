@@ -31,7 +31,7 @@ params:
 ## Task Format
 
 ```markdown
-<task id="{N}" type="auto|checkpoint:*" tdd="true|false" wave="{W}" priority="must|should|nice">
+<task id="{N}" type="auto|checkpoint:*|test" tdd="true|false" wave="{W}" priority="must|should|nice">
 
 ## Task {N}: {Name}
 
@@ -55,7 +55,7 @@ params:
 </task>
 ```
 
-Task types: `auto` (execute without stopping), `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-action`
+Task types: `auto` (execute without stopping), `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-action`, `test` (auto-generated test task)
 
 ---
 
@@ -93,3 +93,18 @@ Every task MUST be tagged with one of three priority bands:
 - **Must Have** (critical path — plan fails if not delivered)
 - **Should Have** (planned but droppable under pressure)
 - **Nice to Have** (delivered only with surplus capacity)
+
+---
+
+## Test Task Rules
+
+When test context is provided (test_suite.detected or test_suite.forced), generate test tasks following these rules:
+
+1. **One test task per implementation wave** — covers all auto tasks in that wave
+2. **Test task type is `test`** — distinct from `auto` and `checkpoint:*`
+3. **Wave placement:** test task wave = implementation wave + 1
+4. **Dependencies:** `depends_on` lists all implementation task IDs from the source wave
+5. **Agent pin:** always `jdi-qa-tester` with mode `plan-test`
+6. **Test derivation:** test cases come from implementation tasks' `done_when` criteria + file-based scope analysis
+7. **Full-stack coverage:** if implementation spans multiple layers, tests must cover each layer
+8. **Task cap relaxed:** the 2-4 task limit is raised to 2+ (no upper bound) to accommodate auto-generated test tasks alongside implementation tasks

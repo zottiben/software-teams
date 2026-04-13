@@ -33,3 +33,33 @@ agent_rationale: "{Why this specialist was chosen}"
 
 **Done when:**
 - {Specific, observable completion criterion}
+
+---
+
+## Test Task Variant
+
+When `type: test`, the frontmatter includes additional fields:
+
+```yaml
+---
+type: test
+test_scope: [unit, integration, e2e, component]
+test_framework: "{detected framework}"
+test_command: "{detected test command}"
+tests_for_wave: {N}
+---
+```
+
+The Implementation section for test tasks follows this structure:
+
+**Test Cases:**
+- [ ] {test case 1 — derived from implementation task done_when}
+- [ ] {test case 2}
+
+**Test Files to Create:**
+- `{path/to/test-file.test.ts}` — {what it tests}
+
+**Run Command:**
+```
+{test_command} {test file pattern}
+```

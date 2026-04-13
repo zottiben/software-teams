@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: "JDI: Execute implementation plan"
-allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion
+allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
 argument-hint: "[--team | --single | --dry-run | --skip-qa]"
 context: |
   !cat .jdi/config/state.yaml 2>/dev/null | head -30
@@ -64,6 +64,8 @@ For every task file listed in `task_files:`, record the `agent:` field from its 
 2. Plan-level `primary_agent:` from the index frontmatter
 3. Tech-stack default: PHP → `jdi-backend`, TS/React → `jdi-frontend`, otherwise → `general-purpose`
 
+**Test task override:** For tasks with `type: test`, the agent is always `jdi-qa-tester` regardless of the resolution order. Pass `mode: plan-test` in the spawn prompt.
+
 **NEVER default everything to `general-purpose` silently.** See `framework/components/meta/AgentRouter.md`.
 
 ### 4. Agent Existence Check
@@ -120,6 +122,14 @@ For split plans, the agent reads task files one at a time via the `file:` field 
 - Include a `## Project Context` block in every spawn prompt: type, tech stack, quality gates, working directory. Saves 2-3 discovery tool calls per spawn.
 - For split plans, the agent reads the `TASK_FILE` itself — do not inline task content into the prompt.
 
+**Test task execution:** When spawning a `type: test` task:
+- Use `jdi-qa-tester` agent in `plan-test` mode (always `source: jdi`, spawn via `subagent_type="general-purpose"`)
+- Pass the task file path as `TASK_FILE`
+- Include `test_framework`, `test_command`, and `test_scope` from the task frontmatter
+- Include the `depends_on` task IDs so the test agent can read those tasks' `files_modified` for coverage context
+- The test agent writes test files and runs them — failures are reported as structured returns
+- Test task failures are treated as S2 severity: halt the plan and escalate to the user
+
 **Wave-based execution:** honour `waves:` from the plan frontmatter. Spawn all tasks in wave N in parallel; wait for all returns before starting wave N+1.
 
 ### 8a. Blocker Resolution
@@ -159,6 +169,7 @@ After each task's programmer returns, invoke `jdi-qa-tester` in `post-task-verif
 
 - **a11y-check trigger:** if `files_modified` includes UI files (components, views, templates, CSS affecting render), additionally invoke `jdi-qa-tester` in `a11y-check` mode and record the result in the same task summary.
 - **contract-check trigger:** if `files_modified` includes contract-bearing files — API routes, Controllers/Actions, DTOs, FormRequests, OpenAPI specs, exported TypeScript types, `packages/*/src/index.ts`, DB migrations, generated client code — additionally invoke `jdi-qa-tester` in `contract-check` mode. Treat any contract failure as at least **S2** and halt the plan.
+- **Test task skip:** Skip `post-task-verify` for `type: test` tasks — they ARE the verification. The test agent's own pass/fail result is the verification outcome.
 - **Skip rules:** Skipped entirely if `--skip-qa` is passed. Also skipped automatically if `files_modified` contains ONLY `.md`, `.yaml`, or `.yml` files (documentation/config doesn't get regression-tested). The programmer's structured return field `qa_verification_needed: false` is also honoured.
 - **Contract-check exception to the skip rule:** if any file in `files_modified` is a contract-bearing YAML/JSON spec (OpenAPI / Swagger — e.g. `openapi.yaml`, `swagger.json`, `api/*.yaml`, `**/openapi*.{yml,yaml,json}`; GraphQL SDL — `**/*.graphql`, `**/schema.gql`; JSON Schema — `**/schemas/**/*.json`), still invoke `contract-check` even when the doc-only skip rule would otherwise apply. `post-task-verify` and `a11y-check` remain skipped in this case — only `contract-check` runs.
 
@@ -216,6 +227,7 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 | Worktree active but path missing | Ask the user: recreate the worktree, or proceed in current directory? Do NOT silently proceed. |
 | Wave has zero tasks ready | Skip the empty wave, log it, continue to the next wave. |
 | User asks to skip verification during review | Remind them of `--skip-qa` flag semantics. Do NOT skip silently. |
+| Test task fails (tests written but some fail) | Report the failing tests with output. Enter review loop. The user may fix implementation and re-run, or accept partial coverage. |
 
 ---
 

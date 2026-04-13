@@ -18,6 +18,11 @@ Read these files if they exist. If a file is missing, record that in `DISCOVERED
 | `.jdi/ROADMAP.yaml` | Phase structure, upcoming plans, milestones |
 | `.jdi/plans/*.plan.md` (glob) | Existing plan index files — check frontmatter for `provides`, `status`, completion |
 | `.jdi/codebase/SUMMARY.md` | Codebase index, if present |
+| Test suite files (glob: `**/*.test.*`, `**/*.spec.*`, `**/__tests__/**`) | Detect existing test framework and patterns |
+| Test config files (`vitest.config.*`, `jest.config.*`, `playwright.config.*`, `cypress.config.*`) | Identify test runner |
+| `package.json` `scripts.test` field | Identify test command |
+
+> **Test file exclusions:** When globbing for test files, skip `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`.
 
 Additionally, if the skill is worktree-aware, read:
 
@@ -38,6 +43,27 @@ From the raw reads above, compute and store these derived fields in `DISCOVERED_
 - **`prior_provides`** — union of all `provides:` fields from completed plans (cross-phase dependency map)
 - **`returning_user`** — true if any prior plans are completed or the current plan is in a non-initial status
 - **`missing_scaffolding`** — list of scaffolding files that didn't exist
+- **`test_suite`** — object describing the project's test infrastructure:
+  - `detected: boolean` — true if any test files or test config found
+  - `framework: string` — detected runner (`bun:test`, `vitest`, `jest`, `playwright`, `cypress`, etc.)
+  - `test_command: string` — from `package.json` `scripts.test` or inferred from config
+  - `test_patterns: string[]` — glob patterns where tests live (e.g. `["src/**/*.test.ts", "__tests__/**"]`)
+  - `test_file_count: number` — count of matched test files
+  - `has_e2e: boolean` — true if `playwright.config.*` or `cypress.config.*` found
+  - `has_integration: boolean` — true if `__tests__/integration` or similar directories exist
+  - If no test files or config found, set `detected: false` and leave other fields empty.
+
+---
+
+## Test Suite Detection Heuristic
+
+When deriving `test_suite`, apply detection in this priority order (first match wins for `framework`):
+
+1. **Explicit config file** — `vitest.config.*` → vitest, `jest.config.*` → jest, `playwright.config.*` → playwright, `cypress.config.*` → cypress. If multiple configs exist, record the unit-test runner as `framework` and set `has_e2e` accordingly.
+2. **`package.json` scripts** — inspect `scripts.test` for runner keywords (`bun test` → bun:test, `vitest` → vitest, `jest` → jest). Also sets `test_command`.
+3. **Glob pattern matching** — if no config or script found, glob for `**/*.test.*` and `**/*.spec.*` (excluding `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`). If matches exist, set `detected: true` and infer framework from file contents or import statements if feasible; otherwise leave `framework` as `"unknown"`.
+
+If none of the above yields results, set `detected: false`.
 
 ---
 

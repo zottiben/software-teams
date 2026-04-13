@@ -1,7 +1,7 @@
 ---
 name: create-plan
 description: "JDI: Create implementation plan"
-allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion
+allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
 argument-hint: "<feature to plan> [--worktree | --worktree-lightweight | --status]"
 context: |
   !cat .jdi/config/state.yaml 2>/dev/null | head -25
@@ -21,6 +21,8 @@ Create an implementation plan using a single planner agent (includes research). 
 - `--worktree` — Create git worktree with full environment before planning (follow `.claude/commands/jdi/worktree.md` steps)
 - `--worktree-lightweight` — Same but skip databases/web server (deps + migrate only)
 - `--status` — Status mode: generate a plan progress report using `state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
+- `--with-tests` — Force test plan generation regardless of test suite detection. When set, the planner generates test tasks even if no existing test suite is found.
+- `--without-tests` — Suppress test plan generation even when a test suite is detected. Useful for plans that only touch documentation, config, or framework files where test generation would be noise.
 
 > **Do NOT use the built-in `EnterWorktree` tool.** Always follow `/jdi:worktree` Direct Execution steps.
 
@@ -64,6 +66,8 @@ Execute `<JDI:SilentDiscovery />` now. Read the scaffolding files listed in that
 - `.jdi/codebase/SUMMARY.md` if it exists (for codebase context)
 
 Append these to `PRE_DISCOVERED_CONTEXT`.
+
+**Test suite flag handling:** When `--with-tests` is passed, set `DISCOVERED_STATE.test_suite.forced: true` in addition to whatever detection finds. When `--without-tests` is passed, set `DISCOVERED_STATE.test_suite.suppressed: true` — this overrides detection and prevents test task generation even if a test suite is found.
 
 **If scaffolding files are missing:** record `missing: true` for each in `PRE_DISCOVERED_CONTEXT`. Do not error. The planner will create missing files from templates in step 5.
 
@@ -122,6 +126,8 @@ Spawn `jdi-planner` via `Agent(subagent_type="general-purpose", mode="bypassPerm
 - `AVAILABLE_AGENTS` catalogue — planner pins specialists via AgentRouter
 - `PRE_ANSWERED_QUESTIONS` YAML block (from step 4b, if any questions were asked)
 - `RESEARCH_DISCOVERY.research_context` (so the planner doesn't re-scan what the researcher already found)
+- `DISCOVERED_STATE.test_suite` context (detected framework, test command, patterns, and whether `forced` or `suppressed` is set)
+- Explicit instruction: _"If `test_suite.detected: true` OR `test_suite.forced: true` (AND NOT `test_suite.suppressed: true`), generate test tasks per your test task generation rules. If `test_suite.suppressed: true`, skip test task generation entirely."_
 - Explicit instruction: _"Do NOT re-prompt the user for anything already in PRE_DISCOVERED_CONTEXT. These questions were already answered by the user — do NOT re-ask them. The research context below summarises what was found in the codebase — use it, don't re-scan. Only surface NEW questions that emerged during planning that could not have been anticipated."_
 - Spec path: `.jdi/framework/agents/jdi-planner.md`
 

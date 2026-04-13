@@ -1,7 +1,7 @@
 ---
 name: build
 description: "JDI: Guided setup and state-aware entry point for new and returning users"
-allowed-tools: Read, Glob, Grep, Bash, AskUserQuestion
+allowed-tools: Read, Glob, Bash, AskUserQuestion
 argument-hint: "[no arguments]"
 context: |
   !cat .jdi/config/state.yaml 2>/dev/null | head -20

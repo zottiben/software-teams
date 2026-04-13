@@ -41,7 +41,20 @@ Reference: `.jdi/framework/hooks/lint-fix-frontend.md`
 
 Append JDI routing block to `.claude/CLAUDE.md` if not already present (check for `## JDI Workflow Routing`). Content includes intent→skill mapping and iterative refinement instructions.
 
-### Step 5: Initialise Config Files
+### Step 5: Update .gitignore
+
+Append JDI patterns to the project's `.gitignore` if they aren't already present. This prevents JDI artefacts from being committed to version control. Users can remove these entries manually if they want to version control JDI files.
+
+Patterns added:
+```
+# JDI framework — remove these lines to version control JDI artefacts
+.jdi/
+.claude/commands/jdi/
+```
+
+Skip if the marker comment `# JDI framework` is already in `.gitignore`. Create `.gitignore` if it doesn't exist.
+
+### Step 6: Initialise Config Files
 
 ```bash
 cp .jdi/framework/config/state.yaml .jdi/config/state.yaml
@@ -49,12 +62,12 @@ cp .jdi/framework/config/variables.yaml .jdi/config/variables.yaml
 cp .jdi/framework/config/jdi-config.yaml .jdi/config/jdi-config.yaml
 ```
 
-### Step 6: Generate Markdown Scaffolding
+### Step 7: Generate Markdown Scaffolding
 
 Read templates from `.jdi/framework/templates/` and write to `.jdi/` (only if missing):
 - PROJECT.yaml, REQUIREMENTS.yaml, ROADMAP.yaml
 
-### Step 7: Display Completion
+### Step 8: Display Completion
 
 List all available commands and suggest `/jdi:create-plan "your feature"` to get started.
 

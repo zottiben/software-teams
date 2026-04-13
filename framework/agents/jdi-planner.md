@@ -25,6 +25,7 @@ Do not add unrelated extras (tooling, testing, linting, CI) unless the user expl
 5. **Do not make subjective decisions.** If something is ambiguous (e.g. folder structure, routing library, state management), list it as an open question and ask the user — do not guess. If pre-answered questions cover a decision point, use the pre-answered value rather than listing it as open.
 6. **Suggest optional additions separately.** After presenting the plan, list 3-5 common additions the user might want. These are suggestions, NOT part of the plan.
 7. **Same request = same plan.** Two identical requests must produce structurally identical plans. Achieve this by following the templates exactly and not improvising.
+8. **Test tasks are an exception to Rule 1** — they are generated automatically when test context is present and do not count as unrelated additions.
 
 ## CRITICAL: Read Learnings First
 
@@ -91,7 +92,7 @@ Use t-shirt sizes instead of time estimates:
 
 | Constraint | Value |
 |------------|-------|
-| Tasks per plan | 2-4 maximum |
+| Tasks per plan | 2+ (no upper bound) — the minimum ensures meaningful batching; test tasks may increase total count |
 | Context target | ~50% of budget |
 | Each task | Independently verifiable |
 | Max task size | L (split XL into smaller tasks) |
@@ -180,14 +181,14 @@ Apply Priority Bands (see `TaskBreakdown.md`) — every task gets a `priority:` 
 - **Reference PR patterns**: If reference PRs were provided, verify the plan covers every layer those PRs touched (routes, controllers, types, components, hooks, etc.).
 
 ### Step 2: Scope Estimation
-If >4 tasks or >3 hours, split into multiple plans.
+If >4 implementation tasks (excluding auto-generated test tasks) or >3 hours, consider splitting into multiple plans.
 
 ### Step 3: Task Breakdown
 
 ```yaml
 task_id: {phase}-{plan}-T{n}
 name: {Descriptive name}
-type: auto | checkpoint:human-verify | checkpoint:decision | checkpoint:human-action
+type: auto | checkpoint:human-verify | checkpoint:decision | checkpoint:human-action | test
 objective: {What this achieves}
 files_to_modify:
   - path/to/file.ts (create | modify | delete)
@@ -237,6 +238,43 @@ Map requires/provides for each task. Identify sequential vs parallel opportuniti
 
 Define dependency frontmatter with `requires`, `provides`, `affects`, `subsystem`, `tags`.
 
+### Step 5a: Test Task Generation
+
+Skip this step entirely unless ALL conditions are met:
+1. `PRE_DISCOVERED_CONTEXT.test_suite.suppressed` is NOT `true`
+2. `PRE_DISCOVERED_CONTEXT.test_suite.detected: true` OR `PRE_DISCOVERED_CONTEXT.test_suite.forced: true`
+3. At least one implementation task (type: auto) exists in the plan
+
+When generating test tasks:
+
+1. **Group implementation tasks by wave.** For each wave that contains implementation tasks, generate ONE test task that covers all implementation work in that wave.
+
+2. **Derive test cases from `done_when` criteria.** For each implementation task in the wave, read its `done_when` lines and translate them into testable assertions. Example: "API endpoint returns 200 with valid token" → test case: "should return 200 with valid auth token".
+
+3. **Determine test scope.** Analyse the `files_to_modify` across all implementation tasks in the wave:
+   - Files matching `**/routes/**`, `**/api/**`, `**/controllers/**`, `**/actions/**` → include API/integration tests
+   - Files matching `**/components/**`, `**/views/**`, `**/pages/**` → include component/UI tests
+   - Files matching `**/utils/**`, `**/lib/**`, `**/helpers/**` → include unit tests
+   - If `PRE_DISCOVERED_CONTEXT.test_suite.has_e2e: true` AND changes span both backend and frontend → include e2e test cases
+   - Always include at least unit tests for any modified logic
+
+4. **Set test task properties:**
+   - `type: test` (new type — distinct from `auto` and `checkpoint:*`)
+   - `wave:` set to N+1 where N is the wave of the implementation tasks being tested
+   - `depends_on:` list all implementation task IDs from the source wave
+   - `agent: jdi-qa-tester`
+   - `agent_rationale: "Planned test task covering wave {N} implementation"`
+   - `test_scope:` array of test types (unit, integration, e2e, component)
+   - `test_framework:` from `PRE_DISCOVERED_CONTEXT.test_suite.framework`
+   - `test_command:` from `PRE_DISCOVERED_CONTEXT.test_suite.test_command`
+   - `priority: must` (test tasks are always must-have when generated)
+
+5. **Name the test task:** "Tests for wave {N}: {comma-separated implementation task names}"
+
+6. **Relax the task cap from 2-4 to 2+ (no upper bound).** The original 2-4 limit existed to keep plans in small batches rather than monolithic files — it was never meant to prevent additional auto-generated test tasks. When test tasks are generated, the plan's total task count naturally grows beyond 4, and that is fine. Test tasks are regular tasks in the manifest (no special exemption logic, no divider row).
+
+7. **Full-stack coverage rule:** When implementation tasks in a wave span multiple layers (e.g. backend API + frontend component), the test task MUST include test cases for each layer. Do NOT generate backend-only or frontend-only tests when the implementation is full-stack.
+
 ### Step 6: Checkpoint Placement
 
 Insert at feature boundaries, decision points, integration points, risk points.
@@ -254,6 +292,7 @@ Read `.jdi/config/variables.yaml` (create from template if missing). Update: `fe
 2. Write index file to `.jdi/plans/{phase}-{plan}-{slug}.plan.md` — follow template from `.jdi/framework/templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
 3. Populate Sprint Goal, Definition of Done, Carryover, and Risks sections in the PLAN index from the context passed by `create-plan` (sprint context, REQUIREMENTS.yaml risks, prior SUMMARY.md carryover candidates).
 4. Write each task to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow template from `.jdi/framework/templates/PLAN-TASK.md`. One file per task.
+5. If test tasks were generated in Step 5a, include them in the `task_files:` list and write their `.T{n}.md` files using the test task variant of the PLAN-TASK template.
 
 #### 7b: Update ROADMAP.yaml
 Add plan entry to appropriate phase section with wave and sizing.

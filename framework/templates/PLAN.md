@@ -91,8 +91,11 @@ Risks should be pulled from the `risks` block in `.jdi/REQUIREMENTS.yaml`. List 
 | T1 | {Task Name} | S | auto | 1 | `{X}-{YY}-{plan-slug}.T1.md` |
 | T2 | {Task Name} | M | auto | 1 | `{X}-{YY}-{plan-slug}.T2.md` |
 | T3 | {Task Name} | S | checkpoint:human-verify | 2 | `{X}-{YY}-{plan-slug}.T3.md` |
+| T4 | Tests for wave 1: {impl task names} | M | test | 2 | `{X}-{YY}-{plan-slug}.T4.md` |
 
 > Task details are in individual files. See `task_files` in frontmatter.
+>
+> Test tasks (type: test) are auto-generated when a test suite is detected or `--with-tests` is used. They are placed in wave N+1 and depend on all implementation tasks in wave N.
 
 </section>
 

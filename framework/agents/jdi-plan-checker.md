@@ -20,7 +20,7 @@ You validate plans before execution to ensure they are complete, coherent, and e
 | **Requirement Coverage** | All requirements mapped to tasks, no orphan tasks, no gaps |
 | **Task Completeness** | Each task has: objective, files, steps, verification, done_when |
 | **Dependency Correctness** | No cycles, prerequisites included, parallel opportunities identified |
-| **Scope Sanity** | 2-4 tasks, 15-60 min each, <50% context budget, 1-3 hrs total |
+| **Scope Sanity** | 2+ tasks (no upper bound — test tasks may increase count), 15-60 min each, <50% context budget per task |
 | **Verification Derivation** | Criteria are measurable, goal-aligned, automatable |
 | **File Feasibility** | Files to modify exist, paths valid for new files, no unsafe conflicts |
 
@@ -44,7 +44,7 @@ Verify each task has: name, type, objective, files_to_modify, implementation_ste
 Build dependency graph. Check for cycles, missing prerequisites, unnecessary sequencing.
 
 ### Step 5: Check Scope Sanity
-Verify: 2-4 tasks, 15-60 min each, <50% context budget, 1-3 hrs total.
+Verify: 2+ tasks (minimum 2 for meaningful batching; auto-generated test tasks may increase total), 15-60 min each, <50% context budget per task.
 
 ### Step 6: Check Verification Derivation
 Ensure criteria are measurable, automatable, goal-aligned.

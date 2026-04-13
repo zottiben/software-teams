@@ -71,4 +71,61 @@ describe("framework file invariants", () => {
     const content = readFrameworkFile("components/meta/ComplexityRouter.md");
     expect(content).toMatch(/TASK_FILE|task.file|task_file/i);
   });
+
+  test("components/meta/SilentDiscovery.md includes test suite detection", () => {
+    const content = readFrameworkFile("components/meta/SilentDiscovery.md");
+    expect(content).toMatch(/test.suite|test_suite/i);
+    expect(content).toMatch(/\.test\.\*|\.spec\.\*/);
+  });
+
+  test("commands/create-plan.md includes --with-tests and --without-tests flags", () => {
+    const content = readFrameworkFile("commands/create-plan.md");
+    expect(content).toContain("--with-tests");
+    expect(content).toContain("--without-tests");
+  });
+
+  test("agents/jdi-planner.md includes test task generation", () => {
+    const content = readFrameworkFile("agents/jdi-planner.md");
+    expect(content).toMatch(/test.task.generation|Test Task Generation/i);
+    expect(content).toMatch(/type:\s*test/);
+    expect(content).toContain("jdi-qa-tester");
+  });
+
+  test("agents/jdi-qa-tester.md includes plan-test mode", () => {
+    const content = readFrameworkFile("agents/jdi-qa-tester.md");
+    expect(content).toContain("plan-test");
+  });
+
+  test("commands/implement-plan.md handles test task type", () => {
+    const content = readFrameworkFile("commands/implement-plan.md");
+    expect(content).toMatch(/type:\s*test|type: test/);
+  });
+
+  test("components/planning/TaskBreakdown.md includes test task rules", () => {
+    const content = readFrameworkFile("components/planning/TaskBreakdown.md");
+    expect(content).toMatch(/Test Task Rules|test task/i);
+    expect(content).toMatch(/type.*test/i);
+  });
+
+  test("agents/jdi-plan-checker.md accepts 2+ tasks in scope sanity", () => {
+    const content = readFrameworkFile("agents/jdi-plan-checker.md");
+    expect(content).toMatch(/2\+/);
+    expect(content).not.toMatch(/2-4 tasks/);
+  });
+
+  test("agents/jdi-planner.md task sizing says 2+ not 2-4", () => {
+    const content = readFrameworkFile("agents/jdi-planner.md");
+    expect(content).toMatch(/Tasks per plan.*2\+/);
+  });
+
+  test("agents/jdi-planner.md Step 3 task format includes type test", () => {
+    const content = readFrameworkFile("agents/jdi-planner.md");
+    expect(content).toMatch(/type:.*test/);
+  });
+
+  test("templates/PLAN-TASK.md includes test task variant", () => {
+    const content = readFrameworkFile("templates/PLAN-TASK.md");
+    expect(content).toMatch(/test.task.variant|Test Task Variant/i);
+    expect(content).toMatch(/test_scope|test_framework/);
+  });
 });
