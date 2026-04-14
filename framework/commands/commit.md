@@ -39,7 +39,7 @@ Spawn the committer via Task tool. JDI specialists spawn as `general-purpose` wi
 ```
 Agent(
   subagent_type="general-purpose",
-  mode="bypassPermissions",
+  mode="acceptEdits",
   prompt="You are jdi-committer. Read .jdi/framework/agents/jdi-committer.md for
   your full role and instructions. Also read .jdi/framework/components/meta/AgentBase.md
   for the JDI base protocol. If your spec has requires_components in frontmatter,

@@ -9,6 +9,31 @@ export interface SpawnClaudeOptions {
 
 const PROMPT_LENGTH_THRESHOLD = 100_000;
 
+/**
+ * Default allowed tools for spawned Claude sessions.
+ *
+ * This mirrors (and narrows) what `bypassPermissions` implicitly granted.
+ * The declarative equivalent lives in `.claude/settings.json` at the project
+ * root; callers that need different scope should pass their own list.
+ */
+export const DEFAULT_ALLOWED_TOOLS: readonly string[] = [
+  "Read",
+  "Write",
+  "Edit",
+  "MultiEdit",
+  "Glob",
+  "Grep",
+  "Task",
+  "Bash(bun:*)",
+  "Bash(git:*)",
+  "Bash(gh:*)",
+  "Bash(npm:*)",
+  "Bash(npx:*)",
+  "Bash(mkdir:*)",
+  "Bash(rm:*)",
+  "Bash(jdi:*)",
+];
+
 export async function findClaude(): Promise<string> {
   const path = Bun.which("claude");
   if (path) return path;
@@ -77,10 +102,9 @@ export async function spawnClaude(
     "--permission-mode", opts?.permissionMode ?? "acceptEdits",
   ];
 
-  if (opts?.allowedTools) {
-    for (const tool of opts.allowedTools) {
-      args.push("--allowedTools", tool);
-    }
+  const allowedTools = opts?.allowedTools ?? [...DEFAULT_ALLOWED_TOOLS];
+  for (const tool of allowedTools) {
+    args.push("--allowedTools", tool);
   }
   if (opts?.model) {
     args.push("--model", opts.model);

@@ -1,5 +1,5 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { findClaude, spawnClaude } from "./claude";
+import { findClaude, spawnClaude, DEFAULT_ALLOWED_TOOLS } from "./claude";
 
 let spawnCalls: Array<{ cmd: string[]; opts: any }> = [];
 let mockExitCode = 0;
@@ -54,6 +54,9 @@ const BASE_ARGS = [
   "--permission-mode", "acceptEdits",
 ];
 
+const DEFAULT_ALLOWED_ARGS = DEFAULT_ALLOWED_TOOLS.flatMap((t) => ["--allowedTools", t]);
+const BASE_WITH_DEFAULTS = [...BASE_ARGS, ...DEFAULT_ALLOWED_ARGS];
+
 describe("findClaude", () => {
   test("returns path when Bun.which finds claude", async () => {
     mockWhichResult = "/usr/local/bin/claude";
@@ -69,9 +72,45 @@ describe("findClaude", () => {
 });
 
 describe("spawnClaude", () => {
-  test("spawns claude with correct base flags", async () => {
+  test("spawns claude with correct base flags and default allowedTools", async () => {
     await spawnClaude("test prompt");
-    expect(spawnCalls[0].cmd).toEqual([...BASE_ARGS, "test prompt"]);
+    expect(spawnCalls[0].cmd).toEqual([...BASE_WITH_DEFAULTS, "test prompt"]);
+  });
+
+  test("default allowedTools list includes expected scopes", async () => {
+    await spawnClaude("test");
+    const cmd = spawnCalls[0].cmd;
+    // Core file tools
+    expect(cmd).toContain("Read");
+    expect(cmd).toContain("Write");
+    expect(cmd).toContain("Edit");
+    expect(cmd).toContain("Glob");
+    expect(cmd).toContain("Grep");
+    expect(cmd).toContain("Task");
+    // Scoped bash commands
+    expect(cmd).toContain("Bash(bun:*)");
+    expect(cmd).toContain("Bash(git:*)");
+    expect(cmd).toContain("Bash(gh:*)");
+    expect(cmd).toContain("Bash(npm:*)");
+    expect(cmd).toContain("Bash(npx:*)");
+    expect(cmd).toContain("Bash(jdi:*)");
+  });
+
+  test("caller-provided allowedTools override defaults", async () => {
+    await spawnClaude("test", { allowedTools: ["Read", "Glob"] });
+    const cmd = spawnCalls[0].cmd;
+    // Only the caller's list should appear — defaults should NOT leak in
+    expect(cmd).toContain("Read");
+    expect(cmd).toContain("Glob");
+    expect(cmd).not.toContain("Bash(bun:*)");
+    expect(cmd).not.toContain("Write");
+    expect(cmd).not.toContain("Task");
+  });
+
+  test("never uses bypassPermissions", async () => {
+    await spawnClaude("test");
+    const cmd = spawnCalls[0].cmd;
+    expect(cmd).not.toContain("bypassPermissions");
   });
 
   test("pipes stdout for stream processing", async () => {
@@ -132,7 +171,7 @@ describe("spawnClaude", () => {
   test("pipes long prompts via stdin instead of argument", async () => {
     const longPrompt = "x".repeat(100_000);
     await spawnClaude(longPrompt);
-    expect(spawnCalls[0].cmd).toEqual(BASE_ARGS);
+    expect(spawnCalls[0].cmd).toEqual(BASE_WITH_DEFAULTS);
     expect(spawnCalls[0].opts.stdin).toBe("pipe");
   });
 

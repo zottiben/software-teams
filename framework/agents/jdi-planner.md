@@ -54,7 +54,7 @@ interactive prompts. Overriding them silently is forbidden.
 
 You MUST write files using Write/Edit tools. Returning plan content as text is NOT acceptable.
 
-You MUST use the Write tool to create plan files directly. You have full file permissions (`mode: "bypassPermissions"`).
+You MUST use the Write tool to create plan files directly. You are spawned under `mode: "acceptEdits"` with a scoped `allowedTools` allowlist (see `.claude/settings.json`) that includes Write/Edit — no permission prompts will block you.
 
 Required files (SPLIT FORMAT — one file per task):
 1. `.jdi/plans/{phase}-{plan}-{slug}.plan.md` (index file — manifest table only, NO inline task details)

@@ -8,6 +8,16 @@ import {
   advanceTask,
 } from "../utils/state-handlers";
 import { readState } from "../utils/state";
+import { findJdiRoot } from "../utils/find-root";
+
+function resolveRootOrExit(): string {
+  try {
+    return findJdiRoot(process.cwd());
+  } catch (err) {
+    consola.error((err as Error).message);
+    process.exit(1);
+  }
+}
 
 const planReadyCommand = defineCommand({
   meta: {
@@ -25,10 +35,22 @@ const planReadyCommand = defineCommand({
       description: "Human-readable plan name",
       required: true,
     },
+    force: {
+      type: "boolean",
+      description: "Force transition even when state is currently executing",
+      default: false,
+    },
   },
   async run({ args }) {
-    const cwd = process.cwd();
-    await transitionToPlanReady(cwd, args["plan-path"], args["plan-name"]);
+    const root = resolveRootOrExit();
+    try {
+      await transitionToPlanReady(root, args["plan-path"], args["plan-name"], {
+        force: args.force === true,
+      });
+    } catch (err) {
+      consola.error((err as Error).message);
+      process.exit(1);
+    }
     consola.success(`State → plan-ready (${args["plan-name"]})`);
   },
 });
@@ -39,8 +61,8 @@ const approvedCommand = defineCommand({
     description: "Transition state after plan approval",
   },
   async run() {
-    const cwd = process.cwd();
-    await transitionToApproved(cwd);
+    const root = resolveRootOrExit();
+    await transitionToApproved(root);
     consola.success("State → approved");
   },
 });
@@ -63,8 +85,8 @@ const executingCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const cwd = process.cwd();
-    await transitionToExecuting(cwd, args["task-id"], args["task-name"]);
+    const root = resolveRootOrExit();
+    await transitionToExecuting(root, args["task-id"], args["task-name"]);
     consola.success("State → executing");
   },
 });
@@ -75,8 +97,8 @@ const completeCommand = defineCommand({
     description: "Transition state after implementation finishes",
   },
   async run() {
-    const cwd = process.cwd();
-    await transitionToComplete(cwd);
+    const root = resolveRootOrExit();
+    await transitionToComplete(root);
     consola.success("State → complete");
   },
 });
@@ -94,9 +116,9 @@ const advanceTaskCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const cwd = process.cwd();
-    await advanceTask(cwd, args["task-id"]);
-    const state = await readState(cwd);
+    const root = resolveRootOrExit();
+    await advanceTask(root, args["task-id"]);
+    const state = await readState(root);
     const completed = state?.current_plan?.completed_tasks?.length ?? 0;
     const total = state?.current_plan?.tasks?.length ?? 0;
     consola.success(`Task ${args["task-id"]} completed (${completed}/${total})`);

@@ -180,6 +180,134 @@ describe("transitionToApproved", () => {
     expect(state!.review?.approved_at).toBeTruthy();
     expect(new Date(state!.review!.approved_at!).getTime()).not.toBeNaN();
   });
+
+  test("sets position.status to approved (not just review.status)", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".jdi", "config", "state.yaml"),
+      [
+        "position:",
+        "  phase: 1",
+        '  plan: "01"',
+        "  status: planning",
+        "review:",
+        "  status: in_review",
+        "  scope: plan",
+      ].join("\n"),
+    );
+
+    await transitionToApproved(dir);
+
+    const state = await readState(dir);
+    // Regression guard: previously left position.status at "planning" after approval.
+    expect(state!.position?.status).toBe("approved");
+  });
+});
+
+describe("transitionToPlanReady executing-state guard", () => {
+  test("throws when current status is executing", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".jdi", "config", "state.yaml"),
+      [
+        "position:",
+        "  phase: 1",
+        '  plan: "01"',
+        "  status: executing",
+      ].join("\n"),
+    );
+
+    await expect(
+      transitionToPlanReady(dir, ".jdi/plans/new.plan.md", "New Plan"),
+    ).rejects.toThrow(/currently executing/);
+  });
+
+  test("succeeds in executing state when force is passed", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".jdi", "config", "state.yaml"),
+      [
+        "position:",
+        "  phase: 1",
+        '  plan: "01"',
+        "  status: executing",
+      ].join("\n"),
+    );
+    const planDir = join(dir, ".jdi", "plans");
+    mkdirSync(planDir, { recursive: true });
+    await Bun.write(
+      join(planDir, "new.plan.md"),
+      "---\nphase: 1\nplan: \"02\"\ntask_files: []\n---\n",
+    );
+
+    await transitionToPlanReady(
+      dir,
+      ".jdi/plans/new.plan.md",
+      "New Plan",
+      { force: true },
+    );
+
+    const state = await readState(dir);
+    expect(state!.position?.status).toBe("planning");
+    expect(state!.position?.plan).toBe("02");
+  });
+});
+
+describe("transitionTo* position.status consistency", () => {
+  test("each transition writes position.status matching its semantic name", async () => {
+    // plan-ready
+    {
+      const dir = makeTempDir();
+      const planDir = join(dir, ".jdi", "plans");
+      mkdirSync(planDir, { recursive: true });
+      await Bun.write(
+        join(planDir, "p.md"),
+        "---\nphase: 1\nplan: \"01\"\ntask_files: []\n---\n",
+      );
+      await transitionToPlanReady(dir, ".jdi/plans/p.md", "P");
+      const s = await readState(dir);
+      expect(s!.position?.status).toBe("planning");
+      rmSync(dir, { recursive: true, force: true });
+    }
+    // approved
+    {
+      const dir = makeTempDir();
+      await Bun.write(
+        join(dir, ".jdi", "config", "state.yaml"),
+        `position:\n  status: planning\n`,
+      );
+      await transitionToApproved(dir);
+      const s = await readState(dir);
+      expect(s!.position?.status).toBe("approved");
+      rmSync(dir, { recursive: true, force: true });
+    }
+    // executing
+    {
+      const dir = makeTempDir();
+      await Bun.write(
+        join(dir, ".jdi", "config", "state.yaml"),
+        `position:\n  status: approved\n`,
+      );
+      await transitionToExecuting(dir);
+      const s = await readState(dir);
+      expect(s!.position?.status).toBe("executing");
+      rmSync(dir, { recursive: true, force: true });
+    }
+    // complete
+    {
+      const dir = makeTempDir();
+      await Bun.write(
+        join(dir, ".jdi", "config", "state.yaml"),
+        `position:\n  status: executing\n`,
+      );
+      await transitionToComplete(dir);
+      const s = await readState(dir);
+      expect(s!.position?.status).toBe("complete");
+      rmSync(dir, { recursive: true, force: true });
+    }
+    // Reset tempDir so afterEach does not try to rm an already-removed dir.
+    tempDir = "";
+  });
 });
 
 describe("transitionToExecuting", () => {

@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve } from "path";
 import { readState } from "../utils/state";
+import { findJdiRootOrNull } from "../utils/find-root";
 
 export const statusCommand = defineCommand({
   meta: {
@@ -16,8 +16,14 @@ export const statusCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const cwd = process.cwd();
-    const state = await readState(cwd);
+    const root = findJdiRootOrNull(process.cwd());
+    if (root == null) {
+      consola.warn(
+        `No JDI project found (searched from ${process.cwd()} upward for .jdi/config/state.yaml). Run \`jdi init\` to set one up.`,
+      );
+      return;
+    }
+    const state = await readState(root);
 
     if (!state) {
       consola.warn("No JDI state found. Run `jdi init` first.");

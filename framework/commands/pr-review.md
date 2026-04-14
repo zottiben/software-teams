@@ -44,7 +44,7 @@ Spawn the reviewer via Task tool. JDI specialists spawn as `general-purpose` wit
 ```
 Agent(
   subagent_type="general-purpose",
-  mode="bypassPermissions",
+  mode="acceptEdits",
   prompt="Read .jdi/framework/components/meta/AgentBase.md for the base protocol.
 
   Read learnings before reviewing — these represent the team's coding standards

@@ -25,8 +25,17 @@ export async function transitionToPlanReady(
   cwd: string,
   planPath: string,
   planName: string,
+  opts: { force?: boolean } = {},
 ): Promise<void> {
   const state = await readState(cwd) ?? {};
+
+  // Guard: refuse to roll the state machine back to "planning" while an
+  // implementation run is in flight, unless the caller explicitly forces it.
+  if (state.position?.status === "executing" && opts.force !== true) {
+    throw new Error(
+      `Cannot transition to plan-ready: state machine is currently executing plan ${state.position.plan}. Pass --force to override.`,
+    );
+  }
 
   // Read plan file and extract frontmatter
   const fullPlanPath = planPath.startsWith("/") ? planPath : join(cwd, planPath);
@@ -76,6 +85,10 @@ export async function transitionToPlanReady(
  */
 export async function transitionToApproved(cwd: string): Promise<void> {
   const state = await readState(cwd) ?? {};
+  state.position = {
+    ...state.position,
+    status: "approved",
+  } as any;
   state.review = {
     ...state.review,
     status: "approved",

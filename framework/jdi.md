@@ -36,13 +36,13 @@ model: opus
 ### Correct Pattern
 
 Agent identity is passed via the **prompt parameter**, NOT the `subagent_type` parameter.
-**Permission mode** MUST be `"bypassPermissions"` so agents can create and edit files without blocking on approval prompts.
+**Permission mode** MUST be `"acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(jdi:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list. This replaces the previous blanket `bypassPermissions`.
 
 ```
 Agent(
   prompt="You are jdi-programmer. Read .jdi/framework/agents/jdi-programmer.md for instructions. Execute: {task}",
   subagent_type="general-purpose",  ← MUST be "general-purpose"
-  mode="bypassPermissions"          ← REQUIRED: agents need file write permissions
+  mode="acceptEdits"                ← REQUIRED: scoped allowlist in .claude/settings.json
 )
 ```
 

@@ -47,7 +47,7 @@ Spawn the specialist via Task tool. JDI specialists spawn as `general-purpose` w
 ```
 Agent(
   subagent_type="general-purpose",
-  mode="bypassPermissions",
+  mode="acceptEdits",
   prompt="You are jdi-pr-generator. Read .jdi/framework/agents/jdi-pr-generator.md
   for your full role and instructions. Also read
   .jdi/framework/components/meta/AgentBase.md for the JDI base protocol.

@@ -76,7 +76,7 @@ Report: files_modified, files_created, commits_pending.
 No git commit (use commits_pending).
 ```
 
-Spawned via `Agent(subagent_type="general-purpose", mode="bypassPermissions", ...)` — see
+Spawned via `Agent(subagent_type="general-purpose", mode="acceptEdits", ...)` — see
 `.jdi/framework/jdi.md` Critical Constraints for why.
 
 ### `source: claude-code` — registered Claude Code subagent
@@ -89,7 +89,7 @@ Your agent definition has already been loaded by Claude Code from
 <same TEAM / PLAN / TASK_FILE / WORKING_DIR block + steps + report as above>
 ```
 
-Spawned via `Agent(subagent_type="{task.agent}", mode="bypassPermissions", ...)` — Claude Code validates
+Spawned via `Agent(subagent_type="{task.agent}", mode="acceptEdits", ...)` — Claude Code validates
 the subagent type against its registered list. See
 `.jdi/framework/components/meta/AgentRouter.md` §4 for full rules.
 

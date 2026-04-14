@@ -1,6 +1,7 @@
 import { join } from "path";
 import { existsSync } from "fs";
 import { parse, stringify } from "yaml";
+import { findJdiRootOrNull } from "./find-root";
 
 export interface JDIState {
   session?: { id: string | null; started_at: string; last_activity: string };
@@ -47,15 +48,47 @@ export interface JDIState {
   [key: string]: unknown;
 }
 
-export async function readState(cwd: string): Promise<JDIState | null> {
-  const statePath = join(cwd, ".jdi", "config", "state.yaml");
+/**
+ * Resolve the JDI project root for a given cwd. Falls back to `cwd`
+ * itself when no existing `.jdi/config/state.yaml` can be located up
+ * the directory tree (e.g. first-time writes before init).
+ */
+function resolveRoot(cwd: string): string {
+  return findJdiRootOrNull(cwd) ?? cwd;
+}
+
+/**
+ * Read the JDI state file, walking up from the supplied `cwd`
+ * (defaults to `process.cwd()`) to find the project root.
+ *
+ * Returns `null` when no state file can be located — either because no
+ * JDI project exists on the path upward, or because the project root
+ * was found but has no state.yaml yet.
+ */
+export async function readState(cwd: string = process.cwd()): Promise<JDIState | null> {
+  const root = resolveRoot(cwd);
+  const statePath = join(root, ".jdi", "config", "state.yaml");
   if (!existsSync(statePath)) return null;
 
   const content = await Bun.file(statePath).text();
   return parse(content) as JDIState;
 }
 
-export async function writeState(cwd: string, state: JDIState): Promise<void> {
-  const statePath = join(cwd, ".jdi", "config", "state.yaml");
+/**
+ * Write the JDI state file at the resolved project root. When no
+ * project root can be found, falls back to writing at
+ * `cwd/.jdi/config/state.yaml` — this covers bootstrap scenarios such
+ * as `jdi init` before the project root exists.
+ */
+export async function writeState(cwd: string, state: JDIState): Promise<void>;
+export async function writeState(state: JDIState): Promise<void>;
+export async function writeState(
+  cwdOrState: string | JDIState,
+  maybeState?: JDIState,
+): Promise<void> {
+  const cwd = typeof cwdOrState === "string" ? cwdOrState : process.cwd();
+  const state = (typeof cwdOrState === "string" ? maybeState : cwdOrState) as JDIState;
+  const root = resolveRoot(cwd);
+  const statePath = join(root, ".jdi", "config", "state.yaml");
   await Bun.write(statePath, stringify(state));
 }

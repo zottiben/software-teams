@@ -220,12 +220,12 @@ correct pattern for that source.
 
 ### Source-aware spawn pattern
 
-**All agents MUST be spawned with `mode: "bypassPermissions"`** so they can create and edit files without blocking on permission prompts. Agents run in background — they cannot prompt the user for approval.
+**All agents MUST be spawned with `mode: "acceptEdits"`**. Write/Edit/Bash permissions come from the scoped `allowedTools` allowlist declared in the project-scoped `.claude/settings.json` (and mirrored as the default list in `src/utils/claude.ts`). This replaces the previous blanket `bypassPermissions`. Agents run in background — they cannot prompt the user for approval, so the allowlist must cover everything they need.
 
 | `source` in catalogue | `subagent_type` | `mode` | Identity mechanism |
 |----------------------|-----------------|--------|--------------------|
-| `jdi` | `"general-purpose"` | `"bypassPermissions"` | Prompt text: `"You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions."` |
-| `claude-code` | `"{task.agent}"` | `"bypassPermissions"` | Native — Claude Code loads the agent spec from `.claude/agents/` |
+| `jdi` | `"general-purpose"` | `"acceptEdits"` | Prompt text: `"You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions."` |
+| `claude-code` | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the agent spec from `.claude/agents/` |
 
 ### Single-agent mode
 
@@ -233,7 +233,7 @@ correct pattern for that source.
 # source: jdi (JDI framework specialist)
 Agent(
   subagent_type: "general-purpose",
-  mode: "bypassPermissions",
+  mode: "acceptEdits",
   name: "{plan.primary_agent}",
   prompt: "You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md
   for your full role and instructions. Also read .jdi/framework/components/meta/AgentBase.md
@@ -245,7 +245,7 @@ Agent(
 # source: claude-code (user-added registered specialist)
 Agent(
   subagent_type: "{plan.primary_agent}",   # e.g. unity-specialist
-  mode: "bypassPermissions",
+  mode: "acceptEdits",
   name: "{plan.primary_agent}",
   prompt: "<standard single-agent spawn prompt from ComplexityRouter>"
 )
@@ -265,7 +265,7 @@ using the pattern that matches its source (see table above).
 # JDI specialist (source: jdi)
 Agent(
   subagent_type: "general-purpose",
-  mode: "bypassPermissions",
+  mode: "acceptEdits",
   name: "{task.agent}-{task_id}",
   prompt: "You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions.
   <spawn prompt from AgentTeamsOrchestration with TASK_FILE: {task file}>"
@@ -274,7 +274,7 @@ Agent(
 # Claude Code registered specialist (source: claude-code)
 Agent(
   subagent_type: "{task.agent}",
-  mode: "bypassPermissions",
+  mode: "acceptEdits",
   name: "{task.agent}-{task_id}",
   prompt: "<spawn prompt from AgentTeamsOrchestration with TASK_FILE: {task file}>"
 )

@@ -57,7 +57,7 @@ Return a YAML block with `status`, agent-specific fields, and `next_action` afte
 
 ## File Operations
 
-You are spawned with full file permissions (`mode: "bypassPermissions"`). All standard tools work:
+You are spawned with `mode: "acceptEdits"` and a scoped `allowedTools` allowlist (declared in `.claude/settings.json` and mirrored in `src/utils/claude.ts`). The allowlist covers Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(jdi:*)`. All standard tools work within that scope:
 
 | Operation | Tool / Method | Notes |
 |-----------|--------------|-------|

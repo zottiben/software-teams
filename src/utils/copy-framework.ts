@@ -48,6 +48,20 @@ export async function copyFrameworkFiles(
     }
   }
 
+  // Copy the declarative `.claude/settings.json` template into the project root.
+  // This defines the scoped tool allowlist for spawned Claude sessions.
+  // Do NOT clobber an existing settings.json unless --force was passed.
+  const settingsTemplate = join(frameworkDir, "templates", ".claude", "settings.json");
+  if (existsSync(settingsTemplate)) {
+    const settingsDest = join(cwd, ".claude", "settings.json");
+    const destDir = dirname(settingsDest);
+    if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
+    if (force || !existsSync(settingsDest)) {
+      const content = await Bun.file(settingsTemplate).text();
+      await Bun.write(settingsDest, content);
+    }
+  }
+
   // Apply adapter config for the detected project type
   const adapterPath = join(frameworkDir, "adapters", `${projectType}.yaml`);
   if (existsSync(adapterPath)) {

@@ -583,7 +583,7 @@ export const runCommand = defineCommand({
     try {
       const { exitCode, response } = await spawnClaude(prompt, {
         cwd,
-        permissionMode: "bypassPermissions",
+        permissionMode: "acceptEdits",
         allowedTools: intent.dryRun ? ["Read", "Glob", "Grep", "Bash"] : undefined,
       });
       fullResponse = response;
@@ -619,7 +619,7 @@ export const runCommand = defineCommand({
 
         const implResult = await spawnClaude(implementPrompt, {
           cwd,
-          permissionMode: "bypassPermissions",
+          permissionMode: "acceptEdits",
         });
         if (implResult.exitCode !== 0) {
           success = false;

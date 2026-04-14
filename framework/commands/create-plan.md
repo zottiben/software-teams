@@ -95,7 +95,7 @@ If the feature description looks trivial (single file, <30 minutes, no architect
 
 ### 4a. Pre-Plan Research Spawn
 
-Spawn `jdi-researcher` in `pre-plan-discovery` mode via `Agent(subagent_type="general-purpose", mode="bypassPermissions")`. The spawn prompt MUST include:
+Spawn `jdi-researcher` in `pre-plan-discovery` mode via `Agent(subagent_type="general-purpose", mode="acceptEdits")`. The spawn prompt MUST include:
 
 - The feature description (`$ARGUMENTS`)
 - `PRE_DISCOVERED_CONTEXT` as a YAML block
@@ -119,7 +119,7 @@ Store answers as `PRE_ANSWERED_QUESTIONS`.
 
 ### 5. Spawn Planner
 
-Spawn `jdi-planner` via `Agent(subagent_type="general-purpose", mode="bypassPermissions")`. The spawn prompt MUST include:
+Spawn `jdi-planner` via `Agent(subagent_type="general-purpose", mode="acceptEdits")`. The spawn prompt MUST include:
 
 - The feature description (`$ARGUMENTS`)
 - `PRE_DISCOVERED_CONTEXT` as a YAML block — planner must NOT re-read scaffolding
@@ -146,7 +146,7 @@ If any check fails, STOP and report the gap to the user. Do not advance state on
 
 ### 7. Execute Deferred Ops
 
-The planner creates files directly (it has `bypassPermissions`). If any `files_to_create` entries were returned, create them now via the Write tool as a fallback.
+The planner creates files directly (spawned under `acceptEdits` with a scoped `allowedTools` allowlist defined in `.claude/settings.json`). If any `files_to_create` entries were returned, create them now via the Write tool as a fallback.
 
 ### 8. Update State
 

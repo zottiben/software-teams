@@ -106,7 +106,7 @@ runs:
           ```
           Use the ticket name, description, and checklists as requirements.
 
-        claude_args: '--permission-mode bypassPermissions'
+        claude_args: '--permission-mode acceptEdits --allowedTools Read,Write,Edit,MultiEdit,Glob,Grep,Task,Bash(bun:*),Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(npx:*),Bash(mkdir:*),Bash(rm:*),Bash(jdi:*),Bash(curl:*)'
 
       env:
         CLICKUP_API_TOKEN: ${{ inputs.clickup_api_token }}
