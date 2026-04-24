@@ -1,6 +1,6 @@
 {
   "name": "@benzotti/jdi",
-  "version": "0.1.56",
+  "version": "0.1.57",
   "description": "JDI - AI development framework for Claude Code",
   "type": "module",
   "bin": {
