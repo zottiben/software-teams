@@ -129,10 +129,30 @@ Use the ticket name, description, and checklists as requirements.
 `;
     await Bun.write(claudeMdPath, sharedBase + "\n" + ciSections);
   } else {
-    // Local mode: skill routing for Claude Code CLI
-    const routingHeader = "## JDI Workflow Routing";
+    const routingHeader = '## Agent-First Default'
     if (!existsSync(claudeMdPath)) {
       await Bun.write(claudeMdPath, `${routingHeader}
+
+For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
+
+- Trivial edits (single file, single grep, single shell command).
+- Tasks with no matching specialist in \`.jdi/framework/agents\` or \`.claude/agents/\`.
+- Agent/framework orchestration itself (configuring, routing, triage, memory updates).
+
+Match specialists to domain: react → \`jdi-frontend\` / \`jdi-programmer\`; php → \`jdi-backend\` / \`jdi-programmer\`; research → \`jdi-researcher\`; QA → \`jdi-qa-tester\` / \`jdi-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
+
+### Scope spawn prompts tightly
+
+Spawned agents can be truncated mid-task when briefings are too broad. To prevent it:
+
+- **One concern per invocation.** Bundle unrelated fixes? Run them as parallel agents instead.
+- **Split investigation from implementation** when the audit is wide. Agent A finds, agent B fixes with exact file:line targets.
+- **Give exact file paths and line numbers**, not open-ended "find all bugs in X" prompts.
+- **Cap exploration** — "read at most N files, then act."
+- **Ask for short reports (<400 words).** Long formal reports are where truncation bites.
+- If an agent is cut off, \`SendMessage({to: agentId})\` resumes them — their edits persist.
+
+## JDI Workflow Routing
 
 Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
 
@@ -146,7 +166,12 @@ Recognise natural language JDI intents and invoke the matching skill via the Ski
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
-Planning and implementation are separate human-gated phases — NEVER auto-proceed to implementation after plan approval. When a plan is approved, STOP and wait for an explicit implementation request.
+## Planning and Implementation
+
+Per-sub-plan flow (create-plan → implement → commit) from an orchestration plan - full flow (orchestration plan -> implementation plan -> implementation -> commit); resume-cold checklist.
+
+- SDD plan implementation flow.
+- Planning and implementation are separate gates — NEVER auto-proceed to implementation after plan approval.
 
 ## Iterative Refinement
 
@@ -157,6 +182,27 @@ After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversatio
       if (!existing.includes(routingHeader)) {
         await Bun.write(claudeMdPath, existing + "\n" + `${routingHeader}
 
+For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
+
+- Trivial edits (single file, single grep, single shell command).
+- Tasks with no matching specialist in \`.jdi/framework/agents\` or \`.claude/agents/\`.
+- Agent/framework orchestration itself (configuring, routing, triage, memory updates).
+
+Match specialists to domain: react → \`jdi-frontend\` / \`jdi-programmer\`; php → \`jdi-backend\` / \`jdi-programmer\`; research → \`jdi-researcher\`; QA → \`jdi-qa-tester\` / \`jdi-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
+
+### Scope spawn prompts tightly
+
+Spawned agents can be truncated mid-task when briefings are too broad. To prevent it:
+
+- **One concern per invocation.** Bundle unrelated fixes? Run them as parallel agents instead.
+- **Split investigation from implementation** when the audit is wide. Agent A finds, agent B fixes with exact file:line targets.
+- **Give exact file paths and line numbers**, not open-ended "find all bugs in X" prompts.
+- **Cap exploration** — "read at most N files, then act."
+- **Ask for short reports (<400 words).** Long formal reports are where truncation bites.
+- If an agent is cut off, \`SendMessage({to: agentId})\` resumes them — their edits persist.
+
+## JDI Workflow Routing
+
 Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
 
 - Plan/ticket analysis → \`/jdi:create-plan\`
@@ -169,7 +215,12 @@ Recognise natural language JDI intents and invoke the matching skill via the Ski
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
-Planning and implementation are separate human-gated phases — NEVER auto-proceed to implementation after plan approval. When a plan is approved, STOP and wait for an explicit implementation request.
+## Planning and Implementation
+
+Per-sub-plan flow (create-plan → implement → commit) from an orchestration plan - full flow (orchestration plan -> implementation plan -> implementation -> commit); resume-cold checklist.
+
+- SDD plan implementation flow.
+- Planning and implementation are separate gates — NEVER auto-proceed to implementation after plan approval.
 
 ## Iterative Refinement
 

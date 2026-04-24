@@ -69,7 +69,7 @@ The split format is MANDATORY. Each task MUST be a separate `.T{n}.md` file. The
 
 ## File Naming
 
-Plan files use human-readable slugged names: `{phase}-{plan}-{slug}.{suffix}`
+Plan files use human-readable slugged names: `{phase}-{plan}-{slug}-{type}.{suffix}`
 
 **Slug derivation:**
 1. Take the plan name (e.g., "Token Economy Hardening")
@@ -77,7 +77,7 @@ Plan files use human-readable slugged names: `{phase}-{plan}-{slug}.{suffix}`
 3. Keep 2-4 meaningful words, join with hyphens
 4. Examples: "Token Economy Hardening" → `token-hardening`, "Split Plans into Task-Level Files" → `split-plans`
 
-**Suffixes:** `plan.md` (index), `T{n}.md` (task file), `summary.md` (post-execution)
+**Suffixes:** `{type}-plan.md` (index), `T{n}-{type}.md` (task file), `summary.md` (post-execution)
 
 ## Task Sizing
 
