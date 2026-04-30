@@ -7,7 +7,7 @@ import { resolveComponents } from "./resolve-components";
 let tempDir: string;
 
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
   return tempDir;
 }
 
@@ -20,7 +20,7 @@ afterEach(() => {
 describe("resolveComponents", () => {
   test("finds project-level components", async () => {
     const dir = makeTempDir();
-    const componentsDir = join(dir, ".jdi", "framework", "components");
+    const componentsDir = join(dir, ".software-teams", "framework", "components");
     mkdirSync(componentsDir, { recursive: true });
     writeFileSync(join(componentsDir, "TestComponent.md"), "# Test");
 
@@ -35,7 +35,7 @@ describe("resolveComponents", () => {
 
   test("returns components sorted alphabetically", async () => {
     const dir = makeTempDir();
-    const componentsDir = join(dir, ".jdi", "framework", "components");
+    const componentsDir = join(dir, ".software-teams", "framework", "components");
     mkdirSync(componentsDir, { recursive: true });
     writeFileSync(join(componentsDir, "Zebra.md"), "# Z");
     writeFileSync(join(componentsDir, "Alpha.md"), "# A");
@@ -51,7 +51,7 @@ describe("resolveComponents", () => {
 
   test("deduplicates by name (project wins over builtin)", async () => {
     const dir = makeTempDir();
-    const componentsDir = join(dir, ".jdi", "framework", "components");
+    const componentsDir = join(dir, ".software-teams", "framework", "components");
     mkdirSync(componentsDir, { recursive: true });
     // Create a component with the same name as a builtin
     writeFileSync(join(componentsDir, "AgentBase.md"), "# Custom AgentBase");
@@ -65,7 +65,7 @@ describe("resolveComponents", () => {
 
   test("returns empty for non-existent project directory", async () => {
     const dir = makeTempDir();
-    // No .jdi directory created — only builtin components should appear
+    // No .software-teams directory created — only builtin components should appear
     const components = await resolveComponents(dir);
     const projectComponents = components.filter((c) => c.source === "project");
     expect(projectComponents).toHaveLength(0);
@@ -73,7 +73,7 @@ describe("resolveComponents", () => {
 
   test("finds components in subdirectories", async () => {
     const dir = makeTempDir();
-    const subDir = join(dir, ".jdi", "framework", "components", "execution");
+    const subDir = join(dir, ".software-teams", "framework", "components", "execution");
     mkdirSync(subDir, { recursive: true });
     writeFileSync(join(subDir, "Verify.md"), "# Verify");
 

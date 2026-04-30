@@ -165,8 +165,8 @@ export const runCommand = defineCommand({
     const commentAuthor = args["comment-author"] ?? process.env.COMMENT_AUTHOR ?? "";
     const allowedUsers = args["allowed-users"] ?? process.env.ALLOWED_USERS ?? "";
 
-    // Opt-in authorization gate — only active if JDI_AUTH_ENABLED or --allowed-users is set
-    if (commentAuthor && (allowedUsers || process.env.JDI_AUTH_ENABLED)) {
+    // Opt-in authorization gate — only active if SOFTWARE_TEAMS_AUTH_ENABLED or --allowed-users is set
+    if (commentAuthor && (allowedUsers || process.env.SOFTWARE_TEAMS_AUTH_ENABLED)) {
       const authResult = await checkAuthorization(repo!, commentAuthor, allowedUsers || undefined);
       if (!authResult.authorized) {
         consola.warn(`Auth denied: ${authResult.reason}`);
@@ -267,14 +267,14 @@ export const runCommand = defineCommand({
       const { existsSync } = await import("fs");
       const { join } = await import("path");
 
-      const frameworkExists = existsSync(join(cwd, ".jdi/framework"));
+      const frameworkExists = existsSync(join(cwd, ".software-teams/framework"));
       const claudeMdExists = existsSync(join(cwd, ".claude/CLAUDE.md"));
-      const stateExists = existsSync(join(cwd, ".jdi/config/state.yaml"));
-      const learningsExists = existsSync(join(cwd, ".jdi/persistence/learnings.md"));
+      const stateExists = existsSync(join(cwd, ".software-teams/config/state.yaml"));
+      const learningsExists = existsSync(join(cwd, ".software-teams/persistence/learnings.md"));
 
       let version = "unknown";
       try {
-        const pkgPath = join(cwd, "node_modules/@benzotti/jdi/package.json");
+        const pkgPath = join(cwd, "node_modules/@benzotti/software-teams/package.json");
         if (existsSync(pkgPath)) {
           const pkg = JSON.parse(await Bun.file(pkgPath).text());
           version = pkg.version;
@@ -355,7 +355,7 @@ export const runCommand = defineCommand({
       contextLines.push(``, ticketContext);
     }
 
-    const baseProtocol = resolve(cwd, ".jdi/framework/components/meta/AgentBase.md");
+    const baseProtocol = resolve(cwd, ".software-teams/framework/components/meta/AgentBase.md");
 
     // Build prompt based on whether this is feedback or a new command
     let prompt: string;
@@ -375,25 +375,25 @@ export const runCommand = defineCommand({
         fenceUserInput("user-request", intent.description),
         ``,
         `## Instructions`,
-        `The user is iterating on code that JDI already implemented. Review the conversation above to understand what was built.`,
+        `The user is iterating on code that Software Teams already implemented. Review the conversation above to understand what was built.`,
         `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
         `Apply changes incrementally to the existing code — do not rewrite from scratch.`,
         ``,
         `## Auto-Commit`,
         `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
         `After making changes:`,
-        `1. \`git add\` only source files you changed (NOT .jdi/ or .claude/)`,
+        `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
         `2. \`git commit -m "fix: ..."\` or \`git commit -m "refactor: ..."\` with a conventional commit message`,
         `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
         `Present a summary of what you changed.`,
       ].join("\n");
     } else if (intent.isFeedback) {
       // ── Refinement — update the plan only, NEVER implement ──
-      const agentSpec = resolve(cwd, `.jdi/framework/agents/jdi-planner.md`);
+      const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
 
       prompt = [
         `Read ${baseProtocol} for the base agent protocol.`,
-        `You are jdi-planner. Read ${agentSpec} for your full specification.`,
+        `You are software-teams-planner. Read ${agentSpec} for your full specification.`,
         ``,
         ...contextLines,
         ``,
@@ -403,7 +403,7 @@ export const runCommand = defineCommand({
         fenceUserInput("user-request", intent.description),
         ``,
         `## HARD CONSTRAINTS — PLAN REFINEMENT MODE`,
-        `- ONLY modify files under \`.jdi/plans/\` and \`.jdi/config/\` — NEVER create, edit, or delete source code files`,
+        `- ONLY modify files under \`.software-teams/plans/\` and \`.software-teams/config/\` — NEVER create, edit, or delete source code files`,
         `- NEVER run \`git commit\`, \`git push\`, or any git write operations`,
         `- Planning and implementation are SEPARATE gates — user must explicitly approve before implementation`,
         ``,
@@ -420,7 +420,7 @@ export const runCommand = defineCommand({
       ].join("\n");
     } else {
       // ── New command ──
-      const agentSpec = resolve(cwd, `.jdi/framework/agents/jdi-planner.md`);
+      const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
 
       // Include conversation history as context even for new commands,
       // so the agent is aware of any prior work on this issue
@@ -432,7 +432,7 @@ export const runCommand = defineCommand({
         case "plan":
           prompt = [
             `Read ${baseProtocol} for the base agent protocol.`,
-            `You are jdi-planner. Read ${agentSpec} for your full specification.`,
+            `You are software-teams-planner. Read ${agentSpec} for your full specification.`,
             ``,
             ...contextLines,
             historyBlock,
@@ -449,12 +449,12 @@ export const runCommand = defineCommand({
             `NEVER use time estimates (minutes, hours, etc). Use t-shirt sizes: S, M, L. This is mandatory.`,
             ``,
             `## Learnings`,
-            `Before planning, read .jdi/persistence/learnings.md and .jdi/framework/learnings/ if they exist. Apply any team preferences found.`,
+            `Before planning, read .software-teams/persistence/learnings.md and .software-teams/framework/learnings/ if they exist. Apply any team preferences found.`,
             ``,
             `## Plan File Format`,
             `CRITICAL: You MUST write plan files in SPLIT format as defined in your spec (Step 7a):`,
-            `1. Write the index file: \`.jdi/plans/{phase}-{plan}-{slug}.plan.md\` — contains frontmatter with \`task_files:\` list and a manifest table only (NO inline task details)`,
-            `2. Write each task as a separate file: \`.jdi/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
+            `1. Write the index file: \`.software-teams/plans/{phase}-{plan}-{slug}.plan.md\` — contains frontmatter with \`task_files:\` list and a manifest table only (NO inline task details)`,
+            `2. Write each task as a separate file: \`.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
             `This split format is MANDATORY — it reduces token usage by letting agents load only their assigned task.`,
             ``,
             `## Response Format`,
@@ -494,8 +494,8 @@ export const runCommand = defineCommand({
         case "implement":
           prompt = [
             `Read ${baseProtocol} for the base agent protocol.`,
-            `Read ${resolve(cwd, ".jdi/framework/components/meta/ComplexityRouter.md")} for complexity routing rules.`,
-            `Read ${resolve(cwd, ".jdi/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
+            `Read ${resolve(cwd, ".software-teams/framework/components/meta/ComplexityRouter.md")} for complexity routing rules.`,
+            `Read ${resolve(cwd, ".software-teams/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
             ``,
             ...contextLines,
             ``,
@@ -508,7 +508,7 @@ export const runCommand = defineCommand({
             `## Auto-Commit`,
             `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
             `After implementing all changes:`,
-            `1. \`git add\` only source files you changed (NOT .jdi/ or .claude/)`,
+            `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
             `2. \`git commit -m "feat: ..."\` with a conventional commit message`,
             `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
             `Present a summary of what was implemented and committed.`,
@@ -531,7 +531,7 @@ export const runCommand = defineCommand({
             `## Auto-Commit`,
             `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
             `After making changes:`,
-            `1. \`git add\` only source files you changed (NOT .jdi/ or .claude/)`,
+            `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
             `2. \`git commit -m "..."\` with a conventional commit message`,
             `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
             `Present what you changed.`,
@@ -597,21 +597,21 @@ export const runCommand = defineCommand({
         consola.info("Full flow: now running implement...");
         const implementPrompt = [
           `Read ${baseProtocol} for the base agent protocol.`,
-          `Read ${resolve(cwd, ".jdi/framework/components/meta/ComplexityRouter.md")} for complexity routing rules.`,
-          `Read ${resolve(cwd, ".jdi/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
+          `Read ${resolve(cwd, ".software-teams/framework/components/meta/ComplexityRouter.md")} for complexity routing rules.`,
+          `Read ${resolve(cwd, ".software-teams/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
           ``,
           ...contextLines,
           ``,
           ...buildLearningsBlock(techStack),
           ``,
           `## Task`,
-          `Execute the most recently created implementation plan in .jdi/plans/.`,
+          `Execute the most recently created implementation plan in .software-teams/plans/.`,
           `Follow the implement-plan orchestration.`,
           ``,
           `## Auto-Commit`,
           `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
           `After implementing all changes:`,
-          `1. \`git add\` only source files you changed (NOT .jdi/ or .claude/)`,
+          `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
           `2. \`git commit -m "feat: ..."\` with a conventional commit message`,
           `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
           `Present a summary of what was implemented and committed.`,

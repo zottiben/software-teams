@@ -13,8 +13,8 @@ export async function resolveComponents(cwd: string): Promise<ResolvedComponent[
 
   // Resolution chain: project > user > built-in
   const sources: Array<{ dir: string; source: ResolvedComponent["source"] }> = [
-    { dir: join(cwd, ".jdi", "framework", "components"), source: "project" },
-    { dir: join(homedir(), ".jdi", "components"), source: "user" },
+    { dir: join(cwd, ".software-teams", "framework", "components"), source: "project" },
+    { dir: join(homedir(), ".software-teams", "components"), source: "user" },
     { dir: join(import.meta.dir, "../framework/components"), source: "builtin" },
   ];
 

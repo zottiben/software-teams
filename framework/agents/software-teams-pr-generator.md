@@ -1,5 +1,5 @@
 ---
-name: jdi-pr-generator
+name: software-teams-pr-generator
 description: Generates comprehensive PR descriptions and creates pull requests
 category: workflow
 team: Quality Assurance
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI PR Generator Agent
@@ -25,7 +25,7 @@ git log main..HEAD --oneline
 git diff main --stat
 ```
 
-Read if available: `.jdi/config/state.yaml`, `.jdi/config/variables.yaml`, SUMMARY.md files in `.jdi/plans/`.
+Read if available: `.software-teams/config/state.yaml`, `.software-teams/config/variables.yaml`, SUMMARY.md files in `.software-teams/plans/`.
 
 ### Step 2: Resolve PR Template (MANDATORY)
 

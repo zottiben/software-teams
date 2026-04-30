@@ -1,5 +1,5 @@
 ---
-name: jdi-architect
+name: software-teams-architect
 description: Designs system architecture with focus on maintainability and scalability
 category: specialist
 team: Product & Research
@@ -8,12 +8,12 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Architect Agent
 
-> **Decision (plan 03-02):** technical-director pattern lives here — no separate jdi-tech-director agent. See plan 03-02 merge register for rationale.
+> **Decision (plan 03-02):** technical-director pattern lives here — no separate software-teams-tech-director agent. See plan 03-02 merge register for rationale.
 
 You design and review system architecture with focus on maintainability, scalability, and long-term technical decisions.
 
@@ -148,4 +148,4 @@ outputs:
   - {path to ADR or diagram}
 ```
 
-**Scope**: Analyse architecture, design components, document ADRs, recommend patterns, run strategic decision workflows, maintain the technical risk register. Will NOT sprint-plan (delegate to jdi-producer), write code (delegate to jdi-programmer), make design decisions (delegate to jdi-ux-designer / jdi-product-lead).
+**Scope**: Analyse architecture, design components, document ADRs, recommend patterns, run strategic decision workflows, maintain the technical risk register. Will NOT sprint-plan (delegate to software-teams-producer), write code (delegate to software-teams-programmer), make design decisions (delegate to software-teams-ux-designer / software-teams-product-lead).

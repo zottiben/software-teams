@@ -13,17 +13,17 @@ export interface StorageConfig {
 }
 
 /**
- * Create a storage adapter based on config or jdi-config.yaml.
+ * Create a storage adapter based on config or software-teams-config.yaml.
  *
  * Built-in adapters:
  *   - "fs" (default) — reads/writes to a local directory
  *
  * Custom adapters:
- *   Set `storage.adapter` in jdi-config.yaml to a relative path (e.g. "./my-storage.ts").
+ *   Set `storage.adapter` in software-teams-config.yaml to a relative path (e.g. "./my-storage.ts").
  *   The file must export a class that implements JdiStorage as default export:
  *
  *   ```ts
- *   import type { JdiStorage } from "@benzotti/jdi/storage";
+ *   import type { JdiStorage } from "@benzotti/software-teams/storage";
  *
  *   export default class S3Storage implements JdiStorage {
  *     async load(key: string) { ... }
@@ -38,9 +38,9 @@ export async function createStorage(
   let adapter = config?.adapter ?? "fs";
   let basePath = config?.basePath;
 
-  // Read from jdi-config.yaml if no explicit config
+  // Read from software-teams-config.yaml if no explicit config
   if (!config?.adapter && !config?.basePath) {
-    const configPath = join(cwd, ".jdi", "config", "jdi-config.yaml");
+    const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
     if (existsSync(configPath)) {
       const content = await Bun.file(configPath).text();
       const parsed = parse(content);
@@ -53,7 +53,7 @@ export async function createStorage(
   if (adapter === "fs") {
     const resolvedPath = basePath
       ? join(cwd, basePath)
-      : join(cwd, ".jdi", "persistence");
+      : join(cwd, ".software-teams", "persistence");
     return new FsStorage(resolvedPath);
   }
 
@@ -62,7 +62,7 @@ export async function createStorage(
   if (!existsSync(adapterPath)) {
     throw new Error(
       `Storage adapter not found: ${adapterPath}\n` +
-      `Set storage.adapter in .jdi/config/jdi-config.yaml to "fs" or a path to a custom adapter module.`,
+      `Set storage.adapter in .software-teams/config/software-teams-config.yaml to "fs" or a path to a custom adapter module.`,
     );
   }
 

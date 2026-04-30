@@ -10,7 +10,7 @@ import { convertAgents } from "../utils/convert-agents";
 let tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "jdi-syncfw-"));
+  const dir = mkdtempSync(join(tmpdir(), "st-syncfw-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -26,36 +26,36 @@ const REPO_ROOT = join(import.meta.dir, "..", "..");
 const FRAMEWORK_DIR = join(REPO_ROOT, "framework");
 
 /**
- * Build a fixture cwd that contains a partial `.jdi/framework/` snapshot —
+ * Build a fixture cwd that contains a partial `.software-teams/framework/` snapshot —
  * a couple of stale files and a few missing ones — so refresh-detection has
  * something to find. State files (PROJECT.yaml etc.) are seeded so we can
  * verify the writer never clobbers them.
  */
 async function makeStaleFixture(): Promise<string> {
   const cwd = makeTempDir();
-  mkdirSync(join(cwd, ".jdi", "framework", "agents"), { recursive: true });
-  mkdirSync(join(cwd, ".jdi", "config"), { recursive: true });
+  mkdirSync(join(cwd, ".software-teams", "framework", "agents"), { recursive: true });
+  mkdirSync(join(cwd, ".software-teams", "config"), { recursive: true });
 
   // A stale agent file that differs from canonical.
   await writeFile(
-    join(cwd, ".jdi", "framework", "agents", "jdi-programmer.md"),
+    join(cwd, ".software-teams", "framework", "agents", "software-teams-programmer.md"),
     "STALE — older snapshot content\n",
   );
   // A stale top-level file.
   await writeFile(
-    join(cwd, ".jdi", "framework", "jdi.md"),
-    "STALE jdi.md — pre-T7 doctrine snapshot\n",
+    join(cwd, ".software-teams", "framework", "software-teams.md"),
+    "STALE software-teams.md — pre-T7 doctrine snapshot\n",
   );
 
   // Project state files that MUST be preserved.
-  await writeFile(join(cwd, ".jdi", "PROJECT.yaml"), "name: fixture-project\n");
+  await writeFile(join(cwd, ".software-teams", "PROJECT.yaml"), "name: fixture-project\n");
   await writeFile(
-    join(cwd, ".jdi", "REQUIREMENTS.yaml"),
+    join(cwd, ".software-teams", "REQUIREMENTS.yaml"),
     "requirements: []\n",
   );
-  await writeFile(join(cwd, ".jdi", "ROADMAP.yaml"), "phases: []\n");
+  await writeFile(join(cwd, ".software-teams", "ROADMAP.yaml"), "phases: []\n");
   await writeFile(
-    join(cwd, ".jdi", "config", "state.yaml"),
+    join(cwd, ".software-teams", "config", "state.yaml"),
     "current_plan: {phase: 1, plan: 1}\nstate: real-fixture-state\n",
   );
 
@@ -70,8 +70,8 @@ describe("sync-framework — change detection", () => {
     // is missing.
     expect(missing.length).toBeGreaterThan(20);
     // The two seeded files differ from canonical.
-    expect(changed).toContain("agents/jdi-programmer.md");
-    expect(changed).toContain("jdi.md");
+    expect(changed).toContain("agents/software-teams-programmer.md");
+    expect(changed).toContain("software-teams.md");
   });
 
   test("returns empty arrays when snapshot matches canonical", async () => {
@@ -90,7 +90,7 @@ describe("sync-framework — orchestration", () => {
 
     // Confirm pre-state: stale content present.
     const staleAgentBefore = await readFile(
-      join(cwd, ".jdi", "framework", "agents", "jdi-programmer.md"),
+      join(cwd, ".software-teams", "framework", "agents", "software-teams-programmer.md"),
       "utf-8",
     );
     expect(staleAgentBefore).toContain("STALE");
@@ -102,18 +102,18 @@ describe("sync-framework — orchestration", () => {
 
     // Snapshot updated.
     const refreshedAgent = await readFile(
-      join(cwd, ".jdi", "framework", "agents", "jdi-programmer.md"),
+      join(cwd, ".software-teams", "framework", "agents", "software-teams-programmer.md"),
       "utf-8",
     );
     expect(refreshedAgent).not.toContain("STALE");
-    expect(refreshedAgent).toContain("name: jdi-programmer");
+    expect(refreshedAgent).toContain("name: software-teams-programmer");
     expect(refreshedAgent).toContain("model:");
     expect(refreshedAgent).toContain("tools:");
 
-    // jdi.md no longer carries the old "non-negotiable platform constraint"
+    // software-teams.md no longer carries the old "non-negotiable platform constraint"
     // wording (T7 doctrine polish).
     const jdiDoc = await readFile(
-      join(cwd, ".jdi", "framework", "jdi.md"),
+      join(cwd, ".software-teams", "framework", "software-teams.md"),
       "utf-8",
     );
     expect(jdiDoc).not.toContain("non-negotiable platform constraint");
@@ -127,14 +127,14 @@ describe("sync-framework — orchestration", () => {
       "README.md",
     ]) {
       expect(
-        existsSync(join(cwd, ".jdi", "framework", "templates", t)),
+        existsSync(join(cwd, ".software-teams", "framework", "templates", t)),
         `expected template ${t} to be present after refresh`,
       ).toBe(true);
     }
 
     // AGENTS-MODELS.md exists.
     expect(
-      existsSync(join(cwd, ".jdi", "framework", "agents", "AGENTS-MODELS.md")),
+      existsSync(join(cwd, ".software-teams", "framework", "agents", "AGENTS-MODELS.md")),
     ).toBe(true);
 
     // convertAgents wrote the native subagent layer.
@@ -146,21 +146,21 @@ describe("sync-framework — orchestration", () => {
   test("does not clobber project state files", async () => {
     const cwd = await makeStaleFixture();
 
-    const beforeProject = await readFile(join(cwd, ".jdi", "PROJECT.yaml"), "utf-8");
-    const beforeReqs = await readFile(join(cwd, ".jdi", "REQUIREMENTS.yaml"), "utf-8");
-    const beforeRoadmap = await readFile(join(cwd, ".jdi", "ROADMAP.yaml"), "utf-8");
+    const beforeProject = await readFile(join(cwd, ".software-teams", "PROJECT.yaml"), "utf-8");
+    const beforeReqs = await readFile(join(cwd, ".software-teams", "REQUIREMENTS.yaml"), "utf-8");
+    const beforeRoadmap = await readFile(join(cwd, ".software-teams", "ROADMAP.yaml"), "utf-8");
     const beforeState = await readFile(
-      join(cwd, ".jdi", "config", "state.yaml"),
+      join(cwd, ".software-teams", "config", "state.yaml"),
       "utf-8",
     );
 
     await copyFrameworkFiles(cwd, "node", true, false, FRAMEWORK_DIR);
     await convertAgents({ cwd });
 
-    expect(await readFile(join(cwd, ".jdi", "PROJECT.yaml"), "utf-8")).toBe(beforeProject);
-    expect(await readFile(join(cwd, ".jdi", "REQUIREMENTS.yaml"), "utf-8")).toBe(beforeReqs);
-    expect(await readFile(join(cwd, ".jdi", "ROADMAP.yaml"), "utf-8")).toBe(beforeRoadmap);
-    expect(await readFile(join(cwd, ".jdi", "config", "state.yaml"), "utf-8")).toBe(
+    expect(await readFile(join(cwd, ".software-teams", "PROJECT.yaml"), "utf-8")).toBe(beforeProject);
+    expect(await readFile(join(cwd, ".software-teams", "REQUIREMENTS.yaml"), "utf-8")).toBe(beforeReqs);
+    expect(await readFile(join(cwd, ".software-teams", "ROADMAP.yaml"), "utf-8")).toBe(beforeRoadmap);
+    expect(await readFile(join(cwd, ".software-teams", "config", "state.yaml"), "utf-8")).toBe(
       beforeState,
     );
   });

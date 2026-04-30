@@ -13,10 +13,10 @@ export type SpawnEntry = {
   timestamp: string; // ISO-8601
   plan_id?: string; // e.g. "1-01"
   task_id: string; // e.g. "1-01-T1"
-  agent: string; // e.g. "jdi-architect"
+  agent: string; // e.g. "software-teams-architect"
   prompt_bytes: number; // wc -c equivalent
   prompt_tokens_approx: number; // bytes / 4
-  slice_path?: string; // .jdi/plans/{slug}.T{n}.md
+  slice_path?: string; // .software-teams/plans/{slug}.T{n}.md
   spec_sections?: string[]; // ["Acceptance Criteria", "Out of Scope"]
   tier: "three-tier" | "single-tier";
 };
@@ -32,7 +32,7 @@ export type LedgerSummary = {
   entries: SpawnEntry[];
 };
 
-const DEFAULT_LEDGER_PATH = join(".jdi", "persistence", "spawn-ledger.jsonl");
+const DEFAULT_LEDGER_PATH = join(".software-teams", "persistence", "spawn-ledger.jsonl");
 
 function resolveLedgerPath(opts?: { ledgerPath?: string }): string {
   return opts?.ledgerPath ?? DEFAULT_LEDGER_PATH;

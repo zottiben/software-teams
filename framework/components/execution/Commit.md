@@ -47,10 +47,10 @@ When invoked as `<JDI:Commit />`:
 
    **EXCLUDED DIRECTORIES** (never stage):
    - `.worktrees/**` — Git worktrees
-   - `.jdi/**` — JDI runtime state
+   - `.software-teams/**` — Software Teams runtime state
 
    ```bash
-   if [[ "$file" == .worktrees/* ]] || [[ "$file" == .jdi/* ]]; then
+   if [[ "$file" == .worktrees/* ]] || [[ "$file" == .software-teams/* ]]; then
      echo "SKIP (excluded): $file"
      continue
    fi

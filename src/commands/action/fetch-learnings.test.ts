@@ -6,7 +6,7 @@ import { mergeLearnings } from "./fetch-learnings";
 
 let tempDir: string;
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
   return tempDir;
 }
 

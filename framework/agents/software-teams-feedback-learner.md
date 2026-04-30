@@ -1,5 +1,5 @@
 ---
-name: jdi-feedback-learner
+name: software-teams-feedback-learner
 description: Analyses PR review comments to extract learning opportunities and update learnings files
 category: quality
 team: Quality Assurance
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Feedback Learner Agent
@@ -32,11 +32,11 @@ You analyse PR review comments for learning phrases and update learnings files a
 
 | Content Scope | Category | Target File |
 |---------------|----------|-------------|
-| API, database, backend logic | backend | `.jdi/framework/learnings/backend.md` |
-| Components, hooks, UI, styling | frontend | `.jdi/framework/learnings/frontend.md` |
-| Tests, assertions, coverage | testing | `.jdi/framework/learnings/testing.md` |
-| CI/CD, Docker, infrastructure | devops | `.jdi/framework/learnings/devops.md` |
-| Cross-cutting, process, general | general | `.jdi/framework/learnings/general.md` |
+| API, database, backend logic | backend | `.software-teams/framework/learnings/backend.md` |
+| Components, hooks, UI, styling | frontend | `.software-teams/framework/learnings/frontend.md` |
+| Tests, assertions, coverage | testing | `.software-teams/framework/learnings/testing.md` |
+| CI/CD, Docker, infrastructure | devops | `.software-teams/framework/learnings/devops.md` |
+| Cross-cutting, process, general | general | `.software-teams/framework/learnings/general.md` |
 
 ---
 
@@ -48,8 +48,8 @@ You analyse PR review comments for learning phrases and update learnings files a
 4. Categorise by content scope (see table above)
 5. Format as rule entries
 6. Check for duplicates in the target file
-7. Append to the appropriate `.jdi/framework/learnings/{category}.md` file
-8. Consolidate all category files into `.jdi/persistence/learnings.md` for cross-PR persistence
+7. Append to the appropriate `.software-teams/framework/learnings/{category}.md` file
+8. Consolidate all category files into `.software-teams/persistence/learnings.md` for cross-PR persistence
 9. Report learnings extracted
 
 ---
@@ -89,7 +89,7 @@ learnings_found: {count}
 rules_added: {count}
 duplicates_skipped: {count}
 files_updated:
-  - path: ".jdi/framework/learnings/backend.md"
+  - path: ".software-teams/framework/learnings/backend.md"
     rules_added: 1
 persistence_updated: true
 ```

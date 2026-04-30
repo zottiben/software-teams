@@ -6,13 +6,13 @@ import { parse as parseYaml } from "yaml";
 import { convertAgents } from "../utils/convert-agents";
 
 /**
- * Read `features.native_subagents` from `.jdi/config/jdi-config.yaml` if it
+ * Read `features.native_subagents` from `.software-teams/config/software-teams-config.yaml` if it
  * exists. Returns the boolean value, defaulting to `true` when the file or
  * key is absent. Any read/parse failure also defaults to `true` — the
  * feature flag is an escape hatch, not a gate.
  */
 async function readNativeSubagentsFlag(cwd: string): Promise<boolean> {
-  const configPath = join(cwd, ".jdi", "config", "jdi-config.yaml");
+  const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
   if (!existsSync(configPath)) return true;
   try {
     const content = await Bun.file(configPath).text();
@@ -40,7 +40,7 @@ export const syncAgentsCommand = defineCommand({
     },
     "source-dir": {
       type: "string",
-      description: "Override source directory (default: .jdi/framework/agents)",
+      description: "Override source directory (default: .software-teams/framework/agents)",
     },
     "target-dir": {
       type: "string",
@@ -54,7 +54,7 @@ export const syncAgentsCommand = defineCommand({
     const enabled = await readNativeSubagentsFlag(cwd);
     if (!enabled) {
       consola.warn(
-        "Native subagents disabled (features.native_subagents=false in .jdi/config/jdi-config.yaml). Skipping.",
+        "Native subagents disabled (features.native_subagents=false in .software-teams/config/software-teams-config.yaml). Skipping.",
       );
       return;
     }

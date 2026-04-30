@@ -8,7 +8,7 @@
 
 Test tasks are added to a plan when:
 - SilentDiscovery detects a test suite in the project (`.test.*`, `.spec.*`, test runner config)
-- The user explicitly passes `--with-tests` to `/jdi:create-plan`
+- The user explicitly passes `--with-tests` to `/st:create-plan`
 
 Test tasks are NOT generated when:
 - The user passes `--without-tests`
@@ -16,7 +16,7 @@ Test tasks are NOT generated when:
 
 ### How Test Cases Are Derived
 
-jdi-planner derives test cases from the `done_when` criteria of the implementation tasks the test task `depends_on`. Each `done_when` criterion becomes one or more test cases covering:
+software-teams-planner derives test cases from the `done_when` criteria of the implementation tasks the test task `depends_on`. Each `done_when` criterion becomes one or more test cases covering:
 - The happy path (criterion is met)
 - Edge cases and boundary conditions
 - Error paths (criterion violation)
@@ -40,9 +40,9 @@ Always match the project's existing test file patterns:
 
 ### The plan-test Workflow
 
-1. jdi-planner generates a `type: test` task with `test_scope`, `test_framework`, and `test_command` in its frontmatter
-2. implement-plan routes `type: test` tasks to `jdi-qa-tester` in `plan-test` mode (overriding normal agent resolution)
-3. jdi-qa-tester reads the task file's test cases, reads `depends_on` tasks for context, writes test files, and runs them
+1. software-teams-planner generates a `type: test` task with `test_scope`, `test_framework`, and `test_command` in its frontmatter
+2. implement-plan routes `type: test` tasks to `software-teams-qa-tester` in `plan-test` mode (overriding normal agent resolution)
+3. software-teams-qa-tester reads the task file's test cases, reads `depends_on` tasks for context, writes test files, and runs them
 4. `post-task-verify` is skipped for test tasks — the test run IS the verification
 5. Test failures are S2 severity: the plan halts and the user is asked to resolve
 

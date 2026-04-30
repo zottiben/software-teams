@@ -26,8 +26,8 @@ describe("prompt-builder regression invariants", () => {
   describe("buildPlanPrompt", () => {
     test("references the planner spec", () => {
       const result = buildPlanPrompt(makeCtx(), "Add a feature");
-      expect(result).toContain("jdi-planner");
-      expect(result).toContain("jdi-planner.md");
+      expect(result).toContain("software-teams-planner");
+      expect(result).toContain("software-teams-planner.md");
     });
 
     test("includes project context", () => {
@@ -56,7 +56,7 @@ describe("prompt-builder regression invariants", () => {
     });
 
     test("includes the plan path", () => {
-      const result = buildImplementPrompt(makeCtx(), ".jdi/plans/test.plan.md");
+      const result = buildImplementPrompt(makeCtx(), ".software-teams/plans/test.plan.md");
       expect(result).toContain("test.plan.md");
     });
 
@@ -106,7 +106,7 @@ describe("prompt-builder regression invariants", () => {
 
     test("includes the planner spec reference", () => {
       const result = buildRefinementPrompt(makeCtx(), "feedback", "history");
-      expect(result).toContain("jdi-planner.md");
+      expect(result).toContain("software-teams-planner.md");
     });
   });
 

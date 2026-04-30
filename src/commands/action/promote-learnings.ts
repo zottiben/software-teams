@@ -172,7 +172,7 @@ export function commitLearningsToExternalRepo(
   prNumber?: number,
   sourceRepo?: string,
 ): boolean {
-  const tmpDir = mkdtempSync(join(tmpdir(), "jdi-promote-"));
+  const tmpDir = mkdtempSync(join(tmpdir(), "st-promote-"));
 
   try {
     const cloneUrl = `https://x-access-token:${token}@github.com/${externalRepo}.git`;
@@ -303,7 +303,7 @@ export const promoteLearningsCommand = defineCommand({
 
     // Promote learnings
     const cwd = process.cwd();
-    const learningsDir = join(cwd, ".jdi/framework/learnings");
+    const learningsDir = join(cwd, ".software-teams/framework/learnings");
 
     if (!hasLearningsContent(learningsDir)) {
       consola.info("No learnings content to commit — skipping");

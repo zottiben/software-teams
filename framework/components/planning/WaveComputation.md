@@ -51,7 +51,7 @@ Assign waves based on dependency resolution. Plans in the same wave can execute 
 
 ## Cross-Phase Dependencies
 
-Dependencies from previous phases (`requires.phase < current`) are assumed satisfied if that phase is complete. Verify via `.jdi/phases/{required-phase}/VERIFICATION.md`.
+Dependencies from previous phases (`requires.phase < current`) are assumed satisfied if that phase is complete. Verify via `.software-teams/phases/{required-phase}/VERIFICATION.md`.
 
 ## Error Handling
 

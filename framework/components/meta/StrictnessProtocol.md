@@ -1,6 +1,6 @@
 # StrictnessProtocol Component
 
-The discipline every JDI skill follows. Referenced by user-invocable commands to enforce deterministic, auditable behaviour on every invocation.
+The discipline every Software Teams skill follows. Referenced by user-invocable commands to enforce deterministic, auditable behaviour on every invocation.
 
 When a command references `<JDI:StrictnessProtocol />`, these rules apply to the command's orchestration. They are **not suggestions** — they are the contract Claude honours for that skill.
 
@@ -57,4 +57,4 @@ Then wait for confirmation. Silent deviation is the failure mode this protocol e
 <JDI:StrictnessProtocol />
 ```
 
-Referenced in the footer of user-invocable commands (`/jdi:build`, `/jdi:create-plan`, `/jdi:implement-plan`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.
+Referenced in the footer of user-invocable commands (`/st:build`, `/st:create-plan`, `/st:implement-plan`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.

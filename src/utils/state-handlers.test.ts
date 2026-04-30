@@ -14,9 +14,9 @@ import {
 let tempDir: string;
 
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-handlers-test-"));
-  // Create .jdi/config dir for state.yaml
-  mkdirSync(join(tempDir, ".jdi", "config"), { recursive: true });
+  tempDir = mkdtempSync(join(tmpdir(), "st-handlers-test-"));
+  // Create .software-teams/config dir for state.yaml
+  mkdirSync(join(tempDir, ".software-teams", "config"), { recursive: true });
   return tempDir;
 }
 
@@ -30,7 +30,7 @@ describe("transitionToPlanReady", () => {
   test("parses plan frontmatter and populates phase, plan number, and tasks", async () => {
     const dir = makeTempDir();
     // Create a plan file with frontmatter
-    const planDir = join(dir, ".jdi", "plans");
+    const planDir = join(dir, ".software-teams", "plans");
     mkdirSync(planDir, { recursive: true });
     await Bun.write(
       join(planDir, "2-02-test.plan.md"),
@@ -40,16 +40,16 @@ describe("transitionToPlanReady", () => {
         'plan: "02"',
         'name: "Test Plan"',
         "task_files:",
-        "  - .jdi/plans/2-02-test.T1.md",
-        "  - .jdi/plans/2-02-test.T2.md",
-        "  - .jdi/plans/2-02-test.T3.md",
+        "  - .software-teams/plans/2-02-test.T1.md",
+        "  - .software-teams/plans/2-02-test.T2.md",
+        "  - .software-teams/plans/2-02-test.T3.md",
         "---",
         "",
         "# Test Plan",
       ].join("\n"),
     );
 
-    await transitionToPlanReady(dir, ".jdi/plans/2-02-test.plan.md", "Test Plan");
+    await transitionToPlanReady(dir, ".software-teams/plans/2-02-test.plan.md", "Test Plan");
 
     const state = await readState(dir);
     expect(state).not.toBeNull();
@@ -61,11 +61,11 @@ describe("transitionToPlanReady", () => {
     expect(state!.position?.status).toBe("planning");
 
     // Plan path and tasks populated
-    expect(state!.current_plan?.path).toBe(".jdi/plans/2-02-test.plan.md");
+    expect(state!.current_plan?.path).toBe(".software-teams/plans/2-02-test.plan.md");
     expect(state!.current_plan?.tasks).toEqual([
-      ".jdi/plans/2-02-test.T1.md",
-      ".jdi/plans/2-02-test.T2.md",
-      ".jdi/plans/2-02-test.T3.md",
+      ".software-teams/plans/2-02-test.T1.md",
+      ".software-teams/plans/2-02-test.T2.md",
+      ".software-teams/plans/2-02-test.T3.md",
     ]);
     expect(state!.current_plan?.completed_tasks).toEqual([]);
     expect(state!.current_plan?.current_task_index).toBe(0);
@@ -81,18 +81,18 @@ describe("transitionToPlanReady", () => {
 
   test("falls back gracefully when plan file has no frontmatter", async () => {
     const dir = makeTempDir();
-    const planDir = join(dir, ".jdi", "plans");
+    const planDir = join(dir, ".software-teams", "plans");
     mkdirSync(planDir, { recursive: true });
     await Bun.write(
       join(planDir, "simple.plan.md"),
       "# Simple Plan\n\nNo frontmatter here.",
     );
 
-    await transitionToPlanReady(dir, ".jdi/plans/simple.plan.md", "Simple Plan");
+    await transitionToPlanReady(dir, ".software-teams/plans/simple.plan.md", "Simple Plan");
 
     const state = await readState(dir);
     // Should still set the basics
-    expect(state!.position?.plan).toBe(".jdi/plans/simple.plan.md");
+    expect(state!.position?.plan).toBe(".software-teams/plans/simple.plan.md");
     expect(state!.position?.plan_name).toBe("Simple Plan");
     expect(state!.position?.status).toBe("planning");
     expect(state!.current_plan?.tasks).toEqual([]);
@@ -102,10 +102,10 @@ describe("transitionToPlanReady", () => {
   test("falls back gracefully when plan file does not exist", async () => {
     const dir = makeTempDir();
 
-    await transitionToPlanReady(dir, ".jdi/plans/missing.plan.md", "Missing Plan");
+    await transitionToPlanReady(dir, ".software-teams/plans/missing.plan.md", "Missing Plan");
 
     const state = await readState(dir);
-    expect(state!.position?.plan).toBe(".jdi/plans/missing.plan.md");
+    expect(state!.position?.plan).toBe(".software-teams/plans/missing.plan.md");
     expect(state!.position?.plan_name).toBe("Missing Plan");
     expect(state!.position?.status).toBe("planning");
     expect(state!.current_plan?.tasks).toEqual([]);
@@ -114,18 +114,18 @@ describe("transitionToPlanReady", () => {
   test("preserves existing state fields via spread", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       `position:\n  phase: 1\n  phase_name: "Phase One"\n`,
     );
     // Create plan file with phase 2
-    const planDir = join(dir, ".jdi", "plans");
+    const planDir = join(dir, ".software-teams", "plans");
     mkdirSync(planDir, { recursive: true });
     await Bun.write(
       join(planDir, "plan.md"),
       "---\nphase: 2\nplan: \"01\"\ntask_files: []\n---\n",
     );
 
-    await transitionToPlanReady(dir, ".jdi/plans/plan.md", "Plan");
+    await transitionToPlanReady(dir, ".software-teams/plans/plan.md", "Plan");
 
     const state = await readState(dir);
     // Phase should be overridden by frontmatter
@@ -138,7 +138,7 @@ describe("transitionToPlanReady", () => {
     const dir = makeTempDir();
     // Pre-existing state with completed tasks from a prior plan
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "current_plan:",
         "  path: old-plan.md",
@@ -149,19 +149,19 @@ describe("transitionToPlanReady", () => {
         "  current_task_index: null",
       ].join("\n"),
     );
-    const planDir = join(dir, ".jdi", "plans");
+    const planDir = join(dir, ".software-teams", "plans");
     mkdirSync(planDir, { recursive: true });
     await Bun.write(
       join(planDir, "new.plan.md"),
-      "---\nphase: 1\nplan: \"01\"\ntask_files:\n  - .jdi/plans/new.T1.md\n---\n",
+      "---\nphase: 1\nplan: \"01\"\ntask_files:\n  - .software-teams/plans/new.T1.md\n---\n",
     );
 
-    await transitionToPlanReady(dir, ".jdi/plans/new.plan.md", "New Plan");
+    await transitionToPlanReady(dir, ".software-teams/plans/new.plan.md", "New Plan");
 
     const state = await readState(dir);
     expect(state!.current_plan?.completed_tasks).toEqual([]);
     expect(state!.current_plan?.current_task_index).toBe(0);
-    expect(state!.current_plan?.tasks).toEqual([".jdi/plans/new.T1.md"]);
+    expect(state!.current_plan?.tasks).toEqual([".software-teams/plans/new.T1.md"]);
   });
 });
 
@@ -169,7 +169,7 @@ describe("transitionToApproved", () => {
   test("sets review status to approved with timestamp", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       `review:\n  status: in_review\n  scope: plan\n`,
     );
 
@@ -184,7 +184,7 @@ describe("transitionToApproved", () => {
   test("sets position.status to approved (not just review.status)", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -208,7 +208,7 @@ describe("transitionToPlanReady executing-state guard", () => {
   test("throws when current status is executing", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -217,15 +217,15 @@ describe("transitionToPlanReady executing-state guard", () => {
       ].join("\n"),
     );
 
-    await expect(
-      transitionToPlanReady(dir, ".jdi/plans/new.plan.md", "New Plan"),
+    expect(
+      transitionToPlanReady(dir, ".software-teams/plans/new.plan.md", "New Plan"),
     ).rejects.toThrow(/currently executing/);
   });
 
   test("succeeds in executing state when force is passed", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -233,7 +233,7 @@ describe("transitionToPlanReady executing-state guard", () => {
         "  status: executing",
       ].join("\n"),
     );
-    const planDir = join(dir, ".jdi", "plans");
+    const planDir = join(dir, ".software-teams", "plans");
     mkdirSync(planDir, { recursive: true });
     await Bun.write(
       join(planDir, "new.plan.md"),
@@ -242,7 +242,7 @@ describe("transitionToPlanReady executing-state guard", () => {
 
     await transitionToPlanReady(
       dir,
-      ".jdi/plans/new.plan.md",
+      ".software-teams/plans/new.plan.md",
       "New Plan",
       { force: true },
     );
@@ -258,13 +258,13 @@ describe("transitionTo* position.status consistency", () => {
     // plan-ready
     {
       const dir = makeTempDir();
-      const planDir = join(dir, ".jdi", "plans");
+      const planDir = join(dir, ".software-teams", "plans");
       mkdirSync(planDir, { recursive: true });
       await Bun.write(
         join(planDir, "p.md"),
         "---\nphase: 1\nplan: \"01\"\ntask_files: []\n---\n",
       );
-      await transitionToPlanReady(dir, ".jdi/plans/p.md", "P");
+      await transitionToPlanReady(dir, ".software-teams/plans/p.md", "P");
       const s = await readState(dir);
       expect(s!.position?.status).toBe("planning");
       rmSync(dir, { recursive: true, force: true });
@@ -273,7 +273,7 @@ describe("transitionTo* position.status consistency", () => {
     {
       const dir = makeTempDir();
       await Bun.write(
-        join(dir, ".jdi", "config", "state.yaml"),
+        join(dir, ".software-teams", "config", "state.yaml"),
         `position:\n  status: planning\n`,
       );
       await transitionToApproved(dir);
@@ -285,7 +285,7 @@ describe("transitionTo* position.status consistency", () => {
     {
       const dir = makeTempDir();
       await Bun.write(
-        join(dir, ".jdi", "config", "state.yaml"),
+        join(dir, ".software-teams", "config", "state.yaml"),
         `position:\n  status: approved\n`,
       );
       await transitionToExecuting(dir);
@@ -297,7 +297,7 @@ describe("transitionTo* position.status consistency", () => {
     {
       const dir = makeTempDir();
       await Bun.write(
-        join(dir, ".jdi", "config", "state.yaml"),
+        join(dir, ".software-teams", "config", "state.yaml"),
         `position:\n  status: executing\n`,
       );
       await transitionToComplete(dir);
@@ -314,7 +314,7 @@ describe("transitionToExecuting", () => {
   test("sets status to executing", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       `position:\n  status: planning\n`,
     );
 
@@ -327,7 +327,7 @@ describe("transitionToExecuting", () => {
   test("sets task ID and name when provided", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       `position:\n  status: planning\n`,
     );
 
@@ -343,7 +343,7 @@ describe("transitionToComplete", () => {
   test("sets status to complete", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       `position:\n  status: executing\n`,
     );
 
@@ -358,7 +358,7 @@ describe("transitionToComplete roadmap advancement", () => {
   test("advances to next plan when ROADMAP has subsequent plan", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -370,7 +370,7 @@ describe("transitionToComplete roadmap advancement", () => {
       ].join("\n"),
     );
     await Bun.write(
-      join(dir, ".jdi", "ROADMAP.yaml"),
+      join(dir, ".software-teams", "ROADMAP.yaml"),
       [
         "phases:",
         '  "1":',
@@ -393,7 +393,7 @@ describe("transitionToComplete roadmap advancement", () => {
   test("increments plans_completed", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -413,7 +413,7 @@ describe("transitionToComplete roadmap advancement", () => {
   test("handles last plan in phase (no next plan)", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -425,7 +425,7 @@ describe("transitionToComplete roadmap advancement", () => {
       ].join("\n"),
     );
     await Bun.write(
-      join(dir, ".jdi", "ROADMAP.yaml"),
+      join(dir, ".software-teams", "ROADMAP.yaml"),
       [
         "phases:",
         '  "1":',
@@ -444,7 +444,7 @@ describe("transitionToComplete roadmap advancement", () => {
   test("handles missing ROADMAP.yaml gracefully", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -465,7 +465,7 @@ describe("transitionToComplete roadmap advancement", () => {
   test("handles malformed ROADMAP.yaml gracefully", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "position:",
         "  phase: 1",
@@ -476,7 +476,7 @@ describe("transitionToComplete roadmap advancement", () => {
       ].join("\n"),
     );
     await Bun.write(
-      join(dir, ".jdi", "ROADMAP.yaml"),
+      join(dir, ".software-teams", "ROADMAP.yaml"),
       "not: valid: yaml: [",
     );
 
@@ -492,7 +492,7 @@ describe("advanceTask", () => {
   test("adds task to completed_tasks and advances index", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "current_plan:",
         "  path: plan.md",
@@ -519,7 +519,7 @@ describe("advanceTask", () => {
   test("sets current_task_index to null when all tasks done", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "current_plan:",
         "  path: plan.md",
@@ -542,7 +542,7 @@ describe("advanceTask", () => {
   test("does not add duplicate task IDs", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "current_plan:",
         "  path: plan.md",
@@ -568,7 +568,7 @@ describe("advanceTask", () => {
   test("initializes progress if it does not exist", async () => {
     const dir = makeTempDir();
     await Bun.write(
-      join(dir, ".jdi", "config", "state.yaml"),
+      join(dir, ".software-teams", "config", "state.yaml"),
       [
         "current_plan:",
         "  path: plan.md",

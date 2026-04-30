@@ -8,11 +8,11 @@ description: Record decisions, deviations, and blockers in state.yaml
 
 > **Status transitions are handled via CLI commands.** Do NOT manually edit `position`, `progress`, `current_plan`, `review`, or `session` fields in state.yaml. Use these commands instead:
 >
-> - `jdi state plan-ready --plan-path "{path}" --plan-name "{name}"`
-> - `jdi state approved`
-> - `jdi state executing`
-> - `jdi state complete`
-> - `jdi state advance-task {task-id}`
+> - `software-teams state plan-ready --plan-path "{path}" --plan-name "{name}"`
+> - `software-teams state approved`
+> - `software-teams state executing`
+> - `software-teams state complete`
+> - `software-teams state advance-task {task-id}`
 
 Use state.yaml ONLY to record decisions, deviations, or blockers:
 

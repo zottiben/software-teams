@@ -1,5 +1,5 @@
 ---
-name: jdi-committer
+name: software-teams-committer
 description: Creates well-formatted conventional commits with automatic type detection
 category: workflow
 team: Engineering
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Commit]
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Committer Agent

@@ -13,7 +13,7 @@ Actions performed when the user requests to pause work or when a session ends na
 ## Trigger
 
 Fires when:
-- User explicitly requests to pause (`/jdi:pause`)
+- User explicitly requests to pause (`/st:pause`)
 - Session is ending (user leaves)
 - Blocking issue encountered (Rule 4 deviation)
 - Checkpoint requires extended user action
@@ -36,13 +36,13 @@ Create a continuation file that enables seamless resumption:
 
 ```bash
 # Read current state
-cat .jdi/config/state.yaml
+cat .software-teams/config/state.yaml
 
 # Extract position
-PHASE=$(yq -r '.position.phase' .jdi/config/state.yaml)
-PLAN=$(yq -r '.position.plan' .jdi/config/state.yaml)
-TASK=$(yq -r '.position.task' .jdi/config/state.yaml)
-STATUS=$(yq -r '.position.status' .jdi/config/state.yaml)
+PHASE=$(yq -r '.position.phase' .software-teams/config/state.yaml)
+PLAN=$(yq -r '.position.plan' .software-teams/config/state.yaml)
+TASK=$(yq -r '.position.task' .software-teams/config/state.yaml)
+STATUS=$(yq -r '.position.status' .software-teams/config/state.yaml)
 ```
 
 ### 2. Identify Next Action
@@ -67,7 +67,7 @@ Gather context that would be lost:
 
 ### 4. Generate Continuation File
 
-Create `.jdi/CONTINUE-HERE.md`:
+Create `.software-teams/CONTINUE-HERE.md`:
 
 ```markdown
 ---
@@ -113,19 +113,19 @@ status: {status}
 
 ### Option 1: Continue Where Left Off
 ```bash
-/jdi:resume
+/st:resume
 ```
 
 ### Option 2: Manual Resume
 ```bash
 # If task was in progress:
-/jdi:implement-plan {phase}-{plan} --resume-from-task {task}
+/st:implement-plan {phase}-{plan} --resume-from-task {task}
 
 # If planning:
-/jdi:create-plan {phase}
+/st:create-plan {phase}
 
 # If verifying:
-/jdi:verify {phase}
+/st:verify {phase}
 ```
 
 ## Recent Commits
@@ -160,7 +160,7 @@ position:
   status: paused
 session:
   paused_at: "{timestamp}"
-  continuation_file: ".jdi/CONTINUE-HERE.md"
+  continuation_file: ".software-teams/CONTINUE-HERE.md"
 ```
 
 ### 6. Display Pause Summary
@@ -173,9 +173,9 @@ session:
 Paused at: Phase {N}, Plan {NN}, Task {N}
 Status: {status}
 
-Continuation file: .jdi/CONTINUE-HERE.md
+Continuation file: .software-teams/CONTINUE-HERE.md
 
-To resume: /jdi:resume
+To resume: /st:resume
 
 ───────────────────────────────────────────────────────
 ```
@@ -184,7 +184,7 @@ To resume: /jdi:resume
 
 ## Continuation File Location
 
-The continuation file is always at: `.jdi/CONTINUE-HERE.md`
+The continuation file is always at: `.software-teams/CONTINUE-HERE.md`
 
 This file is:
 - Overwritten on each pause (only one active)
@@ -195,8 +195,8 @@ This file is:
 
 ## Integration with Resume
 
-The `/jdi:resume` command:
-1. Reads `.jdi/CONTINUE-HERE.md`
+The `/st:resume` command:
+1. Reads `.software-teams/CONTINUE-HERE.md`
 2. Loads context specified in the file
 3. Executes the `next_action`
 4. Deletes the continuation file on success

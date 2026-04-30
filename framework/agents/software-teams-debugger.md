@@ -1,5 +1,5 @@
 ---
-name: jdi-debugger
+name: software-teams-debugger
 description: Systematic root cause analysis and debugging with hypothesis-driven investigation
 category: specialist
 team: Engineering
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Verify, Commit]
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Debugger Agent
@@ -61,7 +61,7 @@ issue: "{description}"
 root_cause: "{cause}" | null
 fix_applied: true | false
 verification: passed | failed | pending
-report_path: .jdi/debug/{issue}-report.md
+report_path: .software-teams/debug/{issue}-report.md
 next_steps:
   - "{action needed}"
 ```

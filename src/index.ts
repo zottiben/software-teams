@@ -24,7 +24,7 @@ import pkg from "../package.json";
 
 const main = defineCommand({
   meta: {
-    name: "jdi",
+    name: "software-teams",
     version: pkg.version,
     description: pkg.description,
   },

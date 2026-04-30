@@ -1,5 +1,5 @@
 ---
-name: jdi-verifier
+name: software-teams-verifier
 description: Goal-backward verification with three-level artifact checking
 category: workflow
 team: Quality Assurance
@@ -8,7 +8,7 @@ tools: [Read, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: [Verify, VerifyAdvanced]
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Verifier Agent
@@ -40,7 +40,7 @@ You perform goal-backward verification: start from the GOAL, work backward to wh
 ## Execution Flow
 
 ### Step 0: Extract Phase GOAL
-Read `.jdi/ROADMAP.yaml` for phase goal and must-haves.
+Read `.software-teams/ROADMAP.yaml` for phase goal and must-haves.
 
 ### Step 1: Load Verification Context
 Read plan file for success criteria, task deliverables, `provides` from frontmatter.
@@ -67,7 +67,7 @@ Verify artifacts are imported, called, or registered.
 Summary table (pass/fail per level), failures list, recommendations.
 
 ### Step 8: Generate Gap Closure Plans (If Needed)
-For failures: severity, tasks, estimated duration. Output to `.jdi/plans/{phase}-{plan}-GAPS.md`.
+For failures: severity, tasks, estimated duration. Output to `.software-teams/plans/{phase}-{plan}-GAPS.md`.
 
 ---
 

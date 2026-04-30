@@ -1,10 +1,10 @@
 {
-  "name": "@benzotti/jdi",
+  "name": "@benzotti/software-teams",
   "version": "0.1.57",
-  "description": "JDI - AI development framework for Claude Code",
+  "description": "Software Teams - AI development framework for Claude Code",
   "type": "module",
   "bin": {
-    "jdi": "./dist/index.js"
+    "software-teams": "./dist/index.js"
   },
   "exports": {
     ".": "./dist/index.js",
@@ -31,7 +31,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/zottiben/jdi.git"
+    "url": "https://github.com/zottiben/software-teams.git"
   },
   "license": "MIT",
   "engines": {

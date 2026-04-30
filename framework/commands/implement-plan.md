@@ -1,13 +1,13 @@
 ---
 name: implement-plan
-description: "JDI: Execute implementation plan"
+description: "Software Teams: Execute implementation plan"
 allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
 argument-hint: "[--team | --single | --dry-run | --skip-qa]"
 context: |
-  !cat .jdi/config/state.yaml 2>/dev/null | head -30
+  !cat .software-teams/config/state.yaml 2>/dev/null | head -30
 ---
 
-# /jdi:implement-plan
+# /st:implement-plan
 
 Execute an approved plan with complexity-based routing. Deterministic workflow — every invocation follows the same numbered steps, in order, without skipping.
 
@@ -20,21 +20,21 @@ Execute an approved plan with complexity-based routing. Deterministic workflow �
 - `--team` — Force Agent Teams mode regardless of complexity signals
 - `--single` — Force single-agent mode regardless of complexity signals
 - `--dry-run` — Preview without writing: list files that would change and agents that would be spawned, then STOP
-- `--skip-qa` — Skip the post-task `jdi-qa-tester` verification pass
+- `--skip-qa` — Skip the post-task `software-teams-qa-tester` verification pass
 
-> **Do NOT use the built-in `EnterWorktree` tool.** If `.jdi/config/state.yaml` has `worktree.active: true`, just `cd` into `worktree.path`.
+> **Do NOT use the built-in `EnterWorktree` tool.** If `.software-teams/config/state.yaml` has `worktree.active: true`, just `cd` into `worktree.path`.
 
 ---
 
 ## Plan Tier Detection
 
-Before running any execution loop, determine which tier the plan was authored in. The planner (`/jdi:create-plan`) emits one of two artefact shapes; this skill must branch on whichever is on disk.
+Before running any execution loop, determine which tier the plan was authored in. The planner (`/st:create-plan`) emits one of two artefact shapes; this skill must branch on whichever is on disk.
 
 ```
-slug = current_plan.slug   # from .jdi/config/state.yaml
-if exists `.jdi/plans/{slug}.orchestration.md` → tier = three-tier
-elif exists `.jdi/plans/{slug}.plan.md`        → tier = single-tier
-else                                           → STOP, ask user to run /jdi:create-plan
+slug = current_plan.slug   # from .software-teams/config/state.yaml
+if exists `.software-teams/plans/{slug}.orchestration.md` → tier = three-tier
+elif exists `.software-teams/plans/{slug}.plan.md`        → tier = single-tier
+else                                           → STOP, ask user to run /st:create-plan
 ```
 
 **Three-tier** plans (default for non-trivial features after T9/T10):
@@ -52,7 +52,7 @@ If `tier = three-tier`, follow the **Three-Tier Execution Loop (default)** below
 
 ## Three-Tier Execution Loop (default)
 
-For plans that have an `ORCHESTRATION.md` artefact, the orchestrator (main Claude) reads the task graph from ORCHESTRATION, spawns each pinned agent natively with **only** its per-agent slice plus the SPEC sections that slice cites, verifies via `jdi-qa-tester`, and advances. The orchestrator owns "when to move on" — agents never declare themselves done.
+For plans that have an `ORCHESTRATION.md` artefact, the orchestrator (main Claude) reads the task graph from ORCHESTRATION, spawns each pinned agent natively with **only** its per-agent slice plus the SPEC sections that slice cites, verifies via `software-teams-qa-tester`, and advances. The orchestrator owns "when to move on" — agents never declare themselves done.
 
 The numbered steps below run in order. Each step ends with a clear state transition — if you cannot produce that transition, STOP and ask. Steps that are identical to the single-tier loop are cross-referenced rather than duplicated.
 
@@ -62,7 +62,7 @@ Same as the single-tier loop's **§1. Silent Discovery** below.
 
 ### 3T.2. Load Orchestration
 
-Read `.jdi/plans/{slug}.orchestration.md`. Parse its frontmatter for:
+Read `.software-teams/plans/{slug}.orchestration.md`. Parse its frontmatter for:
 
 - `task_files:` — the list of per-agent slice paths (`{slug}.T{n}.md`)
 - `available_agents:` — catalogue
@@ -73,13 +73,13 @@ Then parse the **Tasks** manifest table (markdown table inside ORCHESTRATION.md)
 
 Also record the **Sequencing Rules** and **Quality Gates** sections — they govern wave gates, parallel-safe groups, and which gates fire after which tasks.
 
-**Plan status gate:** if the plan's status in `.jdi/config/state.yaml` is not `approved`, STOP and tell the user: "Plan is in status `{status}` — run `/jdi:create-plan` (or the review loop) to reach `approved` before implementing."
+**Plan status gate:** if the plan's status in `.software-teams/config/state.yaml` is not `approved`, STOP and tell the user: "Plan is in status `{status}` — run `/st:create-plan` (or the review loop) to reach `approved` before implementing."
 
 ### 3T.3. Resolve Per-Task Agents
 
 The agent for each task comes from the manifest row's `Agent` column AND must match the `agent:` frontmatter inside the per-agent slice file (`{slug}.T{n}.md`). Read each slice's frontmatter once, in a single batch, and confirm the two agree. If they disagree, prefer the slice frontmatter (it is the contract the slice was written against) and record a `manifest_drift:` note in the summary.
 
-**Test task override:** For tasks with `type: test` (slice frontmatter), the agent is always `jdi-qa-tester` regardless of the manifest pin. Pass `mode: plan-test` in the spawn prompt.
+**Test task override:** For tasks with `type: test` (slice frontmatter), the agent is always `software-teams-qa-tester` regardless of the manifest pin. Pass `mode: plan-test` in the spawn prompt.
 
 **Resolution fallback:** If a slice has no `agent:` pin (legacy), fall back through manifest pin → `primary_agent` → tech-stack default → `general-purpose`. Never default to `general-purpose` silently — record an `agent_downgrade:` entry.
 
@@ -99,7 +99,7 @@ Same as the single-tier loop's **§6. Dry Run Check** below, with one addition: 
 
 ### 3T.7. Advance State to Executing
 
-Run `jdi state executing`. Do NOT manually edit `.jdi/config/state.yaml`.
+Run `software-teams state executing`. Do NOT manually edit `.software-teams/config/state.yaml`.
 
 ### 3T.8. Per-Task Spawn Loop
 
@@ -125,14 +125,14 @@ For each task in the topologically sorted task graph:
    bun run src/index.ts spawn-log record --task-id {task.id} --agent {task.agent} --bytes $(wc -c < {slice}) --slice {slice} --tier three-tier --plan-id {plan.id}
    ```
 
-   This populates `.jdi/persistence/spawn-ledger.jsonl`, after which `jdi spawn-log report` produces real aggregate numbers, replacing the static estimate that T13 of plan `1-01-native-subagents` had to fall back to.
+   This populates `.software-teams/persistence/spawn-ledger.jsonl`, after which `software-teams spawn-log report` produces real aggregate numbers, replacing the static estimate that T13 of plan `1-01-native-subagents` had to fall back to.
 
 3. **Capture structured return.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, and any `deviations`. The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
 
-4. **Spawn `jdi-qa-tester` in `post-task-verify` mode.** Pass the slice's `done_when:` block as the verification spec, plus `files_modified` from the agent's return. Same skip rules as §10 below: `--skip-qa`, doc-only `files_modified`, or `qa_verification_needed: false` skip the verify; contract-bearing YAML/JSON specs still trigger `contract-check`.
+4. **Spawn `software-teams-qa-tester` in `post-task-verify` mode.** Pass the slice's `done_when:` block as the verification spec, plus `files_modified` from the agent's return. Same skip rules as §10 below: `--skip-qa`, doc-only `files_modified`, or `qa_verification_needed: false` skip the verify; contract-bearing YAML/JSON specs still trigger `contract-check`.
 
 5. **Branch on verify result:**
-   - **Pass** → run `jdi state advance-task {task-id}`, record verification in the task summary, continue to next task.
+   - **Pass** → run `software-teams state advance-task {task-id}`, record verification in the task summary, continue to next task.
    - **S1 / S2 fail** → halt the plan, escalate via AskUserQuestion (same blocker UX as §8a below). Do NOT advance task state.
    - **S3 / S4 fail** → record in task summary, continue. (Same severity ladder as `<JDI:AgentBase />`.)
 
@@ -144,7 +144,7 @@ The orchestrator decides "when to move on". Agents never declare themselves done
 
 ### 3T.9. Advance Task State
 
-Same as **§9. Advance Task State** below — run `jdi state advance-task {task-id}` per task, in order, never batched. Already covered inside the loop above; called out as its own step number for parity with the single-tier loop.
+Same as **§9. Advance Task State** below — run `software-teams state advance-task {task-id}` per task, in order, never batched. Already covered inside the loop above; called out as its own step number for parity with the single-tier loop.
 
 ### 3T.10. Post-Task Verify
 
@@ -160,7 +160,7 @@ Same as **§12. Run Verification Gates** below. The plan-level quality gates fro
 
 ### 3T.13. Advance State to Complete
 
-Same as **§13. Advance State to Complete** below — run `jdi state complete`.
+Same as **§13. Advance State to Complete** below — run `software-teams state complete`.
 
 ### 3T.14. Present Summary
 
@@ -183,8 +183,8 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. E
 Execute `<JDI:SilentDiscovery />` now. Read the scaffolding files listed in that component and store the result internally as `DISCOVERED_STATE`. Do NOT print the discovery output to the user.
 
 **Additional reads for this skill:**
-- `.jdi/codebase/SUMMARY.md` if it exists
-- `.jdi/framework/learnings/general.md` (always)
+- `.software-teams/codebase/SUMMARY.md` if it exists
+- `.software-teams/framework/learnings/general.md` (always)
 - Domain-specific learnings based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
 
 Learnings override defaults. Record which learnings files were found in `DISCOVERED_STATE.learnings_loaded`.
@@ -201,7 +201,7 @@ Read the plan index file (path from `$ARGUMENTS` or from `DISCOVERED_STATE.curre
 
 **Format detection:** if frontmatter contains `task_files:`, this is a split plan — read each task file's frontmatter in a single batch. If absent, this is a legacy monolithic plan — all tasks are inline in the index.
 
-**Plan status gate:** if the plan's status in `.jdi/config/state.yaml` is not `approved`, STOP and tell the user: "Plan is in status `{status}` — run `/jdi:create-plan` (or the review loop) to reach `approved` before implementing."
+**Plan status gate:** if the plan's status in `.software-teams/config/state.yaml` is not `approved`, STOP and tell the user: "Plan is in status `{status}` — run `/st:create-plan` (or the review loop) to reach `approved` before implementing."
 
 ### 3. Resolve Per-Task Agents
 
@@ -210,9 +210,9 @@ For every task file listed in `task_files:`, record the `agent:` field from its 
 **Resolution order:**
 1. Task-level `agent:` pin from the task file frontmatter
 2. Plan-level `primary_agent:` from the index frontmatter
-3. Tech-stack default: PHP → `jdi-backend`, TS/React → `jdi-frontend`, otherwise → `general-purpose`
+3. Tech-stack default: PHP → `software-teams-backend`, TS/React → `software-teams-frontend`, otherwise → `general-purpose`
 
-**Test task override:** For tasks with `type: test`, the agent is always `jdi-qa-tester` regardless of the resolution order. Pass `mode: plan-test` in the spawn prompt.
+**Test task override:** For tasks with `type: test`, the agent is always `software-teams-qa-tester` regardless of the resolution order. Pass `mode: plan-test` in the spawn prompt.
 
 **NEVER default everything to `general-purpose` silently.** See `framework/components/meta/AgentRouter.md`.
 
@@ -220,10 +220,10 @@ For every task file listed in `task_files:`, record the `agent:` field from its 
 
 For each pinned agent, read the matching `source:` from the plan's `available_agents` catalogue and confirm the spec is registered with Claude Code:
 
-- **`source: jdi`** — check `.claude/agents/{name}.md` (generated by `jdi sync-agents` from `.jdi/framework/agents/{name}.md`, or from `framework/agents/{name}.md` in the self-hosting JDI repo). If `.claude/agents/` is empty (e.g. fresh clone before `jdi sync-agents` ran), the legacy injection fallback documented in AgentRouter.md §4 still works.
+- **`source: software-teams`** — check `.claude/agents/{name}.md` (generated by `software-teams sync-agents` from `.software-teams/framework/agents/{name}.md`, or from `framework/agents/{name}.md` in the self-hosting Software Teams repo). If `.claude/agents/` is empty (e.g. fresh clone before `software-teams sync-agents` ran), the legacy injection fallback documented in AgentRouter.md §4 still works.
 - **`source: claude-code`** — check `.claude/agents/{name}.md` (project-local) or `~/.claude/agents/{name}.md` (user-global)
 
-If the spec is NOT found, downgrade to `general-purpose` (with a `jdi-backend` / `jdi-frontend` spec load in the prompt) and record an `agent_downgrade:` entry listing the original pin, the downgrade target, and the reason. This entry MUST appear in the final summary — never silently change a pin.
+If the spec is NOT found, downgrade to `general-purpose` (with a `software-teams-backend` / `software-teams-frontend` spec load in the prompt) and record an `agent_downgrade:` entry listing the original pin, the downgrade target, and the reason. This entry MUST appear in the final summary — never silently change a pin.
 
 ### 5. Complexity Routing
 
@@ -247,21 +247,21 @@ Then **STOP**. Do NOT spawn agents, do NOT advance state, do NOT edit files.
 
 ### 7. Advance State to Executing
 
-Run `jdi state executing`. Do NOT manually edit `.jdi/config/state.yaml`.
+Run `software-teams state executing`. Do NOT manually edit `.software-teams/config/state.yaml`.
 
 ### 8. Spawn and Execute
 
 **Platform constraints:**
 <!-- lint-allow: legacy-injection -->
-- All agents (both `source: jdi` and `source: claude-code`) are spawned natively by name: `subagent_type="{task.agent}"`. Claude Code resolves the spec from `.claude/agents/{task.agent}.md`. JDI specialists land there via `jdi sync-agents` (which converts `framework/agents/jdi-*.md` to the Claude Code-compatible format). The legacy `subagent_type="general-purpose"` + identity-injection pattern is documented as a fallback only — see `framework/components/meta/AgentRouter.md` §4 and `framework/jdi.md` Critical Constraints.
+- All agents (both `source: software-teams` and `source: claude-code`) are spawned natively by name: `subagent_type="{task.agent}"`. Claude Code resolves the spec from `.claude/agents/{task.agent}.md`. Software Teams specialists land there via `software-teams sync-agents` (which converts `framework/agents/software-teams-*.md` to the Claude Code-compatible format). The legacy `subagent_type="general-purpose"` + identity-injection pattern is documented as a fallback only — see `framework/components/meta/AgentRouter.md` §4 and `framework/software-teams.md` Critical Constraints.
 <!-- /lint-allow -->
 - **All agents MUST be spawned with `mode: "acceptEdits"`** — combined with the scoped `allowedTools` allowlist (declared once in `.claude/settings.json` and mirrored at spawn time in `src/utils/claude.ts`), agents get the file-write/tool access they need without the blanket `bypassPermissions` escape hatch. Agents run in background and cannot prompt the user for Write/Edit approval; the allowlist ensures they don't get stuck on prompts.
 
 **Single-agent mode:**
 - `Agent(subagent_type="{plan.primary_agent}", mode="acceptEdits", prompt="<standard spawn prompt> PLAN: {index-path}")`
-- The variable `{plan.primary_agent}` resolves to the native agent name (e.g. `jdi-backend`, `jdi-frontend`, `unity-specialist`) for both `source: jdi` and `source: claude-code` after `jdi sync-agents` has run.
+- The variable `{plan.primary_agent}` resolves to the native agent name (e.g. `software-teams-backend`, `software-teams-frontend`, `unity-specialist`) for both `source: software-teams` and `source: claude-code` after `software-teams sync-agents` has run.
 
-For split plans, the agent reads task files one at a time via the `file:` field in `.jdi/config/state.yaml`.
+For split plans, the agent reads task files one at a time via the `file:` field in `.software-teams/config/state.yaml`.
 
 **Agent Teams mode:** Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
@@ -273,7 +273,7 @@ For split plans, the agent reads task files one at a time via the `file:` field 
 - For split plans, the agent reads the `TASK_FILE` itself — do not inline task content into the prompt.
 
 **Test task execution:** When spawning a `type: test` task:
-- Use `jdi-qa-tester` agent in `plan-test` mode (always `source: jdi`, spawn natively as `subagent_type="jdi-qa-tester"`)
+- Use `software-teams-qa-tester` agent in `plan-test` mode (always `source: software-teams`, spawn natively as `subagent_type="software-teams-qa-tester"`)
 - Pass the task file path as `TASK_FILE`
 - Include `test_framework`, `test_command`, and `test_scope` from the task frontmatter
 - Include the `depends_on` task IDs so the test agent can read those tasks' `files_modified` for coverage context
@@ -308,17 +308,17 @@ When an agent returns `status: blocked`:
 After each task's programmer returns successfully, run:
 
 ```bash
-jdi state advance-task {task-id}
+software-teams state advance-task {task-id}
 ```
 
 Do NOT advance state for tasks that failed or were skipped. Do NOT batch advance calls — advance per task, in order.
 
-### 10. Post-Task Verify (jdi-qa-tester)
+### 10. Post-Task Verify (software-teams-qa-tester)
 
-After each task's programmer returns, invoke `jdi-qa-tester` in `post-task-verify` mode with the task's `done_when` criteria and `files_modified` list. If verification fails with **S1** or **S2** severity, **halt the plan** and escalate to the user. Otherwise record the verification result in the task summary and proceed to commit.
+After each task's programmer returns, invoke `software-teams-qa-tester` in `post-task-verify` mode with the task's `done_when` criteria and `files_modified` list. If verification fails with **S1** or **S2** severity, **halt the plan** and escalate to the user. Otherwise record the verification result in the task summary and proceed to commit.
 
-- **a11y-check trigger:** if `files_modified` includes UI files (components, views, templates, CSS affecting render), additionally invoke `jdi-qa-tester` in `a11y-check` mode and record the result in the same task summary.
-- **contract-check trigger:** if `files_modified` includes contract-bearing files — API routes, Controllers/Actions, DTOs, FormRequests, OpenAPI specs, exported TypeScript types, `packages/*/src/index.ts`, DB migrations, generated client code — additionally invoke `jdi-qa-tester` in `contract-check` mode. Treat any contract failure as at least **S2** and halt the plan.
+- **a11y-check trigger:** if `files_modified` includes UI files (components, views, templates, CSS affecting render), additionally invoke `software-teams-qa-tester` in `a11y-check` mode and record the result in the same task summary.
+- **contract-check trigger:** if `files_modified` includes contract-bearing files — API routes, Controllers/Actions, DTOs, FormRequests, OpenAPI specs, exported TypeScript types, `packages/*/src/index.ts`, DB migrations, generated client code — additionally invoke `software-teams-qa-tester` in `contract-check` mode. Treat any contract failure as at least **S2** and halt the plan.
 - **Test task skip:** Skip `post-task-verify` for `type: test` tasks — they ARE the verification. The test agent's own pass/fail result is the verification outcome.
 - **Skip rules:** Skipped entirely if `--skip-qa` is passed. Also skipped automatically if `files_modified` contains ONLY `.md`, `.yaml`, or `.yml` files (documentation/config doesn't get regression-tested). The programmer's structured return field `qa_verification_needed: false` is also honoured.
 - **Contract-check exception to the skip rule:** if any file in `files_modified` is a contract-bearing YAML/JSON spec (OpenAPI / Swagger — e.g. `openapi.yaml`, `swagger.json`, `api/*.yaml`, `**/openapi*.{yml,yaml,json}`; GraphQL SDL — `**/*.graphql`, `**/schema.gql`; JSON Schema — `**/schemas/**/*.json`), still invoke `contract-check` even when the doc-only skip rule would otherwise apply. `post-task-verify` and `a11y-check` remain skipped in this case — only `contract-check` runs.
@@ -335,7 +335,7 @@ If any gate fails, STOP — do not advance state to `complete`. Report the failu
 
 ### 13. Advance State to Complete
 
-Run `jdi state complete`. Do NOT manually edit `.jdi/config/state.yaml`.
+Run `software-teams state complete`. Do NOT manually edit `.software-teams/config/state.yaml`.
 
 ### 14. Present Summary
 
@@ -399,6 +399,6 @@ If ANY of these is not true, STOP. Do not present a summary that implies success
 
 ---
 
-**References:** Agent base (read FIRST for cache): `.jdi/framework/components/meta/AgentBase.md` | Agent specs: `.jdi/framework/agents/jdi-backend.md`, `.jdi/framework/agents/jdi-frontend.md` | Orchestration: `.jdi/framework/components/meta/AgentTeamsOrchestration.md` | Routing: `.jdi/framework/components/meta/ComplexityRouter.md`, `.jdi/framework/components/meta/AgentRouter.md`
+**References:** Agent base (read FIRST for cache): `.software-teams/framework/components/meta/AgentBase.md` | Agent specs: `.software-teams/framework/agents/software-teams-backend.md`, `.software-teams/framework/agents/software-teams-frontend.md` | Orchestration: `.software-teams/framework/components/meta/AgentTeamsOrchestration.md` | Routing: `.software-teams/framework/components/meta/ComplexityRouter.md`, `.software-teams/framework/components/meta/AgentRouter.md`
 
 **Plan to execute:** $ARGUMENTS

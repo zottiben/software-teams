@@ -1,7 +1,7 @@
 ---
 name: quality-assurance
 description: Creates and updates backend and frontend tests for completed engineering work
-members: [jdi-quality, jdi-verifier]
+members: [software-teams-quality, software-teams-verifier]
 ---
 
 # Quality Assurance Team
@@ -14,8 +14,8 @@ Testing and verification for completed engineering work — Pest (backend) and V
 
 | Role | Agent | Spec Path |
 |------|-------|-----------|
-| Lead QA Developer | `jdi-quality` | `.jdi/framework/agents/jdi-quality.md` |
-| Senior QA Developer | `jdi-verifier` | `.jdi/framework/agents/jdi-verifier.md` |
+| Lead QA Developer | `software-teams-quality` | `.software-teams/framework/agents/software-teams-quality.md` |
+| Senior QA Developer | `software-teams-verifier` | `.software-teams/framework/agents/software-teams-verifier.md` |
 
 ## Coordination
 

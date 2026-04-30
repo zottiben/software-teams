@@ -1,6 +1,6 @@
-# JDI Orchestration Rules
+# Software Teams Orchestration Rules
 
-Doctrine for how the orchestrator (main Claude Code session) and JDI specialist subagents collaborate. Read this once per session; consult `AGENTS.md` for the current catalogue.
+Doctrine for how the orchestrator (main Claude Code session) and Software Teams specialist subagents collaborate. Read this once per session; consult `AGENTS.md` for the current catalogue.
 
 ## Roles
 
@@ -12,7 +12,7 @@ Doctrine for how the orchestrator (main Claude Code session) and JDI specialist 
 - Own the quality gates: nothing advances until tests pass.
 - Decide when to move on, when to retry, when to escalate.
 
-**Specialist agents** (registered at `.claude/agents/jdi-*.md`) DO the work:
+**Specialist agents** (registered at `.claude/agents/software-teams-*.md`) DO the work:
 - Each has a full toolset declared in their frontmatter `tools:` field — typically `Read, Write, Edit, Grep, Glob, Bash`.
 - They operate inside their declared scope (see each agent's "Scope" / "Boundaries" section).
 - They return a structured YAML report; the orchestrator parses it.
@@ -22,12 +22,12 @@ Doctrine for how the orchestrator (main Claude Code session) and JDI specialist 
 Invoke a specialist via the `Task` tool, setting `subagent_type` to the agent's name:
 
 ```
-Task(subagent_type="jdi-programmer", prompt="<task brief, file paths, acceptance criteria>")
+Task(subagent_type="software-teams-programmer", prompt="<task brief, file paths, acceptance criteria>")
 ```
 
 The agent's full spec at `.claude/agents/<name>.md` is loaded automatically — your prompt only needs the task, not the role description.
 
-**Pre-migration fallback:** if `.claude/agents/` has not been generated yet, run `jdi sync-agents` once. The converter is idempotent.
+**Pre-migration fallback:** if `.claude/agents/` has not been generated yet, run `software-teams sync-agents` once. The converter is idempotent.
 
 ## When to Spawn vs Inline
 
@@ -46,11 +46,11 @@ Rule of thumb: **bounded + specialist exists → spawn. Trivial + already loaded
 
 ## Quality Gates
 
-Every code-touching task must pass through `jdi-qa-tester` post-task verification before the orchestrator advances to the next task.
+Every code-touching task must pass through `software-teams-qa-tester` post-task verification before the orchestrator advances to the next task.
 
 ```
 1. Specialist completes work, reports files_modified.
-2. Orchestrator spawns jdi-qa-tester with the task's acceptance criteria.
+2. Orchestrator spawns software-teams-qa-tester with the task's acceptance criteria.
 3. QA runs the project's test command (e.g. `bun test`) and any task-specific checks.
 4. If QA reports pass → advance.
    If QA reports fail → return to specialist with the failure, do NOT advance.
@@ -62,21 +62,21 @@ Do not skip QA because "it's a small change" — the gate exists precisely so sm
 
 1. Read `AGENTS.md` for the catalogue.
 2. Match the task type to the agent's description / scope.
-3. If two agents could fit, prefer the more specialised one (e.g. `jdi-frontend` over `jdi-programmer` for UI work).
+3. If two agents could fit, prefer the more specialised one (e.g. `software-teams-frontend` over `software-teams-programmer` for UI work).
 4. If no agent fits cleanly, the orchestrator does the work itself or asks the user.
 
 Common picks:
-- Implementation work → `jdi-programmer`, `jdi-backend`, `jdi-frontend`.
-- Architecture / design decisions → `jdi-architect`.
-- Plans and task breakdowns → `jdi-planner`, `jdi-producer`.
-- Tests and verification → `jdi-qa-tester`, `jdi-verifier`.
-- Commits → `jdi-committer`. PRs → `jdi-pr-generator`.
-- Debug / root cause → `jdi-debugger`.
+- Implementation work → `software-teams-programmer`, `software-teams-backend`, `software-teams-frontend`.
+- Architecture / design decisions → `software-teams-architect`.
+- Plans and task breakdowns → `software-teams-planner`, `software-teams-producer`.
+- Tests and verification → `software-teams-qa-tester`, `software-teams-verifier`.
+- Commits → `software-teams-committer`. PRs → `software-teams-pr-generator`.
+- Debug / root cause → `software-teams-debugger`.
 
 ## Reporting & State
 
 Specialists return YAML with `status`, `files_modified`, `files_created`, `commits_pending`, and any agent-specific fields. The orchestrator:
-- Records outputs in `.jdi/config/state.yaml` if running under a JDI plan.
+- Records outputs in `.software-teams/config/state.yaml` if running under a Software Teams plan.
 - Executes `commits_pending` after the task fully completes (specialists do NOT commit).
 - Surfaces deviations and blockers to the user — do not silently absorb them.
 
@@ -92,4 +92,4 @@ Specialists return YAML with `status`, `files_modified`, `files_created`, `commi
 
 - `AGENTS.md` — catalogue of available specialists with model and one-line description.
 - `.claude/agents/<name>.md` — full spec for each agent (auto-generated).
-- `framework/agents/<name>.md` — canonical source spec; edit here, then run `jdi sync-agents`.
+- `framework/agents/<name>.md` — canonical source spec; edit here, then run `software-teams sync-agents`.

@@ -1,12 +1,12 @@
 # AgentBase Component
 
-Standards inherited by all JDI agents via `<JDI:AgentBase />`. Default loads Core only.
+Standards inherited by all Software Teams agents via `<JDI:AgentBase />`. Default loads Core only.
 
 ## Standards
 
 - Use **Australian English** spelling in all outputs.
 - Follow `CLAUDE.md` and `.claude/rules/` conventions.
-- Read `.jdi/config/state.yaml` once at task start for context. Do NOT update state.yaml for status transitions — the framework handles this. Only use state.yaml to record decisions, deviations, or blockers via `<JDI:StateUpdate />`.
+- Read `.software-teams/config/state.yaml` once at task start for context. Do NOT update state.yaml for status transitions — the framework handles this. Only use state.yaml to record decisions, deviations, or blockers via `<JDI:StateUpdate />`.
 - Use the Read tool before editing any file.
 - Batch file reads: issue all Read calls in a single turn rather than sequentially.
 - Batch git operations: combine related commands into a single Bash call where possible.
@@ -27,7 +27,7 @@ If your work exceeds one invocation, complete what you can, return a progress re
 ## Component Resolution
 
 When a spec contains `<JDI:*>` tags:
-1. Read the file from `.jdi/framework/components/` (execution/, planning/, quality/, meta/).
+1. Read the file from `.software-teams/framework/components/` (execution/, planning/, quality/, meta/).
 2. If a section is specified (`<JDI:X:Section />`), execute only that section.
 3. Apply tag parameters as constraints. Return to agent spec and continue.
 
@@ -57,7 +57,7 @@ Return a YAML block with `status`, agent-specific fields, and `next_action` afte
 
 ## File Operations
 
-You are spawned with `mode: "acceptEdits"` and a scoped `allowedTools` allowlist (declared in `.claude/settings.json` and mirrored in `src/utils/claude.ts`). The allowlist covers Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(jdi:*)`. All standard tools work within that scope:
+You are spawned with `mode: "acceptEdits"` and a scoped `allowedTools` allowlist (declared in `.claude/settings.json` and mirrored in `src/utils/claude.ts`). The allowlist covers Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(software-teams:*)`. All standard tools work within that scope:
 
 | Operation | Tool / Method | Notes |
 |-----------|--------------|-------|
@@ -91,7 +91,7 @@ commits_pending:
 
 After an agent completes, the orchestrator:
 1. Executes commits from `commits_pending` via `git add` + `git commit`
-2. Records real commit hashes in `.jdi/config/state.yaml`
+2. Records real commit hashes in `.software-teams/config/state.yaml`
 
 </section>
 

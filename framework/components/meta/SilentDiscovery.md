@@ -1,6 +1,6 @@
 # SilentDiscovery Component
 
-The mandatory state-reading preamble that runs before any user-facing prompt in a JDI skill. Its purpose: make sure you never re-ask the user for facts that are already on disk.
+The mandatory state-reading preamble that runs before any user-facing prompt in a Software Teams skill. Its purpose: make sure you never re-ask the user for facts that are already on disk.
 
 When a command references `<JDI:SilentDiscovery />`, you MUST gather context from the filesystem before presenting any question, routing decision, or recommendation. Store what you find internally as `DISCOVERED_STATE` — do NOT print discovery output to the user unless a later step explicitly calls for it.
 
@@ -12,12 +12,12 @@ Read these files if they exist. If a file is missing, record that in `DISCOVERED
 
 | File | Purpose |
 |------|---------|
-| `.jdi/config/state.yaml` | Current phase, plan, task, and status. Source of truth for "where are we?" |
-| `.jdi/PROJECT.yaml` | Tech stack, project name, team configuration |
-| `.jdi/REQUIREMENTS.yaml` | Risks, constraints, non-functional requirements |
-| `.jdi/ROADMAP.yaml` | Phase structure, upcoming plans, milestones |
-| `.jdi/plans/*.plan.md` (glob) | Existing plan index files — check frontmatter for `provides`, `status`, completion |
-| `.jdi/codebase/SUMMARY.md` | Codebase index, if present |
+| `.software-teams/config/state.yaml` | Current phase, plan, task, and status. Source of truth for "where are we?" |
+| `.software-teams/PROJECT.yaml` | Tech stack, project name, team configuration |
+| `.software-teams/REQUIREMENTS.yaml` | Risks, constraints, non-functional requirements |
+| `.software-teams/ROADMAP.yaml` | Phase structure, upcoming plans, milestones |
+| `.software-teams/plans/*.plan.md` (glob) | Existing plan index files — check frontmatter for `provides`, `status`, completion |
+| `.software-teams/codebase/SUMMARY.md` | Codebase index, if present |
 | Test suite files (glob: `**/*.test.*`, `**/*.spec.*`, `**/__tests__/**`) | Detect existing test framework and patterns |
 | Test config files (`vitest.config.*`, `jest.config.*`, `playwright.config.*`, `cypress.config.*`) | Identify test runner |
 | `package.json` `scripts.test` field | Identify test command |
@@ -28,7 +28,7 @@ Additionally, if the skill is worktree-aware, read:
 
 | File | Purpose |
 |------|---------|
-| `.jdi/config/state.yaml → worktree` | Active worktree path and status |
+| `.software-teams/config/state.yaml → worktree` | Active worktree path and status |
 
 ---
 
@@ -79,13 +79,13 @@ These rules are non-negotiable when this component is referenced:
 
 4. **Surface selectively.** When routing or recommending, pull the specific field you need and mention it briefly ("I can see you're on phase {n}, plan {id}..."). Do not dump the whole `DISCOVERED_STATE` object.
 
-5. **Refresh, don't stale.** If the skill has multiple passes (e.g. `/jdi:build` option D re-runs discovery after user input), re-read the files — do not rely on the first pass's findings for the second pass.
+5. **Refresh, don't stale.** If the skill has multiple passes (e.g. `/st:build` option D re-runs discovery after user input), re-read the files — do not rely on the first pass's findings for the second pass.
 
 ---
 
 ## Pass-Through to Spawned Agents
 
-When a skill that uses SilentDiscovery spawns a subagent (e.g. `create-plan` spawns `jdi-planner`), pass `DISCOVERED_STATE` into the spawn prompt as a named block:
+When a skill that uses SilentDiscovery spawns a subagent (e.g. `create-plan` spawns `software-teams-planner`), pass `DISCOVERED_STATE` into the spawn prompt as a named block:
 
 ```
 Context already discovered: {DISCOVERED_STATE serialised as yaml}

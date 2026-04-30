@@ -8,7 +8,7 @@ import { detectPlanTier } from "./prompt-builder";
 let tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "jdi-parse-orch-"));
+  const dir = await mkdtemp(join(tmpdir(), "st-parse-orch-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -25,8 +25,8 @@ plan_id: 1-99
 slug: 1-99-fixture
 tier: orchestration
 spec_link: 1-99-fixture.spec.md
-available_agents: [jdi-backend, jdi-qa-tester]
-primary_agent: jdi-backend
+available_agents: [software-teams-backend, software-teams-qa-tester]
+primary_agent: software-teams-backend
 ---
 
 # Fixture Plan — Orchestration
@@ -35,10 +35,10 @@ primary_agent: jdi-backend
 
 | ID | Name | Agent | Wave | Depends On | Slice |
 |----|------|-------|------|------------|-------|
-| T1 | Build core | jdi-backend | 1 | — | \`1-99-fixture.T1.md\` |
-| T2 | Build api  | jdi-backend | 1 | — | \`1-99-fixture.T2.md\` |
-| T3 | Wire it    | jdi-backend | 2 | T1, T2 | \`1-99-fixture.T3.md\` |
-| T4 | Test it    | jdi-qa-tester | 3 | T3 | \`1-99-fixture.T4.md\` |
+| T1 | Build core | software-teams-backend | 1 | — | \`1-99-fixture.T1.md\` |
+| T2 | Build api  | software-teams-backend | 1 | — | \`1-99-fixture.T2.md\` |
+| T3 | Wire it    | software-teams-backend | 2 | T1, T2 | \`1-99-fixture.T3.md\` |
+| T4 | Test it    | software-teams-qa-tester | 3 | T3 | \`1-99-fixture.T4.md\` |
 
 ## Sequencing Rules
 
@@ -62,13 +62,13 @@ describe("parseOrchestration", () => {
     expect(result.tasks[0]).toEqual({
       taskId: "T1",
       name: "Build core",
-      agent: "jdi-backend",
+      agent: "software-teams-backend",
       wave: 1,
       dependsOn: [],
       slice: "1-99-fixture.T1.md",
     });
     expect(result.tasks[2]?.dependsOn).toEqual(["T1", "T2"]);
-    expect(result.tasks[3]?.agent).toBe("jdi-qa-tester");
+    expect(result.tasks[3]?.agent).toBe("software-teams-qa-tester");
     expect(result.tasks[3]?.wave).toBe(3);
   });
 

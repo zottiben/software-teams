@@ -4,6 +4,6 @@ dist/
 bun.lockb
 .claude
 
-# JDI framework — remove these lines to version control JDI artefacts
-.jdi/
-.claude/commands/jdi/
+# Software Teams framework — remove these lines to version control Software Teams artefacts
+.software-teams/
+.claude/commands/st/

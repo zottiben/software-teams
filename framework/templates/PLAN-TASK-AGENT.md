@@ -17,10 +17,10 @@ affects: []
 subsystem: {auth|api|ui|data|infra|docs|test}
 tags: []
 
-# Agent routing (written by jdi-planner via AgentRouter — see
+# Agent routing (written by software-teams-planner via AgentRouter — see
 # framework/components/meta/AgentRouter.md). implement-plan reads `agent` and
 # passes it as `subagent_type` when spawning via the Task tool.
-agent: jdi-{role}
+agent: software-teams-{role}
 agent_rationale: "{Why this specialist was chosen for this slice}"
 ---
 

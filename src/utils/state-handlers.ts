@@ -134,7 +134,7 @@ export async function transitionToComplete(cwd: string): Promise<void> {
 
   // Try to advance to next plan in the current phase via ROADMAP.yaml
   try {
-    const roadmapPath = join(cwd, ".jdi", "ROADMAP.yaml");
+    const roadmapPath = join(cwd, ".software-teams", "ROADMAP.yaml");
     if (existsSync(roadmapPath)) {
       const content = await Bun.file(roadmapPath).text();
       const roadmap = parseYaml(content) as Record<string, unknown>;

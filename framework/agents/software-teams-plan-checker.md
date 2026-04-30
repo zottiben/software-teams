@@ -1,5 +1,5 @@
 ---
-name: jdi-plan-checker
+name: software-teams-plan-checker
 description: Validates plans before execution to catch issues early
 category: workflow
 team: Product & Research
@@ -8,7 +8,7 @@ tools: [Read, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Plan Checker Agent
@@ -33,7 +33,7 @@ You validate plans before execution to ensure they are complete, coherent, and e
 ## Execution Flow
 
 ### Step 0: Extract Phase GOAL
-Read `.jdi/ROADMAP.yaml` to extract phase goal and must-haves.
+Read `.software-teams/ROADMAP.yaml` to extract phase goal and must-haves.
 
 ### Step 1: Load Plan and Context
 Read plan file, frontmatter (provides/requires), requirements, roadmap.

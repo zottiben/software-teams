@@ -28,10 +28,10 @@ graph TD
 
 | ID | Name | Agent | Wave | Depends On | Slice |
 |----|------|-------|------|------------|-------|
-| T1 | {Task name} | jdi-{role} | 1 | — | `{slug}.T1.md` |
-| T2 | {Task name} | jdi-{role} | 1 | — | `{slug}.T2.md` |
-| T3 | {Task name} | jdi-{role} | 2 | T1, T2 | `{slug}.T3.md` |
-| T4 | {Task name} | jdi-qa-tester | 3 | T3 | `{slug}.T4.md` |
+| T1 | {Task name} | software-teams-{role} | 1 | — | `{slug}.T1.md` |
+| T2 | {Task name} | software-teams-{role} | 1 | — | `{slug}.T2.md` |
+| T3 | {Task name} | software-teams-{role} | 2 | T1, T2 | `{slug}.T3.md` |
+| T4 | {Task name} | software-teams-qa-tester | 3 | T3 | `{slug}.T4.md` |
 
 ## Sequencing Rules
 
@@ -53,13 +53,13 @@ Triggered by the implement-plan skill at well-known points. Configure per
 plan; defaults shown.
 
 - **post-task-verify** — after every code-touching task: spawn
-  `jdi-qa-tester` (mode: `task-verify`) to confirm the task's `done_when`
+  `software-teams-qa-tester` (mode: `task-verify`) to confirm the task's `done_when`
   criteria hold. Failure → rework before next task.
 - **contract-check** — after any task that modifies an API surface, types,
   or shared schema: run `bun run build` + the contract suite. Failure
   blocks the wave.
 - **a11y-check** — after any task that touches user-facing UI: spawn
-  `jdi-frontend` (mode: `a11y-audit`). Failure → ticket and continue or
+  `software-teams-frontend` (mode: `a11y-audit`). Failure → ticket and continue or
   block per task `priority`.
 - **post-wave-integration** — after each wave: run the full test suite
   (`bun test`) plus a smoke pass over the `provides:` deliverables.
@@ -81,7 +81,7 @@ judgement.
 
 ## Risks
 
-Pull from the `risks` block in `.jdi/REQUIREMENTS.yaml`. List the entries
+Pull from the `risks` block in `.software-teams/REQUIREMENTS.yaml`. List the entries
 relevant to this plan so the orchestrator can re-check them at each gate.
 
 | ID | Risk | Likelihood | Impact | Mitigation |

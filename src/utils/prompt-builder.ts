@@ -79,7 +79,7 @@ export function buildAutoCommitBlock(commitType: "feat" | "fix" | "any"): string
     `## Auto-Commit`,
     `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
     `After making changes:`,
-    `1. \`git add\` only source files you changed (NOT .jdi/ or .claude/)`,
+    `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
     `2. \`git commit -m ${prefix}\` with a conventional commit message`,
     `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
   ];
@@ -92,7 +92,7 @@ export function buildAutoCommitBlock(commitType: "feat" | "fix" | "any"): string
  */
 export function buildLearningsBlock(techStack: string): string[] {
   const lower = techStack.toLowerCase();
-  const base = ".jdi/framework/learnings";
+  const base = ".software-teams/framework/learnings";
   const files = [`${base}/general.md`];
 
   if (/php|laravel/.test(lower)) files.push(`${base}/backend.md`);
@@ -109,10 +109,10 @@ export function buildLearningsBlock(techStack: string): string[] {
 
 function agentPaths(cwd: string) {
   return {
-    baseProtocol: resolve(cwd, ".jdi/framework/components/meta/AgentBase.md"),
-    complexityRouter: resolve(cwd, ".jdi/framework/components/meta/ComplexityRouter.md"),
-    orchestration: resolve(cwd, ".jdi/framework/components/meta/AgentTeamsOrchestration.md"),
-    plannerSpec: resolve(cwd, ".jdi/framework/agents/jdi-planner.md"),
+    baseProtocol: resolve(cwd, ".software-teams/framework/components/meta/AgentBase.md"),
+    complexityRouter: resolve(cwd, ".software-teams/framework/components/meta/ComplexityRouter.md"),
+    orchestration: resolve(cwd, ".software-teams/framework/components/meta/AgentTeamsOrchestration.md"),
+    plannerSpec: resolve(cwd, ".software-teams/framework/agents/software-teams-planner.md"),
   };
 }
 
@@ -120,14 +120,14 @@ export function buildPlanPrompt(ctx: PromptContext, description: string): string
   const { baseProtocol, plannerSpec } = agentPaths(ctx.cwd);
   return [
     `Read ${baseProtocol} for the base agent protocol.`,
-    `You are jdi-planner. Read ${plannerSpec} for your full specification.`,
+    `You are software-teams-planner. Read ${plannerSpec} for your full specification.`,
     ``,
     ...buildProjectContext(ctx),
     ``,
     `## Task`,
     `Create an implementation plan for: ${description}`,
     ``,
-    `Follow the planning workflow in your spec. If your spec has \`requires_components\` in frontmatter, batch-read all listed components before starting. Resolve remaining <JDI:*> components on-demand.`,
+    `Follow the planning workflow in your spec. If your spec has \`requires_components\` in frontmatter, batch-read all listed components before starting. Resolve remaining <SOFTWARE_TEAMS:*> components on-demand.`,
   ].join("\n");
 }
 
@@ -199,9 +199,9 @@ export function buildImplementPrompt(ctx: PromptContext, planPath: string, overr
     tierLine,
     ``,
     `Follow the implement-plan orchestration:`,
-    `1. Read codebase context (.jdi/codebase/SUMMARY.md if exists)`,
+    `1. Read codebase context (.software-teams/codebase/SUMMARY.md if exists)`,
     `2. Apply Plan Tier Detection from the implement-plan skill: if ORCHESTRATION.md exists for this slug, run the Three-Tier Execution Loop; otherwise run the Single-Tier Execution Loop.`,
-    `3. Read the canonical index (ORCHESTRATION.md for three-tier, PLAN.md for single-tier) and \`.jdi/config/state.yaml\` — parse tasks, deps, waves, tech_stack`,
+    `3. Read the canonical index (ORCHESTRATION.md for three-tier, PLAN.md for single-tier) and \`.software-teams/config/state.yaml\` — parse tasks, deps, waves, tech_stack`,
     `4. Apply ComplexityRouter: evaluate plan signals, choose single-agent or Agent Teams mode`,
     `5. Per-task spawn: in three-tier mode, pass each agent ONLY its per-agent slice (\`{slug}.T{n}.md\`) plus the SPEC sections cited in the slice's \`**Read first:**\` line — NOT the full SPEC, NOT all task files`,
     `6. Spawn agent(s) with cache-optimised load order (AgentBase first, then agent spec)`,
@@ -293,7 +293,7 @@ export function buildRefinementPrompt(ctx: PromptContext, feedback: string, conv
   const { baseProtocol, plannerSpec } = agentPaths(ctx.cwd);
   return [
     `Read ${baseProtocol} for the base agent protocol.`,
-    `You are jdi-planner. Read ${plannerSpec} for your full specification.`,
+    `You are software-teams-planner. Read ${plannerSpec} for your full specification.`,
     ``,
     ...buildProjectContext(ctx),
     ``,
@@ -303,12 +303,12 @@ export function buildRefinementPrompt(ctx: PromptContext, feedback: string, conv
     fenceUserInput("user-request", feedback),
     ``,
     `## HARD CONSTRAINTS — PLAN REFINEMENT MODE`,
-    `- ONLY modify files under \`.jdi/plans/\` and \`.jdi/config/\` — NEVER create, edit, or delete source code files`,
+    `- ONLY modify files under \`.software-teams/plans/\` and \`.software-teams/config/\` — NEVER create, edit, or delete source code files`,
     `- NEVER run \`git commit\`, \`git push\`, or any git write operations`,
     `- Planning and implementation are SEPARATE gates — user must explicitly approve before implementation`,
     ``,
     `## Instructions`,
-    `Read \`.jdi/config/state.yaml\` and existing plan files. Apply feedback incrementally — do not restart from scratch.`,
+    `Read \`.software-teams/config/state.yaml\` and existing plan files. Apply feedback incrementally — do not restart from scratch.`,
     `If the feedback is a question, answer it conversationally. If it implies a plan change, update the plan.`,
     ``,
     `## Response Format (MANDATORY)`,
@@ -334,7 +334,7 @@ export function buildPostImplFeedbackPrompt(ctx: PromptContext, feedback: string
     fenceUserInput("user-request", feedback),
     ``,
     `## Instructions`,
-    `The user is iterating on code that JDI already implemented. Review the conversation above to understand what was built.`,
+    `The user is iterating on code that Software Teams already implemented. Review the conversation above to understand what was built.`,
     `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
     `Apply changes incrementally to the existing code — do not rewrite from scratch.`,
     ``,

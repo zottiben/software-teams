@@ -1,5 +1,5 @@
 ---
-name: jdi-worktree-cleanup
+name: software-teams-worktree-cleanup
 description: Clean up git worktree and associated branch after execution
 ---
 
@@ -22,7 +22,7 @@ This hook is invoked after worktree execution completes, either:
 ### 1. Remove the Git Worktree
 
 ```bash
-git worktree remove .worktrees/jdi-{plan-id} --force
+git worktree remove .worktrees/software-teams-{plan-id} --force
 ```
 
 The `--force` flag is used to handle cases where the worktree has uncommitted changes (which shouldn't happen in normal flow but provides safety).
@@ -31,13 +31,13 @@ The `--force` flag is used to handle cases where the worktree has uncommitted ch
 
 **If branch was merged:**
 ```bash
-git branch -d jdi/{plan-id}
+git branch -d software-teams/{plan-id}
 ```
 Uses `-d` (safe delete) since the branch was already merged.
 
 **If branch was NOT merged (discard):**
 ```bash
-git branch -D jdi/{plan-id}
+git branch -D software-teams/{plan-id}
 ```
 Uses `-D` (force delete) since the branch was never merged.
 
@@ -61,8 +61,8 @@ If the worktree removal fails (e.g., uncommitted changes, locked files):
 ⚠️ Warning: Could not remove worktree automatically.
 
 Manual cleanup commands:
-  git worktree remove .worktrees/jdi-{plan-id} --force
-  rm -rf .worktrees/jdi-{plan-id}
+  git worktree remove .worktrees/software-teams-{plan-id} --force
+  rm -rf .worktrees/software-teams-{plan-id}
 ```
 
 ### Branch Deletion Fails
@@ -73,16 +73,16 @@ If the branch deletion fails:
 ⚠️ Warning: Could not delete branch automatically.
 
 Manual cleanup command:
-  git branch -D jdi/{plan-id}
+  git branch -D software-teams/{plan-id}
 ```
 
 ---
 
 ## State Update
 
-After cleanup, update `.jdi/config/state.yaml`:
+After cleanup, update `.software-teams/config/state.yaml`:
 
-1. Read `.jdi/config/state.yaml`
+1. Read `.software-teams/config/state.yaml`
 2. Clear any worktree-related state:
    ```yaml
    worktree:
@@ -98,10 +98,10 @@ After cleanup, update `.jdi/config/state.yaml`:
 
 ```bash
 # 1. Remove worktree
-git worktree remove .worktrees/jdi-{plan-id} --force
+git worktree remove .worktrees/software-teams-{plan-id} --force
 
 # 2. Delete branch (use -d if merged, -D if not)
-git branch -d jdi/{plan-id}  # or -D for discarded
+git branch -d software-teams/{plan-id}  # or -D for discarded
 
 # 3. Clean up empty directory
 rmdir .worktrees 2>/dev/null
@@ -113,11 +113,11 @@ rmdir .worktrees 2>/dev/null
 
 ## Usage Example
 
-Called from `jdi-implement-plan.md` Step 3: Post-Execution:
+Called from `st-implement-plan.md` Step 3: Post-Execution:
 
 ```
 After user selects "merge" or "discard":
-1. If merge: git merge jdi/{plan-id}
+1. If merge: git merge software-teams/{plan-id}
 2. Invoke this cleanup hook
 3. Report cleanup complete
 ```

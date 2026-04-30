@@ -182,7 +182,7 @@ checkpoints:
 
 If checkpoint awaits response for extended time:
 - State preserved in state.yaml
-- Can resume with `/jdi-implement-plan --resume`
+- Can resume with `/st-implement-plan --resume`
 - Progress is not lost
 
 ---

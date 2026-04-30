@@ -13,7 +13,7 @@ const VALID_TIERS = new Set<SpawnEntry["tier"]>(["three-tier", "single-tier"]);
 const recordCmd = defineCommand({
   meta: {
     name: "record",
-    description: "Append a spawn entry to .jdi/persistence/spawn-ledger.jsonl",
+    description: "Append a spawn entry to .software-teams/persistence/spawn-ledger.jsonl",
   },
   args: {
     "task-id": {
@@ -23,7 +23,7 @@ const recordCmd = defineCommand({
     },
     agent: {
       type: "string",
-      description: "Agent name (e.g. jdi-architect)",
+      description: "Agent name (e.g. software-teams-architect)",
       required: true,
     },
     bytes: {
@@ -37,7 +37,7 @@ const recordCmd = defineCommand({
     },
     slice: {
       type: "string",
-      description: "Path to the per-agent slice (e.g. .jdi/plans/{slug}.T{n}.md)",
+      description: "Path to the per-agent slice (e.g. .software-teams/plans/{slug}.T{n}.md)",
     },
     "spec-sections": {
       type: "string",
@@ -54,7 +54,7 @@ const recordCmd = defineCommand({
     },
     "ledger-path": {
       type: "string",
-      description: "Override ledger path (default: .jdi/persistence/spawn-ledger.jsonl)",
+      description: "Override ledger path (default: .software-teams/persistence/spawn-ledger.jsonl)",
     },
   },
   async run({ args }) {

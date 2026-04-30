@@ -26,15 +26,15 @@ params:
 
 | Team | Path |
 |------|------|
-| Engineering | `.jdi/framework/teams/engineering.md` |
-| Product & Research | `.jdi/framework/teams/product-research.md` |
-| Quality Assurance | `.jdi/framework/teams/quality-assurance.md` |
-| DevOps | `.jdi/framework/teams/devops.md` |
-| Micro-Management | `.jdi/framework/teams/micro-management.md` |
+| Engineering | `.software-teams/framework/teams/engineering.md` |
+| Product & Research | `.software-teams/framework/teams/product-research.md` |
+| Quality Assurance | `.software-teams/framework/teams/quality-assurance.md` |
+| DevOps | `.software-teams/framework/teams/devops.md` |
+| Micro-Management | `.software-teams/framework/teams/micro-management.md` |
 
 ## Resolution Algorithm
 
-1. Strip `/jdi:` prefix, normalise command
+1. Strip `/st:` prefix, normalise command
 2. Look up in routing table (skill names map to same command)
 3. Resolve primary + supporting team specs
 4. Determine collaboration pattern and agent loop flag
@@ -50,15 +50,15 @@ Activate members based on file types in the task:
 
 | Context | Detection | Active Members |
 |---------|-----------|----------------|
-| Backend | `.php` files | jdi-backend |
-| Frontend | `.tsx`/`.ts` files | jdi-frontend |
-| Full-stack | Both PHP + TS | jdi-backend, jdi-frontend, jdi-programmer |
-| Commit | Any | jdi-committer |
-| PR generation | Any | jdi-pr-generator |
-| Plan creation | — | jdi-planner, jdi-product-lead |
-| Research | — | jdi-researcher, jdi-planner |
-| PR review | — | jdi-quality, jdi-verifier |
-| Oversight | During implementation | jdi-head-engineering, jdi-product-lead |
+| Backend | `.php` files | software-teams-backend |
+| Frontend | `.tsx`/`.ts` files | software-teams-frontend |
+| Full-stack | Both PHP + TS | software-teams-backend, software-teams-frontend, software-teams-programmer |
+| Commit | Any | software-teams-committer |
+| PR generation | Any | software-teams-pr-generator |
+| Plan creation | — | software-teams-planner, software-teams-product-lead |
+| Research | — | software-teams-researcher, software-teams-planner |
+| PR review | — | software-teams-quality, software-teams-verifier |
+| Oversight | During implementation | software-teams-head-engineering, software-teams-product-lead |
 
 </section>
 
@@ -66,7 +66,7 @@ Activate members based on file types in the task:
 
 ## Resume Routing
 
-1. Read `.jdi/config/state.yaml`
+1. Read `.software-teams/config/state.yaml`
 2. Map status: planning→create-plan, executing→implement-plan, verifying→pr-review
 3. Route as resolved command with `resume=true, resume_from_task={position.task}`
 

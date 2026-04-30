@@ -1,7 +1,7 @@
 ---
 name: product-research
 description: Gathers project requirements, performs research and development without writing code
-members: [jdi-ux-designer, jdi-planner, jdi-product-lead, jdi-researcher]
+members: [software-teams-ux-designer, software-teams-planner, software-teams-product-lead, software-teams-researcher]
 ---
 
 # Product and Research Team
@@ -14,10 +14,10 @@ Requirements gathering, research, and planning. Analyses designs, researches cod
 
 | Role | Agent | Spec Path |
 |------|-------|-----------|
-| Lead UI/UX Designer | `jdi-ux-designer` | `.jdi/framework/agents/jdi-ux-designer.md` |
-| Product Manager | `jdi-planner` | `.jdi/framework/agents/jdi-planner.md` |
-| Product Lead | `jdi-product-lead` | `.jdi/framework/agents/jdi-product-lead.md` |
-| Senior Analyst | `jdi-researcher` | `.jdi/framework/agents/jdi-researcher.md` |
+| Lead UI/UX Designer | `software-teams-ux-designer` | `.software-teams/framework/agents/software-teams-ux-designer.md` |
+| Product Manager | `software-teams-planner` | `.software-teams/framework/agents/software-teams-planner.md` |
+| Product Lead | `software-teams-product-lead` | `.software-teams/framework/agents/software-teams-product-lead.md` |
+| Senior Analyst | `software-teams-researcher` | `.software-teams/framework/agents/software-teams-researcher.md` |
 
 ## Coordination
 

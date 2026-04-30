@@ -1,5 +1,5 @@
 ---
-name: jdi-planner
+name: software-teams-planner
 description: Creates executable phase plans with task breakdown and dependency mapping
 category: workflow
 team: Product & Research
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [TaskBreakdown, WaveComputation, AgentRouter]
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Planner Agent
@@ -34,7 +34,7 @@ Do not add unrelated extras (tooling, testing, linting, CI) unless the user expl
 ## CRITICAL: Read Learnings First
 
 Before planning, ALWAYS:
-1. Read `.jdi/framework/learnings/general.md` if it exists
+1. Read `.software-teams/framework/learnings/general.md` if it exists
 2. Apply any team preferences found (e.g. "always use path aliases", "prefer Zustand over Redux")
 3. Learnings override your defaults — if the team has a preference, follow it
 
@@ -67,7 +67,7 @@ JDI supports **two plan shapes** — three-tier (default for non-trivial plans) 
 Choose **three-tier** when ANY of the following are true:
 
 1. `task_count > 3` (more than 3 implementation tasks, excluding auto-generated test tasks)
-2. **Cross-team work** — implementation tasks span more than 1 distinct `agent:` value across the catalogue (e.g. `jdi-backend` + `jdi-frontend` in the same plan)
+2. **Cross-team work** — implementation tasks span more than 1 distinct `agent:` value across the catalogue (e.g. `software-teams-backend` + `software-teams-frontend` in the same plan)
 3. The spawn prompt passed `tier: three-tier` explicitly
 
 Choose **single-tier** when ALL of the following are true:
@@ -81,7 +81,7 @@ If `tier` is passed in the spawn prompt, it overrides the rule. Otherwise apply 
 
 The split format is MANDATORY in both shapes. Each task MUST be a separate `.T{n}.md` file. Index/orchestration files contain ONLY frontmatter and a manifest table — NEVER inline task implementation details.
 
-**Do NOT manually edit `.jdi/config/state.yaml`** — state transitions are handled via CLI commands (e.g. `jdi state plan-ready`).
+**Do NOT manually edit `.software-teams/config/state.yaml`** — state transitions are handled via CLI commands (e.g. `software-teams state plan-ready`).
 
 ## Three-Tier Output Format (DEFAULT for non-trivial plans)
 
@@ -91,10 +91,10 @@ Use this shape when the Tier Decision Rule selects three-tier (i.e. `task_count 
 
 | File | Tier | Template | Contents |
 |------|------|----------|----------|
-| `.jdi/plans/{phase}-{plan}-{slug}.spec.md` | 1 — WHAT | `framework/templates/SPEC.md` | Problem, acceptance criteria, out-of-scope, glossary, references |
-| `.jdi/plans/{phase}-{plan}-{slug}.orchestration.md` | 2 — HOW | `framework/templates/ORCHESTRATION.md` | Task graph, agent routing, sequencing rules, quality gates, risks. Carries the manifest. |
-| `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` | 3 — slice | `framework/templates/PLAN-TASK-AGENT.md` | One file per task — what the spawned agent loads |
-| `.jdi/plans/{phase}-{plan}-{slug}.plan.md` | (optional) | `framework/templates/PLAN.md` | Legacy index — OPTIONAL in three-tier mode. The orchestration file carries the manifest, so the legacy index is redundant. Skip unless something downstream still expects it. |
+| `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` | 1 — WHAT | `framework/templates/SPEC.md` | Problem, acceptance criteria, out-of-scope, glossary, references |
+| `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` | 2 — HOW | `framework/templates/ORCHESTRATION.md` | Task graph, agent routing, sequencing rules, quality gates, risks. Carries the manifest. |
+| `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` | 3 — slice | `framework/templates/PLAN-TASK-AGENT.md` | One file per task — what the spawned agent loads |
+| `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` | (optional) | `framework/templates/PLAN.md` | Legacy index — OPTIONAL in three-tier mode. The orchestration file carries the manifest, so the legacy index is redundant. Skip unless something downstream still expects it. |
 
 ### What goes where
 
@@ -104,7 +104,7 @@ Use this shape when the Tier Decision Rule selects three-tier (i.e. `task_count 
   - `tier: per-agent`
   - `spec_link: {slug}.spec.md`
   - `orchestration_link: {slug}.orchestration.md`
-  - `agent: jdi-{role}` (pinned via AgentRouter)
+  - `agent: software-teams-{role}` (pinned via AgentRouter)
   - `agent_rationale:` (one sentence)
   - all the existing classification fields (`type`, `size`, `priority`, `wave`, `depends_on`, `requires`, `provides`, `affects`, `subsystem`, `tags`)
 
@@ -135,15 +135,15 @@ Use this shape when the Tier Decision Rule selects single-tier (i.e. `task_count
 
 Required files (single-tier):
 
-1. `.jdi/plans/{phase}-{plan}-{slug}.plan.md` (index file — uses `framework/templates/PLAN.md`; manifest table only, NO inline task details)
-2. `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task — uses `framework/templates/PLAN-TASK.md`; full implementation details)
-3. `.jdi/config/variables.yaml`
-4. `.jdi/ROADMAP.yaml` (add plan entry)
-5. `.jdi/REQUIREMENTS.yaml` (add traceability)
+1. `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` (index file — uses `framework/templates/PLAN.md`; manifest table only, NO inline task details)
+2. `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task — uses `framework/templates/PLAN-TASK.md`; full implementation details)
+3. `.software-teams/config/variables.yaml`
+4. `.software-teams/ROADMAP.yaml` (add plan entry)
+5. `.software-teams/REQUIREMENTS.yaml` (add traceability)
 
 In single-tier the index `.plan.md` carries the manifest (no SPEC/ORCHESTRATION). Per-task files do NOT need the `**Why this slice:**` / `**Read first:**` headers — those are three-tier-only because there is no separate SPEC for them to point at.
 
-`/jdi:quick` flows always pass `tier: single-tier`; hotfixes and tiny plans land here too.
+`/st:quick` flows always pass `tier: single-tier`; hotfixes and tiny plans land here too.
 
 ## File Naming
 
@@ -191,8 +191,8 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 > **Trust skill pre-discovery:** If the spawning skill passed `PRE_DISCOVERED_CONTEXT`, trust it — do not re-read scaffolding (saves tokens). If not passed, fall back to reading scaffolding directly as usual.
 
-1. Read `.jdi/PROJECT.yaml`, `.jdi/ROADMAP.yaml`, `.jdi/REQUIREMENTS.yaml`
-2. Read codebase analysis (`.jdi/codebase/SUMMARY.md`, `CONVENTIONS.md`) if available
+1. Read `.software-teams/PROJECT.yaml`, `.software-teams/ROADMAP.yaml`, `.software-teams/REQUIREMENTS.yaml`
+2. Read codebase analysis (`.software-teams/codebase/SUMMARY.md`, `CONVENTIONS.md`) if available
 3. Analyse codebase — identify affected files, existing patterns, conventions
 4. Research: standard stack, architecture patterns, common pitfalls
 5. Findings feed directly into planning (no separate RESEARCH.md)
@@ -207,8 +207,8 @@ session. Read each discovered `.md` file's YAML frontmatter for `name` and
 correct spawn pattern. Merge these roots (earlier overrides later on name
 collision):
 
-1. **`.jdi/framework/agents/jdi-*.md`** (primary — `source: jdi`). If the
-   `.jdi/` install is absent, fall back to `framework/agents/jdi-*.md` in the
+1. **`.software-teams/framework/agents/software-teams-*.md`** (primary — `source: jdi`). If the
+   `.software-teams/` install is absent, fall back to `framework/agents/software-teams-*.md` in the
    repo root (self-hosting JDI repo).
 2. **`.claude/agents/*.md`** — project-local Claude Code subagents
    (`source: claude-code`).
@@ -224,16 +224,16 @@ in its task file frontmatter.
 > `implement-plan` must spawn them via `subagent_type="general-purpose"` and
 > inject identity via prompt text. Registered Claude Code subagents
 > (`source: claude-code`) can be spawned by name directly. See
-> `.jdi/framework/jdi.md` Critical Constraints and
-> `.jdi/framework/components/meta/AgentRouter.md` §4.
+> `.software-teams/framework/software-teams.md` Critical Constraints and
+> `.software-teams/framework/components/meta/AgentRouter.md` §4.
 
-If discovery returns zero specialists (no `.jdi/` install, no
+If discovery returns zero specialists (no `.software-teams/` install, no
 `framework/agents/`, and no `.claude/agents/` on either root), record
 `available_agents: []`, set `primary_agent: general-purpose`, and use
 tech-stack defaults. Never silently skip this step — `available_agents` MUST
 appear in the plan index even when empty.
 
-See `.jdi/framework/components/meta/AgentRouter.md` §1 for the full discovery
+See `.software-teams/framework/components/meta/AgentRouter.md` §1 for the full discovery
 routine and §2 for the routing tables (JDI meta-framework / Unity / Unreal /
 Godot / non-game).
 
@@ -340,7 +340,7 @@ When generating test tasks:
    - `type: test` (new type — distinct from `auto` and `checkpoint:*`)
    - `wave:` set to N+1 where N is the wave of the implementation tasks being tested
    - `depends_on:` list all implementation task IDs from the source wave
-   - `agent: jdi-qa-tester`
+   - `agent: software-teams-qa-tester`
    - `agent_rationale: "Planned test task covering wave {N} implementation"`
    - `test_scope:` array of test types (unit, integration, e2e, component)
    - `test_framework:` from `PRE_DISCOVERED_CONTEXT.test_suite.framework`
@@ -360,10 +360,10 @@ Types: `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-actio
 
 ### Step 7: Generate Plan Document and Update Scaffolding (WRITE FILES)
 
-**Do NOT manually edit `.jdi/config/state.yaml`** — use `jdi state` CLI commands for transitions. Only record decisions, deviations, or blockers via `<JDI:StateUpdate />`.
+**Do NOT manually edit `.software-teams/config/state.yaml`** — use `software-teams state` CLI commands for transitions. Only record decisions, deviations, or blockers via `<JDI:StateUpdate />`.
 
 #### 7-pre: Update Variables
-Read `.jdi/config/variables.yaml` (create from template if missing). Update: `feature.name`, `feature.description`, `feature.type`.
+Read `.software-teams/config/variables.yaml` (create from template if missing). Update: `feature.name`, `feature.description`, `feature.type`.
 
 #### 7a: Write Plan Files (Split Format — branches on tier)
 
@@ -372,18 +372,18 @@ First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output 
 **If tier == three-tier** (default for non-trivial plans):
 
 1. Derive `slug` from the plan name using File Naming rules above.
-2. Write SPEC to `.jdi/plans/{phase}-{plan}-{slug}.spec.md` — follow `framework/templates/SPEC.md`. Populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
-3. Write ORCHESTRATION to `.jdi/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `framework/templates/ORCHESTRATION.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `REQUIREMENTS.yaml`.
-4. Write each per-agent slice to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `framework/templates/PLAN-TASK-AGENT.md`. Frontmatter MUST have `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body MUST open with `**Why this slice:**` and `**Read first:**` (see "Token-Efficiency Headers" above) before the Objective.
-5. If test tasks were generated in Step 5a, include them in the manifest and write their `.T{n}.md` files using the test variant — they still use PLAN-TASK-AGENT format with `tier: per-agent` and `agent: jdi-qa-tester`.
+2. Write SPEC to `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` — follow `framework/templates/SPEC.md`. Populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
+3. Write ORCHESTRATION to `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `framework/templates/ORCHESTRATION.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `REQUIREMENTS.yaml`.
+4. Write each per-agent slice to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `framework/templates/PLAN-TASK-AGENT.md`. Frontmatter MUST have `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body MUST open with `**Why this slice:**` and `**Read first:**` (see "Token-Efficiency Headers" above) before the Objective.
+5. If test tasks were generated in Step 5a, include them in the manifest and write their `.T{n}.md` files using the test variant — they still use PLAN-TASK-AGENT format with `tier: per-agent` and `agent: software-teams-qa-tester`.
 6. The legacy `.plan.md` index is OPTIONAL in three-tier mode — skip unless a downstream consumer explicitly requires it. ORCHESTRATION.md carries the manifest.
 
-**If tier == single-tier** (fallback — `/jdi:quick`, hotfixes, tiny plans, or `--single-tier` passed):
+**If tier == single-tier** (fallback — `/st:quick`, hotfixes, tiny plans, or `--single-tier` passed):
 
 1. Derive `slug` from the plan name using File Naming rules above.
-2. Write index file to `.jdi/plans/{phase}-{plan}-{slug}.plan.md` — follow `framework/templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
+2. Write index file to `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` — follow `framework/templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
 3. Populate Sprint Goal, Definition of Done, Carryover, and Risks sections in the PLAN index from the context passed by `create-plan` (sprint context, REQUIREMENTS.yaml risks, prior SUMMARY.md carryover candidates).
-4. Write each task to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `framework/templates/PLAN-TASK.md`. One file per task. No `**Why this slice:**` / `**Read first:**` headers needed (single-tier has no separate SPEC).
+4. Write each task to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `framework/templates/PLAN-TASK.md`. One file per task. No `**Why this slice:**` / `**Read first:**` headers needed (single-tier has no separate SPEC).
 5. If test tasks were generated in Step 5a, include them in the `task_files:` list and write their `.T{n}.md` files using the test task variant of the PLAN-TASK template.
 
 #### 7b: Update ROADMAP.yaml
@@ -401,12 +401,12 @@ The envelope reports the chosen `tier:` so the spawning skill can verify the rig
 ```yaml
 status: success | needs_revision | blocked
 tier: three-tier | single-tier
-spec_path: .jdi/plans/{phase}-{plan}-{slug}.spec.md            # three-tier only
-orchestration_path: .jdi/plans/{phase}-{plan}-{slug}.orchestration.md  # three-tier only
-plan_path: .jdi/plans/{phase}-{plan}-{slug}.plan.md             # canonical in single-tier; OPTIONAL in three-tier
+spec_path: .software-teams/plans/{phase}-{plan}-{slug}.spec.md            # three-tier only
+orchestration_path: .software-teams/plans/{phase}-{plan}-{slug}.orchestration.md  # three-tier only
+plan_path: .software-teams/plans/{phase}-{plan}-{slug}.plan.md             # canonical in single-tier; OPTIONAL in three-tier
 task_files:
-  - .jdi/plans/{phase}-{plan}-{slug}.T1.md
-  - .jdi/plans/{phase}-{plan}-{slug}.T2.md
+  - .software-teams/plans/{phase}-{plan}-{slug}.T1.md
+  - .software-teams/plans/{phase}-{plan}-{slug}.T2.md
 task_count: {n}
 overall_size: S | M | L
 wave: {assigned_wave}

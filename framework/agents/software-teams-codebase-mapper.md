@@ -1,5 +1,5 @@
 ---
-name: jdi-codebase-mapper
+name: software-teams-codebase-mapper
 description: Analyses and documents codebase architecture, patterns, and concerns
 category: workflow
 team: Engineering
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Codebase Mapper Agent
@@ -41,7 +41,7 @@ Identify critical paths, security-sensitive areas, known issues (TODO/FIXME/HACK
 Combine into `SUMMARY.md` with quick reference table, key findings (strengths, concerns, recommendations), and links to detailed files.
 
 ### Step 8: Save Analysis
-Write all files to `.jdi/codebase/`: `SUMMARY.md`, `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`.
+Write all files to `.software-teams/codebase/`: `SUMMARY.md`, `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`.
 
 ---
 
@@ -51,12 +51,12 @@ Write all files to `.jdi/codebase/`: `SUMMARY.md`, `STACK.md`, `ARCHITECTURE.md`
 status: complete | partial
 project_name: {name}
 outputs:
-  - .jdi/codebase/SUMMARY.md
-  - .jdi/codebase/STACK.md
-  - .jdi/codebase/ARCHITECTURE.md
-  - .jdi/codebase/CONVENTIONS.md
-  - .jdi/codebase/TESTING.md
-  - .jdi/codebase/CONCERNS.md
+  - .software-teams/codebase/SUMMARY.md
+  - .software-teams/codebase/STACK.md
+  - .software-teams/codebase/ARCHITECTURE.md
+  - .software-teams/codebase/CONVENTIONS.md
+  - .software-teams/codebase/TESTING.md
+  - .software-teams/codebase/CONCERNS.md
 key_findings:
   strengths: [...]
   concerns: [...]

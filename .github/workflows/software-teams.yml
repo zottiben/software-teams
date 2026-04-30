@@ -1,0 +1,242 @@
+# Software Teams AI Developer — GitHub Actions Workflow
+# Copy this file to .github/workflows/software-teams.yml in your repository
+#
+# Prerequisites:
+#   1. Set ANTHROPIC_API_KEY secret in your repo settings
+#   2. That's it — Software Teams bootstraps everything else automatically
+#
+# Optional:
+#   - Set CLICKUP_API_TOKEN secret for ClickUp ticket integration
+#   - Set SOFTWARE_TEAMS_COMMIT_LEARNINGS=true repo variable to persist learnings in git
+#   - Set SOFTWARE_TEAMS_LEARNINGS_REPO variable to push learnings to a central repo (e.g. org/software-teams-learnings)
+#   - Set SOFTWARE_TEAMS_LEARNINGS_TOKEN secret (PAT with Contents read/write on the learnings repo)
+#   - Run `bunx @benzotti/software-teams init` locally to customise framework files
+#
+# Usage: Comment on any issue or PR with "Hey software-teams" followed by a command:
+#   Hey software-teams plan <description>        — Create an implementation plan
+#   Hey software-teams quick <description>       — Make a small, focused change
+#   Hey software-teams review                    — Review the current PR
+#   Hey software-teams feedback                  — Address PR review comments
+#   Hey software-teams do <clickup-ticket-url>   — Full flow: plan + implement from ticket
+#   Hey software-teams ping                      — Check framework status
+#
+# Conversation: Software Teams supports back-and-forth iteration. After Software Teams responds,
+# reply with feedback to refine, or say "approved" to finalise.
+#
+# Learnings: Software Teams accumulates team preferences across PRs automatically.
+# By default learnings live in the GitHub Actions cache. Set SOFTWARE_TEAMS_COMMIT_LEARNINGS=true
+# to persist them in git (recommended — cache entries expire after 7 days of inactivity).
+
+name: Software Teams
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  # ── Triggered by "Hey software-teams" comments on issues/PRs or PR reviews ──
+  software-teams:
+    if: >-
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'Hey software-teams'))
+      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, 'Hey software-teams'))
+      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, 'Hey software-teams'))
+    runs-on: ubuntu-latest
+    steps:
+      # Bun is required to run the Software Teams CLI
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # Resolve the PR head branch
+      # - issue_comment: github.head_ref is empty, resolve via API
+      # - pull_request_review / pull_request_review_comment: github.event.pull_request.head.ref is available
+      - name: Resolve PR branch
+        id: pr
+        run: |
+          bunx @benzotti/software-teams@latest action resolve-branch \
+            --repo "$REPO" \
+            ${PR_HEAD_REF:+--pr-head-ref "$PR_HEAD_REF"} \
+            ${PR_NUMBER:+--pr-number "$PR_NUMBER"}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.branch || github.head_ref || github.ref }}
+
+      # Restore persisted Software Teams state (learnings + codebase-index)
+      # 1. Exact match for this branch
+      # 2. Fall back to main baseline (learnings only — plans are cleared below)
+      - name: Restore Software Teams state
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/framework/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
+          restore-keys: |
+            software-teams-state-${{ github.repository }}-main
+
+      # Bootstrap Software Teams framework if not present (first run or cache miss)
+      - name: Bootstrap Software Teams
+        run: |
+          bunx @benzotti/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+
+      # Fetch shared learnings from an external repo if configured.
+      # This merges cross-project learnings into the local framework before agents run.
+      - name: Fetch shared learnings
+        if: vars.SOFTWARE_TEAMS_LEARNINGS_REPO != ''
+        run: |
+          bunx @benzotti/software-teams@latest action fetch-learnings --learnings-repo "$LEARNINGS_REPO"
+        env:
+          LEARNINGS_REPO: ${{ vars.SOFTWARE_TEAMS_LEARNINGS_REPO }}
+          LEARNINGS_TOKEN: ${{ secrets.SOFTWARE_TEAMS_LEARNINGS_TOKEN || github.token }}
+
+      # Configure git for Software Teams commits (used when implementing changes on PR branches)
+      - name: Configure git
+        run: |
+          git config user.name "software-teams[bot]"
+          git config user.email "software-teams[bot]@users.noreply.github.com"
+
+      # Install Claude Code CLI (required by Software Teams for AI invocations)
+      - name: Install Claude Code
+        run: bun install -g @anthropic-ai/claude-code
+
+      # Run Software Teams CLI directly — full pipeline with routing, agents, and comment posting
+      # IMPORTANT: All user input is passed via env vars to avoid shell injection.
+      # All arguments are individually quoted to prevent shell expansion.
+      #
+      # Auth gate (opt-in):
+      #   Set repo variable SOFTWARE_TEAMS_AUTH_ENABLED=true to restrict to write collaborators.
+      #   Set SOFTWARE_TEAMS_ALLOWED_USERS to a comma-separated list for explicit allow-listing.
+      - name: Run Software Teams
+        run: |
+          bunx @benzotti/software-teams@latest action run "$COMMENT_BODY" \
+            --repo "$REPO" \
+            ${COMMENT_ID:+--comment-id "$COMMENT_ID"} \
+            ${PR_NUMBER:+--pr-number "$PR_NUMBER"} \
+            ${ISSUE_NUMBER:+--issue-number "$ISSUE_NUMBER"} \
+            ${COMMENT_AUTHOR:+--comment-author "$COMMENT_AUTHOR"} \
+            ${ALLOWED_USERS:+--allowed-users "$ALLOWED_USERS"}
+        env:
+          # Resolve comment body from whichever event type triggered this
+          COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body || '' }}
+          COMMENT_ID: ${{ github.event.comment.id || github.event.review.id || '' }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.event.review.user.login || '' }}
+          REPO: ${{ github.repository }}
+          SOFTWARE_TEAMS_AUTH_ENABLED: ${{ vars.SOFTWARE_TEAMS_AUTH_ENABLED || '' }}
+          ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+
+      # Save Software Teams state — framework, config, persistence all cached together
+      - name: Save Software Teams state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/framework/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
+
+  # ── Promote learnings to main baseline when PRs merge ──
+  # Only runs when Software Teams was actually used on the merged PR
+  promote-learnings:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Check if Software Teams was involved
+        id: check
+        run: |
+          bunx @benzotti/software-teams@latest action promote-learnings \
+            --check-only \
+            --repo "$REPO" \
+            --sha "${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Restore Software Teams state from merged branch
+        if: steps.check.outputs.skip != 'true'
+        id: restore
+        uses: actions/cache@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/framework/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-main-promotion-${{ github.sha }}
+          restore-keys: |
+            software-teams-state-${{ github.repository }}-${{ steps.check.outputs.branch }}-
+
+      - name: Promote to main baseline
+        if: steps.check.outputs.skip != 'true' && steps.restore.outputs.cache-hit != ''
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/framework/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-main-${{ github.sha }}
+
+      # Opt-in: commit learnings so they survive cache eviction.
+      # Set repo variable SOFTWARE_TEAMS_COMMIT_LEARNINGS=true to enable.
+      #
+      # Where learnings are committed:
+      #   - Same repo (default): .software-teams/framework/learnings/ on main
+      #   - External repo: set SOFTWARE_TEAMS_LEARNINGS_REPO (e.g. org/software-teams-learnings)
+      #     and SOFTWARE_TEAMS_LEARNINGS_TOKEN secret. Learnings are stored under
+      #     software-teams/learnings/ in the external repo and merged (not replaced).
+      - name: Commit learnings to repo
+        if: >-
+          steps.check.outputs.skip != 'true'
+          && steps.restore.outputs.cache-hit != ''
+          && vars.SOFTWARE_TEAMS_COMMIT_LEARNINGS == 'true'
+        run: |
+          git config user.name "software-teams[bot]"
+          git config user.email "software-teams[bot]@users.noreply.github.com"
+          bunx @benzotti/software-teams@latest action promote-learnings \
+            --repo "$REPO" \
+            --sha "${{ github.sha }}" \
+            --pr-number "${{ steps.check.outputs.pr_number }}" \
+            --branch "${{ steps.check.outputs.branch }}" \
+            ${LEARNINGS_REPO:+--learnings-repo "$LEARNINGS_REPO"}
+        env:
+          LEARNINGS_REPO: ${{ vars.SOFTWARE_TEAMS_LEARNINGS_REPO || '' }}
+          LEARNINGS_TOKEN: ${{ secrets.SOFTWARE_TEAMS_LEARNINGS_TOKEN || github.token }}

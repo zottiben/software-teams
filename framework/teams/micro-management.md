@@ -1,20 +1,20 @@
 ---
 name: micro-management
 description: Engineering oversight — opt-in only via --oversight flag
-members: [jdi-product-lead, jdi-head-engineering]
+members: [software-teams-product-lead, software-teams-head-engineering]
 opt_in: true
 ---
 
 # Micro-Management Team (Opt-In)
 
-**Opt-in only** — spawned when `/jdi:implement-plan --oversight` is used. Not spawned by default.
+**Opt-in only** — spawned when `/st:implement-plan --oversight` is used. Not spawned by default.
 
 ## Members
 
 | Role | Agent |
 |------|-------|
-| Product Lead | `jdi-product-lead` |
-| Head of Engineering | `jdi-head-engineering` |
+| Product Lead | `software-teams-product-lead` |
+| Head of Engineering | `software-teams-head-engineering` |
 
 ## Coordination
 

@@ -9,7 +9,7 @@ import { convertAgents } from "../utils/convert-agents";
 export const initCommand = defineCommand({
   meta: {
     name: "init",
-    description: "Initialise JDI in the current project",
+    description: "Initialise Software Teams in the current project",
   },
   args: {
     force: {
@@ -28,7 +28,7 @@ export const initCommand = defineCommand({
     },
     "storage-path": {
       type: "string",
-      description: "Storage base path (default: .jdi/persistence/)",
+      description: "Storage base path (default: .software-teams/persistence/)",
     },
   },
   async run({ args }) {
@@ -37,19 +37,19 @@ export const initCommand = defineCommand({
 
     if (!args.ci) {
       consola.info(`Detected project type: ${projectType}`);
-      consola.start("Initialising JDI...");
+      consola.start("Initialising Software Teams...");
     }
 
     // Create directory structure
     const dirs = [
-      ".claude/commands/jdi",
-      ".jdi/plans",
-      ".jdi/research",
-      ".jdi/codebase",
-      ".jdi/reviews",
-      ".jdi/config",
-      ".jdi/persistence",
-      ".jdi/feedback",
+      ".claude/commands/st",
+      ".software-teams/plans",
+      ".software-teams/research",
+      ".software-teams/codebase",
+      ".software-teams/reviews",
+      ".software-teams/config",
+      ".software-teams/persistence",
+      ".software-teams/feedback",
     ];
 
     for (const dir of dirs) {
@@ -61,10 +61,10 @@ export const initCommand = defineCommand({
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
 
     // Initialise config files from framework templates
-    const configFiles = ["state.yaml", "variables.yaml", "jdi-config.yaml"];
+    const configFiles = ["state.yaml", "variables.yaml", "software-teams-config.yaml"];
     for (const file of configFiles) {
-      const src = join(cwd, ".jdi", "framework", "config", file);
-      const dest = join(cwd, ".jdi", "config", file);
+      const src = join(cwd, ".software-teams", "framework", "config", file);
+      const dest = join(cwd, ".software-teams", "config", file);
       if (existsSync(src) && (args.force || !existsSync(dest))) {
         const content = await Bun.file(src).text();
         await Bun.write(dest, content);
@@ -73,10 +73,10 @@ export const initCommand = defineCommand({
 
     // Generate Claude Code native subagents from canonical framework specs.
     // Behind a feature flag (`features.native_subagents`, default true) so
-    // operators can opt out via `.jdi/config/jdi-config.yaml`. (R-01 mitigation.)
+    // operators can opt out via `.software-teams/config/software-teams-config.yaml`. (R-01 mitigation.)
     {
       const { parse: parseYaml } = await import("yaml");
-      const cfgPath = join(cwd, ".jdi", "config", "jdi-config.yaml");
+      const cfgPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
       let nativeSubagentsEnabled = true;
       if (existsSync(cfgPath)) {
         try {
@@ -99,7 +99,7 @@ export const initCommand = defineCommand({
       } else {
         const conv = await convertAgents({
           cwd,
-          sourceDir: ".jdi/framework/agents",
+          sourceDir: ".software-teams/framework/agents",
           targetDir: ".claude/agents",
         });
         if (!args.ci) {
@@ -116,22 +116,22 @@ export const initCommand = defineCommand({
     // Scaffold project templates (only if missing)
     const scaffoldFiles = ["PROJECT.yaml", "REQUIREMENTS.yaml", "ROADMAP.yaml"];
     for (const file of scaffoldFiles) {
-      const src = join(cwd, ".jdi", "framework", "templates", file);
-      const dest = join(cwd, ".jdi", file);
+      const src = join(cwd, ".software-teams", "framework", "templates", file);
+      const dest = join(cwd, ".software-teams", file);
       if (existsSync(src) && !existsSync(dest)) {
         const content = await Bun.file(src).text();
         await Bun.write(dest, content);
       }
     }
 
-    // Add JDI entries to .gitignore
+    // Add Software Teams entries to .gitignore
     const gitignorePath = join(cwd, ".gitignore");
-    const jdiMarker = "# JDI framework";
+    const jdiMarker = "# Software Teams framework";
     const jdiEntries = [
       "",
-      `${jdiMarker} — remove these lines to version control JDI artefacts`,
-      ".jdi/",
-      ".claude/commands/jdi/",
+      `${jdiMarker} — remove these lines to version control Software Teams artefacts`,
+      ".software-teams/",
+      ".claude/commands/st/",
     ].join("\n");
 
     let existingGitignore = "";
@@ -145,10 +145,10 @@ export const initCommand = defineCommand({
       await Bun.write(gitignorePath, newContent);
     }
 
-    // Configure storage in jdi-config.yaml if flags provided
+    // Configure storage in software-teams-config.yaml if flags provided
     if (args.storage || args["storage-path"]) {
       const { parse, stringify } = await import("yaml");
-      const configPath = join(cwd, ".jdi", "config", "jdi-config.yaml");
+      const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
       let config: any = {};
       try {
         const existing = await Bun.file(configPath).text();
@@ -157,7 +157,7 @@ export const initCommand = defineCommand({
 
       config.storage = {
         adapter: args.storage ?? "fs",
-        base_path: args["storage-path"] ?? ".jdi/persistence/",
+        base_path: args["storage-path"] ?? ".software-teams/persistence/",
       };
 
       await Bun.write(configPath, stringify(config));
@@ -171,16 +171,16 @@ export const initCommand = defineCommand({
         cwd,
         storage: {
           adapter: args.storage ?? "fs",
-          base_path: args["storage-path"] ?? ".jdi/persistence/",
+          base_path: args["storage-path"] ?? ".software-teams/persistence/",
         },
       };
       console.log(JSON.stringify(result));
     } else {
-      consola.success("JDI initialised successfully!");
+      consola.success("Software Teams initialised successfully!");
       consola.info("");
       consola.info("Get started:");
-      consola.info("  /jdi:create-plan \"your feature\"");
-      consola.info("  /jdi:quick \"small fix\"");
+      consola.info("  /st:create-plan \"your feature\"");
+      consola.info("  /st:quick \"small fix\"");
     }
   },
 });

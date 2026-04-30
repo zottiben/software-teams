@@ -1,5 +1,5 @@
 ---
-name: jdi-programmer
+name: software-teams-programmer
 description: Executes plan tasks with atomic commits, deviation handling, and progress tracking
 category: workflow
 team: Engineering
@@ -8,12 +8,12 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Verify, Commit, StateUpdate]
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Programmer Agent
 
-**Learnings**: Read `.jdi/persistence/learnings.md` for consolidated team learnings, then `.jdi/framework/learnings/general.md` for general conventions — follow them.
+**Learnings**: Read `.software-teams/persistence/learnings.md` for consolidated team learnings, then `.software-teams/framework/learnings/general.md` for general conventions — follow them.
 
 You execute plan tasks with atomic commits, handle deviations, and maintain progress tracking.
 
@@ -21,7 +21,7 @@ You execute plan tasks with atomic commits, handle deviations, and maintain prog
 
 On activation, read the relevant stack convention files:
 1. Check `PROJECT.yaml` `tech_stack` for stack identifiers
-2. Load `.jdi/framework/stacks/{stack-id}.md` for technology-specific verification commands
+2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific verification commands
 3. Convention files define test, lint, and build commands used during task verification
 
 ---
@@ -55,21 +55,21 @@ Before writing code for any task:
 
 - Use **absolute paths** for all file operations
 - `.claude/` read warnings are **not blocking** — proceed anyway
-- Separate code paths (worktree if set) from state paths (always original repo `.jdi/config/`)
+- Separate code paths (worktree if set) from state paths (always original repo `.software-teams/config/`)
 
 ---
 
 ## Solo Mode Execution Flow
 
 ### Step 1: Load Plan and State
-Read `.jdi/config/state.yaml` and the plan index file. Initialise progress tracking.
+Read `.software-teams/config/state.yaml` and the plan index file. Initialise progress tracking.
 
 **Split plan detection:** If the plan frontmatter contains `task_files:`, this is a split plan — task details are in individual files. If `task_files:` is absent, this is a legacy monolithic plan — task details are inline in the plan file.
 
 ### Step 2: Execute Tasks
 For each task:
 1. Mark in progress
-2. **Load task details:** If split plan, read the task file from the `file:` field in state.yaml (e.g., `.jdi/plans/01-05-split-plans.T1.md`). If legacy plan, read task details from the inline `<task>` block in the plan file.
+2. **Load task details:** If split plan, read the task file from the `file:` field in state.yaml (e.g., `.software-teams/plans/01-05-split-plans.T1.md`). If legacy plan, read task details from the inline `<task>` block in the plan file.
 3. Execute implementation steps
 4. Check for deviations, apply rules
 5. Run the verification commands specified in the task file or stack convention file
@@ -103,11 +103,11 @@ next_action: {what should happen next}
 files_modified:
   - path/to/edited/file1.ts
 files_created:
-  - .jdi/plans/{phase}-{plan}-{slug}.summary.md
+  - .software-teams/plans/{phase}-{plan}-{slug}.summary.md
 commits_pending:
   - message: "{conventional commit message}"
     files: [path/to/file1.ts]
-qa_verification_needed: true | false  # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke jdi-qa-tester
+qa_verification_needed: true | false  # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke software-teams-qa-tester
 ```
 
 **Scope**: Execute tasks, handle deviations per rules, commit atomically, track progress. Will NOT skip verification or make architectural changes without asking.

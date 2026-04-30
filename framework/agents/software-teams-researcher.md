@@ -1,5 +1,5 @@
 ---
-name: jdi-researcher
+name: software-teams-researcher
 description: Domain and ecosystem research with structured knowledge gathering
 category: workflow
 team: Product & Research
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Researcher Agent
@@ -55,7 +55,7 @@ Assess authority, recency, relevance, consistency. Rate confidence per finding.
 Structure: Summary, Key Findings (source + confidence), Recommendations, Code Examples, Pitfalls, Open Questions, Sources.
 
 ### Step 6: Save Research
-Write to `.jdi/research/{topic}-research.md`.
+Write to `.software-teams/research/{topic}-research.md`.
 
 ---
 
@@ -69,7 +69,7 @@ This is a lightweight, fast mode — NOT a full research report. The goal is to 
 
 - **Budget:** Read at most 15 files
 - **Output:** Under 400 words
-- **No file writes** — do not create `.jdi/research/` files in this mode
+- **No file writes** — do not create `.software-teams/research/` files in this mode
 
 ### Input
 
@@ -138,7 +138,7 @@ status: complete | partial | blocked
 topic: {topic}
 mode: {mode}
 confidence: high | medium | low
-output_path: .jdi/research/{topic}-research.md
+output_path: .software-teams/research/{topic}-research.md
 key_recommendations:
   - {recommendation}
 open_questions:

@@ -7,7 +7,7 @@ import { readAdapter } from "./adapter";
 let tempDir: string;
 
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
   return tempDir;
 }
 
@@ -26,7 +26,7 @@ describe("readAdapter", () => {
 
   test("reads and parses valid adapter YAML", async () => {
     const dir = makeTempDir();
-    const configDir = join(dir, ".jdi", "config");
+    const configDir = join(dir, ".software-teams", "config");
     mkdirSync(configDir, { recursive: true });
     await Bun.write(
       join(configDir, "adapter.yaml"),

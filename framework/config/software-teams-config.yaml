@@ -98,9 +98,9 @@ defaults:
     - chore
     - perf
     - style
-  plan_location: .jdi/plans
-  state_location: .jdi
-  thoughts_location: .jdi/thoughts
+  plan_location: .software-teams/plans
+  state_location: .software-teams
+  thoughts_location: .software-teams/thoughts
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Git Settings

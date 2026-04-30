@@ -7,16 +7,16 @@ import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
 
 /**
- * Files that live under `.jdi/` but represent project state (not framework
+ * Files that live under `.software-teams/` but represent project state (not framework
  * snapshot). They MUST NOT be touched by `sync-framework`. These paths are
  * preserved by virtue of `copyFrameworkFiles()` writing only to
- * `.jdi/framework/` and `.jdi/config/adapter.yaml` — never to these.
+ * `.software-teams/framework/` and `.software-teams/config/adapter.yaml` — never to these.
  */
 const PRESERVED_STATE_FILES = [
-  ".jdi/PROJECT.yaml",
-  ".jdi/REQUIREMENTS.yaml",
-  ".jdi/ROADMAP.yaml",
-  ".jdi/config/state.yaml",
+  ".software-teams/PROJECT.yaml",
+  ".software-teams/REQUIREMENTS.yaml",
+  ".software-teams/ROADMAP.yaml",
+  ".software-teams/config/state.yaml",
 ] as const;
 
 /**
@@ -37,7 +37,7 @@ async function listFrameworkFiles(frameworkDir: string): Promise<string[]> {
 }
 
 /**
- * Compare canonical `framework/<file>` against `.jdi/framework/<file>` and
+ * Compare canonical `framework/<file>` against `.software-teams/framework/<file>` and
  * return the relative paths that differ (missing destination, or differing
  * size/mtime). Used for both `--dry-run` reporting and for the orchestration
  * test surface.
@@ -50,7 +50,7 @@ export async function detectFrameworkChanges(
   const changed: string[] = [];
   const files = await listFrameworkFiles(frameworkDir);
   for (const file of files) {
-    const dest = join(cwd, ".jdi", "framework", file);
+    const dest = join(cwd, ".software-teams", "framework", file);
     if (!existsSync(dest)) {
       missing.push(file);
       continue;
@@ -66,7 +66,7 @@ export const syncFrameworkCommand = defineCommand({
   meta: {
     name: "sync-framework",
     description:
-      "Refresh the .jdi/framework/ snapshot from canonical framework/ and re-sync .claude/agents/",
+      "Refresh the .software-teams/framework/ snapshot from canonical framework/ and re-sync .claude/agents/",
   },
   args: {
     "dry-run": {
@@ -90,20 +90,20 @@ export const syncFrameworkCommand = defineCommand({
     const frameworkDir = join(import.meta.dir, "..", "..", "framework");
     if (!existsSync(frameworkDir)) {
       consola.error(
-        `Canonical framework directory not found: ${frameworkDir}. Are you running from inside the JDI package?`,
+        `Canonical framework directory not found: ${frameworkDir}. Are you running from inside the Software Teams package?`,
       );
       process.exit(1);
     }
 
     consola.start(
-      `Refreshing .jdi/framework/ from ${frameworkDir}${dryRun ? " (dry-run)" : ""}`,
+      `Refreshing .software-teams/framework/ from ${frameworkDir}${dryRun ? " (dry-run)" : ""}`,
     );
 
     const { missing, changed } = await detectFrameworkChanges(cwd, frameworkDir);
     const totalDelta = missing.length + changed.length;
 
     if (totalDelta === 0) {
-      consola.success(".jdi/framework/ is already up to date — no changes needed.");
+      consola.success(".software-teams/framework/ is already up to date — no changes needed.");
       // Still re-sync agents for safety (idempotent).
       if (!dryRun) {
         const conv = await convertAgents({ cwd });
@@ -134,7 +134,7 @@ export const syncFrameworkCommand = defineCommand({
     // copyFrameworkFiles() never writes to those paths.
     const projectType = await detectProjectType(cwd);
     await copyFrameworkFiles(cwd, projectType, true, false, frameworkDir);
-    consola.success(`Refreshed .jdi/framework/ (${totalDelta} files updated).`);
+    consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
 
     // Verify state files were preserved (sanity log only — the writer cannot
     // touch these paths, but log it so operators are reassured).

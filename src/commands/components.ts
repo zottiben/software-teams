@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve, relative } from "path";
+import { relative } from "path";
 import { resolveComponents } from "../utils/resolve-components";
 
 export const componentsCommand = defineCommand({
@@ -16,11 +16,11 @@ export const componentsCommand = defineCommand({
     consola.info("\u2500".repeat(60));
 
     for (const comp of components) {
-      const source = comp.source === "project" ? "project" : comp.source === "user" ? "~/.jdi" : "built-in";
+      const source = comp.source === "project" ? "project" : comp.source === "user" ? "~/.software-teams" : "built-in";
       consola.info(`  <JDI:${comp.name} />  [${source}]  ${relative(cwd, comp.path)}`);
     }
 
     consola.info("");
-    consola.info("Resolution order: project > user (~/.jdi) > built-in");
+    consola.info("Resolution order: project > user (~/.software-teams) > built-in");
   },
 });

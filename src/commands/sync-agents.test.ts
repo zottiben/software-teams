@@ -8,7 +8,7 @@ import { convertAgents } from "../utils/convert-agents";
 let tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  const dir = mkdtempSync(join(tmpdir(), "jdi-sync-"));
+  const dir = mkdtempSync(join(tmpdir(), "st-sync-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -41,7 +41,7 @@ async function makeFixtureCwd(): Promise<string> {
  * is a thin wrapper over readNativeSubagentsFlag + convertAgents).
  */
 async function readNativeSubagentsFlag(cwd: string): Promise<boolean> {
-  const path = join(cwd, ".jdi", "config", "jdi-config.yaml");
+  const path = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
   if (!existsSync(path)) return true;
   const content = await readFile(path, "utf-8");
   const { parse } = await import("yaml");
@@ -98,10 +98,10 @@ describe("sync-agents — convertAgents flow", () => {
 describe("sync-agents — feature flag", () => {
   test("features.native_subagents=false makes readNativeSubagentsFlag return false", async () => {
     const cwd = makeTempDir();
-    const cfgDir = join(cwd, ".jdi", "config");
+    const cfgDir = join(cwd, ".software-teams", "config");
     mkdirSync(cfgDir, { recursive: true });
     await writeFile(
-      join(cfgDir, "jdi-config.yaml"),
+      join(cfgDir, "software-teams-config.yaml"),
       "features:\n  native_subagents: false\n",
     );
     const enabled = await readNativeSubagentsFlag(cwd);
@@ -115,9 +115,9 @@ describe("sync-agents — feature flag", () => {
 
   test("config without features.native_subagents key defaults to enabled", async () => {
     const cwd = makeTempDir();
-    const cfgDir = join(cwd, ".jdi", "config");
+    const cfgDir = join(cwd, ".software-teams", "config");
     mkdirSync(cfgDir, { recursive: true });
-    await writeFile(join(cfgDir, "jdi-config.yaml"), "version: 1\n");
+    await writeFile(join(cfgDir, "software-teams-config.yaml"), "version: 1\n");
     expect(await readNativeSubagentsFlag(cwd)).toBe(true);
   });
 });
@@ -166,9 +166,9 @@ describe("sync-agents — command flow", () => {
 
   test("features.native_subagents=false short-circuits before convertAgents", async () => {
     const cwd = await makeFixtureCwd();
-    const cfgDir = join(cwd, ".jdi", "config");
+    const cfgDir = join(cwd, ".software-teams", "config");
     mkdirSync(cfgDir, { recursive: true });
-    await writeFile(join(cfgDir, "jdi-config.yaml"), "features:\n  native_subagents: false\n");
+    await writeFile(join(cfgDir, "software-teams-config.yaml"), "features:\n  native_subagents: false\n");
 
     const out = await runSyncAgentsLike(cwd);
     expect(out.exitCode).toBe(0);

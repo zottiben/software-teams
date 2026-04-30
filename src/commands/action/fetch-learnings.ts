@@ -96,7 +96,7 @@ export const fetchLearningsCommand = defineCommand({
   args: {
     "learnings-repo": {
       type: "string",
-      description: "External learnings repository (e.g. org/jdi-learnings)",
+      description: "External learnings repository (e.g. org/software-teams-learnings)",
     },
     "learnings-token": {
       type: "string",
@@ -117,10 +117,10 @@ export const fetchLearningsCommand = defineCommand({
     }
 
     const cwd = process.cwd();
-    const learningsDir = join(cwd, ".jdi/framework/learnings");
+    const learningsDir = join(cwd, ".software-teams/framework/learnings");
     mkdirSync(learningsDir, { recursive: true });
 
-    const tmpDir = mkdtempSync(join(tmpdir(), "jdi-learnings-"));
+    const tmpDir = mkdtempSync(join(tmpdir(), "st-learnings-"));
 
     try {
       const cloned = cloneLearningsRepo(learningsRepo, token, tmpDir);

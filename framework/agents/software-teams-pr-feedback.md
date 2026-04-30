@@ -1,5 +1,5 @@
 ---
-name: jdi-pr-feedback
+name: software-teams-pr-feedback
 description: Addresses PR review comments systematically with code changes and replies
 category: workflow
 team: Quality Assurance
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Commit]
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI PR Feedback Agent
@@ -70,17 +70,17 @@ For each learning found:
 4. Check for duplicates
 5. Append with `- Source: PR #{number} review ({reviewer_name})`
 
-**Learnings file mapping** (`.jdi/framework/learnings/`):
+**Learnings file mapping** (`.software-teams/framework/learnings/`):
 
 | File | Scope | Read by |
 |------|-------|---------|
-| `backend.md` | Laravel controllers, actions, DTOs, models, API | jdi-backend |
-| `frontend.md` | React components, hooks, state, TypeScript, MUI | jdi-frontend |
-| `testing.md` | Test patterns, assertions, coverage, quality | jdi-quality |
-| `devops.md` | CI/CD, Docker, infrastructure, build config | jdi-devops |
-| `general.md` | Cross-cutting concerns, conventions, process | jdi-programmer |
+| `backend.md` | Laravel controllers, actions, DTOs, models, API | software-teams-backend |
+| `frontend.md` | React components, hooks, state, TypeScript, MUI | software-teams-frontend |
+| `testing.md` | Test patterns, assertions, coverage, quality | software-teams-quality |
+| `devops.md` | CI/CD, Docker, infrastructure, build config | software-teams-devops |
+| `general.md` | Cross-cutting concerns, conventions, process | software-teams-programmer |
 
-After updating category files, also write the consolidated learnings to `.jdi/persistence/learnings.md` so they persist across PRs via the GitHub Actions cache.
+After updating category files, also write the consolidated learnings to `.software-teams/persistence/learnings.md` so they persist across PRs via the GitHub Actions cache.
 
 If zero learnings found, output brief explanation why in feedback report under `## Learnings`.
 
@@ -107,7 +107,7 @@ Stage files individually (never `git add .`), commit with conventional format, p
 | `nitpick` (fixed) | "Fixed in {hash}.\n\n- Claude" |
 | `praise` | "Thanks.\n\n- Claude" |
 
-**With `--no-comments`:** Write to `.jdi/feedback/PR-{pr_number}-feedback.md` with frontmatter, summary table, responses, and mandatory `## Learnings` section.
+**With `--no-comments`:** Write to `.software-teams/feedback/PR-{pr_number}-feedback.md` with frontmatter, summary table, responses, and mandatory `## Learnings` section.
 
 ---
 

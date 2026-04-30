@@ -14,7 +14,7 @@ Validation performed before creating any commit.
 
 Fires when:
 - <JDI:Commit /> component invoked
-- `/jdi-commit` command run
+- `/st-commit` command run
 - Manual commit through JDI workflow
 
 ---
@@ -36,18 +36,18 @@ git diff --cached --name-only
 
 **The following directories must NEVER be staged:**
 - `.worktrees/**` - Git worktrees are execution infrastructure
-- `.jdi/**` - JDI runtime state and configuration
+- `.software-teams/**` - JDI runtime state and configuration
 
 ```bash
 # Check for excluded files in staging
-EXCLUDED=$(git diff --cached --name-only | grep -E "^(\.worktrees/|\.jdi/)")
+EXCLUDED=$(git diff --cached --name-only | grep -E "^(\.worktrees/|\.software-teams/)")
 if [ -n "$EXCLUDED" ]; then
   echo "ERROR: Excluded directories found in staging:"
   echo "$EXCLUDED"
   echo ""
   echo "These directories must not be committed:"
   echo "  .worktrees/ - Git worktrees are execution infrastructure"
-  echo "  .jdi/       - JDI runtime state and configuration"
+  echo "  .software-teams/       - JDI runtime state and configuration"
   echo ""
   echo "Unstage these files with: git reset HEAD <file>"
   exit 1
@@ -117,7 +117,7 @@ git diff --cached --stat | grep -E "\+[0-9]{4,}"
 ## Blocking Conditions
 
 Commit is blocked if:
-- **Files in `.worktrees/` or `.jdi/` are staged** (NO OVERRIDE ALLOWED)
+- **Files in `.worktrees/` or `.software-teams/` are staged** (NO OVERRIDE ALLOWED)
 - Type check fails
 - Lint errors exist (not warnings)
 - Secrets detected (without override)

@@ -7,7 +7,7 @@ import { readState, writeState, type JDIState } from "./state";
 let tempDir: string;
 
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
   return tempDir;
 }
 
@@ -26,7 +26,7 @@ describe("readState", () => {
 
   test("reads and parses valid state YAML", async () => {
     const dir = makeTempDir();
-    const stateDir = join(dir, ".jdi", "config");
+    const stateDir = join(dir, ".software-teams", "config");
     mkdirSync(stateDir, { recursive: true });
     await Bun.write(
       join(stateDir, "state.yaml"),
@@ -60,7 +60,7 @@ progress:
 describe("writeState", () => {
   test("writes state that can be read back (round-trip)", async () => {
     const dir = makeTempDir();
-    const stateDir = join(dir, ".jdi", "config");
+    const stateDir = join(dir, ".software-teams", "config");
     mkdirSync(stateDir, { recursive: true });
 
     const state: JDIState = {

@@ -1,7 +1,7 @@
 ---
 name: devops
 description: Helps with Docker, AWS, CLI and other infrastructure-related tasks
-members: [jdi-devops]
+members: [software-teams-devops]
 ---
 
 # DevOps Team
@@ -14,7 +14,7 @@ Infrastructure tasks — Docker, AWS, CI/CD, git worktrees, bash scripting, Lara
 
 | Role | Agent | Spec Path |
 |------|-------|-----------|
-| DevOps Engineer | `jdi-devops` | `.jdi/framework/agents/jdi-devops.md` |
+| DevOps Engineer | `software-teams-devops` | `.software-teams/framework/agents/software-teams-devops.md` |
 
 ## Coordination
 

@@ -18,8 +18,8 @@ export async function copyFrameworkFiles(
 ): Promise<void> {
   const frameworkDir = frameworkDirOverride ?? join(import.meta.dir, "../framework");
 
-  // Copy framework files to .jdi/framework/ (agents, components, teams, etc.)
-  const frameworkDest = join(cwd, ".jdi", "framework");
+  // Copy framework files to .software-teams/framework/ (agents, components, teams, etc.)
+  const frameworkDest = join(cwd, ".software-teams", "framework");
   const glob = new Bun.Glob("**/*");
   for await (const file of glob.scan({ cwd: frameworkDir })) {
     // Skip adapters (handled separately)
@@ -38,14 +38,14 @@ export async function copyFrameworkFiles(
   }
 
   // Note: `.claude/agents/` is intentionally NOT copied here. Native subagent
-  // files are generated mechanically from `framework/agents/jdi-*.md` by
+  // files are generated mechanically from `framework/agents/software-teams-*.md` by
   // `convertAgents()` (invoked from `init` after this step, and standalone
-  // via `jdi sync-agents`). `framework/.claude/agents/` does not exist and
+  // via `software-teams sync-agents`). `framework/.claude/agents/` does not exist and
   // must not — `convertAgents()` is the single writer to that path.
 
-  // Copy command stubs to .claude/commands/jdi/
+  // Copy command stubs to .claude/commands/st/
   const commandsDir = join(frameworkDir, "commands");
-  const commandsDest = join(cwd, ".claude", "commands", "jdi");
+  const commandsDest = join(cwd, ".claude", "commands", "st");
   if (existsSync(commandsDir)) {
     const commandGlob = new Bun.Glob("*.md");
     for await (const file of commandGlob.scan({ cwd: commandsDir })) {
@@ -79,7 +79,7 @@ export async function copyFrameworkFiles(
   // Apply adapter config for the detected project type
   const adapterPath = join(frameworkDir, "adapters", `${projectType}.yaml`);
   if (existsSync(adapterPath)) {
-    const dest = join(cwd, ".jdi", "config", "adapter.yaml");
+    const dest = join(cwd, ".software-teams", "config", "adapter.yaml");
     const dir = dirname(dest);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     const content = await Bun.file(adapterPath).text();
@@ -102,34 +102,34 @@ export async function copyFrameworkFiles(
     const ciSections = `
 ## Codebase Index
 
-Check \`.jdi/persistence/codebase-index.md\` for an indexed representation of the codebase.
+Check \`.software-teams/persistence/codebase-index.md\` for an indexed representation of the codebase.
 If it exists, use it for faster navigation. If it doesn't, consider generating one
-and saving it to \`.jdi/persistence/codebase-index.md\` for future runs.
+and saving it to \`.software-teams/persistence/codebase-index.md\` for future runs.
 
 ## Workflow Routing
 
 Based on the user's request, follow the appropriate workflow:
 
-- **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read \`.jdi/framework/agents/jdi-planner.md\` and create a plan in \`.jdi/plans/\`. Present a summary and ask for feedback.
-- **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use \`.jdi/framework/components/meta/ComplexityRouter.md\` to decide single-agent vs teams mode.
+- **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read \`.software-teams/framework/agents/software-teams-planner.md\` and create a plan in \`.software-teams/plans/\`. Present a summary and ask for feedback.
+- **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use \`.software-teams/framework/components/meta/ComplexityRouter.md\` to decide single-agent vs teams mode.
 - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
-- **Review** ("review"): Review PR changes using \`.jdi/framework/components/quality/PRReview.md\`.
-- **PR feedback** ("feedback"): Address review comments using \`.jdi/framework/agents/jdi-pr-feedback.md\`. Extract learnings from reviewer preferences.
+- **Review** ("review"): Review PR changes using \`.software-teams/framework/components/quality/PRReview.md\`.
+- **PR feedback** ("feedback"): Address review comments using \`.software-teams/framework/agents/software-teams-pr-feedback.md\`. Extract learnings from reviewer preferences.
 - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
 ## Auto-Commit (CI Mode)
 
 You are already on the correct PR branch. Do NOT create new branches or switch branches.
 After **implementing** changes (NOT after planning or plan refinement):
-1. \`git add\` only source files you changed (NOT .jdi/ or .claude/)
+1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)
 2. \`git commit -m "feat: ..."\` with a conventional commit message
 3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)
-Plan files (\`.jdi/plans/\`) are cached separately and should NOT be committed.
+Plan files (\`.software-teams/plans/\`) are cached separately and should NOT be committed.
 
 ## Iterative Refinement
 
 After completing any workflow, present a summary and ask for feedback.
-- **Plan refinement feedback** (e.g. "add error handling", "change task 2", "use a different approach"): Update ONLY the plan files in \`.jdi/plans/\`. Present the updated plan. Ask "Any changes before implementation?" Do NOT implement code.
+- **Plan refinement feedback** (e.g. "add error handling", "change task 2", "use a different approach"): Update ONLY the plan files in \`.software-teams/plans/\`. Present the updated plan. Ask "Any changes before implementation?" Do NOT implement code.
 - **Approval** ("approved", "lgtm", "looks good", "ship it"): Mark the plan as approved. Do NOT implement — wait for an explicit "implement" command.
 - **Questions** ("why did you...", "what about..."): Answer conversationally first, then take action if needed.
 
@@ -150,10 +150,10 @@ Use the ticket name, description, and checklists as requirements.
 For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
 
 - Trivial edits (single file, single grep, single shell command).
-- Tasks with no matching specialist in \`.jdi/framework/agents\` or \`.claude/agents/\`.
+- Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.
 - Agent/framework orchestration itself (configuring, routing, triage, memory updates).
 
-Match specialists to domain: react → \`jdi-frontend\` / \`jdi-programmer\`; php → \`jdi-backend\` / \`jdi-programmer\`; research → \`jdi-researcher\`; QA → \`jdi-qa-tester\` / \`jdi-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
+Match specialists to domain: react → \`software-teams-frontend\` / \`software-teams-programmer\`; php → \`software-teams-backend\` / \`software-teams-programmer\`; research → \`software-teams-researcher\`; QA → \`software-teams-qa-tester\` / \`software-teams-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
 
 ### Scope spawn prompts tightly
 
@@ -166,17 +166,17 @@ Spawned agents can be truncated mid-task when briefings are too broad. To preven
 - **Ask for short reports (<400 words).** Long formal reports are where truncation bites.
 - If an agent is cut off, \`SendMessage({to: agentId})\` resumes them — their edits persist.
 
-## JDI Workflow Routing
+## Software Teams Workflow Routing
 
-Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
+Recognise natural language Software Teams intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
 
-- Plan/ticket analysis → \`/jdi:create-plan\`
-- Implement/build/execute → \`/jdi:implement-plan\`
-- Review PR → \`/jdi:pr-review\`
-- Address PR feedback → \`/jdi:pr-feedback\`
-- Commit changes → \`/jdi:commit\`
-- Generate/create PR → \`/jdi:generate-pr\`
-- Quick/small fix → \`/jdi:quick\`
+- Plan/ticket analysis → \`/st:create-plan\`
+- Implement/build/execute → \`/st:implement-plan\`
+- Review PR → \`/st:pr-review\`
+- Address PR feedback → \`/st:pr-feedback\`
+- Commit changes → \`/st:commit\`
+- Generate/create PR → \`/st:generate-pr\`
+- Quick/small fix → \`/st:quick\`
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
@@ -189,7 +189,7 @@ Per-sub-plan flow (create-plan → implement → commit) from an orchestration p
 
 ## Iterative Refinement
 
-After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
+After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
 `);
     } else {
       const existing = await Bun.file(claudeMdPath).text();
@@ -199,10 +199,10 @@ After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversatio
 For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
 
 - Trivial edits (single file, single grep, single shell command).
-- Tasks with no matching specialist in \`.jdi/framework/agents\` or \`.claude/agents/\`.
+- Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.
 - Agent/framework orchestration itself (configuring, routing, triage, memory updates).
 
-Match specialists to domain: react → \`jdi-frontend\` / \`jdi-programmer\`; php → \`jdi-backend\` / \`jdi-programmer\`; research → \`jdi-researcher\`; QA → \`jdi-qa-tester\` / \`jdi-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
+Match specialists to domain: react → \`software-teams-frontend\` / \`software-teams-programmer\`; php → \`software-teams-backend\` / \`software-teams-programmer\`; research → \`software-teams-researcher\`; QA → \`software-teams-qa-tester\` / \`software-teams-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
 
 ### Scope spawn prompts tightly
 
@@ -215,17 +215,17 @@ Spawned agents can be truncated mid-task when briefings are too broad. To preven
 - **Ask for short reports (<400 words).** Long formal reports are where truncation bites.
 - If an agent is cut off, \`SendMessage({to: agentId})\` resumes them — their edits persist.
 
-## JDI Workflow Routing
+## Software Teams Workflow Routing
 
-Recognise natural language JDI intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
+Recognise natural language Software Teams intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
 
-- Plan/ticket analysis → \`/jdi:create-plan\`
-- Implement/build/execute → \`/jdi:implement-plan\`
-- Review PR → \`/jdi:pr-review\`
-- Address PR feedback → \`/jdi:pr-feedback\`
-- Commit changes → \`/jdi:commit\`
-- Generate/create PR → \`/jdi:generate-pr\`
-- Quick/small fix → \`/jdi:quick\`
+- Plan/ticket analysis → \`/st:create-plan\`
+- Implement/build/execute → \`/st:implement-plan\`
+- Review PR → \`/st:pr-review\`
+- Address PR feedback → \`/st:pr-feedback\`
+- Commit changes → \`/st:commit\`
+- Generate/create PR → \`/st:generate-pr\`
+- Quick/small fix → \`/st:quick\`
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
@@ -238,7 +238,7 @@ Per-sub-plan flow (create-plan → implement → commit) from an orchestration p
 
 ## Iterative Refinement
 
-After \`/jdi:create-plan\` or \`/jdi:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
+After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
 `);
       }
     }

@@ -1,7 +1,7 @@
 ---
 name: engineering
 description: Performs all engineering and coding tasks across backend and frontend
-members: [jdi-backend, jdi-frontend, jdi-architect, jdi-programmer]
+members: [software-teams-backend, software-teams-frontend, software-teams-architect, software-teams-programmer]
 ---
 
 # Engineering Team
@@ -14,10 +14,10 @@ All coding and engineering — implementing features, fixing bugs, refactoring, 
 
 | Role | Agent | Spec Path |
 |------|-------|-----------|
-| Backend Engineer | `jdi-backend` | `.jdi/framework/agents/jdi-backend.md` |
-| Frontend Engineer | `jdi-frontend` | `.jdi/framework/agents/jdi-frontend.md` |
-| Systems Architect | `jdi-architect` | `.jdi/framework/agents/jdi-architect.md` |
-| Senior Fullstack Engineer | `jdi-programmer` | `.jdi/framework/agents/jdi-programmer.md` |
+| Backend Engineer | `software-teams-backend` | `.software-teams/framework/agents/software-teams-backend.md` |
+| Frontend Engineer | `software-teams-frontend` | `.software-teams/framework/agents/software-teams-frontend.md` |
+| Systems Architect | `software-teams-architect` | `.software-teams/framework/agents/software-teams-architect.md` |
+| Senior Fullstack Engineer | `software-teams-programmer` | `.software-teams/framework/agents/software-teams-programmer.md` |
 
 ## Coordination
 

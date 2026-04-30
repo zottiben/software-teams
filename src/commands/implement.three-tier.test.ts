@@ -12,7 +12,7 @@ import { parseOrchestration } from "../utils/parse-orchestration";
 let tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "jdi-impl-3tier-"));
+  const dir = await mkdtemp(join(tmpdir(), "st-impl-3tier-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -61,8 +61,8 @@ plan_id: 9-01
 slug: 9-01-three-tier-fixture
 tier: orchestration
 spec_link: 9-01-three-tier-fixture.spec.md
-available_agents: [jdi-backend, jdi-qa-tester]
-primary_agent: jdi-backend
+available_agents: [software-teams-backend, software-teams-qa-tester]
+primary_agent: software-teams-backend
 ---
 
 # Three-Tier Fixture — Orchestration
@@ -71,10 +71,10 @@ primary_agent: jdi-backend
 
 | ID | Name | Agent | Wave | Depends On | Slice |
 |----|------|-------|------|------------|-------|
-| T1 | Build parser | jdi-backend | 1 | — | \`9-01-three-tier-fixture.T1.md\` |
-| T2 | Build runner | jdi-backend | 1 | — | \`9-01-three-tier-fixture.T2.md\` |
-| T3 | Wire it      | jdi-backend | 2 | T1, T2 | \`9-01-three-tier-fixture.T3.md\` |
-| T4 | Test it      | jdi-qa-tester | 3 | T3 | \`9-01-three-tier-fixture.T4.md\` |
+| T1 | Build parser | software-teams-backend | 1 | — | \`9-01-three-tier-fixture.T1.md\` |
+| T2 | Build runner | software-teams-backend | 1 | — | \`9-01-three-tier-fixture.T2.md\` |
+| T3 | Wire it      | software-teams-backend | 2 | T1, T2 | \`9-01-three-tier-fixture.T3.md\` |
+| T4 | Test it      | software-teams-qa-tester | 3 | T3 | \`9-01-three-tier-fixture.T4.md\` |
 
 ## Sequencing Rules
 
@@ -119,25 +119,25 @@ agent_rationale: "Fixture"
 
 async function writeThreeTierFixture(dir: string): Promise<{ slug: string; planDir: string }> {
   const slug = "9-01-three-tier-fixture";
-  const planDir = join(dir, ".jdi", "plans");
+  const planDir = join(dir, ".software-teams", "plans");
   await mkdir(planDir, { recursive: true });
   await writeFile(join(planDir, `${slug}.spec.md`), SPEC);
   await writeFile(join(planDir, `${slug}.orchestration.md`), ORCHESTRATION);
   await writeFile(
     join(planDir, `${slug}.T1.md`),
-    makeSlice("T1", "jdi-backend", 1, [], "SPEC §Acceptance Criteria item AC-1"),
+    makeSlice("T1", "software-teams-backend", 1, [], "SPEC §Acceptance Criteria item AC-1"),
   );
   await writeFile(
     join(planDir, `${slug}.T2.md`),
-    makeSlice("T2", "jdi-backend", 1, [], "SPEC §Acceptance Criteria item AC-2"),
+    makeSlice("T2", "software-teams-backend", 1, [], "SPEC §Acceptance Criteria item AC-2"),
   );
   await writeFile(
     join(planDir, `${slug}.T3.md`),
-    makeSlice("T3", "jdi-backend", 2, ["T1", "T2"], "ORCHESTRATION §Sequencing Rules"),
+    makeSlice("T3", "software-teams-backend", 2, ["T1", "T2"], "ORCHESTRATION §Sequencing Rules"),
   );
   await writeFile(
     join(planDir, `${slug}.T4.md`),
-    makeSlice("T4", "jdi-qa-tester", 3, ["T3"], "SPEC §Acceptance Criteria item AC-3"),
+    makeSlice("T4", "software-teams-qa-tester", 3, ["T3"], "SPEC §Acceptance Criteria item AC-3"),
   );
   return { slug, planDir };
 }
@@ -147,7 +147,7 @@ describe("three-tier plan detection + spawn prompt", () => {
     const dir = await makeTempDir();
     const { slug, planDir } = await writeThreeTierFixture(dir);
 
-    const planPath = `.jdi/plans/${slug}.orchestration.md`;
+    const planPath = `.software-teams/plans/${slug}.orchestration.md`;
     const result = detectPlanTier(dir, planPath);
     expect(result.tier).toBe("three-tier");
     expect(result.orchestrationPath).toBe(join(planDir, `${slug}.orchestration.md`));
@@ -158,7 +158,7 @@ describe("three-tier plan detection + spawn prompt", () => {
     const { slug, planDir } = await writeThreeTierFixture(dir);
 
     const ctx = makeCtx(dir);
-    const planPath = `.jdi/plans/${slug}.orchestration.md`;
+    const planPath = `.software-teams/plans/${slug}.orchestration.md`;
     const prompt = buildImplementPrompt(ctx, planPath);
 
     expect(prompt).toContain("Plan tier: three-tier");
@@ -173,7 +173,7 @@ describe("three-tier plan detection + spawn prompt", () => {
   test("buildImplementPrompt three-tier output does not include the legacy single-tier-only signal", async () => {
     const dir = await makeTempDir();
     const { slug } = await writeThreeTierFixture(dir);
-    const prompt = buildImplementPrompt(makeCtx(dir), `.jdi/plans/${slug}.orchestration.md`);
+    const prompt = buildImplementPrompt(makeCtx(dir), `.software-teams/plans/${slug}.orchestration.md`);
     expect(prompt).not.toContain("Plan tier: single-tier");
   });
 
@@ -190,7 +190,7 @@ describe("three-tier plan detection + spawn prompt", () => {
     expect(t3?.wave).toBe(2);
     // qa-tester runs in the final wave on T3.
     const t4 = parsed.tasks.find((t) => t.taskId === "T4");
-    expect(t4?.agent).toBe("jdi-qa-tester");
+    expect(t4?.agent).toBe("software-teams-qa-tester");
     expect(t4?.wave).toBe(3);
   });
 

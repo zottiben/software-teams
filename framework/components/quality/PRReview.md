@@ -97,7 +97,7 @@ Categorise using <JDI:PRReview:SeverityGuide />. Build internal list with: file 
 
 Output finding counts by severity, total line comments, and review state (APPROVE | REQUEST_CHANGES).
 
-If `post="false"`: note output will go to `.jdi/reviews/PR-[number]-review.md`.
+If `post="false"`: note output will go to `.software-teams/reviews/PR-[number]-review.md`.
 
 **CHECKPOINT** — Wait for user: "continue" | "list" | "cancel"
 
@@ -216,8 +216,8 @@ When `post="false"` or invoked with `<JDI:PRReview post="false" />`:
 
 Skip Steps 9-10 (posting to GitHub). Instead, write the full structured review to a file:
 
-1. **Create the directory** if it does not exist: `mkdir -p .jdi/reviews`
-2. **Write** to `.jdi/reviews/PR-{pr_number}-review.md` with frontmatter (pr, title, author, branch, url, reviewed_at, verdict, findings counts) followed by: Summary, Findings (organised by severity highest to lowest), and Checklist.
+1. **Create the directory** if it does not exist: `mkdir -p .software-teams/reviews`
+2. **Write** to `.software-teams/reviews/PR-{pr_number}-review.md` with frontmatter (pr, title, author, branch, url, reviewed_at, verdict, findings counts) followed by: Summary, Findings (organised by severity highest to lowest), and Checklist.
 3. **Confirm**: Output the file path, finding counts, and verdict.
 
 Then proceed to Step 11 (return to master).

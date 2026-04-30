@@ -7,7 +7,7 @@ description: Enumerate Claude Code agents and route tasks to the best specialist
 # AgentRouter
 
 Enumerates the Claude Code agents available to the current session and routes
-individual plan tasks to the most appropriate specialist. Used by `jdi-planner`
+individual plan tasks to the most appropriate specialist. Used by `software-teams-planner`
 at plan-creation time to pin `agent:` into each task's frontmatter, and by
 `implement-plan` (via `ComplexityRouter` and `AgentTeamsOrchestration`) at
 execution time to honour those pins when spawning via the Task tool.
@@ -15,47 +15,47 @@ execution time to honour those pins when spawning via the Task tool.
 The point of this component is simple: **stop defaulting every subagent call to
 `general-purpose`**. If the user has installed domain specialists (e.g.
 `unity-specialist`, `unity-ui-specialist`, `gameplay-programmer`,
-`godot-gdscript-specialist`, `ue-gas-specialist`), JDI plans must surface them
+`godot-gdscript-specialist`, `ue-gas-specialist`), Software Teams plans must surface them
 into the plan and implement-plan must use them.
 
 ---
 
 ## 1. Agent Discovery (at plan time)
 
-The planner MUST perform discovery before task breakdown. JDI specialists are
+The planner MUST perform discovery before task breakdown. Software Teams specialists are
 authored under `framework/agents/` and converted into Claude Code's native
-subagent registry by `jdi sync-agents` (see `src/utils/convert-agents.ts`),
+subagent registry by `software-teams sync-agents` (see `src/utils/convert-agents.ts`),
 which writes Claude-compatible specs to `.claude/agents/`. Once that has run,
-both JDI specialists and user-added Claude Code subagents are spawned natively
+both Software Teams specialists and user-added Claude Code subagents are spawned natively
 by name; the legacy identity-injection pattern is documented as a fallback only
 (see §4).
 
 Merge these roots in order (earlier roots override later ones on name
 collision):
 
-1. `.jdi/framework/agents/jdi-*.md` — JDI specialists installed in the project
-   (primary source for any project using JDI). When working on the JDI repo
-   itself, fall back to `framework/agents/jdi-*.md` in the repo root.
+1. `.software-teams/framework/agents/software-teams-*.md` — Software Teams specialists installed in the project
+   (primary source for any project using Software Teams). When working on the Software Teams repo
+   itself, fall back to `framework/agents/software-teams-*.md` in the repo root.
 2. `.claude/agents/*.md` — project-local Claude Code subagents (user-added
    specialists, takes precedence over user-global)
 3. `~/.claude/agents/*.md` — user-global Claude Code subagents
 
 For each `.md` file, read the YAML frontmatter and extract:
 
-- `name` — identity used in the spawn prompt (JDI agents) or as the
+- `name` — identity used in the spawn prompt (Software Teams agents) or as the
   `subagent_type` value (Claude Code registered subagents)
 - `description` — the one-line capability blurb used for routing decisions
 - `model` (optional) — preferred model if specified
 - `tools` (optional) — tool allowlist if the agent is tool-restricted
 
 Record each entry with a `source:` field so `implement-plan` knows how to spawn
-it: `jdi` for JDI framework specialists, `claude-code` for registered
+it: `software-teams` for Software Teams framework specialists, `claude-code` for registered
 subagents. Agents whose frontmatter is unreadable or missing `name` are skipped.
 
 Discovery commands (reference — the planner uses `Glob` + `Read`):
 
 ```bash
-ls .jdi/framework/agents/jdi-*.md 2>/dev/null || ls framework/agents/jdi-*.md 2>/dev/null
+ls .software-teams/framework/agents/software-teams-*.md 2>/dev/null || ls framework/agents/software-teams-*.md 2>/dev/null
 ls .claude/agents/ 2>/dev/null
 ls ~/.claude/agents/ 2>/dev/null
 ```
@@ -66,22 +66,22 @@ implement-plan pass can see exactly which agents were visible at plan time.
 
 ```yaml
 available_agents:
-  - name: jdi-backend
-    source: jdi
+  - name: software-teams-backend
+    source: software-teams
     description: PHP/Laravel backend specialist — APIs, migrations, contracts
-  - name: jdi-frontend
-    source: jdi
+  - name: software-teams-frontend
+    source: software-teams
     description: TS/React frontend specialist — components, types, client code
-  - name: jdi-qa-tester
-    source: jdi
+  - name: software-teams-qa-tester
+    source: software-teams
     description: Post-task verification, a11y, contract checks
   - name: unity-specialist
     source: claude-code
     description: Unity API patterns and optimisation (user-added)
 ```
 
-If discovery returns zero agents (no JDI install and no `.claude/agents/`),
-the planner records `available_agents: []` and falls back to the domain default (`jdi-backend` / `jdi-frontend` / `general-purpose`) so
+If discovery returns zero agents (no Software Teams install and no `.claude/agents/`),
+the planner records `available_agents: []` and falls back to the domain default (`software-teams-backend` / `software-teams-frontend` / `general-purpose`) so
 the empty state is explicit rather than silent.
 
 ---
@@ -98,7 +98,7 @@ signal hierarchy (highest to lowest):
 | 3 | Task type + tech_stack | Unity C# gameplay → `gameplay-programmer` or `unity-specialist` |
 | 4 | Task objective keywords | "shader", "VFX", "render pipeline" → `unity-shader-specialist` |
 | 5 | Checkpoint type | `checkpoint:human-verify` → `qa-tester` |
-| 6 | Domain default | Backend code → `jdi-backend`, frontend code → `jdi-frontend`, C#/Unity → `unity-specialist` |
+| 6 | Domain default | Backend code → `software-teams-backend`, frontend code → `software-teams-frontend`, C#/Unity → `unity-specialist` |
 | 7 | Fallback | `general-purpose` (only if no specialists exist) |
 
 ### Unity routing cheat sheet (common case for game projects)
@@ -139,13 +139,13 @@ signal hierarchy (highest to lowest):
 
 | Signal | Preferred agent |
 |--------|-----------------|
-| Backend code (server-side logic, APIs, data layer) | `jdi-backend` |
-| Frontend code (UI components, client-side logic, styling) | `jdi-frontend` |
-| Full-stack (changes span both backend and frontend) | `jdi-backend` + `jdi-frontend` |
-| Orchestration / sprint / risk / scope | `jdi-producer` |
-| Performance profiling / budgets / regression | `jdi-perf-analyst` |
-| Security review / vuln audit / secrets / privacy | `jdi-security` |
-| Test case writing / regression checklist / post-task verify | `jdi-qa-tester` |
+| Backend code (server-side logic, APIs, data layer) | `software-teams-backend` |
+| Frontend code (UI components, client-side logic, styling) | `software-teams-frontend` |
+| Full-stack (changes span both backend and frontend) | `software-teams-backend` + `software-teams-frontend` |
+| Orchestration / sprint / risk / scope | `software-teams-producer` |
+| Performance profiling / budgets / regression | `software-teams-perf-analyst` |
+| Security review / vuln audit / secrets / privacy | `software-teams-security` |
+| Test case writing / regression checklist / post-task verify | `software-teams-qa-tester` |
 
 #### Domain Detection Heuristics
 
@@ -156,23 +156,23 @@ When task files don't clearly indicate domain, use these patterns:
 - **DevOps signals**: `docker/`, `.github/`, `ci/`, `deploy/`, `infra/`, `terraform/`, `helm/`, `k8s/`, `Dockerfile`, `docker-compose*`, `nginx/`, `scripts/`
 - **Ambiguous**: `src/`, `lib/`, `utils/`, `helpers/`, `shared/` — check file extensions and imports to determine domain
 
-### JDI meta-framework routing
+### Software Teams meta-framework routing
 
-Use these pins when the work being done is on the JDI framework itself
-(editing files under `framework/`, writing plans about JDI, etc.).
+Use these pins when the work being done is on the Software Teams framework itself
+(editing files under `framework/`, writing plans about Software Teams, etc.).
 
 | Signal | Preferred agent |
 |--------|-----------------|
-| Framework design | `jdi-architect` |
-| Framework edits | `jdi-programmer` |
-| Framework tests | `jdi-quality` |
-| Plan creation | `jdi-planner` |
-| Sprint / risk / scope | `jdi-producer` |
-| Perf profiling | `jdi-perf-analyst` |
-| Security audit | `jdi-security` |
-| Post-task verify | `jdi-qa-tester` |
+| Framework design | `software-teams-architect` |
+| Framework edits | `software-teams-programmer` |
+| Framework tests | `software-teams-quality` |
+| Plan creation | `software-teams-planner` |
+| Sprint / risk / scope | `software-teams-producer` |
+| Perf profiling | `software-teams-perf-analyst` |
+| Security audit | `software-teams-security` |
+| Post-task verify | `software-teams-qa-tester` |
 
-> **Note:** `jdi-qa-tester` is automatically invoked by `implement-plan` after
+> **Note:** `software-teams-qa-tester` is automatically invoked by `implement-plan` after
 > every code-touching task — it does not need to be explicitly pinned per task.
 
 ---
@@ -206,7 +206,7 @@ this specialist. Reviewers can use it to challenge bad routings.
 
 ## 4. Execution (at implement-plan time)
 
-**Native subagents are the default.** `convertAgents()` (invoked by `jdi sync-agents` and `jdi init`) populates `.claude/agents/` with Claude Code-compatible specs converted from `framework/agents/jdi-*.md`, so every JDI specialist is a first-class registered subagent in every JDI-installed project. User-added subagents under `.claude/agents/` and `~/.claude/agents/` are equally first-class.
+**Native subagents are the default.** `convertAgents()` (invoked by `software-teams sync-agents` and `software-teams init`) populates `.claude/agents/` with Claude Code-compatible specs converted from `framework/agents/software-teams-*.md`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under `.claude/agents/` and `~/.claude/agents/` are equally first-class.
 
 `implement-plan` MUST read the task's `agent:` field and the corresponding `source:` from `available_agents`, then spawn via the Task tool with the agent name as `subagent_type`. Claude Code loads the spec from `.claude/agents/{name}.md` automatically — no identity preamble in the prompt body.
 
@@ -217,23 +217,23 @@ All agents MUST be spawned with `mode: "acceptEdits"`. Write/Edit/Bash permissio
 <!-- lint-allow: legacy-injection -->
 | `source` in catalogue | `subagent_type` | `mode` | Identity mechanism |
 |----------------------|-----------------|--------|--------------------|
-| `jdi` (after `jdi sync-agents`) | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the spec from `.claude/agents/{name}.md` |
+| `software-teams` (after `software-teams sync-agents`) | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the spec from `.claude/agents/{name}.md` |
 | `claude-code` | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the spec from `.claude/agents/{name}.md` |
-| `jdi` (fresh clone — `.claude/agents/` not yet generated) | `"general-purpose"` | `"acceptEdits"` | Legacy fallback: prompt-text identity injection (see below) |
+| `software-teams` (fresh clone — `.claude/agents/` not yet generated) | `"general-purpose"` | `"acceptEdits"` | Legacy fallback: prompt-text identity injection (see below) |
 <!-- /lint-allow -->
 
 ### Single-agent mode
 
 ```
 Agent(
-  subagent_type: "{plan.primary_agent}",   # e.g. jdi-backend, jdi-frontend, unity-specialist
+  subagent_type: "{plan.primary_agent}",   # e.g. software-teams-backend, software-teams-frontend, unity-specialist
   mode: "acceptEdits",
   name: "{plan.primary_agent}",
   prompt: "<standard single-agent spawn prompt from ComplexityRouter>"
 )
 ```
 
-The prompt contains no `"You are jdi-X. Read ..."` preamble — Claude Code resolves the agent spec from `.claude/agents/{plan.primary_agent}.md` when spawned by name. See `framework/components/meta/ComplexityRouter.md` for the prompt body and `.claude/RULES.md` / `framework/templates/RULES.md` for the orchestration doctrine.
+The prompt contains no `"You are software-teams-X. Read ..."` preamble — Claude Code resolves the agent spec from `.claude/agents/{plan.primary_agent}.md` when spawned by name. See `framework/components/meta/ComplexityRouter.md` for the prompt body and `.claude/RULES.md` / `framework/templates/RULES.md` for the orchestration doctrine.
 
 If `plan.primary_agent` is missing (legacy plan or empty `available_agents`), use the legacy fallback below.
 
@@ -250,7 +250,7 @@ Agent(
 )
 ```
 
-Tasks with no `agent:` field fall back to the domain default (`jdi-backend` / `jdi-frontend`) spawned natively by name.
+Tasks with no `agent:` field fall back to the domain default (`software-teams-backend` / `software-teams-frontend`) spawned natively by name.
 
 ### Downgrade rules
 
@@ -260,17 +260,17 @@ Tasks with no `agent:` field fall back to the domain default (`jdi-backend` / `j
 ### Legacy fallback — identity injection (fresh-clone bootstrap)
 
 <!-- lint-allow: legacy-injection -->
-> Used **only** when `.claude/agents/` has not yet been generated (typical fresh-clone state before `jdi init` / `jdi sync-agents` has run). Claude Code's Task tool validates `subagent_type` against its registered list, so unregistered names error with `classifyHandoffIfNeeded is not defined`. The fallback spawns `general-purpose` and injects the JDI agent's identity via prompt text:
+> Used **only** when `.claude/agents/` has not yet been generated (typical fresh-clone state before `software-teams init` / `software-teams sync-agents` has run). Claude Code's Task tool validates `subagent_type` against its registered list, so unregistered names error with `classifyHandoffIfNeeded is not defined`. The fallback spawns `general-purpose` and injects the Software Teams agent's identity via prompt text:
 >
 > ```
-> # source: jdi — fresh clone, .claude/agents/ not yet generated
+> # source: software-teams — fresh clone, .claude/agents/ not yet generated
 > Agent(
 >   subagent_type: "general-purpose",
 >   mode: "acceptEdits",
 >   name: "{plan.primary_agent}",
->   prompt: "You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md
->   for your full role and instructions. Also read .jdi/framework/components/meta/AgentBase.md
->   for the JDI base protocol.
+>   prompt: "You are {plan.primary_agent}. Read .software-teams/framework/agents/{plan.primary_agent}.md
+>   for your full role and instructions. Also read .software-teams/framework/components/meta/AgentBase.md
+>   for the Software Teams base protocol.
 >
 >   <standard single-agent spawn prompt from ComplexityRouter>"
 > )
@@ -280,12 +280,12 @@ Tasks with no `agent:` field fall back to the domain default (`jdi-backend` / `j
 >   subagent_type: "general-purpose",
 >   mode: "acceptEdits",
 >   name: "{task.agent}-{task_id}",
->   prompt: "You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions.
+>   prompt: "You are {task.agent}. Read .software-teams/framework/agents/{task.agent}.md for instructions.
 >   <spawn prompt from AgentTeamsOrchestration with TASK_FILE: {task file}>"
 > )
 > ```
 >
-> To exit fallback mode, run `jdi sync-agents` (or re-run `jdi init`) so the JDI specialists are written to `.claude/agents/`. Every subsequent spawn then uses the native default.
+> To exit fallback mode, run `software-teams sync-agents` (or re-run `software-teams init`) so the Software Teams specialists are written to `.claude/agents/`. Every subsequent spawn then uses the native default.
 >
 > The framework-lint test in `src/framework-lint.test.ts` allowlists this entire HTML-comment block via `<!-- lint-allow: legacy-injection -->` … `<!-- /lint-allow -->` and fails on any legacy pattern outside such blocks.
 <!-- /lint-allow -->
@@ -307,7 +307,7 @@ The implement-plan pass MUST:
 2. Read the matching `source:` from the plan's `available_agents` catalogue to
    pick the correct spawn pattern (see §4).
 3. Surface any downgrade in the summary.
-4. Prefer `.jdi/framework/agents/` (or `framework/agents/` in the JDI repo)
+4. Prefer `.software-teams/framework/agents/` (or `framework/agents/` in the Software Teams repo)
    over `.claude/agents/` over `~/.claude/agents/` on name collision.
 
 ---
@@ -320,7 +320,7 @@ The implement-plan pass MUST:
 ```
 
 Referenced by:
-- `framework/agents/jdi-planner.md` (discover + match)
+- `framework/agents/software-teams-planner.md` (discover + match)
 - `framework/components/meta/ComplexityRouter.md` (spawn)
 - `framework/components/meta/AgentTeamsOrchestration.md` (spawn)
 - `framework/commands/create-plan.md` (discover)

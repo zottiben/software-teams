@@ -1,9 +1,9 @@
 ---
 name: worktree-remove
-description: "JDI: Remove git worktree and clean up"
+description: "Software Teams: Remove git worktree and clean up"
 ---
 
-# /jdi:worktree-remove
+# /st:worktree-remove
 
 Remove a git worktree and clean up all associated resources.
 
@@ -11,7 +11,7 @@ Remove a git worktree and clean up all associated resources.
 
 1. **Identify worktree** from `$ARGUMENTS`:
    - If name provided: use `.worktrees/<name>`
-   - If no arguments: read `worktree.path` from `.jdi/config/state.yaml`
+   - If no arguments: read `worktree.path` from `.software-teams/config/state.yaml`
    - If neither: list worktrees via `git worktree list`, prompt which to remove
    - `--force` flag: skip confirmation prompt
    - `--keep-branch` flag: don't delete the git branch after removal
@@ -24,9 +24,9 @@ Remove a git worktree and clean up all associated resources.
    - Merged: `git branch -d <name>`
    - Unmerged: `git branch -D <name>` (warn user first)
 6. **Clean up**: `rmdir .worktrees 2>/dev/null` (only if empty)
-7. **Update state**: set `worktree.active: false`, clear `worktree.path`, `worktree.branch` in `.jdi/config/state.yaml`
+7. **Update state**: set `worktree.active: false`, clear `worktree.path`, `worktree.branch` in `.software-teams/config/state.yaml`
 8. **Report**: what was removed
 
-Reference: .jdi/framework/hooks/jdi-worktree-cleanup.md
+Reference: .software-teams/framework/hooks/software-teams-worktree-cleanup.md
 
 Worktree to remove: $ARGUMENTS

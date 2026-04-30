@@ -4,15 +4,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync
 import { join } from "path";
 
 /**
- * Ensure the JDI framework is initialized.
- * If `.jdi/framework` is missing, run `bunx @benzotti/jdi@latest init --ci`.
- * Also ensures `.jdi/persistence/` exists.
+ * Ensure the Software Teams framework is initialized.
+ * If `.software-teams/framework` is missing, run `bunx @benzotti/software-teams@latest init --ci`.
+ * Also ensures `.software-teams/persistence/` exists.
  */
 export function ensureFramework(cwd: string): void {
-  const frameworkDir = join(cwd, ".jdi/framework");
+  const frameworkDir = join(cwd, ".software-teams/framework");
   if (!existsSync(frameworkDir)) {
     consola.info("Framework not found — initializing...");
-    const result = Bun.spawnSync(["bunx", "@benzotti/jdi@latest", "init", "--ci"], {
+    const result = Bun.spawnSync(["bunx", "@benzotti/software-teams@latest", "init", "--ci"], {
       cwd,
       stdout: "inherit",
       stderr: "inherit",
@@ -22,15 +22,15 @@ export function ensureFramework(cwd: string): void {
       process.exit(1);
     }
   }
-  mkdirSync(join(cwd, ".jdi/persistence"), { recursive: true });
+  mkdirSync(join(cwd, ".software-teams/persistence"), { recursive: true });
 }
 
 /**
  * Clear stale plan state from a previous branch.
- * Removes all files in `.jdi/plans/` and writes a fresh `state.yaml`.
+ * Removes all files in `.software-teams/plans/` and writes a fresh `state.yaml`.
  */
 export function clearStaleState(cwd: string): void {
-  const plansDir = join(cwd, ".jdi/plans");
+  const plansDir = join(cwd, ".software-teams/plans");
   if (existsSync(plansDir)) {
     // Remove all files inside plans dir
     for (const entry of readdirSync(plansDir)) {
@@ -40,10 +40,10 @@ export function clearStaleState(cwd: string): void {
     mkdirSync(plansDir, { recursive: true });
   }
 
-  const configDir = join(cwd, ".jdi/config");
+  const configDir = join(cwd, ".software-teams/config");
   mkdirSync(configDir, { recursive: true });
   // Copy the canonical state template from the framework
-  const templatePath = join(cwd, ".jdi", "framework", "config", "state.yaml");
+  const templatePath = join(cwd, ".software-teams", "framework", "config", "state.yaml");
   if (existsSync(templatePath)) {
     const template = readFileSync(templatePath, "utf-8");
     writeFileSync(join(configDir, "state.yaml"), template);
@@ -80,7 +80,7 @@ export function clearStaleState(cwd: string): void {
 }
 
 /**
- * Ensure `.jdi/` and `.claude/` are in `.git/info/exclude` (idempotent).
+ * Ensure `.software-teams/` and `.claude/` are in `.git/info/exclude` (idempotent).
  */
 export function setupGitExclude(cwd: string): void {
   const excludeDir = join(cwd, ".git/info");
@@ -92,7 +92,7 @@ export function setupGitExclude(cwd: string): void {
     content = readFileSync(excludePath, "utf-8");
   }
 
-  const patterns = [".jdi/", ".claude/"];
+  const patterns = [".software-teams/", ".claude/"];
   for (const pattern of patterns) {
     // Check for exact line match
     const lines = content.split("\n");
@@ -108,7 +108,7 @@ export function setupGitExclude(cwd: string): void {
 export const bootstrapCommand = defineCommand({
   meta: {
     name: "bootstrap",
-    description: "Bootstrap JDI framework, clear stale state, and configure git excludes",
+    description: "Bootstrap Software Teams framework, clear stale state, and configure git excludes",
   },
   args: {
     "cache-hit": {

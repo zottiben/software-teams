@@ -1,9 +1,9 @@
 ---
-description: Entry Point and Architecture for the JDI framework
+description: Entry Point and Architecture for the Software Teams framework
 model: opus
 ---
 
-# JDI Framework
+# Software Teams Framework
 
 **Entry Point** | Componentised prompts, Context-efficient, agent-delegated development framework.
 
@@ -22,20 +22,20 @@ model: opus
 
 ## Critical Constraints
 
-**Spawn JDI specialists natively by name.** `jdi sync-agents` (run automatically by `jdi init`) converts `framework/agents/jdi-*.md` into Claude Code-compatible specs under `.claude/agents/` via `src/utils/convert-agents.ts`. Every JDI specialist is then a first-class registered Claude Code subagent — pass its exact name as `subagent_type` and Claude Code auto-loads the spec. The prompt body carries the task only; do **not** inject `"You are jdi-X. Read framework/agents/..."` preambles.
+**Spawn Software Teams specialists natively by name.** `software-teams sync-agents` (run automatically by `software-teams init`) converts `framework/agents/software-teams-*.md` into Claude Code-compatible specs under `.claude/agents/` via `src/utils/convert-agents.ts`. Every Software Teams specialist is then a first-class registered Claude Code subagent — pass its exact name as `subagent_type` and Claude Code auto-loads the spec. The prompt body carries the task only; do **not** inject `"You are software-teams-X. Read framework/agents/..."` preambles.
 
 <!-- lint-allow: legacy-injection -->
-The legacy injection pattern (`subagent_type="general-purpose"` + prompt-text identity) is the **fresh-clone fallback** for environments where `.claude/agents/` has not yet been generated. It is documented and lint-allowlisted in `framework/components/meta/AgentRouter.md` §4 — never use it once `jdi sync-agents` has run.
+The legacy injection pattern (`subagent_type="general-purpose"` + prompt-text identity) is the **fresh-clone fallback** for environments where `.claude/agents/` has not yet been generated. It is documented and lint-allowlisted in `framework/components/meta/AgentRouter.md` §4 — never use it once `software-teams sync-agents` has run.
 <!-- /lint-allow -->
 
 ### Correct Pattern (Native — default)
 
-Spawn the agent by its exact name with `mode: "acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(jdi:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list.
+Spawn the agent by its exact name with `mode: "acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(software-teams:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list.
 
 ```
 Agent(
   prompt="Execute: {task}",
-  subagent_type="jdi-programmer",   ← native name; spec loaded from .claude/agents/jdi-programmer.md
+  subagent_type="software-teams-programmer",   ← native name; spec loaded from .claude/agents/software-teams-programmer.md
   mode="acceptEdits"                ← REQUIRED: scoped allowlist in .claude/settings.json
 )
 ```
@@ -45,15 +45,15 @@ Agent(
 <!-- lint-allow: legacy-injection -->
 ```
 Agent(
-  prompt="You are jdi-programmer. Read .jdi/framework/agents/...",
-  subagent_type="general-purpose"   ← WRONG once jdi sync-agents has run; legacy injection
+  prompt="You are software-teams-programmer. Read .software-teams/framework/agents/...",
+  subagent_type="general-purpose"   ← WRONG once software-teams sync-agents has run; legacy injection
                                       is reserved for fresh-clone bootstrap, lint-allowlisted
                                       only inside the AgentRouter.md §4 fallback block.
 )
 
 Agent(
   prompt="Execute the plan...",
-  subagent_type="jdi-programmer"
+  subagent_type="software-teams-programmer"
   # mode omitted                    ← WRONG: Agent blocked on Write/Edit permissions
 )
 ```
@@ -62,14 +62,14 @@ Agent(
 ### Why This Matters
 
 <!-- lint-allow: legacy-injection -->
-- Claude Code validates `subagent_type` against its registered subagent list. After `jdi sync-agents`, every `jdi-*` agent is registered, so native spawn works without preamble.
+- Claude Code validates `subagent_type` against its registered subagent list. After `software-teams sync-agents`, every `software-teams-*` agent is registered, so native spawn works without preamble.
 - Native spawn drops ~100 tokens of identity-injection per call and lets Claude Code apply each agent's per-spec tool allowlist from its frontmatter.
 - The fallback path (`subagent_type="general-purpose"` + prompt-text identity) survives only as a fresh-clone bootstrap — see `framework/components/meta/AgentRouter.md` §4.
 <!-- /lint-allow -->
 
 ### Bootstrapping a fresh clone
 
-If `.claude/agents/` is empty (e.g. you have just cloned a JDI-using project), run `jdi init` or `jdi sync-agents` to generate the native specs. Until that runs, the fallback documented in `AgentRouter.md` §4 keeps spawn working without errors; once it has run, every spawn switches to the native default.
+If `.claude/agents/` is empty (e.g. you have just cloned a Software Teams-using project), run `software-teams init` or `software-teams sync-agents` to generate the native specs. Until that runs, the fallback documented in `AgentRouter.md` §4 keeps spawn working without errors; once it has run, every spawn switches to the native default.
 
 ---
 
@@ -79,7 +79,7 @@ If `.claude/agents/` is empty (e.g. you have just cloned a JDI-using project), r
 ┌──────────────────────────────────────────────────────┐
 │ MAIN CONTEXT                                          │
 │                                                       │
-│  User: /jdi:create-plan "Add user auth"              │
+│  User: /st:create-plan "Add user auth"                │
 │         │                                             │
 │         ▼                                             │
 │  ┌──────────────────────┐                            │
@@ -93,7 +93,7 @@ If `.claude/agents/` is empty (e.g. you have just cloned a JDI-using project), r
 ┌──────────────────────────────────────────────────────┐
 │ AGENT CONTEXT (Isolated, Fresh)                       │
 │                                                       │
-│  jdi-planner reads spec, researches, creates plan    │
+│  software-teams-planner reads spec, researches, plans │
 │  → Returns plan_path to main context                  │
 └──────────────────────────────────────────────────────┘
 ```
@@ -107,16 +107,16 @@ If `.claude/agents/` is empty (e.g. you have just cloned a JDI-using project), r
 
 | Command | Type | Description |
 |---------|------|-------------|
-| `/jdi:init` | Direct | Initialise JDI in current project |
-| `/jdi:create-plan` | Agent | Create implementation plan (single planner agent, includes research) |
-| `/jdi:implement-plan` | Agent | Execute plan (single agent for simple, Agent Teams for complex) |
-| `/jdi:commit` | Agent | Create conventional commit (spawns jdi-committer) |
-| `/jdi:generate-pr` | Agent | Generate and create PR (spawns jdi-pr-generator) |
-| `/jdi:pr-review` | Agent | Review PR (spawns reviewer) |
-| `/jdi:pr-feedback` | Agent | Address PR review comments (spawns jdi-pr-feedback) |
-| `/jdi:quick` | Direct | Quick focused change (no orchestration) |
-| `/jdi:map-codebase` | Agent | Analyse codebase architecture and conventions (spawns jdi-codebase-mapper) |
-| `/jdi:verify` | Agent | Run verification checks (spawns jdi-verifier) |
+| `/st:init` | Direct | Initialise Software Teams in current project |
+| `/st:create-plan` | Agent | Create implementation plan (single planner agent, includes research) |
+| `/st:implement-plan` | Agent | Execute plan (single agent for simple, Agent Teams for complex) |
+| `/st:commit` | Agent | Create conventional commit (spawns software-teams-committer) |
+| `/st:generate-pr` | Agent | Generate and create PR (spawns software-teams-pr-generator) |
+| `/st:pr-review` | Agent | Review PR (spawns reviewer) |
+| `/st:pr-feedback` | Agent | Address PR review comments (spawns software-teams-pr-feedback) |
+| `/st:quick` | Direct | Quick focused change (no orchestration) |
+| `/st:map-codebase` | Agent | Analyse codebase architecture and conventions (spawns software-teams-codebase-mapper) |
+| `/st:verify` | Agent | Run verification checks (spawns software-teams-verifier) |
 
 **Agent commands:** Spawn a Task agent with isolated context (~300 tokens in main)
 **Direct commands:** Execute in main context (kept minimal)
@@ -125,7 +125,7 @@ If `.claude/agents/` is empty (e.g. you have just cloned a JDI-using project), r
 
 ## Component System
 
-JDI uses **JSX-like component syntax** for referencing reusable markdown:
+Software Teams uses **JSX-like component syntax** for referencing reusable markdown:
 
 ```markdown
 <JDI:Commit />                    # Full component
@@ -153,10 +153,10 @@ command, hook, or workflow, you MUST:
    - `<JDI:Commit scope="task" />` -> Component: Commit, Section: (none), Params: scope=task
 
 2. **Locate** the component file by searching these directories in order:
-   - `.jdi/framework/components/execution/{ComponentName}.md`
-   - `.jdi/framework/components/planning/{ComponentName}.md`
-   - `.jdi/framework/components/quality/{ComponentName}.md`
-   - `.jdi/framework/components/meta/{ComponentName}.md`
+   - `.software-teams/framework/components/execution/{ComponentName}.md`
+   - `.software-teams/framework/components/planning/{ComponentName}.md`
+   - `.software-teams/framework/components/quality/{ComponentName}.md`
+   - `.software-teams/framework/components/meta/{ComponentName}.md`
 
 3. **Read** the component file using the Read tool.
 
@@ -176,13 +176,13 @@ that MUST be resolved and executed at the point where they appear.
 
 | File | Purpose | Updates |
 |------|---------|---------|
-| `config/jdi-config.yaml` | Global settings | Manual |
+| `config/software-teams-config.yaml` | Global settings | Manual |
 | `config/state.yaml` | Runtime state (phase, plan, task) | Automatic |
 | `config/variables.yaml` | Shareable variables | Automatic |
 
 ### Project State Files
 
-When initialised in a project (`.jdi/`):
+When initialised in a project (`.software-teams/`):
 
 | File | Purpose |
 |------|---------|
@@ -219,7 +219,7 @@ Agent commands MUST use agent delegation. If agent spawning fails: report error,
 
 ## Model Profiles
 
-Three profiles control which model each agent uses. Set in `.jdi/config/jdi-config.yaml` under `models.profile`.
+Three profiles control which model each agent uses. Set in `.software-teams/config/software-teams-config.yaml` under `models.profile`.
 
 | Profile | When to Use | Opus Agents | Token Impact |
 |---------|-------------|-------------|--------------|
@@ -227,7 +227,7 @@ Three profiles control which model each agent uses. Set in `.jdi/config/jdi-conf
 | **balanced** | Typical development (default) | planner, architect | ~40% less than quality |
 | **budget** | Conserve quota | None | ~60% less than quality |
 
-**Budget mode** routes verifier, researcher, phase_researcher, plan_checker, and quality to Haiku — these are agents where thoroughness matters less than speed. Switch mid-session by editing `models.profile` in `.jdi/config/jdi-config.yaml`.
+**Budget mode** routes verifier, researcher, phase_researcher, plan_checker, and quality to Haiku — these are agents where thoroughness matters less than speed. Switch mid-session by editing `models.profile` in `.software-teams/config/software-teams-config.yaml`.
 
 ---
 
@@ -236,15 +236,15 @@ Three profiles control which model each agent uses. Set in `.jdi/config/jdi-conf
 ### New Feature
 
 ```
-1. /jdi:create-plan "Add user authentication"
+1. /st:create-plan "Add user authentication"
    → Spawns single planner agent (researches + plans)
-   → Creates .jdi/plans/01-01-PLAN.md
+   → Creates .software-teams/plans/01-01-PLAN.md
 
-2. /jdi:implement-plan
+2. /st:implement-plan
    → Routes by complexity (single agent or Agent Teams swarm)
    → Commits per task
 
-3. /jdi:generate-pr
+3. /st:generate-pr
    → Creates PR with structured description
 ```
 
@@ -253,7 +253,7 @@ Three profiles control which model each agent uses. Set in `.jdi/config/jdi-conf
 ```
 1. [Make changes]
 
-2. /jdi:commit
+2. /st:commit
    → Stages files individually
    → Creates conventional commit
 ```
@@ -262,15 +262,15 @@ Three profiles control which model each agent uses. Set in `.jdi/config/jdi-conf
 
 ## Bootstrap
 
-To add JDI commands to a project:
+To add Software Teams commands to a project:
 
 ```
-/jdi:init
+/st:init
 ```
 
 This creates:
-- `.claude/commands/jdi/` — Command stubs
-- `.jdi/` — Project state directory
+- `.claude/commands/st/` — Command stubs
+- `.software-teams/` — Project state directory
 
 ---
 
@@ -309,10 +309,10 @@ Agent spawn prompts MUST follow this load order to maximise Anthropic API prompt
 |--------|--------|
 | 3+ agent spawns in one conversation | Consider fresh conversation |
 | 50+ turns in conversation | Start fresh — history compounds costs |
-| After `/jdi:implement-plan` completes | Fresh conversation for PR/commit (state persisted to YAML) |
+| After `/st:implement-plan` completes | Fresh conversation for PR/commit (state persisted to YAML) |
 | Context budget at Orange/Red | Complete current task, then fresh conversation |
 
-**Why**: Each turn re-sends the full conversation history. Later turns cost progressively more tokens. Since JDI persists all state to YAML files, a fresh conversation loses nothing.
+**Why**: Each turn re-sends the full conversation history. Later turns cost progressively more tokens. Since Software Teams persists all state to YAML files, a fresh conversation loses nothing.
 
 ---
 
@@ -334,14 +334,14 @@ Agent spawn prompts MUST follow this load order to maximise Anthropic API prompt
 
 | Workflow | Main Context | Agent Context |
 |----------|-------------|---------------|
-| `/jdi:quick` | ~200 tokens | — (direct) |
-| `/jdi:commit` | ~500 tokens | ~400 (haiku) |
-| `/jdi:create-plan` | ~800 tokens | ~2,000 |
-| `/jdi:implement-plan` (simple) | ~800 tokens | ~3,000 |
-| `/jdi:implement-plan` (teams) | ~800 tokens | ~2,000 × N |
+| `/st:quick` | ~200 tokens | — (direct) |
+| `/st:commit` | ~500 tokens | ~400 (haiku) |
+| `/st:create-plan` | ~800 tokens | ~2,000 |
+| `/st:implement-plan` (simple) | ~800 tokens | ~3,000 |
+| `/st:implement-plan` (teams) | ~800 tokens | ~2,000 × N |
 
 **If approaching limits**: Switch to `budget` model profile and use section-specific component loading (`<JDI:Component:Section />`).
 
 ---
 
-*JDI aka Jedi - Context-efficient development through agent delegation.*
+*Software Teams - Context-efficient development through agent delegation.*

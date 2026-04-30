@@ -19,14 +19,14 @@ export const statusCommand = defineCommand({
     const root = findJdiRootOrNull(process.cwd());
     if (root == null) {
       consola.warn(
-        `No JDI project found (searched from ${process.cwd()} upward for .jdi/config/state.yaml). Run \`jdi init\` to set one up.`,
+        `No Software Teams project found (searched from ${process.cwd()} upward for .software-teams/config/state.yaml). Run \`software-teams init\` to set one up.`,
       );
       return;
     }
     const state = await readState(root);
 
     if (!state) {
-      consola.warn("No JDI state found. Run `jdi init` first.");
+      consola.warn("No Software Teams state found. Run `software-teams init` first.");
       return;
     }
 

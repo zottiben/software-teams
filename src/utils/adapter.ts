@@ -16,7 +16,7 @@ export interface AdapterConfig {
 }
 
 export async function readAdapter(cwd: string): Promise<AdapterConfig | null> {
-  const adapterPath = join(cwd, ".jdi", "config", "adapter.yaml");
+  const adapterPath = join(cwd, ".software-teams", "config", "adapter.yaml");
   if (!existsSync(adapterPath)) return null;
 
   const content = await Bun.file(adapterPath).text();

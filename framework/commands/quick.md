@@ -1,13 +1,13 @@
 ---
 name: quick
-description: "JDI: Quick focused change (skips planner, relaxed standards)"
+description: "Software Teams: Quick focused change (skips planner, relaxed standards)"
 allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 argument-hint: "<task description> [--dry-run]"
 context: |
   !git status --short 2>/dev/null | head -20
 ---
 
-# /jdi:quick
+# /st:quick
 
 Execute a small, focused change directly without full orchestration. For trivial or prototype work only — no planner, no agent spawn, no waves.
 
@@ -23,19 +23,19 @@ Execute a small, focused change directly without full orchestration. For trivial
 
 ## Scope Gate (read first)
 
-`/jdi:quick` is for:
+`/st:quick` is for:
 
 - Single-file edits, typo fixes, log lines, variable renames
 - Prototype / exploration code where throwaway is acceptable
 - Tasks under ~30 minutes with no architectural impact
 
-`/jdi:quick` is NOT for:
+`/st:quick` is NOT for:
 
 - Production code requiring tests, review, or sign-off
 - Multi-file refactors or anything touching contracts (API routes, DTOs, exported types, migrations)
 - Work that spans tech stacks or layers
 
-If the task doesn't fit, redirect to `/jdi:create-plan "<feature>"` before writing any code.
+If the task doesn't fit, redirect to `/st:create-plan "<feature>"` before writing any code.
 
 ---
 
@@ -47,9 +47,9 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them.
 
 Read `$ARGUMENTS`. If the task description suggests production-grade work (tests required, multi-file, architectural), STOP and redirect:
 
-> "This looks bigger than `/jdi:quick` is meant for. Run `/jdi:create-plan "<feature>"` instead so we agree on scope before writing code."
+> "This looks bigger than `/st:quick` is meant for. Run `/st:create-plan "<feature>"` instead so we agree on scope before writing code."
 
-**Wait for the user's answer. Do not proceed until they confirm `/jdi:quick` is still the right fit.**
+**Wait for the user's answer. Do not proceed until they confirm `/st:quick` is still the right fit.**
 
 ### 2. Detect Tech Stack
 
@@ -69,7 +69,7 @@ Run only the quality gates that are cheap and relevant:
 
 - Typecheck for TS changes (`tsc --noEmit` or project-equivalent)
 - Lint for the touched file only (not the whole repo)
-- Tests only if the user explicitly asked for them — `/jdi:quick` defaults to skipping
+- Tests only if the user explicitly asked for them — `/st:quick` defaults to skipping
 
 If a gate fails, STOP and report. Do NOT auto-fix beyond the scope the user requested.
 
@@ -89,7 +89,7 @@ Present a 3-line summary: files changed, gates run, next suggested action. End w
 - Tests optional (default: skip)
 - Commit message prefix: `proto:` or `quick:`
 - Framed as exploration — NOT production
-- `jdi-qa-tester` is NOT invoked in `/jdi:quick` mode. If regression checks matter, route through `/jdi:implement-plan` instead.
+- `software-teams-qa-tester` is NOT invoked in `/st:quick` mode. If regression checks matter, route through `/st:implement-plan` instead.
 
 ---
 
@@ -97,8 +97,8 @@ Present a 3-line summary: files changed, gates run, next suggested action. End w
 
 | Situation | Response |
 |-----------|----------|
-| Task description implies production work | Redirect to `/jdi:create-plan` at step 1. Do NOT proceed. |
-| `.jdi/` directory doesn't exist | Proceed anyway — `/jdi:quick` does not require JDI scaffolding. Skip any state updates. |
+| Task description implies production work | Redirect to `/st:create-plan` at step 1. Do NOT proceed. |
+| `.software-teams/` directory doesn't exist | Proceed anyway — `/st:quick` does not require Software Teams scaffolding. Skip any state updates. |
 | Typecheck or lint fails after edit | Report the failure. Do NOT auto-fix unrelated issues. |
 | User asks for tests mid-task | Honour the request; run the test command once, report, then stop. |
 | Target file doesn't exist | Ask the user: create it, or did they mean a different path? |

@@ -5,7 +5,7 @@ import type { JdiStorage } from "./interface";
 export class FsStorage implements JdiStorage {
   private basePath: string;
 
-  constructor(basePath: string = ".jdi/persistence") {
+  constructor(basePath: string = ".software-teams/persistence") {
     this.basePath = basePath;
   }
 

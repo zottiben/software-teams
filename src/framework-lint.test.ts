@@ -37,7 +37,7 @@ function parseAgentSpec(filePath: string): { fm: AgentFm; body: string } {
 function listAgentFiles(): string[] {
   const dir = join(frameworkRoot, "agents");
   return readdirSync(dir)
-    .filter((f) => /^jdi-.+\.md$/.test(f))
+    .filter((f) => /^software-teams-.+\.md$/.test(f))
     .map((f) => join(dir, f))
     .sort();
 }
@@ -51,8 +51,8 @@ function readFrameworkFile(relativePath: string): string {
 }
 
 describe("framework file invariants", () => {
-  test("agents/jdi-planner.md contains required directives", () => {
-    const content = readFrameworkFile("agents/jdi-planner.md");
+  test("agents/software-teams-planner.md contains required directives", () => {
+    const content = readFrameworkFile("agents/software-teams-planner.md");
 
     // Must have file writing directive (agents need to know they can/must write files)
     expect(content).toMatch(/file permissions|Write tool|MUST.*write/i);
@@ -95,13 +95,13 @@ describe("framework file invariants", () => {
     expect(content).toContain("task_id");
   });
 
-  test("agents/jdi-backend.md references learnings", () => {
-    const content = readFrameworkFile("agents/jdi-backend.md");
+  test("agents/software-teams-backend.md references learnings", () => {
+    const content = readFrameworkFile("agents/software-teams-backend.md");
     expect(content).toMatch(/learnings/i);
   });
 
-  test("agents/jdi-frontend.md references learnings", () => {
-    const content = readFrameworkFile("agents/jdi-frontend.md");
+  test("agents/software-teams-frontend.md references learnings", () => {
+    const content = readFrameworkFile("agents/software-teams-frontend.md");
     expect(content).toMatch(/learnings/i);
   });
 
@@ -122,15 +122,15 @@ describe("framework file invariants", () => {
     expect(content).toContain("--without-tests");
   });
 
-  test("agents/jdi-planner.md includes test task generation", () => {
-    const content = readFrameworkFile("agents/jdi-planner.md");
+  test("agents/software-teams-planner.md includes test task generation", () => {
+    const content = readFrameworkFile("agents/software-teams-planner.md");
     expect(content).toMatch(/test.task.generation|Test Task Generation/i);
     expect(content).toMatch(/type:\s*test/);
-    expect(content).toContain("jdi-qa-tester");
+    expect(content).toContain("software-teams-qa-tester");
   });
 
-  test("agents/jdi-qa-tester.md includes plan-test mode", () => {
-    const content = readFrameworkFile("agents/jdi-qa-tester.md");
+  test("agents/software-teams-qa-tester.md includes plan-test mode", () => {
+    const content = readFrameworkFile("agents/software-teams-qa-tester.md");
     expect(content).toContain("plan-test");
   });
 
@@ -145,19 +145,19 @@ describe("framework file invariants", () => {
     expect(content).toMatch(/type.*test/i);
   });
 
-  test("agents/jdi-plan-checker.md accepts 2+ tasks in scope sanity", () => {
-    const content = readFrameworkFile("agents/jdi-plan-checker.md");
+  test("agents/software-teams-plan-checker.md accepts 2+ tasks in scope sanity", () => {
+    const content = readFrameworkFile("agents/software-teams-plan-checker.md");
     expect(content).toMatch(/2\+/);
     expect(content).not.toMatch(/2-4 tasks/);
   });
 
-  test("agents/jdi-planner.md task sizing says 2+ not 2-4", () => {
-    const content = readFrameworkFile("agents/jdi-planner.md");
+  test("agents/software-teams-planner.md task sizing says 2+ not 2-4", () => {
+    const content = readFrameworkFile("agents/software-teams-planner.md");
     expect(content).toMatch(/Tasks per plan.*2\+/);
   });
 
-  test("agents/jdi-planner.md Step 3 task format includes type test", () => {
-    const content = readFrameworkFile("agents/jdi-planner.md");
+  test("agents/software-teams-planner.md Step 3 task format includes type test", () => {
+    const content = readFrameworkFile("agents/software-teams-planner.md");
     expect(content).toMatch(/type:.*test/);
   });
 
@@ -169,7 +169,7 @@ describe("framework file invariants", () => {
 });
 
 describe("agent frontmatter audit", () => {
-  test("every framework/agents/jdi-*.md declares name, description, model, tools", () => {
+  test("every framework/agents/software-teams-*.md declares name, description, model, tools", () => {
     const files = listAgentFiles();
     expect(files.length).toBeGreaterThanOrEqual(24);
 
@@ -234,7 +234,7 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
   const SCAN_TARGETS: string[] = [
     join(frameworkRoot, "commands"),
     join(frameworkRoot, "components"),
-    join(frameworkRoot, "jdi.md"),
+    join(frameworkRoot, "software-teams.md"),
     join(repoRoot, ".claude", "CLAUDE.md"),
   ];
 
@@ -307,11 +307,11 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
   );
 
   test(
-    "no skill/command/component injects \"You are jdi-X. Read .../framework/agents/...\" outside lint-allowlisted blocks",
+    "no skill/command/component injects \"You are software-teams-X. Read .../framework/agents/...\" outside lint-allowlisted blocks",
     () => {
       const offenders: string[] = [];
-      // Match: `You are jdi-<role>. Read <anything>framework/agents/<anything>`
-      const injectionRe = /You are jdi-[a-z-]+\.\s*Read[^\n]*framework\/agents\//;
+      // Match: `You are software-teams-<role>. Read <anything>framework/agents/<anything>`
+      const injectionRe = /You are software-teams-[a-z-]+\.\s*Read[^\n]*framework\/agents\//;
 
       for (const file of collectFiles()) {
         const raw = readFileSync(file, "utf-8");
@@ -328,7 +328,7 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
 
       expect(
         offenders,
-        `Legacy "You are jdi-X. Read .../framework/agents/..." injection found outside <!-- lint-allow: legacy-injection --> blocks:\n${offenders.join("\n")}`,
+        `Legacy "You are software-teams-X. Read .../framework/agents/..." injection found outside <!-- lint-allow: legacy-injection --> blocks:\n${offenders.join("\n")}`,
       ).toHaveLength(0);
     },
   );
@@ -376,8 +376,8 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
     assertImportLine(content, "@.claude/RULES.md", ".claude/CLAUDE.md");
   });
 
-  test("framework/jdi.md does NOT contain the phrase 'non-negotiable platform constraint'", () => {
-    const content = readFrameworkFile("jdi.md");
+  test("framework/software-teams.md does NOT contain the phrase 'non-negotiable platform constraint'", () => {
+    const content = readFrameworkFile("software-teams.md");
     expect(content).not.toMatch(/non-negotiable platform constraint/i);
   });
 });
@@ -496,8 +496,8 @@ describe("wave-2 per-command native subagent presence", () => {
     "pr-review.md",
   ];
 
-  test("each migrated command file references at least one subagent_type=\"jdi-...\" OR invokes via Skill tool", () => {
-    const nativeRe = /subagent_type\s*[=:]\s*"jdi-[a-z-]+"/;
+  test("each migrated command file references at least one subagent_type=\"software-teams-...\" OR invokes via Skill tool", () => {
+    const nativeRe = /subagent_type\s*[=:]\s*"software-teams-[a-z-]+"/;
     const skillRe = /\bSkill\s+tool\b/i;
 
     const missing: string[] = [];
@@ -509,11 +509,11 @@ describe("wave-2 per-command native subagent presence", () => {
       const hasNative = nativeRe.test(content);
       const hasSkill = skillRe.test(content);
       if (!hasNative && !hasSkill) {
-        missing.push(`${fileName}: neither subagent_type="jdi-..." nor Skill tool reference`);
+        missing.push(`${fileName}: neither subagent_type="software-teams-..." nor Skill tool reference`);
       } else if (!hasNative) {
         // Useful telemetry but not a failure — a Skill-only command is allowed.
         // eslint-disable-next-line no-console
-        console.log(`[wave-2 audit] ${fileName} has no jdi-* subagent_type but invokes via Skill tool — accepted`);
+        console.log(`[wave-2 audit] ${fileName} has no software-teams-* subagent_type but invokes via Skill tool — accepted`);
       }
     }
 

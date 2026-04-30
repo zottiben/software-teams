@@ -17,7 +17,7 @@ Convention files contain technology-specific knowledge that agents load at runti
 
 ## Loading
 
-Agents resolve convention files via `.jdi/framework/stacks/{tech_stack}.md` where `tech_stack` matches `PROJECT.yaml`. If no file exists, agents use their base spec only.
+Agents resolve convention files via `.software-teams/framework/stacks/{tech_stack}.md` where `tech_stack` matches `PROJECT.yaml`. If no file exists, agents use their base spec only.
 
 ## Files
 

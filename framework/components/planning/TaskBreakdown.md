@@ -100,7 +100,7 @@ Every task MUST be tagged with one of three priority bands:
 
 This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (`PLAN.md` + per-task) or three-tier (`SPEC.md` + `ORCHESTRATION.md` + per-agent slices) artefacts.
 
-When the planner is in three-tier mode the resulting task graph and dependency analysis are written into `framework/templates/ORCHESTRATION.md` (the manifest, sequencing rules, and quality gates) rather than the legacy `PLAN.md` index. The granularity rules, priority bands, and test task rules below are unchanged. See `framework/agents/jdi-planner.md` for the Tier Decision Rule.
+When the planner is in three-tier mode the resulting task graph and dependency analysis are written into `framework/templates/ORCHESTRATION.md` (the manifest, sequencing rules, and quality gates) rather than the legacy `PLAN.md` index. The granularity rules, priority bands, and test task rules below are unchanged. See `framework/agents/software-teams-planner.md` for the Tier Decision Rule.
 
 ---
 
@@ -112,7 +112,7 @@ When test context is provided (test_suite.detected or test_suite.forced), genera
 2. **Test task type is `test`** — distinct from `auto` and `checkpoint:*`
 3. **Wave placement:** test task wave = implementation wave + 1
 4. **Dependencies:** `depends_on` lists all implementation task IDs from the source wave
-5. **Agent pin:** always `jdi-qa-tester` with mode `plan-test`
+5. **Agent pin:** always `software-teams-qa-tester` with mode `plan-test`
 6. **Test derivation:** test cases come from implementation tasks' `done_when` criteria + file-based scope analysis
 7. **Full-stack coverage:** if implementation spans multiple layers, tests must cover each layer
 8. **Task cap relaxed:** the 2-4 task limit is raised to 2+ (no upper bound) to accommodate auto-generated test tasks alongside implementation tasks

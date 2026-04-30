@@ -6,7 +6,7 @@ import { clearStaleState, setupGitExclude } from "./bootstrap";
 
 let tempDir: string;
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
   return tempDir;
 }
 
@@ -17,7 +17,7 @@ afterEach(() => {
 describe("clearStaleState", () => {
   test("removes plans and writes fresh state.yaml", () => {
     const cwd = makeTempDir();
-    const plansDir = join(cwd, ".jdi/plans");
+    const plansDir = join(cwd, ".software-teams/plans");
     mkdirSync(plansDir, { recursive: true });
     writeFileSync(join(plansDir, "old-plan.md"), "old plan content");
     writeFileSync(join(plansDir, "old-plan.T1.md"), "old task content");
@@ -29,7 +29,7 @@ describe("clearStaleState", () => {
     expect(remaining).toHaveLength(0);
 
     // state.yaml should have fresh content
-    const statePath = join(cwd, ".jdi/config/state.yaml");
+    const statePath = join(cwd, ".software-teams/config/state.yaml");
     expect(existsSync(statePath)).toBe(true);
     const content = readFileSync(statePath, "utf-8");
     // Should write a valid state matching JDIState interface (not the old active_plan/current_wave/mode format)
@@ -41,45 +41,45 @@ describe("clearStaleState", () => {
 
   test("uses framework template when available", () => {
     const cwd = makeTempDir();
-    const plansDir = join(cwd, ".jdi/plans");
+    const plansDir = join(cwd, ".software-teams/plans");
     mkdirSync(plansDir, { recursive: true });
     // Create a framework template
-    const templateDir = join(cwd, ".jdi/framework/config");
+    const templateDir = join(cwd, ".software-teams/framework/config");
     mkdirSync(templateDir, { recursive: true });
     const templateContent = "position:\n  status: idle\ncustom_field: from_template\n";
     writeFileSync(join(templateDir, "state.yaml"), templateContent);
 
     clearStaleState(cwd);
 
-    const statePath = join(cwd, ".jdi/config/state.yaml");
+    const statePath = join(cwd, ".software-teams/config/state.yaml");
     const content = readFileSync(statePath, "utf-8");
     expect(content).toBe(templateContent);
   });
 
   test("works when plans directory does not exist yet", () => {
     const cwd = makeTempDir();
-    mkdirSync(join(cwd, ".jdi"), { recursive: true });
+    mkdirSync(join(cwd, ".software-teams"), { recursive: true });
 
     clearStaleState(cwd);
 
     // Plans directory should have been created (empty)
-    expect(existsSync(join(cwd, ".jdi/plans"))).toBe(true);
+    expect(existsSync(join(cwd, ".software-teams/plans"))).toBe(true);
 
     // state.yaml should exist
-    const statePath = join(cwd, ".jdi/config/state.yaml");
+    const statePath = join(cwd, ".software-teams/config/state.yaml");
     expect(existsSync(statePath)).toBe(true);
   });
 });
 
 describe("setupGitExclude", () => {
-  test("adds .jdi/ and .claude/ entries to exclude file", () => {
+  test("adds .software-teams/ and .claude/ entries to exclude file", () => {
     const cwd = makeTempDir();
     mkdirSync(join(cwd, ".git/info"), { recursive: true });
 
     setupGitExclude(cwd);
 
     const content = readFileSync(join(cwd, ".git/info/exclude"), "utf-8");
-    expect(content).toContain(".jdi/");
+    expect(content).toContain(".software-teams/");
     expect(content).toContain(".claude/");
   });
 
@@ -91,7 +91,7 @@ describe("setupGitExclude", () => {
     setupGitExclude(cwd);
 
     const content = readFileSync(join(cwd, ".git/info/exclude"), "utf-8");
-    const jdiMatches = content.split("\n").filter((l) => l === ".jdi/");
+    const jdiMatches = content.split("\n").filter((l) => l === ".software-teams/");
     const claudeMatches = content.split("\n").filter((l) => l === ".claude/");
     expect(jdiMatches).toHaveLength(1);
     expect(claudeMatches).toHaveLength(1);
@@ -106,7 +106,7 @@ describe("setupGitExclude", () => {
 
     const content = readFileSync(join(cwd, ".git/info/exclude"), "utf-8");
     expect(content).toContain("node_modules/");
-    expect(content).toContain(".jdi/");
+    expect(content).toContain(".software-teams/");
     expect(content).toContain(".claude/");
   });
 });

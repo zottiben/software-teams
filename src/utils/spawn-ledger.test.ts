@@ -15,10 +15,10 @@ function makeEntry(overrides: Partial<SpawnEntry> = {}): SpawnEntry {
     timestamp: "2026-04-30T10:00:00.000Z",
     plan_id: "1-01",
     task_id: "1-01-T1",
-    agent: "jdi-architect",
+    agent: "software-teams-architect",
     prompt_bytes: 5389,
     prompt_tokens_approx: Math.ceil(5389 / 4),
-    slice_path: ".jdi/plans/1-01-native-subagents.T1.md",
+    slice_path: ".software-teams/plans/1-01-native-subagents.T1.md",
     spec_sections: ["Acceptance Criteria"],
     tier: "three-tier",
     ...overrides,
@@ -26,7 +26,7 @@ function makeEntry(overrides: Partial<SpawnEntry> = {}): SpawnEntry {
 }
 
 async function withLedger<T>(fn: (ledgerPath: string) => Promise<T>): Promise<T> {
-  const dir = mkdtempSync(join(tmpdir(), "jdi-spawn-ledger-test-"));
+  const dir = mkdtempSync(join(tmpdir(), "st-spawn-ledger-test-"));
   const ledgerPath = join(dir, "nested", "deep", "spawn-ledger.jsonl");
   try {
     return await fn(ledgerPath);
@@ -46,14 +46,14 @@ describe("recordSpawn", () => {
       expect(text.endsWith("\n")).toBe(true);
       const parsed = JSON.parse(text.trim());
       expect(parsed.task_id).toBe("1-01-T1");
-      expect(parsed.agent).toBe("jdi-architect");
+      expect(parsed.agent).toBe("software-teams-architect");
     });
   });
 
   test("appends multiple entries without overwriting", async () => {
     await withLedger(async (ledgerPath) => {
       await recordSpawn(makeEntry({ task_id: "1-01-T1" }), { ledgerPath });
-      await recordSpawn(makeEntry({ task_id: "1-01-T2", agent: "jdi-backend" }), { ledgerPath });
+      await recordSpawn(makeEntry({ task_id: "1-01-T2", agent: "software-teams-backend" }), { ledgerPath });
 
       const text = await Bun.file(ledgerPath).text();
       const lines = text.split("\n").filter((l) => l.length > 0);
@@ -73,7 +73,7 @@ describe("readLedger", () => {
   test("round-trips records in append order", async () => {
     await withLedger(async (ledgerPath) => {
       const e1 = makeEntry({ task_id: "1-01-T1" });
-      const e2 = makeEntry({ task_id: "1-01-T2", agent: "jdi-backend", prompt_bytes: 4025 });
+      const e2 = makeEntry({ task_id: "1-01-T2", agent: "software-teams-backend", prompt_bytes: 4025 });
       await recordSpawn(e1, { ledgerPath });
       await recordSpawn(e2, { ledgerPath });
 
@@ -81,7 +81,7 @@ describe("readLedger", () => {
       expect(entries).toHaveLength(2);
       expect(entries[0]?.task_id).toBe("1-01-T1");
       expect(entries[1]?.task_id).toBe("1-01-T2");
-      expect(entries[1]?.agent).toBe("jdi-backend");
+      expect(entries[1]?.agent).toBe("software-teams-backend");
     });
   });
 
@@ -101,10 +101,10 @@ describe("readLedger", () => {
 describe("summariseLedger", () => {
   test("aggregates per-agent, per-task, per-plan totals", async () => {
     await withLedger(async (ledgerPath) => {
-      await recordSpawn(makeEntry({ task_id: "1-01-T1", agent: "jdi-architect", prompt_bytes: 5000, prompt_tokens_approx: 1250 }), { ledgerPath });
-      await recordSpawn(makeEntry({ task_id: "1-01-T2", agent: "jdi-backend", prompt_bytes: 4000, prompt_tokens_approx: 1000 }), { ledgerPath });
-      await recordSpawn(makeEntry({ task_id: "1-01-T3", agent: "jdi-backend", prompt_bytes: 3000, prompt_tokens_approx: 750 }), { ledgerPath });
-      await recordSpawn(makeEntry({ plan_id: "1-02", task_id: "1-02-T1", agent: "jdi-architect", prompt_bytes: 2000, prompt_tokens_approx: 500 }), { ledgerPath });
+      await recordSpawn(makeEntry({ task_id: "1-01-T1", agent: "software-teams-architect", prompt_bytes: 5000, prompt_tokens_approx: 1250 }), { ledgerPath });
+      await recordSpawn(makeEntry({ task_id: "1-01-T2", agent: "software-teams-backend", prompt_bytes: 4000, prompt_tokens_approx: 1000 }), { ledgerPath });
+      await recordSpawn(makeEntry({ task_id: "1-01-T3", agent: "software-teams-backend", prompt_bytes: 3000, prompt_tokens_approx: 750 }), { ledgerPath });
+      await recordSpawn(makeEntry({ plan_id: "1-02", task_id: "1-02-T1", agent: "software-teams-architect", prompt_bytes: 2000, prompt_tokens_approx: 500 }), { ledgerPath });
 
       const summary = await summariseLedger({ ledgerPath });
 
@@ -112,12 +112,12 @@ describe("summariseLedger", () => {
       expect(summary.total_bytes).toBe(5000 + 4000 + 3000 + 2000);
       expect(summary.total_tokens_approx).toBe(1250 + 1000 + 750 + 500);
 
-      expect(summary.per_agent["jdi-architect"]?.entries).toBe(2);
-      expect(summary.per_agent["jdi-architect"]?.bytes).toBe(7000);
-      expect(summary.per_agent["jdi-backend"]?.entries).toBe(2);
-      expect(summary.per_agent["jdi-backend"]?.bytes).toBe(7000);
+      expect(summary.per_agent["software-teams-architect"]?.entries).toBe(2);
+      expect(summary.per_agent["software-teams-architect"]?.bytes).toBe(7000);
+      expect(summary.per_agent["software-teams-backend"]?.entries).toBe(2);
+      expect(summary.per_agent["software-teams-backend"]?.bytes).toBe(7000);
 
-      expect(summary.per_task["1-01-T1"]?.agent).toBe("jdi-architect");
+      expect(summary.per_task["1-01-T1"]?.agent).toBe("software-teams-architect");
       expect(summary.per_task["1-01-T2"]?.bytes).toBe(4000);
 
       expect(summary.per_plan["1-01"]?.entries).toBe(3);

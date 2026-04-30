@@ -10,7 +10,7 @@
   Use three-tier when: >3 implementation tasks, cross-team work, or any plan
   whose orchestration would crowd out the spec.
 
-  Use single-tier (this PLAN.md + PLAN-TASK.md per task) for: `/jdi:quick`
+  Use single-tier (this PLAN.md + PLAN-TASK.md per task) for: `/st:quick`
   flows, hotfixes, and plans with 1-3 tasks where a separate SPEC tier adds
   more ceremony than clarity.
 
@@ -33,8 +33,8 @@ carryover: []
 
 # Split plan task files (omit for legacy monolithic plans)
 task_files:
-  - .jdi/plans/{X}-{YY}-{plan-slug}.T1.md
-  - .jdi/plans/{X}-{YY}-{plan-slug}.T2.md
+  - .software-teams/plans/{X}-{YY}-{plan-slug}.T1.md
+  - .software-teams/plans/{X}-{YY}-{plan-slug}.T2.md
 
 # Dependency Graph (enables context assembly and parallel execution)
 requires:
@@ -52,7 +52,7 @@ tech_stack:
   added: []
   patterns: []
 
-# Agent Routing (populated by jdi-planner via AgentRouter)
+# Agent Routing (populated by software-teams-planner via AgentRouter)
 # available_agents is the catalogue discovered from .claude/agents/ at plan time.
 # primary_agent is used by single-agent mode in implement-plan.
 # Per-task agents live in each {slug}.T{n}.md file under `agent:`.
@@ -95,7 +95,7 @@ primary_agent: general-purpose
 
 ### Risks
 
-Risks should be pulled from the `risks` block in `.jdi/REQUIREMENTS.yaml`. List the relevant ones here for execution-time reference.
+Risks should be pulled from the `risks` block in `.software-teams/REQUIREMENTS.yaml`. List the relevant ones here for execution-time reference.
 
 </section>
 
@@ -135,7 +135,7 @@ After all tasks complete, verify:
 
 - [ ] All Must Have tasks complete
 - [ ] All tasks pass acceptance criteria
-- [ ] No S1/S2 bugs (per jdi-quality taxonomy)
+- [ ] No S1/S2 bugs (per software-teams-quality taxonomy)
 - [ ] REQUIREMENTS.yaml updated for deviations
 
 ## Success Criteria
@@ -155,7 +155,7 @@ This plan is complete when:
 **Modifies:**
 - `{path/to/existing/file}` - {what changes}
 
-**SUMMARY location:** `.jdi/plans/{phase}-{plan}-{slug}.summary.md`
+**SUMMARY location:** `.software-teams/plans/{phase}-{plan}-{slug}.summary.md`
 
 ## Notes
 

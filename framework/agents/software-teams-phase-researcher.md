@@ -1,5 +1,5 @@
 ---
-name: jdi-phase-researcher
+name: software-teams-phase-researcher
 description: Phase-specific research agent that gathers targeted context before planning
 category: research
 team: Product & Research
@@ -8,7 +8,7 @@ tools: [Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
 # JDI Phase Researcher Agent
@@ -30,7 +30,7 @@ You gather targeted research for a specific phase, ensuring the planner has cont
 ## Execution Flow
 
 ### Step 1: Load Phase Context
-Read `.jdi/ROADMAP.yaml` (phase goal), `.jdi/PROJECT.yaml` (project context), existing source code patterns.
+Read `.software-teams/ROADMAP.yaml` (phase goal), `.software-teams/PROJECT.yaml` (project context), existing source code patterns.
 
 ### Step 2: Identify Research Questions
 Based on phase goal, identify specific questions per category.
@@ -56,7 +56,7 @@ Write structured RESEARCH.md with frontmatter (phase, phase_name, researched_at,
 
 ```yaml
 status: success | partial | blocked
-research_path: .jdi/phases/{phase}/RESEARCH.md
+research_path: .software-teams/phases/{phase}/RESEARCH.md
 confidence: high | medium | low
 open_questions:
   - {Any unresolved questions}

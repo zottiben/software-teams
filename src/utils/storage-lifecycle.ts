@@ -16,7 +16,7 @@ export async function loadPersistedState(
   let codebaseIndexPath: string | null = null;
 
   // Load each learnings category file individually
-  const dir = join(cwd, ".jdi", "framework", "learnings");
+  const dir = join(cwd, ".software-teams", "framework", "learnings");
   let anyLoaded = false;
   for (const category of LEARNINGS_CATEGORIES) {
     const content = await storage.load(`learnings-${category}`);
@@ -52,7 +52,7 @@ export async function loadPersistedState(
 
   const codebaseIndex = await storage.load("codebase-index");
   if (codebaseIndex) {
-    const cbDir = join(cwd, ".jdi", "codebase");
+    const cbDir = join(cwd, ".software-teams", "codebase");
     if (!existsSync(cbDir)) mkdirSync(cbDir, { recursive: true });
     codebaseIndexPath = join(cbDir, "INDEX.md");
     await Bun.write(codebaseIndexPath, codebaseIndex);
@@ -73,7 +73,7 @@ export async function savePersistedState(
   let codebaseIndexSaved = false;
 
   // Save each learnings category file individually
-  const learningsDir = join(cwd, ".jdi", "framework", "learnings");
+  const learningsDir = join(cwd, ".software-teams", "framework", "learnings");
   if (existsSync(learningsDir)) {
     for (const category of LEARNINGS_CATEGORIES) {
       const filePath = join(learningsDir, `${category}.md`);
@@ -94,7 +94,7 @@ export async function savePersistedState(
   }
 
   // Save codebase index if it exists
-  const indexPath = join(cwd, ".jdi", "codebase", "INDEX.md");
+  const indexPath = join(cwd, ".software-teams", "codebase", "INDEX.md");
   if (existsSync(indexPath)) {
     const content = await Bun.file(indexPath).text();
     if (content.trim()) {

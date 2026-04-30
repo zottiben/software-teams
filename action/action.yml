@@ -1,5 +1,5 @@
-name: 'JDI AI Developer'
-description: 'AI-powered development workflows using the JDI framework, powered by anthropic/claude-code-action'
+name: 'Software Teams AI Developer'
+description: 'AI-powered development workflows using the Software Teams framework, powered by anthropic/claude-code-action'
 author: 'benzotti'
 
 inputs:
@@ -17,9 +17,9 @@ inputs:
   trigger_phrase:
     description: 'The trigger phrase to look for in comments'
     required: false
-    default: 'Hey jdi'
-  jdi_version:
-    description: 'Version of @benzotti/jdi to install for init'
+    default: 'Hey software-teams'
+  software_teams_version:
+    description: 'Version of @benzotti/software-teams to install for init'
     required: false
     default: 'latest'
   claude_code_action_version:
@@ -38,58 +38,58 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    # Bun is required to run the JDI CLI
+    # Bun is required to run the Software Teams CLI
     - name: Setup Bun
       uses: oven-sh/setup-bun@v2
       with:
         bun-version: latest
 
-    # Ensure JDI framework is initialised in the repo
-    - name: Bootstrap JDI framework
+    # Ensure Software Teams framework is initialised in the repo
+    - name: Bootstrap Software Teams framework
       shell: bash
       run: |
-        if [ ! -d ".jdi/framework" ]; then
-          echo "JDI framework not found — initialising..."
-          bunx @benzotti/jdi@${{ inputs.jdi_version }} init --ci
+        if [ ! -d ".software-teams/framework" ]; then
+          echo "Software Teams framework not found — initialising..."
+          bunx @benzotti/software-teams@${{ inputs.software_teams_version }} init --ci
         fi
 
         # Ensure persistence directory exists
-        mkdir -p .jdi/persistence
+        mkdir -p .software-teams/persistence
 
-    # Run Claude Code Action with JDI-specific configuration
-    - name: Run Claude with JDI framework
+    # Run Claude Code Action with Software Teams-specific configuration
+    - name: Run Claude with Software Teams framework
       id: claude
       uses: anthropics/claude-code-action@${{ inputs.claude_code_action_version }}
       with:
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
         trigger_phrase: ${{ inputs.trigger_phrase }}
         prompt: |
-          You are JDI, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
+          You are Software Teams, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
 
           IMPORTANT: You are running inside a GitHub Action. Your final text response will be posted as a comment on the issue/PR. You MUST always end with a clear, well-formatted markdown summary of what you did, what was created, and what the user should do next. Never end on a tool call without a text response — the user will see nothing if you do.
 
           ## Framework
 
-          Read `.jdi/framework/components/meta/AgentBase.md` for the base agent protocol.
-          Your framework files are in `.jdi/framework/` — agents, components, learnings, and teams.
-          Your state is tracked in `.jdi/config/state.yaml`.
-          Plans live in `.jdi/plans/`.
+          Read `.software-teams/framework/components/meta/AgentBase.md` for the base agent protocol.
+          Your framework files are in `.software-teams/framework/` — agents, components, learnings, and teams.
+          Your state is tracked in `.software-teams/config/state.yaml`.
+          Plans live in `.software-teams/plans/`.
 
           ## Learnings
 
-          Check `.jdi/persistence/learnings.md` for accumulated team learnings and preferences.
-          Check `.jdi/framework/learnings/` for categorised learnings (backend, frontend, testing, devops, general).
+          Check `.software-teams/persistence/learnings.md` for accumulated team learnings and preferences.
+          Check `.software-teams/framework/learnings/` for categorised learnings (backend, frontend, testing, devops, general).
           When you learn something from a review or feedback, update the appropriate learnings file.
 
           ## Workflow Routing
 
           Based on the user's request, follow the appropriate workflow:
 
-          - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.jdi/framework/agents/jdi-planner.md` and create a plan in `.jdi/plans/`. Present a summary and ask for feedback.
-          - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use `.jdi/framework/components/meta/ComplexityRouter.md` to decide single-agent vs teams mode.
+          - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.software-teams/framework/agents/software-teams-planner.md` and create a plan in `.software-teams/plans/`. Present a summary and ask for feedback.
+          - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use `.software-teams/framework/components/meta/ComplexityRouter.md` to decide single-agent vs teams mode.
           - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
-          - **Review** ("review"): Review PR changes using `.jdi/framework/components/quality/PRReview.md`.
-          - **PR feedback** ("feedback"): Address review comments using `.jdi/framework/agents/jdi-pr-feedback.md`. Extract learnings from reviewer preferences.
+          - **Review** ("review"): Review PR changes using `.software-teams/framework/components/quality/PRReview.md`.
+          - **PR feedback** ("feedback"): Address review comments using `.software-teams/framework/agents/software-teams-pr-feedback.md`. Extract learnings from reviewer preferences.
           - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
           ## Iterative Refinement
@@ -106,7 +106,7 @@ runs:
           ```
           Use the ticket name, description, and checklists as requirements.
 
-        claude_args: '--permission-mode acceptEdits --allowedTools Read,Write,Edit,MultiEdit,Glob,Grep,Task,Bash(bun:*),Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(npx:*),Bash(mkdir:*),Bash(rm:*),Bash(jdi:*),Bash(curl:*)'
+        claude_args: '--permission-mode acceptEdits --allowedTools Read,Write,Edit,MultiEdit,Glob,Grep,Task,Bash(bun:*),Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(npx:*),Bash(mkdir:*),Bash(rm:*),Bash(software-teams:*),Bash(curl:*)'
 
       env:
         CLICKUP_API_TOKEN: ${{ inputs.clickup_api_token }}

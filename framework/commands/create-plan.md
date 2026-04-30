@@ -1,15 +1,15 @@
 ---
 name: create-plan
-description: "JDI: Create implementation plan"
+description: "Software Teams: Create implementation plan"
 allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
 argument-hint: "<feature to plan> [--worktree | --worktree-lightweight | --status | --single-tier]"
 context: |
-  !cat .jdi/config/state.yaml 2>/dev/null | head -25
-  !ls .jdi/plans/*.orchestration.md 2>/dev/null | tail -5
-  !ls .jdi/plans/*.plan.md 2>/dev/null | tail -5
+  !cat .software-teams/config/state.yaml 2>/dev/null | head -25
+  !ls .software-teams/plans/*.orchestration.md 2>/dev/null | tail -5
+  !ls .software-teams/plans/*.plan.md 2>/dev/null | tail -5
 ---
 
-# /jdi:create-plan
+# /st:create-plan
 
 Create an implementation plan using a single planner agent (includes research). Deterministic workflow — every invocation follows the same numbered steps, in order, without skipping.
 
@@ -19,14 +19,14 @@ Create an implementation plan using a single planner agent (includes research). 
 
 ## Flags
 
-- `--worktree` — Create git worktree with full environment before planning (follow `.claude/commands/jdi/worktree.md` steps)
+- `--worktree` — Create git worktree with full environment before planning (follow `.claude/commands/st/worktree.md` steps)
 - `--worktree-lightweight` — Same but skip databases/web server (deps + migrate only)
-- `--status` — Status mode: generate a plan progress report using `.jdi/config/state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
+- `--status` — Status mode: generate a plan progress report using `.software-teams/config/state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
 - `--with-tests` — Force test plan generation regardless of test suite detection. When set, the planner generates test tasks even if no existing test suite is found.
 - `--without-tests` — Suppress test plan generation even when a test suite is detected. Useful for plans that only touch documentation, config, or framework files where test generation would be noise.
 - `--single-tier` — Force the legacy single-tier output (`{slug}.plan.md` + per-task `{slug}.T{n}.md`). By default this skill drives the planner toward three-tier output (SPEC + ORCHESTRATION + per-agent slices) when the plan is non-trivial — `--single-tier` opts out of that and forces the legacy shape. Useful for hotfixes, tiny plans, or when something downstream still expects the legacy index.
 
-> **Do NOT use the built-in `EnterWorktree` tool.** Always follow `/jdi:worktree` Direct Execution steps.
+> **Do NOT use the built-in `EnterWorktree` tool.** Always follow `/st:worktree` Direct Execution steps.
 
 ---
 
@@ -36,7 +36,7 @@ When `--status` is passed, run this workflow instead of the planning workflow. A
 
 ### 1. Read State
 
-Read `.jdi/config/state.yaml` and the current plan's index file. The index source depends on the plan's tier:
+Read `.software-teams/config/state.yaml` and the current plan's index file. The index source depends on the plan's tier:
 
 - **Three-tier (preferred):** read `{slug}.orchestration.md` — the Tasks manifest table is canonical here.
 - **Single-tier (legacy fallback):** read `{slug}.plan.md` — the Tasks manifest is in its `<section name="TaskManifest">` block.
@@ -51,7 +51,7 @@ Produce four tables — **Completed**, **In Progress**, **Blocked**, **Not Start
 
 ### 3. Output and Stop
 
-Print the report to stdout. Then **STOP**. Do NOT spawn the planner. Do NOT write any files. Do NOT advance state. The user may run `/jdi:create-plan "<feature>"` (without `--status`) when they want to plan new work.
+Print the report to stdout. Then **STOP**. Do NOT spawn the planner. Do NOT write any files. Do NOT advance state. The user may run `/st:create-plan "<feature>"` (without `--status`) when they want to plan new work.
 
 ---
 
@@ -70,9 +70,9 @@ If no worktree flag is present, skip this step entirely — do not mention it to
 Execute `<JDI:SilentDiscovery />` now. Read the scaffolding files listed in that component and store the result internally as `PRE_DISCOVERED_CONTEXT`. Do NOT print the discovery output to the user.
 
 **Additional reads for this skill:**
-- `.jdi/REQUIREMENTS.yaml` → `risks:` block (for the planner's Risks section)
+- `.software-teams/REQUIREMENTS.yaml` → `risks:` block (for the planner's Risks section)
 - Prior plan's `SUMMARY.md` if it exists (for carryover candidates)
-- `.jdi/codebase/SUMMARY.md` if it exists (for codebase context)
+- `.software-teams/codebase/SUMMARY.md` if it exists (for codebase context)
 
 Append these to `PRE_DISCOVERED_CONTEXT`.
 
@@ -84,27 +84,27 @@ Append these to `PRE_DISCOVERED_CONTEXT`.
 
 Enumerate available agents in this order (earlier roots override later ones on name collision). For each discovered `.md` file, read the frontmatter `name:` and `description:` and record a `source:` field so `implement-plan` picks the correct spawn pattern.
 
-1. **JDI framework specialists (primary — `source: jdi`)** — list `.jdi/framework/agents/jdi-*.md` (installed projects). If that directory does not exist, fall back to `framework/agents/jdi-*.md` (self-hosting JDI repo).
+1. **Software Teams framework specialists (primary — `source: software-teams`)** — list `.software-teams/framework/agents/software-teams-*.md` (installed projects). If that directory does not exist, fall back to `framework/agents/software-teams-*.md` (self-hosting Software Teams repo).
 2. **Project-local Claude Code subagents (`source: claude-code`)** — list `.claude/agents/*.md`.
 3. **User-global Claude Code subagents (`source: claude-code`)** — list `~/.claude/agents/*.md`.
 
 Store the merged catalogue as `AVAILABLE_AGENTS`. If none of the roots exist, set `AVAILABLE_AGENTS = []`. Do NOT fail.
 
-> **Why source matters:** JDI specialists (`jdi-backend`, `jdi-frontend`, etc.) are converted from `framework/agents/` into `.claude/agents/` by `jdi sync-agents`, so once that has run they are spawned natively by name (`subagent_type="jdi-backend"`). The `source:` field still distinguishes specialists shipped with JDI (`source: jdi`) from user-added Claude Code subagents (`source: claude-code`) for routing decisions. See `framework/jdi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
+> **Why source matters:** Software Teams specialists (`software-teams-backend`, `software-teams-frontend`, etc.) are converted from `framework/agents/` into `.claude/agents/` by `software-teams sync-agents`, so once that has run they are spawned natively by name (`subagent_type="software-teams-backend"`). The `source:` field still distinguishes specialists shipped with Software Teams (`source: software-teams`) from user-added Claude Code subagents (`source: claude-code`) for routing decisions. See `framework/software-teams.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
 
 See `framework/components/meta/AgentRouter.md` §1 for the full discovery + routing rules the planner will apply.
 
 ### 4. Quick Mode Detection
 
-If the feature description looks trivial (single file, <30 minutes, no architectural impact — e.g. "rename var X", "add a log line"), recommend `/jdi:quick "<description>"` instead. Present this as a suggestion, not a redirect:
+If the feature description looks trivial (single file, <30 minutes, no architectural impact — e.g. "rename var X", "add a log line"), recommend `/st:quick "<description>"` instead. Present this as a suggestion, not a redirect:
 
-> "This looks small enough for `/jdi:quick`, which skips the planner entirely. Want to use that instead, or stick with `/jdi:create-plan`?"
+> "This looks small enough for `/st:quick`, which skips the planner entirely. Want to use that instead, or stick with `/st:create-plan`?"
 
 **Wait for the user's answer. Do not proceed until they respond.** If they pick quick, STOP — do not spawn the planner.
 
 ### 4a. Pre-Plan Research Spawn
 
-Spawn `jdi-researcher` in `pre-plan-discovery` mode via `Agent(subagent_type="jdi-researcher", mode="acceptEdits")`. Claude Code loads the agent spec natively from `.claude/agents/jdi-researcher.md` — do NOT inject identity via prompt text. The spawn prompt MUST include:
+Spawn `software-teams-researcher` in `pre-plan-discovery` mode via `Agent(subagent_type="software-teams-researcher", mode="acceptEdits")`. Claude Code loads the agent spec natively from `.claude/agents/software-teams-researcher.md` — do NOT inject identity via prompt text. The spawn prompt MUST include:
 
 - The feature description (`$ARGUMENTS`)
 - `PRE_DISCOVERED_CONTEXT` as a YAML block
@@ -127,7 +127,7 @@ Store answers as `PRE_ANSWERED_QUESTIONS`.
 
 ### 5. Spawn Planner
 
-Spawn `jdi-planner` via `Agent(subagent_type="jdi-planner", mode="acceptEdits")`. Claude Code loads the agent spec natively from `.claude/agents/jdi-planner.md` — do NOT inject identity via prompt text. Native spawn here confirms the post-T6 wave-2 migration; the lint suite forbids the legacy `general-purpose` injection pattern in this file.
+Spawn `software-teams-planner` via `Agent(subagent_type="software-teams-planner", mode="acceptEdits")`. Claude Code loads the agent spec natively from `.claude/agents/software-teams-planner.md` — do NOT inject identity via prompt text. Native spawn here confirms the post-T6 wave-2 migration; the lint suite forbids the legacy `general-purpose` injection pattern in this file.
 
 **Tier selection in the spawn prompt:**
 
@@ -179,13 +179,13 @@ The planner creates files directly (spawned under `acceptEdits` with a scoped `a
 
 ### 8. Update State
 
-Run the state CLI — do NOT manually edit `.jdi/config/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
+Run the state CLI — do NOT manually edit `.software-teams/config/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
 
 - **Three-tier:** pass the orchestration file path (`{slug}.orchestration.md`) — that is the canonical manifest in three-tier mode.
 - **Single-tier:** pass the index file path (`{slug}.plan.md`) — legacy behaviour.
 
 ```bash
-jdi state plan-ready --plan-path ".jdi/plans/{canonical-index-file}" --plan-name "{plan name}"
+software-teams state plan-ready --plan-path ".software-teams/plans/{canonical-index-file}" --plan-name "{plan name}"
 ```
 
 ### 9. Present Summary
@@ -206,7 +206,7 @@ End with the exact prompt: _"Provide feedback to refine, or say **approved** to 
 ### 10. Review Loop
 
 - **Feedback:** apply the requested changes in place (edit existing plan files, increment revision counter in frontmatter), re-present the summary, and ask the same question again.
-- **Approval** (user says "approved", "lgtm", "looks good", or equivalent): run `jdi state approved`, output the completion message, and STOP.
+- **Approval** (user says "approved", "lgtm", "looks good", or equivalent): run `software-teams state approved`, output the completion message, and STOP.
 
 **Never loop back to step 5.** Feedback refines; it does not restart.
 
@@ -218,15 +218,15 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 
 | Situation | Response |
 |-----------|----------|
-| Scaffolding files missing (`.jdi/PROJECT.yaml` etc.) | Planner creates them from `framework/templates/` in step 5. Do NOT ask the user for values the template's defaults cover. |
+| Scaffolding files missing (`.software-teams/PROJECT.yaml` etc.) | Planner creates them from `framework/templates/` in step 5. Do NOT ask the user for values the template's defaults cover. |
 | `.claude/agents/` empty on both levels | Set `AVAILABLE_AGENTS = []`, note in summary, and proceed. The planner falls back to tech-stack defaults. |
 | Feature description is vague ("improve X") | Steps 4a + 4b handle this: the researcher discovers codebase decision points, and the InteractiveGate surfaces ambiguity questions via AskUserQuestion. Do not waste a planner invocation on an underspecified prompt. |
 | Pre-plan researcher returns zero questions | Skip step 4b if surface-level analysis also yields zero questions. Proceed directly to step 5. This is expected for clear features. |
 | Pre-plan researcher returns >4 questions | Batch into multiple AskUserQuestion calls (max 4 per call). Present highest-priority questions first. |
 | Worktree flag but worktree already exists | Ask the user: reuse the existing worktree, or pick a new name? Do not silently proceed. |
-| `--status` with no current plan | Output "No current plan — run `/jdi:create-plan \"<feature>\"` to create one" and STOP. |
+| `--status` with no current plan | Output "No current plan — run `/st:create-plan \"<feature>\"` to create one" and STOP. |
 | Planner returns without writing any files | STOP, report the failure, do NOT advance state. Ask the user to re-invoke or debug. |
-| User asks to implement during review loop | Remind them of the gate: "Planning and implementation are separate phases. Say `approved` to lock in the plan, then run `/jdi:implement-plan`." Do NOT auto-advance. |
+| User asks to implement during review loop | Remind them of the gate: "Planning and implementation are separate phases. Say `approved` to lock in the plan, then run `/st:implement-plan`." Do NOT auto-advance. |
 | Planner returns `tier: three-tier` but SPEC or ORCHESTRATION is missing | STOP and report the missing artefact. The structured return advertised three-tier — incomplete output cannot advance state. Ask the user to re-invoke. |
 | Planner downgraded `tier` to single-tier despite the spawn prompt requesting three-tier | Accept the downgrade — the planner applied its own Tier Decision Rule and concluded the plan is single-team / ≤3 tasks. Verify the single-tier artefact set and proceed. |
 
@@ -240,7 +240,7 @@ Output exactly: _"Plan approved and locked in. Let me know when you want to impl
 
 Then STOP completely.
 
-- Do NOT invoke `/jdi:implement-plan`.
+- Do NOT invoke `/st:implement-plan`.
 - Do NOT spawn implementation agents.
 - Do NOT begin writing source code.
 - Do NOT suggest implementation commands beyond the one-line completion message.
@@ -255,6 +255,6 @@ Planning and implementation are separate human-gated phases. This gate exists be
 
 ---
 
-**References:** Agent base (read FIRST for cache): `.jdi/framework/components/meta/AgentBase.md` | Agent spec: `.jdi/framework/agents/jdi-planner.md` | Agent routing: `.jdi/framework/components/meta/AgentRouter.md`
+**References:** Agent base (read FIRST for cache): `.software-teams/framework/components/meta/AgentBase.md` | Agent spec: `.software-teams/framework/agents/software-teams-planner.md` | Agent routing: `.software-teams/framework/components/meta/AgentRouter.md`
 
 **Feature to plan:** $ARGUMENTS

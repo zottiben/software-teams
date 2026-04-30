@@ -11,7 +11,7 @@ import {
 let tempDirs: string[] = [];
 
 async function makeTempDir(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "jdi-impl-1tier-"));
+  const dir = await mkdtemp(join(tmpdir(), "st-impl-1tier-"));
   tempDirs.push(dir);
   return dir;
 }
@@ -63,7 +63,7 @@ size: M
 priority: should
 wave: 1
 depends_on: []
-agent: jdi-backend
+agent: software-teams-backend
 ---
 
 # Task ${taskId}
@@ -74,7 +74,7 @@ agent: jdi-backend
 
 async function writeSingleTierFixture(dir: string): Promise<{ slug: string; planDir: string }> {
   const slug = "8-01-single-tier-fixture";
-  const planDir = join(dir, ".jdi", "plans");
+  const planDir = join(dir, ".software-teams", "plans");
   await mkdir(planDir, { recursive: true });
   await writeFile(join(planDir, `${slug}.plan.md`), LEGACY_PLAN);
   for (const id of ["T1", "T2", "T3"]) {
@@ -88,7 +88,7 @@ describe("single-tier (legacy) plan detection + prompt", () => {
     const dir = await makeTempDir();
     const { slug, planDir } = await writeSingleTierFixture(dir);
 
-    const planPath = `.jdi/plans/${slug}.plan.md`;
+    const planPath = `.software-teams/plans/${slug}.plan.md`;
     const result = detectPlanTier(dir, planPath);
     expect(result.tier).toBe("single-tier");
     expect(result.planPath).toBe(join(planDir, `${slug}.plan.md`));
@@ -99,7 +99,7 @@ describe("single-tier (legacy) plan detection + prompt", () => {
     const dir = await makeTempDir();
     const { slug } = await writeSingleTierFixture(dir);
 
-    const prompt = buildImplementPrompt(makeCtx(dir), `.jdi/plans/${slug}.plan.md`);
+    const prompt = buildImplementPrompt(makeCtx(dir), `.software-teams/plans/${slug}.plan.md`);
     expect(prompt).toContain("Plan tier: single-tier");
     // Single-tier path must NOT advertise three-tier fields.
     expect(prompt).not.toContain("Plan tier: three-tier");
@@ -110,7 +110,7 @@ describe("single-tier (legacy) plan detection + prompt", () => {
     const dir = await makeTempDir();
     const { slug } = await writeSingleTierFixture(dir);
 
-    const prompt = buildImplementPrompt(makeCtx(dir), `.jdi/plans/${slug}.plan.md`);
+    const prompt = buildImplementPrompt(makeCtx(dir), `.software-teams/plans/${slug}.plan.md`);
     // The implement-plan skill drives the actual Single-Tier vs Three-Tier
     // execution loop based on tier detection — but the prompt MUST tell the
     // orchestrator to read the canonical index in either tier.
@@ -121,7 +121,7 @@ describe("single-tier (legacy) plan detection + prompt", () => {
   test("override flag passes through on single-tier", async () => {
     const dir = await makeTempDir();
     const { slug } = await writeSingleTierFixture(dir);
-    const prompt = buildImplementPrompt(makeCtx(dir), `.jdi/plans/${slug}.plan.md`, "--single");
+    const prompt = buildImplementPrompt(makeCtx(dir), `.software-teams/plans/${slug}.plan.md`, "--single");
     expect(prompt).toContain("--single");
     expect(prompt).toContain("Plan tier: single-tier");
   });

@@ -16,7 +16,7 @@ let tempDir: string;
 const frameworkSourceDir = join(import.meta.dir, "../framework");
 
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "jdi-test-"));
+  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
   return tempDir;
 }
 
@@ -29,8 +29,8 @@ function setupFrameworkSource() {
     mkdirSync(join(frameworkSourceDir, "adapters"), { recursive: true });
     mkdirSync(join(frameworkSourceDir, "teams"), { recursive: true });
 
-    writeFileSync(join(frameworkSourceDir, "jdi.md"), "# JDI Framework");
-    writeFileSync(join(frameworkSourceDir, "agents", "jdi-planner.md"), "# Planner");
+    writeFileSync(join(frameworkSourceDir, "software-teams.md"), "# Software Teams Framework");
+    writeFileSync(join(frameworkSourceDir, "agents", "software-teams-planner.md"), "# Planner");
     writeFileSync(join(frameworkSourceDir, "components", "meta", "AgentBase.md"), "# AgentBase");
     writeFileSync(join(frameworkSourceDir, "commands", "create-plan.md"), "# Create Plan");
     writeFileSync(join(frameworkSourceDir, "teams", "engineering.md"), "# Engineering");
@@ -60,20 +60,20 @@ afterEach(() => {
 });
 
 describe("copyFrameworkFiles", () => {
-  test("copies framework files to .jdi/framework/", async () => {
+  test("copies framework files to .software-teams/framework/", async () => {
     const dir = makeTempDir();
     await copyFrameworkFiles(dir, "generic", false);
 
-    expect(existsSync(join(dir, ".jdi", "framework", "agents"))).toBe(true);
-    expect(existsSync(join(dir, ".jdi", "framework", "components"))).toBe(true);
-    expect(existsSync(join(dir, ".jdi", "framework", "jdi.md"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "framework", "agents"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "framework", "components"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "framework", "software-teams.md"))).toBe(true);
   });
 
-  test("copies command stubs to .claude/commands/jdi/", async () => {
+  test("copies command stubs to .claude/commands/st/", async () => {
     const dir = makeTempDir();
     await copyFrameworkFiles(dir, "generic", false);
 
-    const commandsDir = join(dir, ".claude", "commands", "jdi");
+    const commandsDir = join(dir, ".claude", "commands", "st");
     expect(existsSync(commandsDir)).toBe(true);
     expect(existsSync(join(commandsDir, "create-plan.md"))).toBe(true);
   });
@@ -85,7 +85,7 @@ describe("copyFrameworkFiles", () => {
     const claudeMd = join(dir, ".claude", "CLAUDE.md");
     expect(existsSync(claudeMd)).toBe(true);
     const content = await Bun.file(claudeMd).text();
-    expect(content).toContain("## JDI Workflow Routing");
+    expect(content).toContain("## Software Teams Workflow Routing");
   });
 
   test("does not overwrite existing CLAUDE.md that already has routing", async () => {
@@ -118,17 +118,17 @@ describe("copyFrameworkFiles", () => {
     const dir = makeTempDir();
     await copyFrameworkFiles(dir, "node", false);
 
-    const adapterPath = join(dir, ".jdi", "config", "adapter.yaml");
+    const adapterPath = join(dir, ".software-teams", "config", "adapter.yaml");
     expect(existsSync(adapterPath)).toBe(true);
     const content = await Bun.file(adapterPath).text();
     expect(content).toContain("bun install");
   });
 
-  test("copies command stubs to .jdi/framework/commands/", async () => {
+  test("copies command stubs to .software-teams/framework/commands/", async () => {
     const dir = makeTempDir();
     await copyFrameworkFiles(dir, "generic", false);
 
-    const frameworkCommandsDir = join(dir, ".jdi", "framework", "commands");
+    const frameworkCommandsDir = join(dir, ".software-teams", "framework", "commands");
     expect(existsSync(frameworkCommandsDir)).toBe(true);
     expect(existsSync(join(frameworkCommandsDir, "create-plan.md"))).toBe(true);
   });
@@ -138,7 +138,7 @@ describe("copyFrameworkFiles", () => {
     await copyFrameworkFiles(dir, "generic", false);
 
     // Overwrite a file with custom content
-    const customPath = join(dir, ".jdi", "framework", "jdi.md");
+    const customPath = join(dir, ".software-teams", "framework", "software-teams.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     // Run again without force
@@ -153,7 +153,7 @@ describe("copyFrameworkFiles", () => {
     await copyFrameworkFiles(dir, "generic", false);
 
     // Overwrite a file with custom content
-    const customPath = join(dir, ".jdi", "framework", "jdi.md");
+    const customPath = join(dir, ".software-teams", "framework", "software-teams.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     // Run again with force
