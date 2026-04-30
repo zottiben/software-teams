@@ -2,7 +2,7 @@
 
 ** Software Agent workflows for Claude Code **
 
-[![npm version](https://img.shields.io/npm/v/@benzotti/jdi)](https://www.npmjs.com/package/@benzotti/jdi) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/@benzotti/software-teams)](https://www.npmjs.com/package/@benzotti/software-teams) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Orchestrate specialised agents to plan, implement, review, and ship features — from single-file fixes to full-stack multi-wave implementations.
 

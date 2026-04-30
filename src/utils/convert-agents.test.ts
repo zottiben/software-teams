@@ -248,3 +248,35 @@ describe("convertAgents — RULES.md", () => {
     expect(stripped).toBe(template.trimEnd());
   });
 });
+
+describe("convertAgents — wave-1 rebrand glob verification", () => {
+  test("glob discovers exactly 24 files matching software-teams-*.md", async () => {
+    const sourceDir = REAL_SOURCE;
+    const files = readdirSync(sourceDir).filter((f) => /^software-teams-.+\.md$/.test(f));
+    expect(files.length).toBe(24);
+    expect(files.every((f) => f.startsWith("software-teams-"))).toBe(true);
+  });
+
+  test("glob NEVER matches old jdi-*.md pattern (regression guard)", async () => {
+    const sourceDir = REAL_SOURCE;
+    const jdiFiles = readdirSync(sourceDir).filter((f) => /^jdi-.+\.md$/.test(f));
+    expect(jdiFiles.length).toBe(0);
+  });
+
+  test("convertAgents produces 24 agent entries (glob success)", async () => {
+    const cwd = await makeFixtureCwd();
+    const result = await convertAgents({ cwd });
+    expect(result.errors).toEqual([]);
+
+    const targetDir = join(cwd, ".claude", "agents");
+    const agentFiles = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
+    expect(agentFiles.length).toBe(24);
+
+    // Spot-check that names are correctly renamed
+    expect(agentFiles.some((f) => f === "software-teams-planner.md")).toBe(true);
+    expect(agentFiles.some((f) => f === "software-teams-qa-tester.md")).toBe(true);
+    expect(agentFiles.some((f) => f === "software-teams-backend.md")).toBe(true);
+    expect(agentFiles.some((f) => /^software-teams-/.test(f))).toBe(true);
+    expect(agentFiles.some((f) => /^jdi-/.test(f))).toBe(false);
+  });
+});
