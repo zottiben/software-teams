@@ -21,3 +21,26 @@ jobs:
       - run: bun run build
 
       - run: bun test
+
+  plugin-drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install
+
+      - run: bun run build
+
+      - run: bun run dist/index.js build-plugin
+
+      - name: Check for plugin tree drift
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Plugin tree drifted from framework/. Run \`software-teams build-plugin\` locally and commit the result."
+            git diff
+            exit 1
+          fi
