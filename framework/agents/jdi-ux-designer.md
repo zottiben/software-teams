@@ -4,8 +4,12 @@ description: Design system expert who bridges design tools and component enginee
 category: product
 team: Product & Research
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Lead UX Designer
 

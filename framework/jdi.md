@@ -22,51 +22,54 @@ model: opus
 
 ## Critical Constraints
 
-> **WARNING: Task Tool `subagent_type` Parameter**
->
-> The Claude Code Task tool **ONLY accepts `subagent_type="general-purpose"`** as a valid value.
->
-> **If you use any other value** (e.g., `"jdi-programmer"`, `"jdi-planner"`, or any custom type),
-> the agent will fail with this error:
->
-> ```
-> classifyHandoffIfNeeded is not defined
-> ```
+**Spawn JDI specialists natively by name.** `jdi sync-agents` (run automatically by `jdi init`) converts `framework/agents/jdi-*.md` into Claude Code-compatible specs under `.claude/agents/` via `src/utils/convert-agents.ts`. Every JDI specialist is then a first-class registered Claude Code subagent — pass its exact name as `subagent_type` and Claude Code auto-loads the spec. The prompt body carries the task only; do **not** inject `"You are jdi-X. Read framework/agents/..."` preambles.
 
-### Correct Pattern
+<!-- lint-allow: legacy-injection -->
+The legacy injection pattern (`subagent_type="general-purpose"` + prompt-text identity) is the **fresh-clone fallback** for environments where `.claude/agents/` has not yet been generated. It is documented and lint-allowlisted in `framework/components/meta/AgentRouter.md` §4 — never use it once `jdi sync-agents` has run.
+<!-- /lint-allow -->
 
-Agent identity is passed via the **prompt parameter**, NOT the `subagent_type` parameter.
-**Permission mode** MUST be `"acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(jdi:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list. This replaces the previous blanket `bypassPermissions`.
+### Correct Pattern (Native — default)
+
+Spawn the agent by its exact name with `mode: "acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(jdi:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list.
 
 ```
 Agent(
-  prompt="You are jdi-programmer. Read .jdi/framework/agents/jdi-programmer.md for instructions. Execute: {task}",
-  subagent_type="general-purpose",  ← MUST be "general-purpose"
+  prompt="Execute: {task}",
+  subagent_type="jdi-programmer",   ← native name; spec loaded from .claude/agents/jdi-programmer.md
   mode="acceptEdits"                ← REQUIRED: scoped allowlist in .claude/settings.json
 )
 ```
 
 ### Incorrect Patterns (WILL FAIL)
 
+<!-- lint-allow: legacy-injection -->
 ```
 Agent(
-  prompt="Execute the plan...",
-  subagent_type="jdi-programmer"    ← WRONG: Causes classifyHandoffIfNeeded error
+  prompt="You are jdi-programmer. Read .jdi/framework/agents/...",
+  subagent_type="general-purpose"   ← WRONG once jdi sync-agents has run; legacy injection
+                                      is reserved for fresh-clone bootstrap, lint-allowlisted
+                                      only inside the AgentRouter.md §4 fallback block.
 )
 
 Agent(
   prompt="Execute the plan...",
-  subagent_type="general-purpose"
+  subagent_type="jdi-programmer"
   # mode omitted                    ← WRONG: Agent blocked on Write/Edit permissions
 )
 ```
+<!-- /lint-allow -->
 
 ### Why This Matters
 
-- The Task tool validates `subagent_type` against a fixed list
-- Only `"general-purpose"` is in that list
-- Any other value triggers an internal validation error
-- The cryptic `classifyHandoffIfNeeded is not defined` message masks this validation failure
+<!-- lint-allow: legacy-injection -->
+- Claude Code validates `subagent_type` against its registered subagent list. After `jdi sync-agents`, every `jdi-*` agent is registered, so native spawn works without preamble.
+- Native spawn drops ~100 tokens of identity-injection per call and lets Claude Code apply each agent's per-spec tool allowlist from its frontmatter.
+- The fallback path (`subagent_type="general-purpose"` + prompt-text identity) survives only as a fresh-clone bootstrap — see `framework/components/meta/AgentRouter.md` §4.
+<!-- /lint-allow -->
+
+### Bootstrapping a fresh clone
+
+If `.claude/agents/` is empty (e.g. you have just cloned a JDI-using project), run `jdi init` or `jdi sync-agents` to generate the native specs. Until that runs, the fallback documented in `AgentRouter.md` §4 keeps spawn working without errors; once it has run, every spawn switches to the native default.
 
 ---
 

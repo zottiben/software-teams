@@ -22,10 +22,13 @@ into the plan and implement-plan must use them.
 
 ## 1. Agent Discovery (at plan time)
 
-The planner MUST perform discovery before task breakdown. JDI specialists live
-in the framework itself, not in Claude Code's subagent registry — the
-orchestrator reads their specs and injects identity via prompt text when
-spawning (see `framework/jdi.md` Critical Constraints).
+The planner MUST perform discovery before task breakdown. JDI specialists are
+authored under `framework/agents/` and converted into Claude Code's native
+subagent registry by `jdi sync-agents` (see `src/utils/convert-agents.ts`),
+which writes Claude-compatible specs to `.claude/agents/`. Once that has run,
+both JDI specialists and user-added Claude Code subagents are spawned natively
+by name; the legacy identity-injection pattern is documented as a fallback only
+(see §4).
 
 Merge these roots in order (earlier roots override later ones on name
 collision):
@@ -203,75 +206,42 @@ this specialist. Reviewers can use it to challenge bad routings.
 
 ## 4. Execution (at implement-plan time)
 
-`implement-plan` MUST read the task's `agent:` field and the corresponding
-`source:` from `available_agents`, then spawn via the Task tool using the
-correct pattern for that source.
+**Native subagents are the default.** `convertAgents()` (invoked by `jdi sync-agents` and `jdi init`) populates `.claude/agents/` with Claude Code-compatible specs converted from `framework/agents/jdi-*.md`, so every JDI specialist is a first-class registered subagent in every JDI-installed project. User-added subagents under `.claude/agents/` and `~/.claude/agents/` are equally first-class.
 
-> **Non-negotiable platform constraint:** Claude Code's Task tool only accepts
-> `subagent_type` values that are registered in its subagent list. JDI's
-> specialists live in `framework/agents/` — NOT in `.claude/agents/` — so they
-> are NOT registered subagent types. Passing `subagent_type="jdi-backend"`
-> (or any other JDI agent name) errors with `classifyHandoffIfNeeded is not
-> defined`. See `framework/jdi.md` Critical Constraints.
->
-> The workaround: spawn `subagent_type="general-purpose"` and inject the JDI
-> agent's identity via the prompt text. Registered Claude Code specialists
-> (found under `.claude/agents/`) can still be spawned directly by name.
+`implement-plan` MUST read the task's `agent:` field and the corresponding `source:` from `available_agents`, then spawn via the Task tool with the agent name as `subagent_type`. Claude Code loads the spec from `.claude/agents/{name}.md` automatically — no identity preamble in the prompt body.
 
 ### Source-aware spawn pattern
 
-**All agents MUST be spawned with `mode: "acceptEdits"`**. Write/Edit/Bash permissions come from the scoped `allowedTools` allowlist declared in the project-scoped `.claude/settings.json` (and mirrored as the default list in `src/utils/claude.ts`). This replaces the previous blanket `bypassPermissions`. Agents run in background — they cannot prompt the user for approval, so the allowlist must cover everything they need.
+All agents MUST be spawned with `mode: "acceptEdits"`. Write/Edit/Bash permissions come from the scoped `allowedTools` allowlist declared in the project-scoped `.claude/settings.json` (mirrored as the default list in `src/utils/claude.ts`). Agents run in background and cannot prompt the user, so the allowlist must cover everything they need.
 
+<!-- lint-allow: legacy-injection -->
 | `source` in catalogue | `subagent_type` | `mode` | Identity mechanism |
 |----------------------|-----------------|--------|--------------------|
-| `jdi` | `"general-purpose"` | `"acceptEdits"` | Prompt text: `"You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions."` |
-| `claude-code` | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the agent spec from `.claude/agents/` |
+| `jdi` (after `jdi sync-agents`) | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the spec from `.claude/agents/{name}.md` |
+| `claude-code` | `"{task.agent}"` | `"acceptEdits"` | Native — Claude Code loads the spec from `.claude/agents/{name}.md` |
+| `jdi` (fresh clone — `.claude/agents/` not yet generated) | `"general-purpose"` | `"acceptEdits"` | Legacy fallback: prompt-text identity injection (see below) |
+<!-- /lint-allow -->
 
 ### Single-agent mode
 
 ```
-# source: jdi (JDI framework specialist)
 Agent(
-  subagent_type: "general-purpose",
-  mode: "acceptEdits",
-  name: "{plan.primary_agent}",
-  prompt: "You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md
-  for your full role and instructions. Also read .jdi/framework/components/meta/AgentBase.md
-  for the JDI base protocol.
-
-  <standard single-agent spawn prompt from ComplexityRouter>"
-)
-
-# source: claude-code (user-added registered specialist)
-Agent(
-  subagent_type: "{plan.primary_agent}",   # e.g. unity-specialist
+  subagent_type: "{plan.primary_agent}",   # e.g. jdi-backend, jdi-frontend, unity-specialist
   mode: "acceptEdits",
   name: "{plan.primary_agent}",
   prompt: "<standard single-agent spawn prompt from ComplexityRouter>"
 )
 ```
 
-If `plan.primary_agent` is missing (legacy plan or empty `available_agents`),
-fall back to `subagent_type="general-purpose"` with a `jdi-backend` /
-`jdi-frontend` spec load in the prompt.
+The prompt contains no `"You are jdi-X. Read ..."` preamble — Claude Code resolves the agent spec from `.claude/agents/{plan.primary_agent}.md` when spawned by name. See `framework/components/meta/ComplexityRouter.md` for the prompt body and `.claude/RULES.md` / `framework/templates/RULES.md` for the orchestration doctrine.
+
+If `plan.primary_agent` is missing (legacy plan or empty `available_agents`), use the legacy fallback below.
 
 ### Agent-teams mode
 
-For each task, read its `agent:` frontmatter field and the matching `source:`
-from the plan's `available_agents` catalogue. Spawn ONE Agent tool call per task
-using the pattern that matches its source (see table above).
+For each task, read its `agent:` frontmatter field. Spawn one Agent tool call per task with the agent name as `subagent_type`:
 
 ```
-# JDI specialist (source: jdi)
-Agent(
-  subagent_type: "general-purpose",
-  mode: "acceptEdits",
-  name: "{task.agent}-{task_id}",
-  prompt: "You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions.
-  <spawn prompt from AgentTeamsOrchestration with TASK_FILE: {task file}>"
-)
-
-# Claude Code registered specialist (source: claude-code)
 Agent(
   subagent_type: "{task.agent}",
   mode: "acceptEdits",
@@ -280,20 +250,45 @@ Agent(
 )
 ```
 
-Tasks with no `agent:` field fall back to the domain default
-(`jdi-backend` / `jdi-frontend`) spawned via the `source: jdi` pattern.
+Tasks with no `agent:` field fall back to the domain default (`jdi-backend` / `jdi-frontend`) spawned natively by name.
 
-### Mixed fallbacks
+### Downgrade rules
 
-- If a pinned `source: jdi` agent's spec file is not found at
-  `.jdi/framework/agents/{name}.md` (or `framework/agents/{name}.md` in the
-  self-hosting repo), downgrade to `general-purpose` with a `jdi-backend` /
-  `jdi-frontend` spec load. Record `agent_downgrade: {planned} → general-purpose
-  (spec not found)` in the summary.
-- If a pinned `source: claude-code` agent is not registered in the current
-  session (e.g. plan was created on a different machine), downgrade the same
-  way. Record `agent_downgrade: {planned} → general-purpose (not installed)`.
-- Never silently change the pin; always surface downgrades in the summary.
+- If a pinned agent's spec is not present in `.claude/agents/{name}.md` (or `~/.claude/agents/{name}.md`), downgrade to `general-purpose` using the legacy fallback pattern below and record `agent_downgrade: {planned} → general-purpose (not registered)` in the summary.
+- Never silently change the pin; always surface downgrades.
+
+### Legacy fallback — identity injection (fresh-clone bootstrap)
+
+<!-- lint-allow: legacy-injection -->
+> Used **only** when `.claude/agents/` has not yet been generated (typical fresh-clone state before `jdi init` / `jdi sync-agents` has run). Claude Code's Task tool validates `subagent_type` against its registered list, so unregistered names error with `classifyHandoffIfNeeded is not defined`. The fallback spawns `general-purpose` and injects the JDI agent's identity via prompt text:
+>
+> ```
+> # source: jdi — fresh clone, .claude/agents/ not yet generated
+> Agent(
+>   subagent_type: "general-purpose",
+>   mode: "acceptEdits",
+>   name: "{plan.primary_agent}",
+>   prompt: "You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md
+>   for your full role and instructions. Also read .jdi/framework/components/meta/AgentBase.md
+>   for the JDI base protocol.
+>
+>   <standard single-agent spawn prompt from ComplexityRouter>"
+> )
+>
+> # Agent-teams equivalent
+> Agent(
+>   subagent_type: "general-purpose",
+>   mode: "acceptEdits",
+>   name: "{task.agent}-{task_id}",
+>   prompt: "You are {task.agent}. Read .jdi/framework/agents/{task.agent}.md for instructions.
+>   <spawn prompt from AgentTeamsOrchestration with TASK_FILE: {task file}>"
+> )
+> ```
+>
+> To exit fallback mode, run `jdi sync-agents` (or re-run `jdi init`) so the JDI specialists are written to `.claude/agents/`. Every subsequent spawn then uses the native default.
+>
+> The framework-lint test in `src/framework-lint.test.ts` allowlists this entire HTML-comment block via `<!-- lint-allow: legacy-injection -->` … `<!-- /lint-allow -->` and fails on any legacy pattern outside such blocks.
+<!-- /lint-allow -->
 
 ---
 

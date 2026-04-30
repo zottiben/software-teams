@@ -7,8 +7,16 @@ export async function copyFrameworkFiles(
   projectType: ProjectType,
   force: boolean,
   ci: boolean = false,
+  /**
+   * Optional override for the canonical framework source directory. Defaults
+   * to `<package>/framework` (the layout shipped via npm). Pass an explicit
+   * path when running from source in repos where `import.meta.dir` does not
+   * line up with the published bundle layout (e.g. `jdi sync-framework` in
+   * this self-hosting repo).
+   */
+  frameworkDirOverride?: string,
 ): Promise<void> {
-  const frameworkDir = join(import.meta.dir, "../framework");
+  const frameworkDir = frameworkDirOverride ?? join(import.meta.dir, "../framework");
 
   // Copy framework files to .jdi/framework/ (agents, components, teams, etc.)
   const frameworkDest = join(cwd, ".jdi", "framework");
@@ -28,6 +36,12 @@ export async function copyFrameworkFiles(
     const content = await Bun.file(src).text();
     await Bun.write(dest, content);
   }
+
+  // Note: `.claude/agents/` is intentionally NOT copied here. Native subagent
+  // files are generated mechanically from `framework/agents/jdi-*.md` by
+  // `convertAgents()` (invoked from `init` after this step, and standalone
+  // via `jdi sync-agents`). `framework/.claude/agents/` does not exist and
+  // must not — `convertAgents()` is the single writer to that path.
 
   // Copy command stubs to .claude/commands/jdi/
   const commandsDir = join(frameworkDir, "commands");

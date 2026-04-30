@@ -4,8 +4,12 @@ description: Creates well-formatted conventional commits with automatic type det
 category: workflow
 team: Engineering
 model: haiku
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Commit]
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Committer Agent
 

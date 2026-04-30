@@ -4,8 +4,12 @@ description: Systematic root cause analysis and debugging with hypothesis-driven
 category: specialist
 team: Engineering
 model: haiku
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Verify, Commit]
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Debugger Agent
 

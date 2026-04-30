@@ -4,8 +4,12 @@ description: Analyses and documents codebase architecture, patterns, and concern
 category: workflow
 team: Engineering
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Codebase Mapper Agent
 

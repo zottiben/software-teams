@@ -3,9 +3,13 @@ name: jdi-product-lead
 description: Requirements decomposition, acceptance criteria, delivery tracking, and requirement validation
 category: product
 team: Product & Research, Micro-Management
-model: sonnet
+model: opus
+tools: [Read, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Product Lead
 

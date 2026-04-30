@@ -4,8 +4,12 @@ description: Creates executable phase plans with task breakdown and dependency m
 category: workflow
 team: Product & Research
 model: opus
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [TaskBreakdown, WaveComputation, AgentRouter]
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Planner Agent
 
@@ -56,16 +60,90 @@ You MUST write files using Write/Edit tools. Returning plan content as text is N
 
 You MUST use the Write tool to create plan files directly. You are spawned under `mode: "acceptEdits"` with a scoped `allowedTools` allowlist (see `.claude/settings.json`) that includes Write/Edit — no permission prompts will block you.
 
-Required files (SPLIT FORMAT — one file per task):
-1. `.jdi/plans/{phase}-{plan}-{slug}.plan.md` (index file — manifest table only, NO inline task details)
-2. `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task — full implementation details)
+JDI supports **two plan shapes** — three-tier (default for non-trivial plans) and single-tier (fallback for tiny / quick plans). Pick the shape using the **Tier Decision Rule** below, then write the matching artefact set. Both shapes use the split format (one file per task) — the difference is whether SPEC + ORCHESTRATION sit alongside the per-task files.
+
+### Tier Decision Rule
+
+Choose **three-tier** when ANY of the following are true:
+
+1. `task_count > 3` (more than 3 implementation tasks, excluding auto-generated test tasks)
+2. **Cross-team work** — implementation tasks span more than 1 distinct `agent:` value across the catalogue (e.g. `jdi-backend` + `jdi-frontend` in the same plan)
+3. The spawn prompt passed `tier: three-tier` explicitly
+
+Choose **single-tier** when ALL of the following are true:
+
+1. `task_count <= 3` (3 or fewer implementation tasks)
+2. All implementation tasks pin to the **same agent** (single-team work)
+3. The spawn prompt did NOT pass `tier: three-tier`
+4. OR the spawn prompt passed `tier: single-tier` (or `--single-tier`) explicitly — this forces legacy output
+
+If `tier` is passed in the spawn prompt, it overrides the rule. Otherwise apply the rule deterministically: same inputs → same tier choice.
+
+The split format is MANDATORY in both shapes. Each task MUST be a separate `.T{n}.md` file. Index/orchestration files contain ONLY frontmatter and a manifest table — NEVER inline task implementation details.
+
+**Do NOT manually edit `.jdi/config/state.yaml`** — state transitions are handled via CLI commands (e.g. `jdi state plan-ready`).
+
+## Three-Tier Output Format (DEFAULT for non-trivial plans)
+
+Use this shape when the Tier Decision Rule selects three-tier (i.e. `task_count > 3` OR cross-team work, OR spawn prompt passed `tier: three-tier`). It separates **WHAT** (the spec) from **HOW** (the orchestration playbook) from the **per-agent slices** the orchestrator hands to each specialist.
+
+### Files (three-tier)
+
+| File | Tier | Template | Contents |
+|------|------|----------|----------|
+| `.jdi/plans/{phase}-{plan}-{slug}.spec.md` | 1 — WHAT | `framework/templates/SPEC.md` | Problem, acceptance criteria, out-of-scope, glossary, references |
+| `.jdi/plans/{phase}-{plan}-{slug}.orchestration.md` | 2 — HOW | `framework/templates/ORCHESTRATION.md` | Task graph, agent routing, sequencing rules, quality gates, risks. Carries the manifest. |
+| `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` | 3 — slice | `framework/templates/PLAN-TASK-AGENT.md` | One file per task — what the spawned agent loads |
+| `.jdi/plans/{phase}-{plan}-{slug}.plan.md` | (optional) | `framework/templates/PLAN.md` | Legacy index — OPTIONAL in three-tier mode. The orchestration file carries the manifest, so the legacy index is redundant. Skip unless something downstream still expects it. |
+
+### What goes where
+
+- **SPEC.md** — outcome-only. No implementation steps, no agent assignments, no file paths to edit. A reviewer reads this to decide "should we build this?".
+- **ORCHESTRATION.md** — the orchestrator's playbook. Frontmatter MUST include `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table (`ID | Name | Agent | Wave | Depends On | Slice`), sequencing rules, quality gates, and the risks block.
+- **PLAN-TASK-AGENT.md (per slice)** — what the agent loads when spawned. Frontmatter MUST include:
+  - `tier: per-agent`
+  - `spec_link: {slug}.spec.md`
+  - `orchestration_link: {slug}.orchestration.md`
+  - `agent: jdi-{role}` (pinned via AgentRouter)
+  - `agent_rationale:` (one sentence)
+  - all the existing classification fields (`type`, `size`, `priority`, `wave`, `depends_on`, `requires`, `provides`, `affects`, `subsystem`, `tags`)
+
+### Token-Efficiency Headers (MANDATORY in every per-agent slice)
+
+Every `.T{n}.md` slice MUST begin with these two header lines BEFORE the Objective:
+
+```markdown
+**Why this slice:** {one line — what this task contributes to the spec; how it moves an Acceptance Criterion from unchecked to checked}
+
+**Read first:** {only the spec/orchestration sections this agent needs, e.g. "SPEC §Acceptance Criteria items 2-3, ORCHESTRATION §Quality Gates → contract-check"}. Do NOT load the full spec or full orchestration unless explicitly listed here — keep the slice tight.
+```
+
+The "Read first" line is the **token-efficiency mechanism** for the whole tier — it names exactly which SPEC sections + ORCHESTRATION sections the agent should load. Each agent then reads its own slice plus the named sections, NOT the full plan. Never have the agent load the full SPEC or full ORCHESTRATION when its slice + named sections is enough.
+
+### Three-tier write order (Step 7a in three-tier mode)
+
+1. Derive `slug` per **File Naming** rules (existing) — same rules apply in both tiers.
+2. Write `{slug}.spec.md` — populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
+3. Write `{slug}.orchestration.md` — populate Task Graph, Tasks manifest, Sequencing Rules, Quality Gates, Risks. Frontmatter carries `available_agents` and `primary_agent` (matches what was discovered in Step 0a).
+4. Write each `{slug}.T{n}.md` per-agent slice — frontmatter has `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body opens with `**Why this slice:**` and `**Read first:**`.
+5. (Optional) Write `{slug}.plan.md` legacy index ONLY if a downstream consumer still requires it. In three-tier mode the orchestration file is canonical.
+6. ROADMAP.yaml and REQUIREMENTS.yaml updates are unchanged from single-tier (Steps 7b + 7c below still apply).
+
+### Single-Tier Fallback
+
+Use this shape when the Tier Decision Rule selects single-tier (i.e. `task_count <= 3` AND single-team AND no `tier: three-tier` in the spawn prompt) OR when the spawn prompt explicitly passes `tier: single-tier` / `--single-tier`. This is the legacy behaviour preserved verbatim.
+
+Required files (single-tier):
+
+1. `.jdi/plans/{phase}-{plan}-{slug}.plan.md` (index file — uses `framework/templates/PLAN.md`; manifest table only, NO inline task details)
+2. `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task — uses `framework/templates/PLAN-TASK.md`; full implementation details)
 3. `.jdi/config/variables.yaml`
 4. `.jdi/ROADMAP.yaml` (add plan entry)
 5. `.jdi/REQUIREMENTS.yaml` (add traceability)
 
-The split format is MANDATORY. Each task MUST be a separate `.T{n}.md` file. The index file contains ONLY the frontmatter (with `task_files:` list) and a manifest table — NEVER inline task implementation details.
+In single-tier the index `.plan.md` carries the manifest (no SPEC/ORCHESTRATION). Per-task files do NOT need the `**Why this slice:**` / `**Read first:**` headers — those are three-tier-only because there is no separate SPEC for them to point at.
 
-**Do NOT manually edit `.jdi/config/state.yaml`** — state transitions are handled via CLI commands (e.g. `jdi state plan-ready`).
+`/jdi:quick` flows always pass `tier: single-tier`; hotfixes and tiny plans land here too.
 
 ## File Naming
 
@@ -287,11 +365,25 @@ Types: `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-actio
 #### 7-pre: Update Variables
 Read `.jdi/config/variables.yaml` (create from template if missing). Update: `feature.name`, `feature.description`, `feature.type`.
 
-#### 7a: Write Plan Files (Split Format)
-1. Derive `slug` from the plan name using File Naming rules above
-2. Write index file to `.jdi/plans/{phase}-{plan}-{slug}.plan.md` — follow template from `.jdi/framework/templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
+#### 7a: Write Plan Files (Split Format — branches on tier)
+
+First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output Format" section above). The decision drives which artefacts you write.
+
+**If tier == three-tier** (default for non-trivial plans):
+
+1. Derive `slug` from the plan name using File Naming rules above.
+2. Write SPEC to `.jdi/plans/{phase}-{plan}-{slug}.spec.md` — follow `framework/templates/SPEC.md`. Populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
+3. Write ORCHESTRATION to `.jdi/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `framework/templates/ORCHESTRATION.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `REQUIREMENTS.yaml`.
+4. Write each per-agent slice to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `framework/templates/PLAN-TASK-AGENT.md`. Frontmatter MUST have `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body MUST open with `**Why this slice:**` and `**Read first:**` (see "Token-Efficiency Headers" above) before the Objective.
+5. If test tasks were generated in Step 5a, include them in the manifest and write their `.T{n}.md` files using the test variant — they still use PLAN-TASK-AGENT format with `tier: per-agent` and `agent: jdi-qa-tester`.
+6. The legacy `.plan.md` index is OPTIONAL in three-tier mode — skip unless a downstream consumer explicitly requires it. ORCHESTRATION.md carries the manifest.
+
+**If tier == single-tier** (fallback — `/jdi:quick`, hotfixes, tiny plans, or `--single-tier` passed):
+
+1. Derive `slug` from the plan name using File Naming rules above.
+2. Write index file to `.jdi/plans/{phase}-{plan}-{slug}.plan.md` — follow `framework/templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
 3. Populate Sprint Goal, Definition of Done, Carryover, and Risks sections in the PLAN index from the context passed by `create-plan` (sprint context, REQUIREMENTS.yaml risks, prior SUMMARY.md carryover candidates).
-4. Write each task to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow template from `.jdi/framework/templates/PLAN-TASK.md`. One file per task.
+4. Write each task to `.jdi/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `framework/templates/PLAN-TASK.md`. One file per task. No `**Why this slice:**` / `**Read first:**` headers needed (single-tier has no separate SPEC).
 5. If test tasks were generated in Step 5a, include them in the `task_files:` list and write their `.T{n}.md` files using the test task variant of the PLAN-TASK template.
 
 #### 7b: Update ROADMAP.yaml
@@ -304,9 +396,14 @@ Map requirements to plan tasks.
 
 ## Structured Returns
 
+The envelope reports the chosen `tier:` so the spawning skill can verify the right artefacts. In three-tier mode `spec_path` and `orchestration_path` are the canonical paths and `plan_path` is optional. In single-tier mode `plan_path` is canonical and `spec_path` / `orchestration_path` are omitted.
+
 ```yaml
 status: success | needs_revision | blocked
-plan_path: .jdi/plans/{phase}-{plan}-{slug}.plan.md
+tier: three-tier | single-tier
+spec_path: .jdi/plans/{phase}-{plan}-{slug}.spec.md            # three-tier only
+orchestration_path: .jdi/plans/{phase}-{plan}-{slug}.orchestration.md  # three-tier only
+plan_path: .jdi/plans/{phase}-{plan}-{slug}.plan.md             # canonical in single-tier; OPTIONAL in three-tier
 task_files:
   - .jdi/plans/{phase}-{plan}-{slug}.T1.md
   - .jdi/plans/{phase}-{plan}-{slug}.T2.md

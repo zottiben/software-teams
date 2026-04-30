@@ -1,9 +1,10 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve, join } from "path";
+import { join } from "path";
 import { existsSync, readFileSync } from "fs";
 import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
+import { convertAgents } from "../utils/convert-agents";
 
 export const initCommand = defineCommand({
   meta: {
@@ -67,6 +68,48 @@ export const initCommand = defineCommand({
       if (existsSync(src) && (args.force || !existsSync(dest))) {
         const content = await Bun.file(src).text();
         await Bun.write(dest, content);
+      }
+    }
+
+    // Generate Claude Code native subagents from canonical framework specs.
+    // Behind a feature flag (`features.native_subagents`, default true) so
+    // operators can opt out via `.jdi/config/jdi-config.yaml`. (R-01 mitigation.)
+    {
+      const { parse: parseYaml } = await import("yaml");
+      const cfgPath = join(cwd, ".jdi", "config", "jdi-config.yaml");
+      let nativeSubagentsEnabled = true;
+      if (existsSync(cfgPath)) {
+        try {
+          const cfgContent = await Bun.file(cfgPath).text();
+          const cfg = (parseYaml(cfgContent) ?? {}) as Record<string, any>;
+          if (cfg.features && typeof cfg.features === "object" && cfg.features.native_subagents === false) {
+            nativeSubagentsEnabled = false;
+          }
+        } catch {
+          // Treat parse failure as "flag not set" — default to enabled.
+        }
+      }
+
+      if (!nativeSubagentsEnabled) {
+        if (!args.ci) {
+          consola.warn(
+            "Native subagents disabled (features.native_subagents=false). Skipping conversion.",
+          );
+        }
+      } else {
+        const conv = await convertAgents({
+          cwd,
+          sourceDir: ".jdi/framework/agents",
+          targetDir: ".claude/agents",
+        });
+        if (!args.ci) {
+          consola.success(
+            `Generated ${conv.written.length} native subagents in .claude/agents/`,
+          );
+          if (conv.errors.length > 0) {
+            consola.warn(`Skipped ${conv.errors.length} agent(s) — see log above`);
+          }
+        }
       }
     }
 

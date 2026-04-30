@@ -3,9 +3,13 @@ name: jdi-plan-checker
 description: Validates plans before execution to catch issues early
 category: workflow
 team: Product & Research
-model: haiku
+model: opus
+tools: [Read, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Plan Checker Agent
 

@@ -4,8 +4,12 @@ description: Orchestrates plans, sprints, risk and scope across JDI agents
 category: workflow
 team: Product & Research
 model: opus
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [TaskBreakdown]
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Producer Agent
 

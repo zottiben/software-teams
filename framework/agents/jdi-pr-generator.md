@@ -4,8 +4,12 @@ description: Generates comprehensive PR descriptions and creates pull requests
 category: workflow
 team: Quality Assurance
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI PR Generator Agent
 

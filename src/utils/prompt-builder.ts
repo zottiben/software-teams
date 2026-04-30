@@ -1,4 +1,5 @@
-import { resolve } from "path";
+import { resolve, dirname, basename } from "path";
+import { existsSync } from "fs";
 import { detectProjectType } from "./detect-project";
 import { readAdapter, type AdapterConfig } from "./adapter";
 import { loadPersistedState } from "./storage-lifecycle";
@@ -130,8 +131,60 @@ export function buildPlanPrompt(ctx: PromptContext, description: string): string
   ].join("\n");
 }
 
+/**
+ * Resolve plan tier artefacts. If the supplied plan path is a `.orchestration.md`
+ * (three-tier index), the orchestration path is itself; the legacy `.plan.md`
+ * sibling is preferred when present, otherwise the orchestration path is the
+ * canonical index. If the supplied path is a `.plan.md`, look for a sibling
+ * `.orchestration.md` and report it when present (three-tier output produced
+ * alongside the legacy index).
+ *
+ * Returns `tier: "three-tier"` when an orchestration file is found, otherwise
+ * `tier: "single-tier"`. Both branches preserve the original plan path so the
+ * markdown skill (`framework/commands/implement-plan.md`) can run its own
+ * **Plan Tier Detection** step deterministically.
+ */
+export function detectPlanTier(cwd: string, planPath: string): {
+  tier: "three-tier" | "single-tier";
+  planPath: string;
+  orchestrationPath: string | null;
+} {
+  const fullPlanPath = resolve(cwd, planPath);
+  const dir = dirname(fullPlanPath);
+  const file = basename(fullPlanPath);
+
+  // Derive the slug — strip any of the recognised suffixes
+  const slug = file
+    .replace(/\.orchestration\.md$/i, "")
+    .replace(/\.plan\.md$/i, "")
+    .replace(/\.md$/i, "");
+
+  const orchestrationCandidate = resolve(dir, `${slug}.orchestration.md`);
+  const planCandidate = resolve(dir, `${slug}.plan.md`);
+
+  const hasOrchestration = existsSync(orchestrationCandidate);
+  const hasPlan = existsSync(planCandidate);
+
+  if (hasOrchestration) {
+    return {
+      tier: "three-tier",
+      planPath: hasPlan ? planCandidate : orchestrationCandidate,
+      orchestrationPath: orchestrationCandidate,
+    };
+  }
+  return {
+    tier: "single-tier",
+    planPath: fullPlanPath,
+    orchestrationPath: null,
+  };
+}
+
 export function buildImplementPrompt(ctx: PromptContext, planPath: string, overrideFlag?: string): string {
   const { baseProtocol, complexityRouter, orchestration } = agentPaths(ctx.cwd);
+  const tierInfo = detectPlanTier(ctx.cwd, planPath);
+  const tierLine = tierInfo.tier === "three-tier"
+    ? `Plan tier: three-tier (SPEC + ORCHESTRATION + per-agent slices). ORCHESTRATION: ${tierInfo.orchestrationPath}`
+    : `Plan tier: single-tier (legacy index + per-task files).`;
   return [
     `Read ${baseProtocol} for the base agent protocol.`,
     `Read ${complexityRouter} for complexity routing rules.`,
@@ -143,16 +196,18 @@ export function buildImplementPrompt(ctx: PromptContext, planPath: string, overr
     ``,
     `## Task`,
     `Execute implementation plan: ${resolve(ctx.cwd, planPath)}${overrideFlag ? `\nOverride: ${overrideFlag}` : ""}`,
+    tierLine,
     ``,
     `Follow the implement-plan orchestration:`,
     `1. Read codebase context (.jdi/codebase/SUMMARY.md if exists)`,
-    `2. Read plan file and \`.jdi/config/state.yaml\` — parse tasks, deps, waves, tech_stack`,
-    `3. Apply ComplexityRouter: evaluate plan signals, choose single-agent or Agent Teams mode`,
-    `4. Tech routing: detect primary agent from tech stack`,
-    `5. Spawn agent(s) with cache-optimised load order (AgentBase first, then agent spec)`,
-    `6. Collect and execute deferred ops (files, commits)`,
-    `7. Run verification (tests, lint, typecheck)`,
-    `8. Update state, present summary, enter review loop`,
+    `2. Apply Plan Tier Detection from the implement-plan skill: if ORCHESTRATION.md exists for this slug, run the Three-Tier Execution Loop; otherwise run the Single-Tier Execution Loop.`,
+    `3. Read the canonical index (ORCHESTRATION.md for three-tier, PLAN.md for single-tier) and \`.jdi/config/state.yaml\` — parse tasks, deps, waves, tech_stack`,
+    `4. Apply ComplexityRouter: evaluate plan signals, choose single-agent or Agent Teams mode`,
+    `5. Per-task spawn: in three-tier mode, pass each agent ONLY its per-agent slice (\`{slug}.T{n}.md\`) plus the SPEC sections cited in the slice's \`**Read first:**\` line — NOT the full SPEC, NOT all task files`,
+    `6. Spawn agent(s) with cache-optimised load order (AgentBase first, then agent spec)`,
+    `7. Collect and execute deferred ops (files, commits)`,
+    `8. Run verification (tests, lint, typecheck)`,
+    `9. Update state, present summary, enter review loop`,
   ].join("\n");
 }
 

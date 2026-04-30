@@ -4,8 +4,12 @@ description: Reviews code for vulnerabilities, designs secure architecture, audi
 category: specialist
 team: Engineering
 model: sonnet
+tools: [Read, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Security Agent
 

@@ -26,7 +26,155 @@ Execute an approved plan with complexity-based routing. Deterministic workflow �
 
 ---
 
-## Orchestration
+## Plan Tier Detection
+
+Before running any execution loop, determine which tier the plan was authored in. The planner (`/jdi:create-plan`) emits one of two artefact shapes; this skill must branch on whichever is on disk.
+
+```
+slug = current_plan.slug   # from .jdi/config/state.yaml
+if exists `.jdi/plans/{slug}.orchestration.md` → tier = three-tier
+elif exists `.jdi/plans/{slug}.plan.md`        → tier = single-tier
+else                                           → STOP, ask user to run /jdi:create-plan
+```
+
+**Three-tier** plans (default for non-trivial features after T9/T10):
+- `{slug}.spec.md` — the WHAT (problem, acceptance criteria, glossary)
+- `{slug}.orchestration.md` — the HOW (task graph, agent pins, sequencing rules, quality gates)
+- `{slug}.T{n}.md` — per-agent slices, each with a `**Read first:**` line citing the SPEC sections it needs
+
+**Single-tier** plans (legacy / `--single-tier` opt-out):
+- `{slug}.plan.md` — index with the task manifest inline
+- `{slug}.T{n}.md` — per-task files
+
+If `tier = three-tier`, follow the **Three-Tier Execution Loop (default)** below. If `tier = single-tier`, follow the **Single-Tier Execution Loop (legacy / fallback)** that comes after it. Do NOT mix the two — each loop is self-contained.
+
+---
+
+## Three-Tier Execution Loop (default)
+
+For plans that have an `ORCHESTRATION.md` artefact, the orchestrator (main Claude) reads the task graph from ORCHESTRATION, spawns each pinned agent natively with **only** its per-agent slice plus the SPEC sections that slice cites, verifies via `jdi-qa-tester`, and advances. The orchestrator owns "when to move on" — agents never declare themselves done.
+
+The numbered steps below run in order. Each step ends with a clear state transition — if you cannot produce that transition, STOP and ask. Steps that are identical to the single-tier loop are cross-referenced rather than duplicated.
+
+### 3T.1. Silent Discovery
+
+Same as the single-tier loop's **§1. Silent Discovery** below.
+
+### 3T.2. Load Orchestration
+
+Read `.jdi/plans/{slug}.orchestration.md`. Parse its frontmatter for:
+
+- `task_files:` — the list of per-agent slice paths (`{slug}.T{n}.md`)
+- `available_agents:` — catalogue
+- `primary_agent:` — pin used for the orchestrator brief and as fallback
+- `spec_link:` — pointer to `{slug}.spec.md`
+
+Then parse the **Tasks** manifest table (markdown table inside ORCHESTRATION.md) for the task graph: `ID | Name | Agent | Wave | Depends On | Slice`. Each row pins a task to an `agent` and a `slice` file. Topologically sort by `(wave, depends_on)`.
+
+Also record the **Sequencing Rules** and **Quality Gates** sections — they govern wave gates, parallel-safe groups, and which gates fire after which tasks.
+
+**Plan status gate:** if the plan's status in `.jdi/config/state.yaml` is not `approved`, STOP and tell the user: "Plan is in status `{status}` — run `/jdi:create-plan` (or the review loop) to reach `approved` before implementing."
+
+### 3T.3. Resolve Per-Task Agents
+
+The agent for each task comes from the manifest row's `Agent` column AND must match the `agent:` frontmatter inside the per-agent slice file (`{slug}.T{n}.md`). Read each slice's frontmatter once, in a single batch, and confirm the two agree. If they disagree, prefer the slice frontmatter (it is the contract the slice was written against) and record a `manifest_drift:` note in the summary.
+
+**Test task override:** For tasks with `type: test` (slice frontmatter), the agent is always `jdi-qa-tester` regardless of the manifest pin. Pass `mode: plan-test` in the spawn prompt.
+
+**Resolution fallback:** If a slice has no `agent:` pin (legacy), fall back through manifest pin → `primary_agent` → tech-stack default → `general-purpose`. Never default to `general-purpose` silently — record an `agent_downgrade:` entry.
+
+### 3T.4. Agent Existence Check
+
+Same as the single-tier loop's **§4. Agent Existence Check** below — for each unique agent referenced in the task graph, confirm the spec is registered with Claude Code (`.claude/agents/{name}.md`). Record any downgrades.
+
+### 3T.5. Complexity Routing
+
+Apply `<JDI:ComplexityRouter />`. For three-tier plans the router considers the SPEC + ORCHESTRATION as the **orchestrator brief** when `--single` mode is forced; per-task spawns still load only the slice (see §3T.8 below).
+
+`--team` and `--single` overrides win over signals as usual. Record the routing decision in `DISCOVERED_STATE.routing`.
+
+### 3T.6. Dry Run Check
+
+Same as the single-tier loop's **§6. Dry Run Check** below, with one addition: in three-tier mode, also report each task's `slice` path and the SPEC sections each slice will load (read each slice's `**Read first:**` line for that list). Then **STOP**.
+
+### 3T.7. Advance State to Executing
+
+Run `jdi state executing`. Do NOT manually edit `.jdi/config/state.yaml`.
+
+### 3T.8. Per-Task Spawn Loop
+
+For each task in the topologically sorted task graph:
+
+1. **Resolve the slice load set.** Read the slice file (`{slug}.T{n}.md`) and parse its `**Read first:**` line. That line names the SPEC sections (and optionally specific ORCHESTRATION sections) the agent needs. Build a load set of:
+   - The slice path itself (`{slug}.T{n}.md`)
+   - The exact SPEC sections cited (NOT the full SPEC)
+   - Any ORCHESTRATION subsections explicitly cited (e.g. `ORCHESTRATION §Quality Gates → contract-check`)
+   - **Do NOT** include: the full SPEC, the full ORCHESTRATION, sibling slices, or the per-task files of other agents.
+
+2. **Spawn the pinned agent natively.** Use `subagent_type="{task.agent}"` (post-T6 native migration — Claude Code resolves the spec from `.claude/agents/{task.agent}.md` directly). Spawn under `mode: "acceptEdits"` with the scoped allowlist from `.claude/settings.json`. The prompt MUST include:
+   - A `## Project Context` block (type, tech stack, quality gates, working directory)
+   - `TASK_FILE: {slice path}` — the agent reads it itself
+   - The SPEC sections to read (pass the section anchors, NOT the file contents inline)
+   - Instruction: _"Read only your TASK_FILE and the SPEC sections cited in its `**Read first:**` line. Do NOT load the full spec, the full orchestration, or other task files. Cap exploration to the files your slice names."_
+   - The `done_when:` block from the slice (verbatim) so the agent knows the completion contract
+   - Short-report instruction (<400 words) per `<JDI:AgentBase />` Budget Discipline
+
+   **Optional (R-06 follow-up)**: Before each spawn, record the prompt context size so future plans get real per-spawn numbers instead of static estimates:
+
+   ```
+   bun run src/index.ts spawn-log record --task-id {task.id} --agent {task.agent} --bytes $(wc -c < {slice}) --slice {slice} --tier three-tier --plan-id {plan.id}
+   ```
+
+   This populates `.jdi/persistence/spawn-ledger.jsonl`, after which `jdi spawn-log report` produces real aggregate numbers, replacing the static estimate that T13 of plan `1-01-native-subagents` had to fall back to.
+
+3. **Capture structured return.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, and any `deviations`. The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
+
+4. **Spawn `jdi-qa-tester` in `post-task-verify` mode.** Pass the slice's `done_when:` block as the verification spec, plus `files_modified` from the agent's return. Same skip rules as §10 below: `--skip-qa`, doc-only `files_modified`, or `qa_verification_needed: false` skip the verify; contract-bearing YAML/JSON specs still trigger `contract-check`.
+
+5. **Branch on verify result:**
+   - **Pass** → run `jdi state advance-task {task-id}`, record verification in the task summary, continue to next task.
+   - **S1 / S2 fail** → halt the plan, escalate via AskUserQuestion (same blocker UX as §8a below). Do NOT advance task state.
+   - **S3 / S4 fail** → record in task summary, continue. (Same severity ladder as `<JDI:AgentBase />`.)
+
+6. **Wave gate:** when the wave's last task verifies, run the **post-wave-integration** gate from ORCHESTRATION.md's Quality Gates section (typically `bun test` plus a smoke check on the wave's `provides:` deliverables). If the wave gate fails, halt the plan and enter the review loop at §15. Do NOT start the next wave.
+
+The orchestrator decides "when to move on". Agents never declare themselves done — the verify step is the contract.
+
+**Logging:** for each spawn, record bytes/tokens of context loaded (slice + cited SPEC sections only). This feeds T13's measurement work and proves the per-agent slice contract held.
+
+### 3T.9. Advance Task State
+
+Same as **§9. Advance Task State** below — run `jdi state advance-task {task-id}` per task, in order, never batched. Already covered inside the loop above; called out as its own step number for parity with the single-tier loop.
+
+### 3T.10. Post-Task Verify
+
+Mechanism is identical to the single-tier loop's **§10. Post-Task Verify**. The only difference is the **source of truth** for the `done_when:` criteria: in three-tier mode it comes from the per-agent slice's `**Done when:**` block. The slice IS the verification spec.
+
+### 3T.11. Execute Deferred Ops
+
+Same as **§11. Execute Deferred Ops** below — execute `commits_pending` via `git add` + `git commit`, create any `files_to_create` entries via the Write tool. Do NOT skip this step.
+
+### 3T.12. Run Verification Gates
+
+Same as **§12. Run Verification Gates** below. The plan-level quality gates from `DISCOVERED_STATE.quality_gates` apply in addition to the wave-level integration checks already run inside the loop.
+
+### 3T.13. Advance State to Complete
+
+Same as **§13. Advance State to Complete** below — run `jdi state complete`.
+
+### 3T.14. Present Summary
+
+Same as **§14. Present Summary** below, plus: report each task's slice path, the SPEC sections cited in `**Read first:**`, and the bytes/tokens loaded per spawn (from §3T.8 step 6 logging).
+
+### 3T.15. Review Loop
+
+Same as **§15. Review Loop** below. **Never loop back to §3T.8.** Feedback refines completed tasks; it does not re-spawn agents for tasks that already finished.
+
+---
+
+## Single-Tier Execution Loop (legacy / fallback)
+
+For plans authored as `{slug}.plan.md` + per-task `{slug}.T{n}.md` (no SPEC, no ORCHESTRATION). Identical mechanics to the three-tier loop above except (a) the index is `{slug}.plan.md` rather than `{slug}.orchestration.md`, (b) tasks reference the full plan rather than a SPEC slice, and (c) per-task spawns load the task file plus the (smaller) plan index rather than per-agent slices.
 
 The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. Each step ends with a clear state transition — if you cannot produce that transition, STOP and ask.
 
@@ -70,9 +218,9 @@ For every task file listed in `task_files:`, record the `agent:` field from its 
 
 ### 4. Agent Existence Check
 
-For each pinned agent, read the matching `source:` from the plan's `available_agents` catalogue and confirm the spec exists:
+For each pinned agent, read the matching `source:` from the plan's `available_agents` catalogue and confirm the spec is registered with Claude Code:
 
-- **`source: jdi`** — check `.jdi/framework/agents/{name}.md` (installed projects) or `framework/agents/{name}.md` (self-hosting JDI repo)
+- **`source: jdi`** — check `.claude/agents/{name}.md` (generated by `jdi sync-agents` from `.jdi/framework/agents/{name}.md`, or from `framework/agents/{name}.md` in the self-hosting JDI repo). If `.claude/agents/` is empty (e.g. fresh clone before `jdi sync-agents` ran), the legacy injection fallback documented in AgentRouter.md §4 still works.
 - **`source: claude-code`** — check `.claude/agents/{name}.md` (project-local) or `~/.claude/agents/{name}.md` (user-global)
 
 If the spec is NOT found, downgrade to `general-purpose` (with a `jdi-backend` / `jdi-frontend` spec load in the prompt) and record an `agent_downgrade:` entry listing the original pin, the downgrade target, and the reason. This entry MUST appear in the final summary — never silently change a pin.
@@ -104,16 +252,18 @@ Run `jdi state executing`. Do NOT manually edit `.jdi/config/state.yaml`.
 ### 8. Spawn and Execute
 
 **Platform constraints:**
-- JDI specialists (`source: jdi`) are NOT registered Claude Code subagents and MUST be spawned via `subagent_type="general-purpose"` with identity injected via prompt text. Registered Claude Code subagents (`source: claude-code`) are spawned directly by name. See `framework/jdi.md` Critical Constraints.
+<!-- lint-allow: legacy-injection -->
+- All agents (both `source: jdi` and `source: claude-code`) are spawned natively by name: `subagent_type="{task.agent}"`. Claude Code resolves the spec from `.claude/agents/{task.agent}.md`. JDI specialists land there via `jdi sync-agents` (which converts `framework/agents/jdi-*.md` to the Claude Code-compatible format). The legacy `subagent_type="general-purpose"` + identity-injection pattern is documented as a fallback only — see `framework/components/meta/AgentRouter.md` §4 and `framework/jdi.md` Critical Constraints.
+<!-- /lint-allow -->
 - **All agents MUST be spawned with `mode: "acceptEdits"`** — combined with the scoped `allowedTools` allowlist (declared once in `.claude/settings.json` and mirrored at spawn time in `src/utils/claude.ts`), agents get the file-write/tool access they need without the blanket `bypassPermissions` escape hatch. Agents run in background and cannot prompt the user for Write/Edit approval; the allowlist ensures they don't get stuck on prompts.
 
 **Single-agent mode:**
-- `source: jdi` → `Agent(subagent_type="general-purpose", mode="acceptEdits", prompt="You are {plan.primary_agent}. Read .jdi/framework/agents/{plan.primary_agent}.md... PLAN: {index-path}")`
-- `source: claude-code` → `Agent(subagent_type="{plan.primary_agent}", mode="acceptEdits", prompt="<standard spawn prompt> PLAN: {index-path}")`
+- `Agent(subagent_type="{plan.primary_agent}", mode="acceptEdits", prompt="<standard spawn prompt> PLAN: {index-path}")`
+- The variable `{plan.primary_agent}` resolves to the native agent name (e.g. `jdi-backend`, `jdi-frontend`, `unity-specialist`) for both `source: jdi` and `source: claude-code` after `jdi sync-agents` has run.
 
 For split plans, the agent reads task files one at a time via the `file:` field in `.jdi/config/state.yaml`.
 
-**Agent Teams mode:** Spawn ONE Agent call per task using the source-aware pattern above. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
+**Agent Teams mode:** Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
 **Prompt scoping rules (non-negotiable):**
 - One task = one spawn. Never bundle multiple tasks into one prompt.
@@ -123,7 +273,7 @@ For split plans, the agent reads task files one at a time via the `file:` field 
 - For split plans, the agent reads the `TASK_FILE` itself — do not inline task content into the prompt.
 
 **Test task execution:** When spawning a `type: test` task:
-- Use `jdi-qa-tester` agent in `plan-test` mode (always `source: jdi`, spawn via `subagent_type="general-purpose"`)
+- Use `jdi-qa-tester` agent in `plan-test` mode (always `source: jdi`, spawn natively as `subagent_type="jdi-qa-tester"`)
 - Pass the task file path as `TASK_FILE`
 - Include `test_framework`, `test_command`, and `test_scope` from the task frontmatter
 - Include the `depends_on` task IDs so the test agent can read those tasks' `files_modified` for coverage context

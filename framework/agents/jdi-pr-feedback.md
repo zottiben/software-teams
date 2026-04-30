@@ -4,8 +4,12 @@ description: Addresses PR review comments systematically with code changes and r
 category: workflow
 team: Quality Assurance
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Commit]
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI PR Feedback Agent
 

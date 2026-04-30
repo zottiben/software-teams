@@ -4,8 +4,12 @@ description: Backend engineer for API design, data layer, and server-side implem
 category: engineering
 team: Engineering
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Backend Engineer
 

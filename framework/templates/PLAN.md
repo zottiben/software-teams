@@ -1,3 +1,22 @@
+<!--
+  Single-tier plan template (legacy / quick path).
+
+  As of plan 1-01 (native subagents) the default for non-trivial plans is the
+  three-tier spec-kit-style flow:
+    - SPEC.md             — the WHAT (acceptance criteria, out-of-scope)
+    - ORCHESTRATION.md    — the HOW (task graph, agent routing, gates)
+    - PLAN-TASK-AGENT.md  — per-agent slice (one file per task)
+
+  Use three-tier when: >3 implementation tasks, cross-team work, or any plan
+  whose orchestration would crowd out the spec.
+
+  Use single-tier (this PLAN.md + PLAN-TASK.md per task) for: `/jdi:quick`
+  flows, hotfixes, and plans with 1-3 tasks where a separate SPEC tier adds
+  more ceremony than clarity.
+
+  See framework/templates/README.md for the full decision matrix.
+-->
+
 <section name="Frontmatter">
 
 ---

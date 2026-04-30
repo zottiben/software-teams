@@ -2,9 +2,10 @@
 name: create-plan
 description: "JDI: Create implementation plan"
 allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
-argument-hint: "<feature to plan> [--worktree | --worktree-lightweight | --status]"
+argument-hint: "<feature to plan> [--worktree | --worktree-lightweight | --status | --single-tier]"
 context: |
   !cat .jdi/config/state.yaml 2>/dev/null | head -25
+  !ls .jdi/plans/*.orchestration.md 2>/dev/null | tail -5
   !ls .jdi/plans/*.plan.md 2>/dev/null | tail -5
 ---
 
@@ -23,6 +24,7 @@ Create an implementation plan using a single planner agent (includes research). 
 - `--status` — Status mode: generate a plan progress report using `.jdi/config/state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
 - `--with-tests` — Force test plan generation regardless of test suite detection. When set, the planner generates test tasks even if no existing test suite is found.
 - `--without-tests` — Suppress test plan generation even when a test suite is detected. Useful for plans that only touch documentation, config, or framework files where test generation would be noise.
+- `--single-tier` — Force the legacy single-tier output (`{slug}.plan.md` + per-task `{slug}.T{n}.md`). By default this skill drives the planner toward three-tier output (SPEC + ORCHESTRATION + per-agent slices) when the plan is non-trivial — `--single-tier` opts out of that and forces the legacy shape. Useful for hotfixes, tiny plans, or when something downstream still expects the legacy index.
 
 > **Do NOT use the built-in `EnterWorktree` tool.** Always follow `/jdi:worktree` Direct Execution steps.
 
@@ -34,11 +36,18 @@ When `--status` is passed, run this workflow instead of the planning workflow. A
 
 ### 1. Read State
 
-Read `.jdi/config/state.yaml` and the current plan file (index + every task file listed in `task_files:`).
+Read `.jdi/config/state.yaml` and the current plan's index file. The index source depends on the plan's tier:
+
+- **Three-tier (preferred):** read `{slug}.orchestration.md` — the Tasks manifest table is canonical here.
+- **Single-tier (legacy fallback):** read `{slug}.plan.md` — the Tasks manifest is in its `<section name="TaskManifest">` block.
+
+Detection: if `{slug}.orchestration.md` exists, prefer it. Otherwise fall back to `{slug}.plan.md`. Never assume only one shape exists.
+
+After picking the index, read every per-task file listed in the manifest (per-agent `.T{n}.md` slices in three-tier; PLAN-TASK `.T{n}.md` files in single-tier — same file pattern, different bodies).
 
 ### 2. Generate Tables
 
-Produce four tables — **Completed**, **In Progress**, **Blocked**, **Not Started** — listing each task with its `agent:` pin, `priority:` band, and any notes pulled from state.
+Produce four tables — **Completed**, **In Progress**, **Blocked**, **Not Started** — listing each task with its `agent:` pin, `priority:` band, and any notes pulled from state. The agent pin lives in each per-task file's frontmatter regardless of tier.
 
 ### 3. Output and Stop
 
@@ -81,7 +90,7 @@ Enumerate available agents in this order (earlier roots override later ones on n
 
 Store the merged catalogue as `AVAILABLE_AGENTS`. If none of the roots exist, set `AVAILABLE_AGENTS = []`. Do NOT fail.
 
-> **Why source matters:** JDI specialists (`jdi-backend`, `jdi-frontend`, etc.) are NOT registered Claude Code subagents — they live in `framework/agents/`. `implement-plan` must spawn them via `subagent_type="general-purpose"` with identity injected via prompt text. Registered Claude Code subagents (`source: claude-code`) can be spawned by name directly. See `framework/jdi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
+> **Why source matters:** JDI specialists (`jdi-backend`, `jdi-frontend`, etc.) are converted from `framework/agents/` into `.claude/agents/` by `jdi sync-agents`, so once that has run they are spawned natively by name (`subagent_type="jdi-backend"`). The `source:` field still distinguishes specialists shipped with JDI (`source: jdi`) from user-added Claude Code subagents (`source: claude-code`) for routing decisions. See `framework/jdi.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
 
 See `framework/components/meta/AgentRouter.md` §1 for the full discovery + routing rules the planner will apply.
 
@@ -95,12 +104,11 @@ If the feature description looks trivial (single file, <30 minutes, no architect
 
 ### 4a. Pre-Plan Research Spawn
 
-Spawn `jdi-researcher` in `pre-plan-discovery` mode via `Agent(subagent_type="general-purpose", mode="acceptEdits")`. The spawn prompt MUST include:
+Spawn `jdi-researcher` in `pre-plan-discovery` mode via `Agent(subagent_type="jdi-researcher", mode="acceptEdits")`. Claude Code loads the agent spec natively from `.claude/agents/jdi-researcher.md` — do NOT inject identity via prompt text. The spawn prompt MUST include:
 
 - The feature description (`$ARGUMENTS`)
 - `PRE_DISCOVERED_CONTEXT` as a YAML block
 - Mode: `--pre-plan-discovery`
-- Spec path: `.jdi/framework/agents/jdi-researcher.md`
 - Instruction: _"Scan the codebase for decision points relevant to this feature. Return RESEARCH_QUESTIONS YAML. Budget: <=15 file reads, <400 word report."_
 
 Store the return as `RESEARCH_DISCOVERY`.
@@ -119,7 +127,14 @@ Store answers as `PRE_ANSWERED_QUESTIONS`.
 
 ### 5. Spawn Planner
 
-Spawn `jdi-planner` via `Agent(subagent_type="general-purpose", mode="acceptEdits")`. The spawn prompt MUST include:
+Spawn `jdi-planner` via `Agent(subagent_type="jdi-planner", mode="acceptEdits")`. Claude Code loads the agent spec natively from `.claude/agents/jdi-planner.md` — do NOT inject identity via prompt text. Native spawn here confirms the post-T6 wave-2 migration; the lint suite forbids the legacy `general-purpose` injection pattern in this file.
+
+**Tier selection in the spawn prompt:**
+
+- **Default (no `--single-tier`):** pass `tier: three-tier` in the spawn prompt. The planner applies its own Tier Decision Rule (`task_count > 3` OR cross-team) and may downgrade to single-tier if the plan is genuinely tiny — `tier: three-tier` is a request, not a mandate. Most non-trivial features will produce SPEC + ORCHESTRATION + per-agent slices.
+- **With `--single-tier`:** pass `tier: single-tier` in the spawn prompt. This forces the legacy `{slug}.plan.md` + `{slug}.T{n}.md` shape regardless of task count.
+
+The spawn prompt MUST include:
 
 - The feature description (`$ARGUMENTS`)
 - `PRE_DISCOVERED_CONTEXT` as a YAML block — planner must NOT re-read scaffolding
@@ -127,20 +142,34 @@ Spawn `jdi-planner` via `Agent(subagent_type="general-purpose", mode="acceptEdit
 - `PRE_ANSWERED_QUESTIONS` YAML block (from step 4b, if any questions were asked)
 - `RESEARCH_DISCOVERY.research_context` (so the planner doesn't re-scan what the researcher already found)
 - `DISCOVERED_STATE.test_suite` context (detected framework, test command, patterns, and whether `forced` or `suppressed` is set)
+- `tier: three-tier` (default) OR `tier: single-tier` (when `--single-tier` passed) — see "Tier selection" above.
 - Explicit instruction: _"If `test_suite.detected: true` OR `test_suite.forced: true` (AND NOT `test_suite.suppressed: true`), generate test tasks per your test task generation rules. If `test_suite.suppressed: true`, skip test task generation entirely."_
 - Explicit instruction: _"Do NOT re-prompt the user for anything already in PRE_DISCOVERED_CONTEXT. These questions were already answered by the user — do NOT re-ask them. The research context below summarises what was found in the codebase — use it, don't re-scan. Only surface NEW questions that emerged during planning that could not have been anticipated."_
-- Spec path: `.jdi/framework/agents/jdi-planner.md`
+- Explicit instruction: _"Apply your Tier Decision Rule. If tier resolves to three-tier, write SPEC + ORCHESTRATION + per-agent slices. If tier resolves to single-tier, write the legacy `.plan.md` index + per-task files. Report the chosen `tier:` in your structured return."_
 
-The planner creates split plan files (index `.plan.md` + per-task `.T{n}.md` files) directly via Write tool (sandbox override for plan files). It writes `available_agents:` into the index frontmatter and pins an `agent:` field in every task file.
+The planner creates split plan files directly via the Write tool (sandbox override for plan files). In three-tier mode it writes `{slug}.spec.md`, `{slug}.orchestration.md`, and per-agent `{slug}.T{n}.md` slices, with `available_agents:` and `primary_agent:` in the orchestration frontmatter and `agent:` pinned in every per-agent slice. In single-tier mode it writes `{slug}.plan.md` + per-task `{slug}.T{n}.md`, with `available_agents:` in the index frontmatter and `agent:` pinned in every task file.
 
 ### 6. Verify Planner Output
 
-After the planner returns, confirm:
+After the planner returns, read the structured return's `tier:` field and verify the matching artefact set. **If the structured return omits `tier:`, treat it as `single-tier` for back-compat (older planner specs may not report it).**
 
-- Index file `.jdi/plans/{plan-id}.plan.md` exists
+**If `tier: three-tier`:**
+
+- SPEC file `{slug}.spec.md` exists at `spec_path`
+- ORCHESTRATION file `{slug}.orchestration.md` exists at `orchestration_path`
+- Every per-agent slice listed in `task_files:` exists on disk
+- ORCHESTRATION frontmatter contains `available_agents:` matching what you passed in, and `primary_agent:`
+- Every per-agent slice's frontmatter contains `agent:`, `tier: per-agent`, `spec_link:`, `orchestration_link:` (unless `AVAILABLE_AGENTS` was empty — then `agent:` may be `general-purpose`)
+- Every per-agent slice's body opens with `**Why this slice:**` and `**Read first:**` headers (token-efficiency contract)
+- Legacy `{slug}.plan.md` is OPTIONAL — do not error if it is absent.
+
+**If `tier: single-tier`:**
+
+- Index file `{slug}.plan.md` exists at `plan_path`
 - Every entry in `task_files:` exists on disk
 - Every task file's frontmatter contains an `agent:` field (unless `AVAILABLE_AGENTS` was empty)
 - The index frontmatter contains `available_agents:` matching what you passed in
+- SPEC and ORCHESTRATION files are NOT expected — do not error if they are absent.
 
 If any check fails, STOP and report the gap to the user. Do not advance state on incomplete output.
 
@@ -150,20 +179,25 @@ The planner creates files directly (spawned under `acceptEdits` with a scoped `a
 
 ### 8. Update State
 
-Run the state CLI — do NOT manually edit `.jdi/config/state.yaml`:
+Run the state CLI — do NOT manually edit `.jdi/config/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
+
+- **Three-tier:** pass the orchestration file path (`{slug}.orchestration.md`) — that is the canonical manifest in three-tier mode.
+- **Single-tier:** pass the index file path (`{slug}.plan.md`) — legacy behaviour.
 
 ```bash
-jdi state plan-ready --plan-path ".jdi/plans/{plan-file}" --plan-name "{plan name}"
+jdi state plan-ready --plan-path ".jdi/plans/{canonical-index-file}" --plan-name "{plan name}"
 ```
 
 ### 9. Present Summary
 
 Present the plan summary to the user:
 
-- Plan name, objective, and sprint goal
-- Task manifest table: `ID | Task | Agent | Priority | Requires`
+- Plan name, objective, and sprint goal (from SPEC.md in three-tier; from PLAN.md in single-tier)
+- Task manifest table: `ID | Task | Agent | Priority | Requires` (from ORCHESTRATION.md in three-tier; from PLAN.md in single-tier)
 - Any open questions the planner surfaced
-- File list (index + task files)
+- File list — show the chosen tier and the artefacts produced:
+  - Three-tier: `{slug}.spec.md`, `{slug}.orchestration.md`, and every `{slug}.T{n}.md`
+  - Single-tier: `{slug}.plan.md` and every `{slug}.T{n}.md`
 
 End with the exact prompt: _"Provide feedback to refine, or say **approved** to finalise."_
 
@@ -193,6 +227,8 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 | `--status` with no current plan | Output "No current plan — run `/jdi:create-plan \"<feature>\"` to create one" and STOP. |
 | Planner returns without writing any files | STOP, report the failure, do NOT advance state. Ask the user to re-invoke or debug. |
 | User asks to implement during review loop | Remind them of the gate: "Planning and implementation are separate phases. Say `approved` to lock in the plan, then run `/jdi:implement-plan`." Do NOT auto-advance. |
+| Planner returns `tier: three-tier` but SPEC or ORCHESTRATION is missing | STOP and report the missing artefact. The structured return advertised three-tier — incomplete output cannot advance state. Ask the user to re-invoke. |
+| Planner downgraded `tier` to single-tier despite the spawn prompt requesting three-tier | Accept the downgrade — the planner applied its own Tier Decision Rule and concluded the plan is single-team / ≤3 tasks. Verify the single-tier artefact set and proceed. |
 
 ---
 

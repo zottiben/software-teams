@@ -96,6 +96,14 @@ Every task MUST be tagged with one of three priority bands:
 
 ---
 
+## See Also: Three-Tier Output
+
+This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (`PLAN.md` + per-task) or three-tier (`SPEC.md` + `ORCHESTRATION.md` + per-agent slices) artefacts.
+
+When the planner is in three-tier mode the resulting task graph and dependency analysis are written into `framework/templates/ORCHESTRATION.md` (the manifest, sequencing rules, and quality gates) rather than the legacy `PLAN.md` index. The granularity rules, priority bands, and test task rules below are unchanged. See `framework/agents/jdi-planner.md` for the Tier Decision Rule.
+
+---
+
 ## Test Task Rules
 
 When test context is provided (test_suite.detected or test_suite.forced), generate test tasks following these rules:

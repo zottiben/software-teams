@@ -3,9 +3,13 @@ name: jdi-head-engineering
 description: Engineering manager who ensures high code quality, removes blockers, and keeps engineers on plan
 category: management
 team: Micro-Management
-model: sonnet
+model: opus
+tools: [Read, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Head of Engineering
 

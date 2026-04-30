@@ -4,8 +4,12 @@ description: Frontend engineer for UI components, state management, and client-s
 category: engineering
 team: Engineering
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Frontend Engineer
 

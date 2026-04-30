@@ -4,8 +4,12 @@ description: DevOps engineer for infrastructure architecture, CI/CD, and develop
 category: devops
 team: DevOps
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI DevOps Engineer
 

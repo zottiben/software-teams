@@ -4,8 +4,12 @@ description: Writes test cases, regression checklists and runs post-task verific
 category: specialist
 team: Quality Assurance
 model: haiku
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI QA Tester Agent
 

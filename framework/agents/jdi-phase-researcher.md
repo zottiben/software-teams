@@ -4,8 +4,12 @@ description: Phase-specific research agent that gathers targeted context before 
 category: research
 team: Product & Research
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash, WebFetch, WebSearch]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Phase Researcher Agent
 

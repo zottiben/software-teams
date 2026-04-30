@@ -4,8 +4,12 @@ description: Analyses PR review comments to extract learning opportunities and u
 category: quality
 team: Quality Assurance
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Feedback Learner Agent
 

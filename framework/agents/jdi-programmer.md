@@ -4,8 +4,12 @@ description: Executes plan tasks with atomic commits, deviation handling, and pr
 category: workflow
 team: Engineering
 model: sonnet
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: [Verify, Commit, StateUpdate]
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Programmer Agent
 

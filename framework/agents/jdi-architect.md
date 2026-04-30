@@ -4,8 +4,12 @@ description: Designs system architecture with focus on maintainability and scala
 category: specialist
 team: Product & Research
 model: opus
+tools: [Read, Write, Edit, Grep, Glob, Bash]
 requires_components: []
 ---
+
+<!-- canonical frontmatter — converted to .claude/agents/{name}.md by jdi sync-agents -->
+
 
 # JDI Architect Agent
 
