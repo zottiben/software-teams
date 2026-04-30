@@ -1,7 +1,9 @@
-name: Publish to npm
+name: Publish @benzotti/software-teams to npm
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
 
 permissions:
@@ -9,7 +11,35 @@ permissions:
   id-token: write
 
 jobs:
+  # Dry-run job: runs on every PR to validate the publish path before T16
+  dry-run:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Dry-run publish (@benzotti/software-teams)
+        run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   publish:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +60,19 @@ jobs:
             echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
             echo "Version changed: $PREVIOUS → $CURRENT"
           fi
+
+      # Fail fast if package.json version != plugin.json version (keeps artefacts in lockstep)
+      - name: Version lockstep check (package.json == .claude-plugin/plugin.json)
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          PKG_VERSION=$(jq -r .version package.json)
+          PLUGIN_VERSION=$(jq -r .version .claude-plugin/plugin.json)
+          if [ "$PKG_VERSION" != "$PLUGIN_VERSION" ]; then
+            echo "ERROR: version mismatch — package.json=$PKG_VERSION but .claude-plugin/plugin.json=$PLUGIN_VERSION"
+            echo "Bump both files to the same version before publishing."
+            exit 1
+          fi
+          echo "Versions in lockstep: $PKG_VERSION"
 
       - uses: oven-sh/setup-bun@v2
         if: steps.version.outputs.changed == 'true'

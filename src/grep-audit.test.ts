@@ -39,17 +39,14 @@ describe("Grep Audit: Zero straggler `jdi`/`JDI` matches outside allowlist", () 
 
     const failedMatches: string[] = [];
 
+    const BINARY_EXT = new Set([
+      ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".gz", ".tar",
+      ".tgz", ".jar", ".class", ".so", ".dylib", ".dll", ".exe", ".bin",
+      ".woff", ".woff2", ".ttf", ".otf", ".webp", ".mp3", ".mp4", ".wav",
+    ]);
     for (const file of allFiles) {
-      // Skip binary files
-      const fileCheckOutput = execSync(`file "${file}" 2>/dev/null || echo "text"`, {
-        encoding: "utf-8",
-        shell: "/bin/bash",
-      });
-      if (
-        fileCheckOutput.includes("executable") ||
-        fileCheckOutput.includes("binary") ||
-        fileCheckOutput.includes("image")
-      ) {
+      const dotIdx = file.lastIndexOf(".");
+      if (dotIdx >= 0 && BINARY_EXT.has(file.slice(dotIdx).toLowerCase())) {
         continue;
       }
 

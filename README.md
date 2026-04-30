@@ -2,7 +2,9 @@
 
 ** Software Agent workflows for Claude Code **
 
-[![npm version](https://img.shields.io/npm/v/@benzotti/software-teams)](https://www.npmjs.com/package/@benzotti/software-teams) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/@benzotti/software-teams)](https://www.npmjs.com/package/@benzotti/software-teams) [![CI](https://img.shields.io/github/actions/workflow/status/zottiben/software-teams/ci.yml?branch=main&label=ci)](https://github.com/zottiben/software-teams/actions) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+> Migrating from `@benzotti/jdi`? Read the [JDI → Software Teams rebrand migration guide](docs/migration-rebrand-software-teams.md). The repo moved from `zottiben/jdi` to `zottiben/software-teams`; old URLs redirect via GitHub.
 
 Orchestrate specialised agents to plan, implement, review, and ship features — from single-file fixes to full-stack multi-wave implementations.
 
@@ -101,6 +103,22 @@ See [GitHub Actions Setup](#github-actions-setup) for details.
 ---
 
 ## Commands
+
+### Slash command prefixes
+
+Software Teams ships through two distribution channels, each with its own slash-command
+namespace. Both invoke the same skills — pick by how you installed.
+
+| Install method | Prefix | Example | Notes |
+|----------------|--------|---------|-------|
+| npm CLI (`bunx @benzotti/software-teams`) | `/st:*` | `/st:create-plan` | Short prefix for terminal ergonomics |
+| Claude Code plugin | `/software-teams:*` | `/software-teams:create-plan` | Manifest namespace per Anthropic plugin spec |
+
+The legacy `/jdi:*` prefix is gone. If you have aliases or notes referencing it, update
+them to `/st:*` (CLI) or `/software-teams:*` (plugin). Full migration details:
+[`docs/migration-rebrand-software-teams.md`](docs/migration-rebrand-software-teams.md).
+
+### Command reference
 
 | Slash Command | CLI Equivalent | Description |
 |---------------|----------------|-------------|
