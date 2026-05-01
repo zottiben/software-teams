@@ -2,7 +2,7 @@
 
 The discipline every Software Teams skill follows. Referenced by user-invocable commands to enforce deterministic, auditable behaviour on every invocation.
 
-When a command references `<JDI:StrictnessProtocol />`, these rules apply to the command's orchestration. They are **not suggestions** — they are the contract Claude honours for that skill.
+When a command references `@ST:StrictnessProtocol`, these rules apply to the command's orchestration. They are **not suggestions** — they are the contract Claude honours for that skill.
 
 ---
 
@@ -34,7 +34,7 @@ These are hard gates. Treat them as you would a `return` statement in code: exec
 
 ## Silent Discovery Discipline
 
-Skills that also reference `<JDI:SilentDiscovery />` gather context from disk before asking questions. The two components compose:
+Skills that also reference `@ST:SilentDiscovery` gather context from disk before asking questions. The two components compose:
 
 - `SilentDiscovery` defines **what** to read and how to store it
 - `StrictnessProtocol` defines **how** that discovered state shapes the conversation (never re-ask what's already on disk; surface findings only when relevant to the current step)
@@ -54,7 +54,7 @@ Then wait for confirmation. Silent deviation is the failure mode this protocol e
 ## Usage
 
 ```
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 ```
 
 Referenced in the footer of user-invocable commands (`/st:build`, `/st:create-plan`, `/st:implement-plan`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.

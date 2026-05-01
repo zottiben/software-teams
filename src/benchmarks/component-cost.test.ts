@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const REPO_ROOT = process.cwd();
 const BENCH_JSONL_PATH = join(REPO_ROOT, ".software-teams", "persistence", "component-bench.jsonl");

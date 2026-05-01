@@ -2,7 +2,7 @@
 
 The mandatory state-reading preamble that runs before any user-facing prompt in a Software Teams skill. Its purpose: make sure you never re-ask the user for facts that are already on disk.
 
-When a command references `<JDI:SilentDiscovery />`, you MUST gather context from the filesystem before presenting any question, routing decision, or recommendation. Store what you find internally as `DISCOVERED_STATE` — do NOT print discovery output to the user unless a later step explicitly calls for it.
+When a command references `@ST:SilentDiscovery`, you MUST gather context from the filesystem before presenting any question, routing decision, or recommendation. Store what you find internally as `DISCOVERED_STATE` — do NOT print discovery output to the user unless a later step explicitly calls for it.
 
 ---
 
@@ -99,7 +99,7 @@ This avoids the common failure where the orchestrator reads scaffolding, spawns 
 ## Usage
 
 ```
-<JDI:SilentDiscovery />
+@ST:SilentDiscovery
 ```
 
 Referenced at the top of a skill's numbered workflow, typically as step 1 or 2. Always runs before any user-facing prompt.

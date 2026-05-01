@@ -20,8 +20,8 @@
  *   bun run src/benchmarks/component-cost.ts --from-resolved  (post-migration)
  */
 
-import { readFileSync, appendFileSync, mkdirSync, existsSync } from "fs";
-import { join, basename } from "path";
+import { readFileSync, appendFileSync, mkdirSync, existsSync } from "node:fs";
+import { join, basename } from "node:path";
 
 const REPO_ROOT = process.cwd();
 

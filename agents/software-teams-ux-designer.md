@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Lead UX Designer
+# Software Teams Lead UX Designer
 
 ## Stack Loading
 

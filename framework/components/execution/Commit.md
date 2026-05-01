@@ -30,7 +30,7 @@ Create an atomic commit with proper formatting, staging, and state tracking.
 
 ## Default Behaviour
 
-When invoked as `<JDI:Commit />`:
+When invoked as `@ST:Commit`:
 
 1. **Check for changes** — `git status --porcelain`. If none, skip.
 

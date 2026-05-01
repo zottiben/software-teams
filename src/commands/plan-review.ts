@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve, join } from "path";
-import { existsSync } from "fs";
+import { resolve, join } from "node:path";
+import { existsSync } from "node:fs";
 import { readState, writeState } from "../utils/state";
 
 function parsePlanSummary(content: string): { name: string; objective: string; tasks: string[] } {

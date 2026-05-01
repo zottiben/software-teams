@@ -1,8 +1,8 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, readdirSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, readdirSync } from "node:fs";
 import { writeFile, readFile } from "node:fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
 import { convertAgents, validateAgentFrontmatter } from "./convert-agents";
 import { getComponent } from "../components/resolve";

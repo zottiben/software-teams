@@ -49,10 +49,13 @@ describe("prompt-builder regression invariants", () => {
       expect(result).toContain("## Learnings");
     });
 
-    test("references complexity router and orchestration", () => {
+    test("inlines complexity router and orchestration component bodies", () => {
+      // Post plugin-tree promotion: prompt-builder no longer asks the spawned
+      // agent to Read .md files at runtime. The component bodies are pulled
+      // from the TS registry via getComponent() and inlined directly.
       const result = buildImplementPrompt(makeCtx(), "plan.md");
-      expect(result).toContain("ComplexityRouter.md");
-      expect(result).toContain("AgentTeamsOrchestration.md");
+      expect(result).toContain("## Complexity Routing");
+      expect(result).toContain("## Agent Teams Orchestration");
     });
 
     test("includes the plan path", () => {

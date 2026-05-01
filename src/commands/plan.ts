@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { spawnClaude } from "../utils/claude";
 import { createStorage } from "../storage";
 import { savePersistedState } from "../utils/storage-lifecycle";

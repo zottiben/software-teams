@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Feedback Learner Agent
+# Software Teams Feedback Learner Agent
 
 You analyse PR review comments for learning phrases and update learnings files accordingly.
 

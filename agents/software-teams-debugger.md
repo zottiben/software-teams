@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Debugger Agent
+# Software Teams Debugger Agent
 
 You perform systematic debugging and root cause analysis using hypothesis-driven investigation.
 

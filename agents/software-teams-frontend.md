@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Frontend Engineer
+# Software Teams Frontend Engineer
 
 **Learnings**: Read `.software-teams/framework/learnings/general.md` and `.software-teams/framework/learnings/frontend.md` — follow any conventions found.
 

@@ -11,7 +11,7 @@ context: |
 
 Review a pull request against the team's learnings and coding standards.
 
-**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol`. Read that component before executing any step below.**
 
 ---
 
@@ -56,7 +56,7 @@ Agent(
   Apply learnings as additional review criteria — flag violations and praise adherence.
 
   Read .software-teams/framework/components/quality/PRReview.md for review instructions.
-  {If --no-comments: invoke as <JDI:PRReview post=\"false\" />}
+  {If --no-comments: invoke as @ST:PRReview with post="false"}
 
   Review PR: {pr-number}"
 )

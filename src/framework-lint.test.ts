@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync, existsSync, readdirSync } from "fs";
-import { join } from "path";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 
 const repoRoot = join(import.meta.dir, "..");

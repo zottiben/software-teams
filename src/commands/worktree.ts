@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
 import { exec, gitRoot } from "../utils/git";
 import { readAdapter } from "../utils/adapter";
 import { readState, writeState } from "../utils/state";

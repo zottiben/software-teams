@@ -1,8 +1,8 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, readdirSync, existsSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, readdirSync, existsSync } from "node:fs";
 import { writeFile, readFile } from "node:fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { convertAgents } from "../utils/convert-agents";
 
 let tempDirs: string[] = [];

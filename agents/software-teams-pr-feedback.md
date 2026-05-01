@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI PR Feedback Agent
+# Software Teams PR Feedback Agent
 
 @ST:AgentBase:Sandbox
 

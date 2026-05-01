@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI DevOps Engineer
+# Software Teams DevOps Engineer
 
 **Learnings**: Read `.software-teams/framework/learnings/general.md` and `.software-teams/framework/learnings/devops.md` — follow any conventions found.
 
@@ -44,7 +44,7 @@ Docker (multi-stage, compose), Kubernetes, cloud services (compute, storage, que
 ### Developer Tooling (Senior)
 - **Environment**: Docker Compose for local dev, env var configuration
 - **Package manager**: Follow stack convention file for package manager and flags
-- **Git worktrees**: Parallel development and JDI plan execution
+- **Git worktrees**: Parallel development and Software Teams plan execution
 - **Build**: Follow stack convention file for build tooling and commands
 - **Troubleshooting**: Port conflicts, Docker networking, runtime extensions, DB connectivity
 

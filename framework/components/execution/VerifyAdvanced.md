@@ -6,7 +6,7 @@ description: Advanced verification for phase and requirements scope
 
 # VerifyAdvanced
 
-Lazy-loaded verification for `scope="phase"` and `scope="requirements"`. See `<JDI:Verify />` for task and plan verification.
+Lazy-loaded verification for `scope="phase"` and `scope="requirements"`. See `@ST:Verify` for task and plan verification.
 
 ---
 

@@ -53,7 +53,7 @@ const PRReview: Component = {
     DefaultBehaviour: {
       name: "DefaultBehaviour",
       description: "Steps executed when invoked as @ST:PRReview",
-      body: `When invoked as \`<JDI:PRReview />\`, execute steps in order:
+      body: `When invoked as \`@ST:PRReview\`, execute steps in order:
 
 ### Step 1: Identify PR (REQUIRED)
 
@@ -230,7 +230,7 @@ EOF
       description: "How to write a local review file when post=false",
       body: `## Local Review Output
 
-When \`post="false"\` or invoked with \`<JDI:PRReview post="false" />\`:
+When \`post="false"\` or invoked with \`@ST:PRReview\` and the local-output flag:
 
 Skip Steps 9-10 (posting to GitHub). Instead, write the full structured review to a file:
 

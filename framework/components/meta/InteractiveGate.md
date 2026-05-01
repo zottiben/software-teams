@@ -2,7 +2,7 @@
 
 A reusable question gate that presents structured decisions to the user via `AskUserQuestion` before a phase transition. Questions are sourced from two channels: surface-level ambiguity detection and research-driven codebase analysis.
 
-When a command references `<JDI:InteractiveGate mode="..." />`, execute the steps below. Do NOT skip the merge/dedup logic even if only one source produces questions.
+When a command references `@ST:InteractiveGate:...`, execute the steps below. Do NOT skip the merge/dedup logic even if only one source produces questions.
 
 ---
 
@@ -131,8 +131,7 @@ Parse the user's response and populate `PRE_ANSWERED_QUESTIONS` accordingly.
 ## Usage
 
 ```
-<JDI:InteractiveGate mode="pre-plan" />
-<JDI:InteractiveGate mode="blocker-resolution" />
+@ST:InteractiveGate
 ```
 
 Referenced within a skill's numbered workflow steps. Requires that question sources (surface analysis input and/or `RESEARCH_QUESTIONS` block) are available in the execution context before invocation.

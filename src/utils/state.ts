@@ -1,5 +1,5 @@
-import { join } from "path";
-import { existsSync } from "fs";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { parse, stringify } from "yaml";
 import { findJdiRootOrNull } from "./find-root";
 

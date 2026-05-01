@@ -1,5 +1,5 @@
-import { join, dirname } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { join, dirname } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 import type { ProjectType } from "./detect-project";
 
 export async function copyFrameworkFiles(
@@ -134,9 +134,9 @@ and saving it to \`.software-teams/persistence/codebase-index.md\` for future ru
 Based on the user's request, follow the appropriate workflow:
 
 - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read \`.software-teams/framework/agents/software-teams-planner.md\` and create a plan in \`.software-teams/plans/\`. Present a summary and ask for feedback.
-- **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use \`.software-teams/framework/components/meta/ComplexityRouter.md\` to decide single-agent vs teams mode.
+- **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml. Run \`software-teams component get ComplexityRouter\` to decide single-agent vs teams mode.
 - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
-- **Review** ("review"): Review PR changes using \`.software-teams/framework/components/quality/PRReview.md\`.
+- **Review** ("review"): Run \`software-teams component get PRReview\` for the review checklist; review PR changes against it.
 - **PR feedback** ("feedback"): Address review comments using \`.software-teams/framework/agents/software-teams-pr-feedback.md\`. Extract learnings from reviewer preferences.
 - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 

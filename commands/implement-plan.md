@@ -11,7 +11,7 @@ context: |
 
 Execute an approved plan with complexity-based routing. Deterministic workflow — every invocation follows the same numbered steps, in order, without skipping.
 
-**This skill follows `<JDI:StrictnessProtocol />` and `<JDI:SilentDiscovery />`. Read those components before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol` and `@ST:SilentDiscovery`. Read those components before executing any step below.**
 
 ---
 
@@ -89,7 +89,7 @@ Same as the single-tier loop's **§4. Agent Existence Check** below — for each
 
 ### 3T.5. Complexity Routing
 
-Apply `<JDI:ComplexityRouter />`. For three-tier plans the router considers the SPEC + ORCHESTRATION as the **orchestrator brief** when `--single` mode is forced; per-task spawns still load only the slice (see §3T.8 below).
+Apply `@ST:ComplexityRouter`. For three-tier plans the router considers the SPEC + ORCHESTRATION as the **orchestrator brief** when `--single` mode is forced; per-task spawns still load only the slice (see §3T.8 below).
 
 `--team` and `--single` overrides win over signals as usual. Record the routing decision in `DISCOVERED_STATE.routing`.
 
@@ -117,7 +117,7 @@ For each task in the topologically sorted task graph:
    - The SPEC sections to read (pass the section anchors, NOT the file contents inline)
    - Instruction: _"Read only your TASK_FILE and the SPEC sections cited in its `**Read first:**` line. Do NOT load the full spec, the full orchestration, or other task files. Cap exploration to the files your slice names."_
    - The `done_when:` block from the slice (verbatim) so the agent knows the completion contract
-   - Short-report instruction (<400 words) per `<JDI:AgentBase />` Budget Discipline
+   - Short-report instruction (<400 words) per `@ST:AgentBase` Budget Discipline
 
    **Optional (R-06 follow-up)**: Before each spawn, record the prompt context size so future plans get real per-spawn numbers instead of static estimates:
 
@@ -134,7 +134,7 @@ For each task in the topologically sorted task graph:
 5. **Branch on verify result:**
    - **Pass** → run `software-teams state advance-task {task-id}`, record verification in the task summary, continue to next task.
    - **S1 / S2 fail** → halt the plan, escalate via AskUserQuestion (same blocker UX as §8a below). Do NOT advance task state.
-   - **S3 / S4 fail** → record in task summary, continue. (Same severity ladder as `<JDI:AgentBase />`.)
+   - **S3 / S4 fail** → record in task summary, continue. (Same severity ladder as `@ST:AgentBase`.)
 
 6. **Wave gate:** when the wave's last task verifies, run the **post-wave-integration** gate from ORCHESTRATION.md's Quality Gates section (typically `bun test` plus a smoke check on the wave's `provides:` deliverables). If the wave gate fails, halt the plan and enter the review loop at §15. Do NOT start the next wave.
 
@@ -180,7 +180,7 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. E
 
 ### 1. Silent Discovery
 
-Execute `<JDI:SilentDiscovery />` now. Read the scaffolding files listed in that component and store the result internally as `DISCOVERED_STATE`. Do NOT print the discovery output to the user.
+Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that component and store the result internally as `DISCOVERED_STATE`. Do NOT print the discovery output to the user.
 
 **Additional reads for this skill:**
 - `.software-teams/codebase/SUMMARY.md` if it exists
@@ -227,7 +227,7 @@ If the spec is NOT found, downgrade to `general-purpose` (with a `software-teams
 
 ### 5. Complexity Routing
 
-Apply `<JDI:ComplexityRouter />`:
+Apply `@ST:ComplexityRouter`:
 - **Simple** (≤3 tasks, single stack/wave) → single-agent mode
 - **Complex** (>3 tasks OR multi-stack OR multi-wave) → Agent Teams swarm
 
@@ -288,7 +288,7 @@ When an agent returns `status: blocked`:
 
 1. Read the blocker context from the agent's structured return
    (blocker_reason, blocker_context, suggested_options if any)
-2. Execute `<JDI:InteractiveGate mode="blocker-resolution" />`
+2. Execute `@ST:InteractiveGate:blocker-resolution`
 3. Present the blocker to the user via AskUserQuestion:
    - header: "BLOCKED"
    - question: "{task_name} is blocked: {blocker_reason}"

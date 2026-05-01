@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Committer Agent
+# Software Teams Committer Agent
 
 @ST:AgentBase:Sandbox
 

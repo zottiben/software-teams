@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { join, dirname } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { join, dirname } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 
 export const setupActionCommand = defineCommand({
   meta: {

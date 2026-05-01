@@ -1,6 +1,6 @@
-# JDI Workflows
+# Software Teams Workflows
 
-Quick-reference for common development workflows using JDI commands.
+Quick-reference for common development workflows using Software Teams commands.
 
 ---
 

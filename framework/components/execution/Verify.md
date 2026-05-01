@@ -29,7 +29,7 @@ Verify completion of work at various levels of granularity.
 
 ## Default Behaviour
 
-When invoked as `<JDI:Verify />`:
+When invoked as `@ST:Verify`:
 
 1. **Determine scope** — Check current position from state.yaml, default to task-level
 2. **Load verification criteria** — task: PLAN.md verification section; plan: PLAN.md success_criteria; phase: ROADMAP.yaml must_haves
@@ -97,7 +97,7 @@ When invoked as `<JDI:Verify />`:
 
 ## Advanced Verification (Phase & Requirements)
 
-For `scope="phase"` or `scope="requirements"`, load `<JDI:VerifyAdvanced />`.
+For `scope="phase"` or `scope="requirements"`, load `@ST:VerifyAdvanced`.
 
 ---
 

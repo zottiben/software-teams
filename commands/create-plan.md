@@ -13,7 +13,7 @@ context: |
 
 Create an implementation plan using a single planner agent (includes research). Deterministic workflow — every invocation follows the same numbered steps, in order, without skipping.
 
-**This skill follows `<JDI:StrictnessProtocol />`, `<JDI:SilentDiscovery />`, and `<JDI:InteractiveGate />`. Read those components before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol`, `@ST:SilentDiscovery`, and `@ST:InteractiveGate`. Read those components before executing any step below.**
 
 ---
 
@@ -67,7 +67,7 @@ If no worktree flag is present, skip this step entirely — do not mention it to
 
 ### 2. Silent Discovery
 
-Execute `<JDI:SilentDiscovery />` now. Read the scaffolding files listed in that component and store the result internally as `PRE_DISCOVERED_CONTEXT`. Do NOT print the discovery output to the user.
+Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that component and store the result internally as `PRE_DISCOVERED_CONTEXT`. Do NOT print the discovery output to the user.
 
 **Additional reads for this skill:**
 - `.software-teams/REQUIREMENTS.yaml` → `risks:` block (for the planner's Risks section)
@@ -115,7 +115,7 @@ Store the return as `RESEARCH_DISCOVERY`.
 
 ### 4b. Pre-Planning Questions (Interactive Gate)
 
-Execute `<JDI:InteractiveGate mode="pre-plan" />`:
+Execute `@ST:InteractiveGate:pre-plan`:
 
 1. Collect surface-level ambiguity questions from the feature description
 2. Collect research-driven questions from `RESEARCH_DISCOVERY.research_questions`

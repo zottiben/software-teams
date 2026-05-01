@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Verifier Agent
+# Software Teams Verifier Agent
 
 You perform goal-backward verification: start from the GOAL, work backward to what must exist, check each artifact at three levels.
 

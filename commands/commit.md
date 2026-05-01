@@ -12,7 +12,7 @@ context: |
 
 Create a well-formatted conventional commit via the `software-teams-committer` specialist.
 
-**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol`. Read that component before executing any step below.**
 
 ---
 

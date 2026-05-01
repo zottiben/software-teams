@@ -115,7 +115,7 @@ TeamCreate → TaskCreate per plan task → spawn specialists per tech-stack rou
 ## Usage
 
 ```
-<JDI:ComplexityRouter />
+@ST:ComplexityRouter
 ```
 
 Referenced by implement-plan command stub. Evaluates at orchestration time, before any agents are spawned.

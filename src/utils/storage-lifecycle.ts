@@ -1,5 +1,5 @@
-import { join } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 import type { JdiStorage } from "../storage";
 
 const LEARNINGS_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];

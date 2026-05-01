@@ -12,10 +12,10 @@
 
 import { describe, test, expect } from "bun:test";
 import { checkComponentDrift } from "./component-drift";
-import { join } from "path";
-import { existsSync } from "fs";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import * as fs from "fs/promises";
-import * as os from "os";
+import * as os from "node:os";
 
 describe("Component Drift Check", () => {
   test("clean tree passes drift check", async () => {

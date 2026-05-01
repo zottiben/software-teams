@@ -1,6 +1,6 @@
 import { mkdir } from "fs/promises";
-import { existsSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 /**
  * One spawn record. Append-only JSONL — each entry occupies a single line.

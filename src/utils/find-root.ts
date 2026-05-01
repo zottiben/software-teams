@@ -1,5 +1,5 @@
-import { join, dirname, resolve } from "path";
-import { existsSync } from "fs";
+import { join, dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
 
 /**
  * Walk up from `startDir` looking for a directory that contains

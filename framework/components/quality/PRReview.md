@@ -30,7 +30,7 @@ Review pull request changes with structured analysis and post line comments to G
 
 ## Default Behaviour
 
-When invoked as `<JDI:PRReview />`, execute steps in order:
+When invoked as `@ST:PRReview`, execute steps in order:
 
 ### Step 1: Identify PR (REQUIRED)
 
@@ -212,7 +212,7 @@ EOF
 
 ## Local Review Output
 
-When `post="false"` or invoked with `<JDI:PRReview post="false" />`:
+When `post="false"` or invoked with `@ST:PRReview` and the local-output flag:
 
 Skip Steps 9-10 (posting to GitHub). Instead, write the full structured review to a file:
 

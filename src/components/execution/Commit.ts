@@ -44,7 +44,7 @@ const Commit: Component = {
     DefaultBehaviour: {
       name: "DefaultBehaviour",
       description: "Steps executed when invoked as @ST:Commit",
-      body: `When invoked as \`<JDI:Commit />\`:
+      body: `When invoked as \`@ST:Commit\`:
 
 1. **Check for changes** — \`git status --porcelain\`. If none, skip.
 

@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI QA Tester Agent
+# Software Teams QA Tester Agent
 
 Writes test cases and regression checklists for specific tasks. Called by software-teams-programmer during task completion. Does NOT own test strategy (software-teams-quality) or run CI (software-teams-devops).
 

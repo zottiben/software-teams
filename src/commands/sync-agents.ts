@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { join } from "path";
-import { existsSync } from "fs";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { convertAgents } from "../utils/convert-agents";
 

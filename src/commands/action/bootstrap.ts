@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from "fs";
-import { join } from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 /**
  * Ensure the Software Teams framework is initialized.

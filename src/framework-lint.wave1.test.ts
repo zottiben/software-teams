@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync, readdirSync } from "fs";
-import { join } from "path";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 const REPO_ROOT = join(import.meta.dir, "..");
 // Plugin tree (agents/+commands/) was promoted to source-of-truth; the

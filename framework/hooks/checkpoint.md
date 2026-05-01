@@ -34,7 +34,7 @@ User needs to test/verify something.
 **Template:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- JDI ► CHECKPOINT: Verification Required
+ Software Teams ► CHECKPOINT: Verification Required
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **Phase:** {phase} | **Plan:** {plan} | **Task:** {n}/{total}
@@ -70,7 +70,7 @@ User needs to make a choice.
 **Template:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- JDI ► CHECKPOINT: Decision Required
+ Software Teams ► CHECKPOINT: Decision Required
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **Decision:** {What needs to be decided}
@@ -109,7 +109,7 @@ User needs to do something manually.
 **Template:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- JDI ► CHECKPOINT: Manual Action Required
+ Software Teams ► CHECKPOINT: Manual Action Required
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **Action:** {What you need to do}

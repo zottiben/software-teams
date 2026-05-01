@@ -133,8 +133,7 @@ Parse the user's response and populate \`PRE_ANSWERED_QUESTIONS\` accordingly.`,
       name: "Usage",
       description: "Tag usage and references",
       body: `\`\`\`
-<JDI:InteractiveGate mode="pre-plan" />
-<JDI:InteractiveGate mode="blocker-resolution" />
+@ST:InteractiveGate
 \`\`\`
 
 Referenced within a skill's numbered workflow steps. Requires that question sources (surface analysis input and/or \`RESEARCH_QUESTIONS\` block) are available in the execution context before invocation.`,

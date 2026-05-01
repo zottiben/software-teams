@@ -7,8 +7,8 @@
  *   Sections: "Default Behaviour" (from ##), "Task" (from <section>), "Plan" (from <section>),
  *   "Advanced Verification" (from ##), "TestRunner" (from <section>), "State Updates" (from ##).
  * - Body trim: leading/trailing whitespace only; internal whitespace preserved.
- * - Inline `<JDI:VerifyAdvanced />` reference lifted into requires AND kept in body.
- * - Inline `<JDI:PRReview:Checklist />` (in PRReview body) not present here.
+ * - Inline `@ST:VerifyAdvanced` reference lifted into requires AND kept in body.
+ * - Inline `@ST:PRReview:Checklist` (in PRReview body) not present here.
  */
 
 import type { Component } from "../types";
@@ -45,8 +45,8 @@ const Verify: Component = {
   sections: {
     DefaultBehaviour: {
       name: "DefaultBehaviour",
-      description: "Steps executed when invoked as <JDI:Verify />",
-      body: `When invoked as \`<JDI:Verify />\`:
+      description: "Steps executed when invoked as @ST:Verify",
+      body: `When invoked as \`@ST:Verify\`:
 
 1. **Determine scope** — Check current position from state.yaml, default to task-level
 2. **Load verification criteria** — task: PLAN.md verification section; plan: PLAN.md success_criteria; phase: ROADMAP.yaml must_haves
@@ -107,7 +107,7 @@ const Verify: Component = {
     AdvancedVerification: {
       name: "AdvancedVerification",
       description: "Delegation to VerifyAdvanced for phase and requirements scope",
-      body: `For \`scope="phase"\` or \`scope="requirements"\`, load \`<JDI:VerifyAdvanced />\`.`,
+      body: `For \`scope="phase"\` or \`scope="requirements"\`, load \`@ST:VerifyAdvanced\`.`,
       requires: ["VerifyAdvanced"],
     },
     TestRunner: {

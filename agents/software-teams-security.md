@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Security Agent
+# Software Teams Security Agent
 
 <!-- whole-component: agent boot — needs Standards + BudgetDiscipline + ComponentResolution + ActivationProtocol + StructuredReturns + Boundaries -->
 @ST:AgentBase

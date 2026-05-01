@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { exec, gitDiffNames, gitStatus } from "../utils/git";
-import { dirname } from "path";
+import { dirname } from "node:path";
 
 export function detectType(files: string[]): string {
   if (files.every((f) => f.startsWith("test") || f.includes("__tests__") || f.includes(".test.") || f.includes(".spec."))) return "test";

@@ -1,11 +1,11 @@
 ---
 name: commit-rules
-description: Standards for creating commits within JDI workflow
+description: Standards for creating commits within Software Teams workflow
 ---
 
 # Commit Rules
 
-For full commit instructions, see `<JDI:Commit />` component at `.jdi/framework/components/execution/Commit.md`.
+For full commit instructions, see `@ST:Commit` component at `.jdi/framework/components/execution/Commit.md`.
 
 ---
 

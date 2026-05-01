@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Quality Agent
+# Software Teams Quality Agent
 
 **Learnings**: Read `.software-teams/framework/learnings/general.md` and `.software-teams/framework/learnings/testing.md` — follow any conventions found.
 

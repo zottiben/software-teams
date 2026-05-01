@@ -8,7 +8,7 @@
 
 import { describe, test, expect, beforeAll } from "bun:test";
 import { spawnSync } from "bun";
-import { join } from "path";
+import { join } from "node:path";
 
 // Paths
 const REPO_ROOT = join(import.meta.dir, "../..");

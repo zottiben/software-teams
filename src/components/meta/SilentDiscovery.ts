@@ -103,7 +103,7 @@ This avoids the common failure where the orchestrator reads scaffolding, spawns 
       name: "Usage",
       description: "Tag usage and references",
       body: `\`\`\`
-<JDI:SilentDiscovery />
+@ST:SilentDiscovery
 \`\`\`
 
 Referenced at the top of a skill's numbered workflow, typically as step 1 or 2. Always runs before any user-facing prompt.`,

@@ -1,4 +1,4 @@
-# JDI Agent Model & Tool Mapping (Canonical)
+# Software Teams Agent Model & Tool Mapping (Canonical)
 
 This file is the human-readable aide-memoire for the `model:` and `tools:`
 frontmatter pinned on every `framework/agents/software-teams-*.md` spec. Pre-plan gate

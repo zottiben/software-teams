@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from "fs";
-import { join } from "path";
-import { mkdtempSync } from "fs";
-import { tmpdir } from "os";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 /**
  * Sparse-clone the `jdi/learnings/` directory from an external repo.

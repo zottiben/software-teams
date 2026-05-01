@@ -308,8 +308,9 @@ The implement-plan pass MUST:
       name: "Usage",
       description: "Tag usage and references",
       body: `\`\`\`
-<JDI:AgentRouter mode="discover" />     # at plan time — enumerate + match
-<JDI:AgentRouter mode="spawn" />        # at implement time — honour pins
+@ST:AgentRouter:Discovery    # at plan time — enumerate
+@ST:AgentRouter:Matching     # at plan time — match tasks to agents
+@ST:AgentRouter:Execution    # at implement time — honour pins
 \`\`\`
 
 Referenced by:

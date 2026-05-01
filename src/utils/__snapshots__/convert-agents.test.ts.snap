@@ -19,7 +19,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Planner Agent
+# Software Teams Planner Agent
 
 You create executable implementation plans with proper task sizing, dependency mapping, and checkpoint placement.
 
@@ -68,7 +68,7 @@ You MUST write files using Write/Edit tools. Returning plan content as text is N
 
 You MUST use the Write tool to create plan files directly. You are spawned under \`mode: "acceptEdits"\` with a scoped \`allowedTools\` allowlist (see \`.claude/settings.json\`) that includes Write/Edit — no permission prompts will block you.
 
-JDI supports **two plan shapes** — three-tier (default for non-trivial plans) and single-tier (fallback for tiny / quick plans). Pick the shape using the **Tier Decision Rule** below, then write the matching artefact set. Both shapes use the split format (one file per task) — the difference is whether SPEC + ORCHESTRATION sit alongside the per-task files.
+Software Teams supports **two plan shapes** — three-tier (default for non-trivial plans) and single-tier (fallback for tiny / quick plans). Pick the shape using the **Tier Decision Rule** below, then write the matching artefact set. Both shapes use the split format (one file per task) — the difference is whether SPEC + ORCHESTRATION sit alongside the per-task files.
 
 ### Tier Decision Rule
 
@@ -277,7 +277,7 @@ collision):
 
 1. **\`.software-teams/framework/agents/software-teams-*.md\`** (primary — \`source: jdi\`). If the
    \`.software-teams/\` install is absent, fall back to \`framework/agents/software-teams-*.md\` in the
-   repo root (self-hosting JDI repo).
+   repo root (self-hosting Software Teams repo).
 2. **\`.claude/agents/*.md\`** — project-local Claude Code subagents
    (\`source: claude-code\`).
 3. **\`~/.claude/agents/*.md\`** — user-global Claude Code subagents
@@ -287,7 +287,7 @@ This catalogue is written into the plan index frontmatter as \`available_agents\
 and is used in Step 3 to pin each task to a specialist via the \`agent:\` field
 in its task file frontmatter.
 
-> **Why the \`source:\` split matters:** JDI specialists live in
+> **Why the \`source:\` split matters:** Software Teams specialists live in
 > \`framework/agents/\` — they are NOT registered Claude Code subagents.
 > \`implement-plan\` must spawn them via \`subagent_type="general-purpose"\` and
 > inject identity via prompt text. Registered Claude Code subagents
@@ -302,7 +302,7 @@ tech-stack defaults. Never silently skip this step — \`available_agents\` MUST
 appear in the plan index even when empty.
 
 See \`.software-teams/framework/components/meta/AgentRouter.md\` §1 for the full discovery
-routine and §2 for the routing tables (JDI meta-framework / Unity / Unreal /
+routine and §2 for the routing tables (Software Teams meta-framework / Unity / Unreal /
 Godot / non-game).
 
 ### Step 0b: Reference Analysis (when provided)

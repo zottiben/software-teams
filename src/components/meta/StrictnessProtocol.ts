@@ -4,7 +4,7 @@
  * Parsing rules applied:
  * - `## Heading` boundaries delimit sections (no YAML frontmatter).
  * - Body trim: leading/trailing whitespace only; internal whitespace preserved.
- * - Inline `<JDI:SilentDiscovery />` reference lifted into requires AND kept in body.
+ * - Inline `@ST:SilentDiscovery` reference lifted into requires AND kept in body.
  */
 
 import type { Component } from "../types";
@@ -42,7 +42,7 @@ These are hard gates. Treat them as you would a \`return\` statement in code: ex
     SilentDiscoveryDiscipline: {
       name: "SilentDiscoveryDiscipline",
       description: "How StrictnessProtocol composes with SilentDiscovery",
-      body: `Skills that also reference \`<JDI:SilentDiscovery />\` gather context from disk before asking questions. The two components compose:
+      body: `Skills that also reference \`@ST:SilentDiscovery\` gather context from disk before asking questions. The two components compose:
 
 - \`SilentDiscovery\` defines **what** to read and how to store it
 - \`StrictnessProtocol\` defines **how** that discovered state shapes the conversation (never re-ask what's already on disk; surface findings only when relevant to the current step)`,
@@ -61,7 +61,7 @@ Then wait for confirmation. Silent deviation is the failure mode this protocol e
       name: "Usage",
       description: "Tag usage and references",
       body: `\`\`\`
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 \`\`\`
 
 Referenced in the footer of user-invocable commands (\`/st:build\`, \`/st:create-plan\`, \`/st:implement-plan\`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.`,

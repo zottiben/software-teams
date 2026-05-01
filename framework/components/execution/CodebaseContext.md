@@ -30,7 +30,7 @@ Cache-first codebase context loading. Reads existing analysis — never spawns m
 ## Usage in Commands
 
 ```
-<JDI:CodebaseContext />
+@ST:CodebaseContext
 ```
 
 This component reads cached context files. If no codebase analysis exists, it proceeds without it — agents can still analyse relevant source files directly.

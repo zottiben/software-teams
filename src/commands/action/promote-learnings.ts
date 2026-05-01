@@ -1,9 +1,9 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, appendFileSync } from "fs";
-import { join } from "path";
-import { mkdtempSync } from "fs";
-import { tmpdir } from "os";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, appendFileSync } from "node:fs";
+import { join } from "node:path";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { mergeLearnings } from "./fetch-learnings";
 
 function writeGitHubOutput(key: string, value: string): void {

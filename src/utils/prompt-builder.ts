@@ -1,10 +1,11 @@
-import { resolve, dirname, basename } from "path";
-import { existsSync } from "fs";
+import { resolve, dirname, basename } from "node:path";
+import { existsSync } from "node:fs";
 import { detectProjectType } from "./detect-project";
 import { readAdapter, type AdapterConfig } from "./adapter";
 import { loadPersistedState } from "./storage-lifecycle";
 import { createStorage } from "../storage";
 import { fenceUserInput } from "./sanitize";
+import { getComponent } from "../components/resolve";
 
 export interface PromptContext {
   cwd: string;
@@ -107,27 +108,38 @@ export function buildLearningsBlock(techStack: string): string[] {
   ];
 }
 
-function agentPaths(cwd: string) {
+/**
+ * Resolve runtime component bodies from the TS registry. Inlining beats
+ * passing file paths because callers don't need to Read separate files —
+ * and after the markdown component layer is retired, only the registry
+ * has the bodies anyway.
+ */
+function inlineComponents() {
   return {
-    baseProtocol: resolve(cwd, ".software-teams/framework/components/meta/AgentBase.md"),
-    complexityRouter: resolve(cwd, ".software-teams/framework/components/meta/ComplexityRouter.md"),
-    orchestration: resolve(cwd, ".software-teams/framework/components/meta/AgentTeamsOrchestration.md"),
-    plannerSpec: resolve(cwd, ".software-teams/framework/agents/software-teams-planner.md"),
+    baseProtocol: getComponent("AgentBase"),
+    complexityRouter: getComponent("ComplexityRouter"),
+    orchestration: getComponent("AgentTeamsOrchestration"),
   };
 }
 
+function plannerSpecPath(cwd: string): string {
+  return resolve(cwd, ".software-teams/framework/agents/software-teams-planner.md");
+}
+
 export function buildPlanPrompt(ctx: PromptContext, description: string): string {
-  const { baseProtocol, plannerSpec } = agentPaths(ctx.cwd);
+  const { baseProtocol } = inlineComponents();
   return [
-    `Read ${baseProtocol} for the base agent protocol.`,
-    `You are software-teams-planner. Read ${plannerSpec} for your full specification.`,
+    `## Agent Base Protocol`,
+    baseProtocol,
+    ``,
+    `You are software-teams-planner. Read ${plannerSpecPath(ctx.cwd)} for your full specification.`,
     ``,
     ...buildProjectContext(ctx),
     ``,
     `## Task`,
     `Create an implementation plan for: ${description}`,
     ``,
-    `Follow the planning workflow in your spec. If your spec has \`requires_components\` in frontmatter, batch-read all listed components before starting. Resolve remaining <SOFTWARE_TEAMS:*> components on-demand.`,
+    `Follow the planning workflow in your spec. Components are resolved at sync time via @ST: tags; at runtime, fetch additional components on demand via \`software-teams component get <Name>\`.`,
   ].join("\n");
 }
 
@@ -180,15 +192,20 @@ export function detectPlanTier(cwd: string, planPath: string): {
 }
 
 export function buildImplementPrompt(ctx: PromptContext, planPath: string, overrideFlag?: string): string {
-  const { baseProtocol, complexityRouter, orchestration } = agentPaths(ctx.cwd);
+  const { baseProtocol, complexityRouter, orchestration } = inlineComponents();
   const tierInfo = detectPlanTier(ctx.cwd, planPath);
   const tierLine = tierInfo.tier === "three-tier"
     ? `Plan tier: three-tier (SPEC + ORCHESTRATION + per-agent slices). ORCHESTRATION: ${tierInfo.orchestrationPath}`
     : `Plan tier: single-tier (legacy index + per-task files).`;
   return [
-    `Read ${baseProtocol} for the base agent protocol.`,
-    `Read ${complexityRouter} for complexity routing rules.`,
-    `Read ${orchestration} for Agent Teams orchestration (if needed).`,
+    `## Agent Base Protocol`,
+    baseProtocol,
+    ``,
+    `## Complexity Routing`,
+    complexityRouter,
+    ``,
+    `## Agent Teams Orchestration (if needed)`,
+    orchestration,
     ``,
     ...buildProjectContext(ctx),
     ``,
@@ -290,10 +307,12 @@ export function buildReviewPrompt(ctx: PromptContext, prNum: string, meta: strin
 }
 
 export function buildRefinementPrompt(ctx: PromptContext, feedback: string, conversationHistory: string): string {
-  const { baseProtocol, plannerSpec } = agentPaths(ctx.cwd);
+  const { baseProtocol } = inlineComponents();
   return [
-    `Read ${baseProtocol} for the base agent protocol.`,
-    `You are software-teams-planner. Read ${plannerSpec} for your full specification.`,
+    `## Agent Base Protocol`,
+    baseProtocol,
+    ``,
+    `You are software-teams-planner. Read ${plannerSpecPath(ctx.cwd)} for your full specification.`,
     ``,
     ...buildProjectContext(ctx),
     ``,
@@ -320,9 +339,10 @@ export function buildRefinementPrompt(ctx: PromptContext, feedback: string, conv
 }
 
 export function buildPostImplFeedbackPrompt(ctx: PromptContext, feedback: string, conversationHistory: string): string {
-  const { baseProtocol } = agentPaths(ctx.cwd);
+  const { baseProtocol } = inlineComponents();
   return [
-    `Read ${baseProtocol} for the base agent protocol.`,
+    `## Agent Base Protocol`,
+    baseProtocol,
     ``,
     ...buildProjectContext(ctx),
     ``,

@@ -3,7 +3,7 @@
 exports[`Component Registry AgentBase snapshot matches expected output: AgentBase 1`] = `
 "- Use **Australian English** spelling in all outputs.
 - Follow \`CLAUDE.md\` and \`.claude/rules/\` conventions.
-- Read \`.software-teams/config/state.yaml\` once at task start for context. Do NOT update state.yaml for status transitions — the framework handles this. Only use state.yaml to record decisions, deviations, or blockers via \`<JDI:StateUpdate />\`.
+- Read \`.software-teams/config/state.yaml\` once at task start for context. Do NOT update state.yaml for status transitions — the framework handles this. Only use state.yaml to record decisions, deviations, or blockers via \`@ST:StateUpdate\`.
 - Use the Read tool before editing any file.
 - Batch file reads: issue all Read calls in a single turn rather than sequentially.
 - Batch git operations: combine related commands into a single Bash call where possible.
@@ -93,7 +93,7 @@ When operating within an Agent Team (spawned by coordinator):
 `;
 
 exports[`Component Registry Verify snapshot matches expected output: Verify 1`] = `
-"When invoked as \`<JDI:Verify />\`:
+"When invoked as \`@ST:Verify\`:
 
 1. **Determine scope** — Check current position from state.yaml, default to task-level
 2. **Load verification criteria** — task: PLAN.md verification section; plan: PLAN.md success_criteria; phase: ROADMAP.yaml must_haves
@@ -145,7 +145,7 @@ exports[`Component Registry Verify snapshot matches expected output: Verify 1`] 
    ### Ready for SUMMARY.md: YES | NO
    \`\`\`
 
-For \`scope="phase"\` or \`scope="requirements"\`, load \`<JDI:VerifyAdvanced />\`.
+For \`scope="phase"\` or \`scope="requirements"\`, load \`@ST:VerifyAdvanced\`.
 
 ## Test Execution (\`include_tests="true"\`)
 
@@ -452,8 +452,9 @@ The implement-plan pass MUST:
    over \`.claude/agents/\` over \`~/.claude/agents/\` on name collision.
 
 \`\`\`
-<JDI:AgentRouter mode="discover" />     # at plan time — enumerate + match
-<JDI:AgentRouter mode="spawn" />        # at implement time — honour pins
+@ST:AgentRouter:Discovery    # at plan time — enumerate
+@ST:AgentRouter:Matching     # at plan time — match tasks to agents
+@ST:AgentRouter:Execution    # at implement time — honour pins
 \`\`\`
 
 Referenced by:

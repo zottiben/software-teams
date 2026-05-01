@@ -8,7 +8,7 @@ description: Agent Teams orchestration quick-reference
 
 ## Core Pattern (6 Steps)
 
-1. **Pre-flight** — Read command spec, `<JDI:CodebaseContext />`, read state.yaml, set status to "executing". Read each task file's `agent:` frontmatter field so you know which specialist to spawn per task (see `.software-teams/framework/components/meta/AgentRouter.md`).
+1. **Pre-flight** — Read command spec, `@ST:CodebaseContext`, read state.yaml, set status to "executing". Read each task file's `agent:` frontmatter field so you know which specialist to spawn per task (see `.software-teams/framework/components/meta/AgentRouter.md`).
 2. **Create Team** — `TeamCreate(team_name: "{team-name}")`
 3. **Create Tasks** — TaskCreate per work unit, set `addBlockedBy` dependencies
 4. **Spawn Teammates** — Task tool, one call per task. **Native spawn is the default** for both `source: software-teams` and `source: claude-code` agents (see `AgentRouter.md` §4):

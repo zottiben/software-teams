@@ -12,7 +12,7 @@ context: |
 
 State-aware entry point for new and returning users. Silently detects project state before asking anything, then routes to the right next step. Deterministic workflow — every invocation follows the same numbered steps in order, without skipping.
 
-**This skill follows `<JDI:StrictnessProtocol />` and `<JDI:SilentDiscovery />`. Read those components before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol` and `@ST:SilentDiscovery`. Read those components before executing any step below.**
 
 This skill is **read-only**. It never writes files, never spawns agents, never advances state. Its only job is to hand the user a clear next action.
 
@@ -24,7 +24,7 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. N
 
 ### 1. Silent Discovery
 
-Execute `<JDI:SilentDiscovery />` now. Store the result internally as `DISCOVERED_STATE`. Do NOT print discovery output to the user at this step.
+Execute `@ST:SilentDiscovery` now. Store the result internally as `DISCOVERED_STATE`. Do NOT print discovery output to the user at this step.
 
 If any scaffolding file is missing, record `missing: true` in `DISCOVERED_STATE` and continue. Missing scaffolding is expected on first run — it is not an error.
 

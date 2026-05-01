@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { exec } from "../utils/git";
 import { spawnClaude } from "../utils/claude";
 import { buildReviewPrompt, gatherPromptContext } from "../utils/prompt-builder";

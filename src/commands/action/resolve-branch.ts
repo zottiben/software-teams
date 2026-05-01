@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { appendFileSync } from "fs";
+import { appendFileSync } from "node:fs";
 
 export interface ResolveBranchOptions {
   prHeadRef?: string;

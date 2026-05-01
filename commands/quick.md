@@ -11,7 +11,7 @@ context: |
 
 Execute a small, focused change directly without full orchestration. For trivial or prototype work only — no planner, no agent spawn, no waves.
 
-**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol`. Read that component before executing any step below.**
 
 ---
 

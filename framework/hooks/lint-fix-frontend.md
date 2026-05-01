@@ -16,7 +16,7 @@ Automatically runs `bun run lint:fix` after Claude Code (or an agent) edits or w
 Fires when:
 - Claude Code edits a file (Edit tool)
 - Claude Code writes a file (Write tool)
-- Any JDI agent edits/writes files via subagents
+- Any Software Teams agent edits/writes files via subagents
 
 **Claude Code event:** `PostToolUse` with matcher `Edit|Write`
 

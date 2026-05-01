@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { exec, gitBranch, gitLog, gitMergeBase } from "../utils/git";
 import { readState } from "../utils/state";
 

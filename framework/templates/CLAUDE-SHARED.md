@@ -60,7 +60,7 @@ Do NOT manually edit `.software-teams/config/state.yaml` for status transitions.
 - `software-teams state complete` — after implementation finishes
 - `software-teams state advance-task {task-id}` — after each task completes
 
-You may only append to `decisions`, `deviations`, or `blockers` arrays in state.yaml directly via `<JDI:StateUpdate />`.
+You may only append to `decisions`, `deviations`, or `blockers` arrays in state.yaml directly via `@ST:StateUpdate`.
 
 ## Self-Testing (Software Teams development only)
 

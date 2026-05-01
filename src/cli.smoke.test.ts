@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import { execSync } from "child_process";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const REPO_ROOT = join(import.meta.dir, "..");
 const DIST_PATH = join(REPO_ROOT, "dist", "index.js");

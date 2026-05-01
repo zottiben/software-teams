@@ -13,7 +13,7 @@
  * Claude Code subagent registration depends on.
  */
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, readdirSync, statSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";

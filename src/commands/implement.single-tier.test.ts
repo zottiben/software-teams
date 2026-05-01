@@ -101,9 +101,13 @@ describe("single-tier (legacy) plan detection + prompt", () => {
 
     const prompt = buildImplementPrompt(makeCtx(dir), `.software-teams/plans/${slug}.plan.md`);
     expect(prompt).toContain("Plan tier: single-tier");
-    // Single-tier path must NOT advertise three-tier fields.
+    // Single-tier path must NOT advertise three-tier fields. The substring
+    // "ORCHESTRATION:" appears inside the inlined AgentTeamsOrchestration
+    // spawn-template documentation, so we look only at the tier line itself
+    // (it carries the single-tier / three-tier label and any path).
     expect(prompt).not.toContain("Plan tier: three-tier");
-    expect(prompt).not.toContain("ORCHESTRATION:");
+    const tierLine = prompt.split("\n").find((l) => l.startsWith("Plan tier:")) ?? "";
+    expect(tierLine).not.toMatch(/\.orchestration\.md/);
   });
 
   test("single-tier plan still includes the canonical implementation orchestration steps", async () => {
@@ -113,9 +117,10 @@ describe("single-tier (legacy) plan detection + prompt", () => {
     const prompt = buildImplementPrompt(makeCtx(dir), `.software-teams/plans/${slug}.plan.md`);
     // The implement-plan skill drives the actual Single-Tier vs Three-Tier
     // execution loop based on tier detection — but the prompt MUST tell the
-    // orchestrator to read the canonical index in either tier.
+    // orchestrator to read the canonical index in either tier and surface
+    // the Complexity Routing component body.
     expect(prompt).toMatch(/PLAN\.md|canonical index/);
-    expect(prompt).toContain("ComplexityRouter.md");
+    expect(prompt).toContain("## Complexity Routing");
   });
 
   test("override flag passes through on single-tier", async () => {

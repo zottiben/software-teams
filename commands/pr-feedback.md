@@ -11,7 +11,7 @@ context: |
 
 Address review comments on a pull request via the `software-teams-pr-feedback` specialist.
 
-**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol`. Read that component before executing any step below.**
 
 ---
 

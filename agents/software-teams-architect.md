@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Architect Agent
+# Software Teams Architect Agent
 
 > **Decision (plan 03-02):** technical-director pattern lives here — no separate software-teams-tech-director agent. See plan 03-02 merge register for rationale.
 

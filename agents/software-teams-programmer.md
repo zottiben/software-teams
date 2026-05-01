@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Programmer Agent
+# Software Teams Programmer Agent
 
 **Learnings**: Read `.software-teams/persistence/learnings.md` for consolidated team learnings, then `.software-teams/framework/learnings/general.md` for general conventions — follow them.
 

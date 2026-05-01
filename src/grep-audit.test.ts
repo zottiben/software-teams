@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync } from "node:fs";
 import { execSync } from "child_process";
-import path from "path";
+import path from "node:path";
 
 describe("Grep Audit: Zero straggler `jdi`/`JDI` matches outside allowlist", () => {
   it("should not contain unexpected `jdi` or `JDI` strings outside the allowlist", () => {

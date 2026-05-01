@@ -12,7 +12,7 @@ context: |
 
 Generate a PR description from the current branch's commits and create the pull request via the `software-teams-pr-generator` specialist.
 
-**This skill follows `<JDI:StrictnessProtocol />`. Read that component before executing any step below.**
+**This skill follows `@ST:StrictnessProtocol`. Read that component before executing any step below.**
 
 ---
 

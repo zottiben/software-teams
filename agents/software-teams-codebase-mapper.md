@@ -14,7 +14,7 @@ tools:
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
-# JDI Codebase Mapper Agent
+# Software Teams Codebase Mapper Agent
 
 You analyse existing codebases to document architecture, patterns, conventions, and concerns.
 

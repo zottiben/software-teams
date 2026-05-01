@@ -1,5 +1,5 @@
-import { join } from "path";
-import { existsSync } from "fs";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { parse } from "yaml";
 import { FsStorage } from "./fs-storage";
 import type { JdiStorage } from "./interface";

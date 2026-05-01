@@ -16,7 +16,7 @@ Fires when:
 <!-- whole-component: descriptive trigger reference — names the component as a whole, not a section invocation -->
 - @ST:Commit component invoked
 - `/st-commit` command run
-- Manual commit through JDI workflow
+- Manual commit through Software Teams workflow
 
 ---
 
@@ -37,7 +37,7 @@ git diff --cached --name-only
 
 **The following directories must NEVER be staged:**
 - `.worktrees/**` - Git worktrees are execution infrastructure
-- `.software-teams/**` - JDI runtime state and configuration
+- `.software-teams/**` - Software Teams runtime state and configuration
 
 ```bash
 # Check for excluded files in staging
@@ -48,7 +48,7 @@ if [ -n "$EXCLUDED" ]; then
   echo ""
   echo "These directories must not be committed:"
   echo "  .worktrees/ - Git worktrees are execution infrastructure"
-  echo "  .software-teams/       - JDI runtime state and configuration"
+  echo "  .software-teams/       - Software Teams runtime state and configuration"
   echo ""
   echo "Unstage these files with: git reset HEAD <file>"
   exit 1

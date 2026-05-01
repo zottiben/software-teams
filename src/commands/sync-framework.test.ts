@@ -1,8 +1,8 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, existsSync } from "fs";
+import { mkdtempSync, rmSync, mkdirSync, existsSync } from "node:fs";
 import { writeFile, readFile } from "node:fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { detectFrameworkChanges } from "./sync-framework";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
