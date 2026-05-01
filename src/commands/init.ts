@@ -64,21 +64,19 @@ export const initCommand = defineCommand({
     // Copy doctrine subtrees (templates, rules) to .software-teams/<sub>/.
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
 
-    // Initialise config files from package's config/ templates. Phase B
-    // renamed software-teams-config.yaml → config.yaml; state.yaml lives at
-    // .software-teams/state.yaml (out of config/).
-    const cfgSrcDir = join(packageRoot, "config");
-    if (existsSync(cfgSrcDir)) {
-      const cfgDest = join(cwd, ".software-teams", "config", "config.yaml");
-      const cfgSrc = join(cfgSrcDir, "config.yaml");
-      if (existsSync(cfgSrc) && (args.force || !existsSync(cfgDest))) {
-        await Bun.write(cfgDest, await Bun.file(cfgSrc).text());
-      }
-      const stateSrc = join(cfgSrcDir, "state.yaml");
-      const stateDest = join(cwd, ".software-teams", "state.yaml");
-      if (existsSync(stateSrc) && (args.force || !existsSync(stateDest))) {
-        await Bun.write(stateDest, await Bun.file(stateSrc).text());
-      }
+    // Seed config from the package's config/ dir and state from templates/.
+    // The consumer-side layout is `.software-teams/config/config.yaml` and
+    // `.software-teams/state.yaml`.
+    const cfgSrc = join(packageRoot, "config", "config.yaml");
+    const cfgDest = join(cwd, ".software-teams", "config", "config.yaml");
+    if (existsSync(cfgSrc) && (args.force || !existsSync(cfgDest))) {
+      await Bun.write(cfgDest, await Bun.file(cfgSrc).text());
+    }
+
+    const stateSrc = join(packageRoot, "templates", "state.yaml");
+    const stateDest = join(cwd, ".software-teams", "state.yaml");
+    if (existsSync(stateSrc) && (args.force || !existsSync(stateDest))) {
+      await Bun.write(stateDest, await Bun.file(stateSrc).text());
     }
 
     // Generate Claude Code native subagents from canonical agent specs.
@@ -135,16 +133,11 @@ export const initCommand = defineCommand({
       }
     }
 
-    // Scaffold project templates (only if missing). Phase B lowercases the
-    // top-level filenames: PROJECT.yaml → project.yaml, etc.
-    const scaffoldFiles: Array<{ src: string; dest: string }> = [
-      { src: "PROJECT.yaml", dest: "project.yaml" },
-      { src: "REQUIREMENTS.yaml", dest: "requirements.yaml" },
-      { src: "ROADMAP.yaml", dest: "roadmap.yaml" },
-    ];
-    for (const { src: srcName, dest: destName } of scaffoldFiles) {
-      const src = join(packageRoot, "templates", srcName);
-      const dest = join(cwd, ".software-teams", destName);
+    // Scaffold project templates (only if missing).
+    const scaffoldFiles = ["project.yaml", "requirements.yaml", "roadmap.yaml"];
+    for (const name of scaffoldFiles) {
+      const src = join(packageRoot, "templates", name);
+      const dest = join(cwd, ".software-teams", name);
       if (existsSync(src) && !existsSync(dest)) {
         await Bun.write(dest, await Bun.file(src).text());
       }
@@ -152,10 +145,10 @@ export const initCommand = defineCommand({
 
     // Add Software Teams entries to .gitignore
     const gitignorePath = join(cwd, ".gitignore");
-    const jdiMarker = "# Software Teams framework";
-    const jdiEntries = [
+    const stMarker = "# Software Teams framework";
+    const stEntries = [
       "",
-      `${jdiMarker} — remove these lines to version control Software Teams artefacts`,
+      `${stMarker} — remove these lines to version control Software Teams artefacts`,
       ".software-teams/",
       ".claude/commands/st/",
     ].join("\n");
@@ -164,10 +157,10 @@ export const initCommand = defineCommand({
     if (existsSync(gitignorePath)) {
       existingGitignore = readFileSync(gitignorePath, "utf-8");
     }
-    if (!existingGitignore.includes(jdiMarker)) {
+    if (!existingGitignore.includes(stMarker)) {
       const newContent = existingGitignore
-        ? existingGitignore.trimEnd() + "\n" + jdiEntries + "\n"
-        : jdiEntries.trimStart() + "\n";
+        ? existingGitignore.trimEnd() + "\n" + stEntries + "\n"
+        : stEntries.trimStart() + "\n";
       await Bun.write(gitignorePath, newContent);
     }
 

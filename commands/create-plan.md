@@ -71,8 +71,8 @@ Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that com
 
 **Additional reads for this skill:**
 - `.software-teams/requirements.yaml` → `risks:` block (for the planner's Risks section)
-- Prior plan's `SUMMARY.md` if it exists (for carryover candidates)
-- `.software-teams/codebase/SUMMARY.md` if it exists (for codebase context)
+- Prior plan's `summary.md` if it exists (for carryover candidates)
+- `.software-teams/codebase/summary.md` if it exists (for codebase context)
 
 Append these to `PRE_DISCOVERED_CONTEXT`.
 
@@ -192,8 +192,8 @@ software-teams state plan-ready --plan-path ".software-teams/plans/{canonical-in
 
 Present the plan summary to the user:
 
-- Plan name, objective, and sprint goal (from SPEC.md in three-tier; from PLAN.md in single-tier)
-- Task manifest table: `ID | Task | Agent | Priority | Requires` (from ORCHESTRATION.md in three-tier; from PLAN.md in single-tier)
+- Plan name, objective, and sprint goal (from spec.md in three-tier; from plan.md in single-tier)
+- Task manifest table: `ID | Task | Agent | Priority | Requires` (from orchestration.md in three-tier; from plan.md in single-tier)
 - Any open questions the planner surfaced
 - File list — show the chosen tier and the artefacts produced:
   - Three-tier: `{slug}.spec.md`, `{slug}.orchestration.md`, and every `{slug}.T{n}.md`

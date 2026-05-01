@@ -5,7 +5,7 @@
  * - YAML frontmatter provides `name`, `category`, `description`.
  * - `## Heading` boundaries delimit sections.
  * - Body trim: leading/trailing whitespace only; internal whitespace preserved.
- * - Inline `<JDI:` references lifted into `requires` AND kept in body.
+ * - Inline `@ST:` references lifted into `requires` AND kept in body.
  */
 
 import type { Component } from "../types";
@@ -89,7 +89,7 @@ Report: files_modified, files_created, commits_pending.
 No git commit (use commits_pending).
 \`\`\`
 
-**Single-tier (legacy) plans:** if no ORCHESTRATION.md exists, pass \`PLAN:
+**Single-tier (legacy) plans:** if no orchestration.md exists, pass \`PLAN:
 {plan-path}\` and \`TASK_FILE: {task-file-path}\` — the agent reads the task
 file plus the (smaller) plan index. Drop the \`SPEC_SECTIONS\` line.
 

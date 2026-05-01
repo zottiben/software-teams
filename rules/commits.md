@@ -5,7 +5,7 @@ description: Standards for creating commits within Software Teams workflow
 
 # Commit Rules
 
-For full commit instructions, see `@ST:Commit` component at `.jdi/framework/components/execution/Commit.md`.
+For full commit instructions, fetch the registered component via `software-teams component get Commit`.
 
 ---
 

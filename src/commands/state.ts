@@ -8,11 +8,11 @@ import {
   advanceTask,
 } from "../utils/state-handlers";
 import { readState } from "../utils/state";
-import { findJdiRoot } from "../utils/find-root";
+import { findProjectRoot } from "../utils/find-root";
 
 function resolveRootOrExit(): string {
   try {
-    return findJdiRoot(process.cwd());
+    return findProjectRoot(process.cwd());
   } catch (err) {
     consola.error((err as Error).message);
     process.exit(1);
@@ -128,7 +128,7 @@ const advanceTaskCommand = defineCommand({
 export const stateCommand = defineCommand({
   meta: {
     name: "state",
-    description: "Manage JDI state transitions",
+    description: "Manage Software Teams state transitions",
   },
   subCommands: {
     "plan-ready": planReadyCommand,

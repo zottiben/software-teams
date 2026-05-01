@@ -1,12 +1,12 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { readState } from "../utils/state";
-import { findJdiRootOrNull } from "../utils/find-root";
+import { findProjectRootOrNull } from "../utils/find-root";
 
 export const statusCommand = defineCommand({
   meta: {
     name: "status",
-    description: "Show current JDI project status",
+    description: "Show current Software Teams project status",
   },
   args: {
     json: {
@@ -16,7 +16,7 @@ export const statusCommand = defineCommand({
     },
   },
   async run({ args }) {
-    const root = findJdiRootOrNull(process.cwd());
+    const root = findProjectRootOrNull(process.cwd());
     if (root == null) {
       consola.warn(
         `No Software Teams project found (searched from ${process.cwd()} upward for .software-teams/config/state.yaml). Run \`software-teams init\` to set one up.`,
@@ -35,7 +35,7 @@ export const statusCommand = defineCommand({
       return;
     }
 
-    consola.info("JDI Status");
+    consola.info("Software Teams Status");
     consola.info("\u2500".repeat(40));
 
     if (state.position) {

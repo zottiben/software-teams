@@ -26,7 +26,7 @@ const SilentDiscovery: Component = {
 | \`.software-teams/requirements.yaml\` | Risks, constraints, non-functional requirements |
 | \`.software-teams/roadmap.yaml\` | Phase structure, upcoming plans, milestones |
 | \`.software-teams/plans/*.plan.md\` (glob) | Existing plan index files — check frontmatter for \`provides\`, \`status\`, completion |
-| \`.software-teams/codebase/SUMMARY.md\` | Codebase index, if present |
+| \`.software-teams/codebase/summary.md\` | Codebase index, if present |
 | Test suite files (glob: \`**/*.test.*\`, \`**/*.spec.*\`, \`**/__tests__/**\`) | Detect existing test framework and patterns |
 | Test config files (\`vitest.config.*\`, \`jest.config.*\`, \`playwright.config.*\`, \`cypress.config.*\`) | Identify test runner |
 | \`package.json\` \`scripts.test\` field | Identify test command |
@@ -44,10 +44,10 @@ Additionally, if the skill is worktree-aware, read:
       description: "Derived fields to compute and store in DISCOVERED_STATE",
       body: `From the raw reads above, compute and store these derived fields in \`DISCOVERED_STATE\`:
 
-- **\`active_phase\`** — current phase number and name (from ROADMAP.yaml + state.yaml position)
+- **\`active_phase\`** — current phase number and name (from roadmap.yaml + state.yaml position)
 - **\`next_plan_number\`** — next available plan id in the active phase (scan existing plan files)
-- **\`tech_stack\`** — from PROJECT.yaml
-- **\`open_risks\`** — from REQUIREMENTS.yaml \`risks:\` block (empty list if none)
+- **\`tech_stack\`** — from project.yaml
+- **\`open_risks\`** — from requirements.yaml \`risks:\` block (empty list if none)
 - **\`prior_provides\`** — union of all \`provides:\` fields from completed plans (cross-phase dependency map)
 - **\`returning_user\`** — true if any prior plans are completed or the current plan is in a non-initial status
 - **\`missing_scaffolding\`** — list of scaffolding files that didn't exist

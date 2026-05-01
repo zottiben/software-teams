@@ -48,7 +48,7 @@ export function clearStaleState(cwd: string): void {
     const template = readFileSync(templatePath, "utf-8");
     writeFileSync(join(configDir, "state.yaml"), template);
   } else {
-    // Minimal valid state matching the JDIState interface
+    // Minimal valid state matching the SoftwareTeamsState interface
     writeFileSync(
       join(configDir, "state.yaml"),
       [

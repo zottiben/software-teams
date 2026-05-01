@@ -1,9 +1,9 @@
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse, stringify } from "yaml";
-import { findJdiRootOrNull } from "./find-root";
+import { findProjectRootOrNull } from "./find-root";
 
-export interface JDIState {
+export interface SoftwareTeamsState {
   session?: { id: string | null; started_at: string; last_activity: string };
   project?: { name: string; root: string; initialised: boolean };
   position?: {
@@ -54,7 +54,7 @@ export interface JDIState {
  * the directory tree (e.g. first-time writes before init).
  */
 function resolveRoot(cwd: string): string {
-  return findJdiRootOrNull(cwd) ?? cwd;
+  return findProjectRootOrNull(cwd) ?? cwd;
 }
 
 /**
@@ -80,13 +80,13 @@ function resolveStatePath(root: string): string {
  * Software Teams project exists on the path upward, or because the project root
  * was found but has no state.yaml yet.
  */
-export async function readState(cwd: string = process.cwd()): Promise<JDIState | null> {
+export async function readState(cwd: string = process.cwd()): Promise<SoftwareTeamsState | null> {
   const root = resolveRoot(cwd);
   const statePath = resolveStatePath(root);
   if (!existsSync(statePath)) return null;
 
   const content = await Bun.file(statePath).text();
-  return parse(content) as JDIState;
+  return parse(content) as SoftwareTeamsState;
 }
 
 /**
@@ -95,14 +95,14 @@ export async function readState(cwd: string = process.cwd()): Promise<JDIState |
  * `cwd/.software-teams/state.yaml` — this covers bootstrap scenarios such
  * as `software-teams init` before the project root exists.
  */
-export async function writeState(cwd: string, state: JDIState): Promise<void>;
-export async function writeState(state: JDIState): Promise<void>;
+export async function writeState(cwd: string, state: SoftwareTeamsState): Promise<void>;
+export async function writeState(state: SoftwareTeamsState): Promise<void>;
 export async function writeState(
-  cwdOrState: string | JDIState,
-  maybeState?: JDIState,
+  cwdOrState: string | SoftwareTeamsState,
+  maybeState?: SoftwareTeamsState,
 ): Promise<void> {
   const cwd = typeof cwdOrState === "string" ? cwdOrState : process.cwd();
-  const state = (typeof cwdOrState === "string" ? maybeState : cwdOrState) as JDIState;
+  const state = (typeof cwdOrState === "string" ? maybeState : cwdOrState) as SoftwareTeamsState;
   const root = resolveRoot(cwd);
   const statePath = resolveStatePath(root);
   await Bun.write(statePath, stringify(state));

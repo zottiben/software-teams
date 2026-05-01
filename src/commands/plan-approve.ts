@@ -21,7 +21,7 @@ export const planApproveCommand = defineCommand({
     const state = await readState(cwd);
 
     if (!state) {
-      consola.error("No JDI state found. Run `jdi init` first.");
+      consola.error("No Software Teams state found. Run `software-teams init` first.");
       return;
     }
 
@@ -32,7 +32,7 @@ export const planApproveCommand = defineCommand({
     } else if (state.current_plan?.path) {
       planPath = resolve(cwd, state.current_plan.path as string);
     } else {
-      consola.error("No plan to approve. Run `jdi plan` first.");
+      consola.error("No plan to approve. Run `software-teams plan` first.");
       return;
     }
 
@@ -63,6 +63,6 @@ export const planApproveCommand = defineCommand({
     await writeState(cwd, state);
 
     consola.success(`Plan '${planName}' approved (revision ${revision}).`);
-    consola.info("Say 'implement this' in Claude Code or run `/jdi:implement-plan` to execute.");
+    consola.info("Say 'implement this' in Claude Code or run `/st:implement-plan` to execute.");
   },
 });

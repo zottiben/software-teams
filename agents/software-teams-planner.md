@@ -94,16 +94,16 @@ Use this shape when the Tier Decision Rule selects three-tier (i.e. `task_count 
 
 | File | Tier | Template | Contents |
 |------|------|----------|----------|
-| `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` | 1 — WHAT | `templates/SPEC.md` | Problem, acceptance criteria, out-of-scope, glossary, references |
-| `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` | 2 — HOW | `templates/ORCHESTRATION.md` | Task graph, agent routing, sequencing rules, quality gates, risks. Carries the manifest. |
-| `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` | 3 — slice | `templates/PLAN-TASK-AGENT.md` | One file per task — what the spawned agent loads |
-| `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` | (optional) | `templates/PLAN.md` | Legacy index — OPTIONAL in three-tier mode. The orchestration file carries the manifest, so the legacy index is redundant. Skip unless something downstream still expects it. |
+| `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` | 1 — WHAT | `templates/spec.md` | Problem, acceptance criteria, out-of-scope, glossary, references |
+| `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` | 2 — HOW | `templates/orchestration.md` | Task graph, agent routing, sequencing rules, quality gates, risks. Carries the manifest. |
+| `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` | 3 — slice | `templates/plan-task-agent.md` | One file per task — what the spawned agent loads |
+| `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` | (optional) | `templates/plan.md` | Legacy index — OPTIONAL in three-tier mode. The orchestration file carries the manifest, so the legacy index is redundant. Skip unless something downstream still expects it. |
 
 ### What goes where
 
-- **SPEC.md** — outcome-only. No implementation steps, no agent assignments, no file paths to edit. A reviewer reads this to decide "should we build this?".
-- **ORCHESTRATION.md** — the orchestrator's playbook. Frontmatter MUST include `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table (`ID | Name | Agent | Wave | Depends On | Slice`), sequencing rules, quality gates, and the risks block.
-- **PLAN-TASK-AGENT.md (per slice)** — what the agent loads when spawned. Frontmatter MUST include:
+- **spec.md** — outcome-only. No implementation steps, no agent assignments, no file paths to edit. A reviewer reads this to decide "should we build this?".
+- **orchestration.md** — the orchestrator's playbook. Frontmatter MUST include `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table (`ID | Name | Agent | Wave | Depends On | Slice`), sequencing rules, quality gates, and the risks block.
+- **plan-task-agent.md (per slice)** — what the agent loads when spawned. Frontmatter MUST include:
   - `tier: per-agent`
   - `spec_link: {slug}.spec.md`
   - `orchestration_link: {slug}.orchestration.md`
@@ -138,8 +138,8 @@ Use this shape when the Tier Decision Rule selects single-tier (i.e. `task_count
 
 Required files (single-tier):
 
-1. `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` (index file — uses `templates/PLAN.md`; manifest table only, NO inline task details)
-2. `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task — uses `templates/PLAN-TASK.md`; full implementation details)
+1. `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` (index file — uses `templates/plan.md`; manifest table only, NO inline task details)
+2. `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` (one per task — uses `templates/plan-task.md`; full implementation details)
 3. `.software-teams/state.yaml`
 4. `.software-teams/roadmap.yaml` (add plan entry)
 5. `.software-teams/requirements.yaml` (add traceability)
@@ -195,7 +195,7 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 > **Trust skill pre-discovery:** If the spawning skill passed `PRE_DISCOVERED_CONTEXT`, trust it — do not re-read scaffolding (saves tokens). If not passed, fall back to reading scaffolding directly as usual.
 
 1. Read `.software-teams/project.yaml`, `.software-teams/roadmap.yaml`, `.software-teams/requirements.yaml`
-2. Read codebase analysis (`.software-teams/codebase/SUMMARY.md`, `CONVENTIONS.md`) if available
+2. Read codebase analysis (`.software-teams/codebase/summary.md`, `CONVENTIONS.md`) if available
 3. Analyse codebase — identify affected files, existing patterns, conventions
 4. Research: standard stack, architecture patterns, common pitfalls
 5. Findings feed directly into planning (no separate RESEARCH.md)
@@ -210,8 +210,8 @@ session. Read each discovered `.md` file's YAML frontmatter for `name` and
 correct spawn pattern. Merge these roots (earlier overrides later on name
 collision):
 
-1. **`.claude/agents/software-teams-*.md`** (primary — `source: jdi`). If the
-   `.software-teams/` install is absent, fall back to `framework/agents/software-teams-*.md` in the
+1. **`.claude/agents/software-teams-*.md`** (primary — `source: software-teams`). If the
+   `.software-teams/` install is absent, fall back to `agents/software-teams-*.md` in the
    repo root (self-hosting Software Teams repo).
 2. **`.claude/agents/*.md`** — project-local Claude Code subagents
    (`source: claude-code`).
@@ -377,18 +377,18 @@ First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output 
 **If tier == three-tier** (default for non-trivial plans):
 
 1. Derive `slug` from the plan name using File Naming rules above.
-2. Write SPEC to `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` — follow `templates/SPEC.md`. Populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
-3. Write ORCHESTRATION to `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `templates/ORCHESTRATION.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `requirements.yaml`.
-4. Write each per-agent slice to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `templates/PLAN-TASK-AGENT.md`. Frontmatter MUST have `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body MUST open with `**Why this slice:**` and `**Read first:**` (see "Token-Efficiency Headers" above) before the Objective.
+2. Write SPEC to `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` — follow `templates/spec.md`. Populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
+3. Write ORCHESTRATION to `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `templates/orchestration.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`. Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `requirements.yaml`.
+4. Write each per-agent slice to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `templates/plan-task-agent.md`. Frontmatter MUST have `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body MUST open with `**Why this slice:**` and `**Read first:**` (see "Token-Efficiency Headers" above) before the Objective.
 5. If test tasks were generated in Step 5a, include them in the manifest and write their `.T{n}.md` files using the test variant — they still use PLAN-TASK-AGENT format with `tier: per-agent` and `agent: software-teams-qa-tester`.
-6. The legacy `.plan.md` index is OPTIONAL in three-tier mode — skip unless a downstream consumer explicitly requires it. ORCHESTRATION.md carries the manifest.
+6. The legacy `.plan.md` index is OPTIONAL in three-tier mode — skip unless a downstream consumer explicitly requires it. orchestration.md carries the manifest.
 
 **If tier == single-tier** (fallback — `/st:quick`, hotfixes, tiny plans, or `--single-tier` passed):
 
 1. Derive `slug` from the plan name using File Naming rules above.
-2. Write index file to `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` — follow `templates/PLAN.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
-3. Populate Sprint Goal, Definition of Done, Carryover, and Risks sections in the PLAN index from the context passed by `create-plan` (sprint context, requirements.yaml risks, prior SUMMARY.md carryover candidates).
-4. Write each task to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `templates/PLAN-TASK.md`. One file per task. No `**Why this slice:**` / `**Read first:**` headers needed (single-tier has no separate SPEC).
+2. Write index file to `.software-teams/plans/{phase}-{plan}-{slug}.plan.md` — follow `templates/plan.md`. Include `slug:` and `task_files:` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
+3. Populate Sprint Goal, Definition of Done, Carryover, and Risks sections in the PLAN index from the context passed by `create-plan` (sprint context, requirements.yaml risks, prior summary.md carryover candidates).
+4. Write each task to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `templates/plan-task.md`. One file per task. No `**Why this slice:**` / `**Read first:**` headers needed (single-tier has no separate SPEC).
 5. If test tasks were generated in Step 5a, include them in the `task_files:` list and write their `.T{n}.md` files using the test task variant of the PLAN-TASK template.
 
 #### 7b: Update roadmap.yaml

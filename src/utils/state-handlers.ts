@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
-import { readState, writeState, type JDIState } from "./state";
+import { readState, writeState, type SoftwareTeamsState } from "./state";
 
 /**
  * Parse YAML frontmatter from a markdown file.
@@ -132,13 +132,9 @@ export async function transitionToComplete(cwd: string): Promise<void> {
   }
   state.progress.plans_completed = (state.progress.plans_completed ?? 0) + 1;
 
-  // Try to advance to next plan in the current phase via roadmap.yaml
-  // (legacy uppercase ROADMAP.yaml supported as a fallback for projects that
-  // haven't migrated to the Phase B lowercase target).
+  // Try to advance to next plan in the current phase via roadmap.yaml.
   try {
-    const lcPath = join(cwd, ".software-teams", "roadmap.yaml");
-    const ucPath = join(cwd, ".software-teams", "ROADMAP.yaml");
-    const roadmapPath = existsSync(lcPath) ? lcPath : ucPath;
+    const roadmapPath = join(cwd, ".software-teams", "roadmap.yaml");
     if (existsSync(roadmapPath)) {
       const content = await Bun.file(roadmapPath).text();
       const roadmap = parseYaml(content) as Record<string, unknown>;
@@ -202,7 +198,7 @@ export async function advanceTask(cwd: string, completedTaskId: string): Promise
 /**
  * Update session.last_activity and write state.
  */
-async function updateSessionActivity(cwd: string, state: JDIState): Promise<void> {
+async function updateSessionActivity(cwd: string, state: SoftwareTeamsState): Promise<void> {
   state.session = {
     ...state.session,
     last_activity: new Date().toISOString(),

@@ -152,7 +152,7 @@ When a deviation occurs, record:
 
 ---
 
-## SUMMARY.md Section
+## summary.md Section
 
 In plan summary, include:
 

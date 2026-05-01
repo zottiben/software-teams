@@ -185,9 +185,9 @@ When initialised in a project (`.software-teams/`):
 
 | File | Purpose |
 |------|---------|
-| `PROJECT.yaml` | Project vision and constraints |
-| `REQUIREMENTS.yaml` | Scoped requirements with REQ-IDs |
-| `ROADMAP.yaml` | Phase structure |
+| `project.yaml` | Project vision and constraints |
+| `requirements.yaml` | Scoped requirements with REQ-IDs |
+| `roadmap.yaml` | Phase structure |
 | `state.yaml` | Runtime state (position, session, decisions, blockers) |
 
 ---
@@ -237,7 +237,7 @@ Three profiles control which model each agent uses. Set in `.software-teams/conf
 ```
 1. /st:create-plan "Add user authentication"
    → Spawns single planner agent (researches + plans)
-   → Creates .software-teams/plans/01-01-PLAN.md
+   → Creates .software-teams/plans/01-01-plan.md
 
 2. /st:implement-plan
    → Routes by complexity (single agent or Agent Teams swarm)

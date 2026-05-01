@@ -2,9 +2,9 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse } from "yaml";
 import { FsStorage } from "./fs-storage";
-import type { JdiStorage } from "./interface";
+import type { SoftwareTeamsStorage } from "./interface";
 
-export type { JdiStorage } from "./interface";
+export type { SoftwareTeamsStorage } from "./interface";
 export { FsStorage } from "./fs-storage";
 
 export interface StorageConfig {
@@ -20,12 +20,12 @@ export interface StorageConfig {
  *
  * Custom adapters:
  *   Set `storage.adapter` in software-teams-config.yaml to a relative path (e.g. "./my-storage.ts").
- *   The file must export a class that implements JdiStorage as default export:
+ *   The file must export a class that implements SoftwareTeamsStorage as default export:
  *
  *   ```ts
- *   import type { JdiStorage } from "@benzotti/software-teams/storage";
+ *   import type { SoftwareTeamsStorage } from "@benzotti/software-teams/storage";
  *
- *   export default class S3Storage implements JdiStorage {
+ *   export default class S3Storage implements SoftwareTeamsStorage {
  *     async load(key: string) { ... }
  *     async save(key: string, content: string) { ... }
  *   }
@@ -34,7 +34,7 @@ export interface StorageConfig {
 export async function createStorage(
   cwd: string,
   config?: StorageConfig,
-): Promise<JdiStorage> {
+): Promise<SoftwareTeamsStorage> {
   let adapter = config?.adapter ?? "fs";
   let basePath = config?.basePath;
 
@@ -78,14 +78,14 @@ export async function createStorage(
 
     const instance = new AdapterClass({ basePath, cwd });
 
-    // Validate it implements JdiStorage
+    // Validate it implements SoftwareTeamsStorage
     if (typeof instance.load !== "function" || typeof instance.save !== "function") {
       throw new Error(
-        `Storage adapter at ${adapterPath} must implement JdiStorage (load and save methods).`,
+        `Storage adapter at ${adapterPath} must implement SoftwareTeamsStorage (load and save methods).`,
       );
     }
 
-    return instance as JdiStorage;
+    return instance as SoftwareTeamsStorage;
   } catch (err: any) {
     if (err.message?.includes("Storage adapter")) throw err;
     throw new Error(`Failed to load storage adapter from ${adapterPath}: ${err.message}`);

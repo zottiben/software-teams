@@ -3,14 +3,14 @@
 
   As of plan 1-01 (native subagents) the default for non-trivial plans is the
   three-tier spec-kit-style flow:
-    - SPEC.md             — the WHAT (acceptance criteria, out-of-scope)
-    - ORCHESTRATION.md    — the HOW (task graph, agent routing, gates)
-    - PLAN-TASK-AGENT.md  — per-agent slice (one file per task)
+    - spec.md             — the WHAT (acceptance criteria, out-of-scope)
+    - orchestration.md    — the HOW (task graph, agent routing, gates)
+    - plan-task-agent.md  — per-agent slice (one file per task)
 
   Use three-tier when: >3 implementation tasks, cross-team work, or any plan
   whose orchestration would crowd out the spec.
 
-  Use single-tier (this PLAN.md + PLAN-TASK.md per task) for: `/st:quick`
+  Use single-tier (this plan.md + plan-task.md per task) for: `/st:quick`
   flows, hotfixes, and plans with 1-3 tasks where a separate SPEC tier adds
   more ceremony than clarity.
 
@@ -175,6 +175,6 @@ During execution, apply automatically:
 - **Rule 3**: Auto-fix blocking issues
 - **Rule 4**: Ask about architectural changes
 
-Document all deviations in SUMMARY.md.
+Document all deviations in summary.md.
 
 </section>

@@ -41,10 +41,10 @@ Assess test coverage, lint configuration, type coverage, documentation state. Ou
 Identify critical paths, security-sensitive areas, known issues (TODO/FIXME/HACK), performance bottlenecks, fragile dependencies. Output to `CONCERNS.md`.
 
 ### Step 7: Generate Summary
-Combine into `SUMMARY.md` with quick reference table, key findings (strengths, concerns, recommendations), and links to detailed files.
+Combine into `summary.md` with quick reference table, key findings (strengths, concerns, recommendations), and links to detailed files.
 
 ### Step 8: Save Analysis
-Write all files to `.software-teams/codebase/`: `SUMMARY.md`, `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`.
+Write all files to `.software-teams/codebase/`: `summary.md`, `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `TESTING.md`, `CONCERNS.md`.
 
 ---
 
@@ -54,7 +54,7 @@ Write all files to `.software-teams/codebase/`: `SUMMARY.md`, `STACK.md`, `ARCHI
 status: complete | partial
 project_name: {name}
 outputs:
-  - .software-teams/codebase/SUMMARY.md
+  - .software-teams/codebase/summary.md
   - .software-teams/codebase/STACK.md
   - .software-teams/codebase/ARCHITECTURE.md
   - .software-teams/codebase/CONVENTIONS.md

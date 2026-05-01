@@ -7,7 +7,7 @@ name: {Plan Name}
 completed_at: {ISO timestamp}
 duration: {time in minutes}
 
-# Dependency Graph (copied from PLAN.md, updated with actuals)
+# Dependency Graph (copied from plan.md, updated with actuals)
 requires:
   - phase: {N}
     provides: [dependency1, dependency2]

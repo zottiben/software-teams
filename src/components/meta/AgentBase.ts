@@ -5,8 +5,7 @@
  * - `## Heading` boundaries for most sections.
  * - Explicit `<section name="X">...</section>` blocks for "Sandbox" and "TeamMode".
  * - Body trim: leading/trailing whitespace only; internal whitespace preserved.
- * - Inline `<JDI:` references lifted into `requires` arrays AND kept in body
- *   (intentional per design doc §"Tag syntax in source files").
+ * - Inline `@ST:` references lifted into `requires` arrays AND kept in body.
  */
 
 import type { Component } from "../types";

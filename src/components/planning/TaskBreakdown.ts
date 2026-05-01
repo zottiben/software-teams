@@ -92,8 +92,8 @@ Tasks with no dependencies → Wave 1. Tasks depending on Wave N → Wave N+1.`,
     },
     FromRequirements: {
       name: "FromRequirements",
-      description: "How to break down from REQUIREMENTS.yaml",
-      body: `When breaking down from REQUIREMENTS.yaml: map REQ-IDs to tasks, track which tasks satisfy which requirements, ensure every in-scope requirement has at least one task.`,
+      description: "How to break down from requirements.yaml",
+      body: `When breaking down from requirements.yaml: map REQ-IDs to tasks, track which tasks satisfy which requirements, ensure every in-scope requirement has at least one task.`,
     },
     Granularity: {
       name: "Granularity",
@@ -114,9 +114,9 @@ Tasks with no dependencies → Wave 1. Tasks depending on Wave N → Wave N+1.`,
     ThreeTierOutput: {
       name: "ThreeTierOutput",
       description: "How TaskBreakdown applies in three-tier plan mode",
-      body: `This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (\`PLAN.md\` + per-task) or three-tier (\`SPEC.md\` + \`ORCHESTRATION.md\` + per-agent slices) artefacts.
+      body: `This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (\`plan.md\` + per-task) or three-tier (\`spec.md\` + \`orchestration.md\` + per-agent slices) artefacts.
 
-When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`templates/ORCHESTRATION.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`PLAN.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`agents/software-teams-planner.md\` for the Tier Decision Rule.`,
+When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`templates/orchestration.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`plan.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`agents/software-teams-planner.md\` for the Tier Decision Rule.`,
     },
     TestTaskRules: {
       name: "TestTaskRules",

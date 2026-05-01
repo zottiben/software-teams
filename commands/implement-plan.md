@@ -52,7 +52,7 @@ If `tier = three-tier`, follow the **Three-Tier Execution Loop (default)** below
 
 ## Three-Tier Execution Loop (default)
 
-For plans that have an `ORCHESTRATION.md` artefact, the orchestrator (main Claude) reads the task graph from ORCHESTRATION, spawns each pinned agent natively with **only** its per-agent slice plus the SPEC sections that slice cites, verifies via `software-teams-qa-tester`, and advances. The orchestrator owns "when to move on" — agents never declare themselves done.
+For plans that have an `orchestration.md` artefact, the orchestrator (main Claude) reads the task graph from ORCHESTRATION, spawns each pinned agent natively with **only** its per-agent slice plus the SPEC sections that slice cites, verifies via `software-teams-qa-tester`, and advances. The orchestrator owns "when to move on" — agents never declare themselves done.
 
 The numbered steps below run in order. Each step ends with a clear state transition — if you cannot produce that transition, STOP and ask. Steps that are identical to the single-tier loop are cross-referenced rather than duplicated.
 
@@ -69,7 +69,7 @@ Read `.software-teams/plans/{slug}.orchestration.md`. Parse its frontmatter for:
 - `primary_agent:` — pin used for the orchestrator brief and as fallback
 - `spec_link:` — pointer to `{slug}.spec.md`
 
-Then parse the **Tasks** manifest table (markdown table inside ORCHESTRATION.md) for the task graph: `ID | Name | Agent | Wave | Depends On | Slice`. Each row pins a task to an `agent` and a `slice` file. Topologically sort by `(wave, depends_on)`.
+Then parse the **Tasks** manifest table (markdown table inside orchestration.md) for the task graph: `ID | Name | Agent | Wave | Depends On | Slice`. Each row pins a task to an `agent` and a `slice` file. Topologically sort by `(wave, depends_on)`.
 
 Also record the **Sequencing Rules** and **Quality Gates** sections — they govern wave gates, parallel-safe groups, and which gates fire after which tasks.
 
@@ -136,7 +136,7 @@ For each task in the topologically sorted task graph:
    - **S1 / S2 fail** → halt the plan, escalate via AskUserQuestion (same blocker UX as §8a below). Do NOT advance task state.
    - **S3 / S4 fail** → record in task summary, continue. (Same severity ladder as `@ST:AgentBase`.)
 
-6. **Wave gate:** when the wave's last task verifies, run the **post-wave-integration** gate from ORCHESTRATION.md's Quality Gates section (typically `bun test` plus a smoke check on the wave's `provides:` deliverables). If the wave gate fails, halt the plan and enter the review loop at §15. Do NOT start the next wave.
+6. **Wave gate:** when the wave's last task verifies, run the **post-wave-integration** gate from orchestration.md's Quality Gates section (typically `bun test` plus a smoke check on the wave's `provides:` deliverables). If the wave gate fails, halt the plan and enter the review loop at §15. Do NOT start the next wave.
 
 The orchestrator decides "when to move on". Agents never declare themselves done — the verify step is the contract.
 
@@ -183,7 +183,7 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. E
 Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that component and store the result internally as `DISCOVERED_STATE`. Do NOT print the discovery output to the user.
 
 **Additional reads for this skill:**
-- `.software-teams/codebase/SUMMARY.md` if it exists
+- `.software-teams/codebase/summary.md` if it exists
 - `.software-teams/rules/general.md` (always)
 - Domain-specific rules based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
 

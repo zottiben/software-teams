@@ -59,7 +59,7 @@ ls ~/.claude/agents/ 2>/dev/null
 \`\`\`
 
 The resulting catalogue MUST be written into the plan index frontmatter as
-\`available_agents:\` (see \`templates/PLAN.md\`) so reviewers and the
+\`available_agents:\` (see \`templates/plan.md\`) so reviewers and the
 implement-plan pass can see exactly which agents were visible at plan time.
 
 \`\`\`yaml

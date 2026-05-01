@@ -141,18 +141,11 @@ function resolveHostPath(sourceRelPath: string): string {
 }
 
 function parseTags(host: string): TagRef[] {
-  // Match `<JDI:Name />`, `<JDI:Name:Section />`, `<JDI:Name attr="x" />`,
-  // `<JDI:Name:Section attr="x" />`. Anything between the name(:section) and
-  // the closing `/>` is treated as attributes and discarded for now.
-  const reJdi = /<JDI:([A-Za-z]+)(?::([A-Za-z][A-Za-z0-9-]*))?(\s+[^>]*?)?\s*\/?\s*>/g;
-  // Also match `@ST:Name` and `@ST:Name:Section` — the post-rename syntax.
-  const reSt = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
+  // Match `@ST:Name` and `@ST:Name:Section`.
+  const re = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
   const tags: TagRef[] = [];
   let match: RegExpExecArray | null;
-  while ((match = reJdi.exec(host)) !== null) {
-    tags.push({ name: match[1], section: match[2], raw: match[0] });
-  }
-  while ((match = reSt.exec(host)) !== null) {
+  while ((match = re.exec(host)) !== null) {
     tags.push({ name: match[1], section: match[2], raw: match[0] });
   }
   return tags;

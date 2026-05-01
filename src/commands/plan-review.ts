@@ -47,7 +47,7 @@ export const planReviewCommand = defineCommand({
     } else if (state?.current_plan?.path) {
       planPath = resolve(cwd, state.current_plan.path as string);
     } else {
-      consola.error("No plan found. Run `jdi plan` first.");
+      consola.error("No plan found. Run `software-teams plan` first.");
       return;
     }
 
@@ -87,7 +87,7 @@ export const planReviewCommand = defineCommand({
     const isApproval = ["approve", "approved", "lgtm", "looks good", "ship it"].includes(trimmed);
 
     if (!state) {
-      consola.error("No JDI state found. Run `jdi init` first.");
+      consola.error("No Software Teams state found. Run `software-teams init` first.");
       return;
     }
 
@@ -104,7 +104,7 @@ export const planReviewCommand = defineCommand({
       }
       await writeState(cwd, state);
       consola.success(`Plan '${name}' approved (revision ${revision}).`);
-      consola.info("Say 'implement this' in Claude Code or run `/jdi:implement-plan` to execute.");
+      consola.info("Say 'implement this' in Claude Code or run `/st:implement-plan` to execute.");
     } else {
       // Record feedback and generate refinement prompt
       const now = new Date().toISOString();

@@ -1,7 +1,7 @@
 import { join, dirname, resolve, relative, basename } from "node:path";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
-import type { JdiStorage } from "../storage/interface";
+import type { SoftwareTeamsStorage } from "../storage/interface";
 import { getComponent } from "../components/resolve";
 
 /**
@@ -97,7 +97,7 @@ export interface ConvertAgentsOptions {
   /** Behaviour when the target file already exists. Default `overwrite`. */
   onConflict?: ConflictMode;
   /** Optional storage adapter (currently informational; fs is used by default). */
-  storage?: JdiStorage;
+  storage?: SoftwareTeamsStorage;
 }
 
 export interface ConvertAgentsResult {
@@ -111,7 +111,7 @@ export interface AgentFrontmatter {
   description: string;
   model: string;
   tools: string[];
-  // JDI-only fields (preserved on input, dropped on output)
+  // Software Teams-only fields (preserved on input, dropped on output)
   category?: string;
   team?: string;
   requires_components?: string[];

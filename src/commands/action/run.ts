@@ -18,16 +18,16 @@ import {
   postGitHubComment,
   updateGitHubComment,
   reactToComment,
-  formatJdiComment,
+  formatSoftwareTeamsComment,
   formatErrorComment,
   fetchCommentThread,
   buildConversationContext,
 } from "../../utils/github";
 
-type JdiCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
+type SoftwareTeamsCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
 
 interface ParsedIntent {
-  command: JdiCommand;
+  command: SoftwareTeamsCommand;
   description: string;
   clickUpUrl: string | null;
   fullFlow: boolean;
@@ -44,10 +44,10 @@ function parseComment(
   const hasDryRun = /--dry-run/i.test(comment);
   const cleanComment = comment.replace(/--dry-run/gi, "").trim();
 
-  // Strip "Hey jdi" prefix (case-insensitive)
-  const match = cleanComment.match(/hey\s+jdi\s+(.+)/is);
+  // Strip "Hey software-teams" prefix (case-insensitive); legacy "Hey jdi" still tolerated.
+  const match = cleanComment.match(/hey\s+(?:software[\s-]?teams|jdi)\s+(.+)/is);
   if (!match) {
-    // No "Hey jdi" prefix — if this is a follow-up in an existing conversation,
+    // No trigger prefix — if this is a follow-up in an existing conversation,
     // treat the entire comment as feedback
     if (isFollowUp) {
       return {
@@ -113,7 +113,7 @@ function parseComment(
     return { ...base, command: "quick", description };
   }
 
-  // If there's an existing conversation, treat ambiguous "Hey jdi" messages as refinement feedback
+  // If there's an existing conversation, treat ambiguous trigger-prefixed messages as refinement feedback
   if (isFollowUp) {
     return { ...base, command: "plan", description: body, clickUpUrl: null, isFeedback: true };
   }
@@ -125,12 +125,12 @@ function parseComment(
 export const runCommand = defineCommand({
   meta: {
     name: "run",
-    description: "GitHub Action entry point — parse 'Hey jdi' comment and run workflow",
+    description: "GitHub Action entry point — parse 'Hey software-teams' comment and run workflow",
   },
   args: {
     comment: {
       type: "positional",
-      description: "The raw comment body containing 'Hey jdi' mention",
+      description: "The raw comment body containing 'Hey software-teams' mention",
       required: true,
     },
     "comment-id": {
@@ -175,7 +175,7 @@ export const runCommand = defineCommand({
           await reactToComment(repo, commentId, "confused").catch(() => {});
         }
         if (repo && issueNumber) {
-          const denyBody = formatJdiComment("auth", `Access denied: ${authResult.reason}`);
+          const denyBody = formatSoftwareTeamsComment("auth", `Access denied: ${authResult.reason}`);
           await postGitHubComment(repo, issueNumber, denyBody).catch(() => {});
         }
         return;
@@ -198,7 +198,7 @@ export const runCommand = defineCommand({
 
       if (isFollowUp) {
         consola.info(
-          `Continuing conversation (${context.previousJdiRuns} previous JDI run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
+          `Continuing conversation (${context.previousRuns} previous Software Teams run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
         );
       }
       // Sanitize conversation history (may contain user-controlled content)
@@ -208,7 +208,7 @@ export const runCommand = defineCommand({
     // Parse intent — pass isFollowUp so ambiguous messages become feedback
     const intent = parseComment(args.comment, isFollowUp);
     if (!intent) {
-      consola.error("Could not parse 'Hey jdi' intent from comment");
+      consola.error("Could not parse 'Hey software-teams' intent from comment");
       process.exit(1);
     }
 
@@ -227,7 +227,7 @@ export const runCommand = defineCommand({
     // Post a thinking placeholder comment
     let placeholderCommentId: number | null = null;
     if (repo && issueNumber) {
-      const thinkingBody = `<h3>🧠 JDI <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
+      const thinkingBody = `<h3>🧠 Software Teams <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
       placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
     }
 
@@ -242,8 +242,8 @@ export const runCommand = defineCommand({
       } as any;
       await writeState(cwd, state);
 
-      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey jdi implement\`** when you're ready to go.`;
-      const finalBody = formatJdiComment("plan", approvalBody);
+      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey software-teams implement\`** when you're ready to go.`;
+      const finalBody = formatSoftwareTeamsComment("plan", approvalBody);
 
       if (repo && placeholderCommentId) {
         await updateGitHubComment(repo, placeholderCommentId, finalBody).catch((err) => {
@@ -294,7 +294,7 @@ export const runCommand = defineCommand({
         `| Version | \`${version}\` |`,
       ].join("\n");
 
-      const finalBody = formatJdiComment("ping", statusBody);
+      const finalBody = formatSoftwareTeamsComment("ping", statusBody);
 
       if (repo && placeholderCommentId) {
         await updateGitHubComment(repo, placeholderCommentId, finalBody).catch((err) => {
@@ -658,11 +658,11 @@ export const runCommand = defineCommand({
       let commentBody: string;
 
       if (success && fullResponse) {
-        commentBody = formatJdiComment(actionLabel, fullResponse);
+        commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse);
       } else if (!success) {
         commentBody = formatErrorComment(actionLabel, "Check workflow logs for details.");
       } else {
-        commentBody = formatJdiComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
+        commentBody = formatSoftwareTeamsComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
       }
 
       if (placeholderCommentId) {

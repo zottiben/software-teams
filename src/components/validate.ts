@@ -18,15 +18,12 @@ import { registry } from "./registry";
 import { tryResolve } from "./resolve";
 
 // ---------------------------------------------------------------------------
-// Markdown scanner — dual regex for migration window
+// Markdown scanner
 // ---------------------------------------------------------------------------
 
 /**
  * Matches `@ST:Name(:Section)?` source tags. Group 1 = component name;
  * group 2 = section name (optional).
- *
- * The legacy `<JDI:` recognition was dropped in plan 3-02 once the
- * migration window closed.
  */
 const TAG_REGEX = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
 

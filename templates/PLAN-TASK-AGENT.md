@@ -5,7 +5,7 @@ tier: per-agent
 spec_link: {slug}.spec.md
 orchestration_link: {slug}.orchestration.md
 
-# Task classification (same fields as PLAN-TASK.md)
+# Task classification (same fields as plan-task.md)
 type: auto
 size: M
 priority: should

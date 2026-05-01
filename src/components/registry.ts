@@ -19,7 +19,6 @@ import InteractiveGate from "./meta/InteractiveGate";
 import SilentDiscovery from "./meta/SilentDiscovery";
 import StateUpdate from "./meta/StateUpdate";
 import StrictnessProtocol from "./meta/StrictnessProtocol";
-import TeamRouter from "./meta/TeamRouter";
 
 // execution
 import CodebaseContext from "./execution/CodebaseContext";
@@ -72,7 +71,6 @@ export const registry: Readonly<Record<string, Component>> = Object.freeze({
   [SilentDiscovery.name]: SilentDiscovery,
   [StateUpdate.name]: StateUpdate,
   [StrictnessProtocol.name]: StrictnessProtocol,
-  [TeamRouter.name]: TeamRouter,
   [CodebaseContext.name]: CodebaseContext,
   [Commit.name]: Commit,
   [Verify.name]: Verify,

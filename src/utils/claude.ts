@@ -31,7 +31,7 @@ export const DEFAULT_ALLOWED_TOOLS: readonly string[] = [
   "Bash(npx:*)",
   "Bash(mkdir:*)",
   "Bash(rm:*)",
-  "Bash(jdi:*)",
+  "Bash(software-teams:*)",
 ];
 
 export async function findClaude(): Promise<string> {

@@ -49,7 +49,7 @@ const Verify: Component = {
       body: `When invoked as \`@ST:Verify\`:
 
 1. **Determine scope** — Check current position from state.yaml, default to task-level
-2. **Load verification criteria** — task: PLAN.md verification section; plan: PLAN.md success_criteria; phase: ROADMAP.yaml must_haves
+2. **Load verification criteria** — task: plan.md verification section; plan: plan.md success_criteria; phase: roadmap.yaml must_haves
 3. **Execute verification** — Run each check, record pass/fail
 4. **Report results** — Output summary, update state`,
     },
@@ -58,7 +58,7 @@ const Verify: Component = {
       description: "Task-level verification steps and report format",
       body: `## Task Verification (\`scope="task"\`)
 
-1. **Load task verification criteria** from PLAN.md \`**Verification:**\` checklist
+1. **Load task verification criteria** from plan.md \`**Verification:**\` checklist
 2. **Execute each check**: file existence, code patterns, test gates (see TestRunner), manual inspection
 3. **Load done criteria** from \`**Done when:**\`
 4. **Report result**:
@@ -85,7 +85,7 @@ const Verify: Component = {
 1. **Verify all tasks complete** — check status and commits
 2. **Load plan success criteria** from \`<success_criteria>\` block
 3. **Execute plan-level checks** — test suite, lint/type errors, integration points
-4. **Generate SUMMARY.md preview** — draft with deviations
+4. **Generate summary.md preview** — draft with deviations
 5. **Report result**:
    \`\`\`markdown
    ## Plan Verification: {phase}-{plan}
@@ -101,7 +101,7 @@ const Verify: Component = {
    ### Tests
    - Suite: {test suite} | Result: {pass/fail} | Coverage: {percentage}
 
-   ### Ready for SUMMARY.md: YES | NO
+   ### Ready for summary.md: YES | NO
    \`\`\``,
     },
     AdvancedVerification: {

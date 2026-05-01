@@ -5,7 +5,7 @@ export interface ThreadComment {
   author: string;
   body: string;
   createdAt: string;
-  isJdi: boolean;
+  isSoftwareTeams: boolean;
 }
 
 export async function postGitHubComment(
@@ -76,8 +76,8 @@ export async function fetchCommentThread(
         author: parsed.author,
         body: parsed.body,
         createdAt: parsed.createdAt,
-        // Detect JDI's own comments by the header
-        isJdi: parsed.body.includes("JDI <sup>"),
+        // Detect Software Teams' own comments by the header.
+        isSoftwareTeams: parsed.body.includes("Software Teams <sup>") || parsed.body.includes("JDI <sup>"),
       });
     } catch {
       // skip malformed lines
@@ -112,53 +112,50 @@ export function formatVerificationResults(results: { passed: boolean; gates: Arr
 
 /**
  * Build a conversation history string from the comment thread.
- * Includes previous "Hey jdi" commands, JDI responses, and user feedback.
+ * Includes previous "Hey software-teams" commands, Software Teams responses, and user feedback.
  */
 export function buildConversationContext(
   thread: ThreadComment[],
   currentCommentId: number,
-): { history: string; previousJdiRuns: number; isFollowUp: boolean; isPostImplementation: boolean } {
-  // Filter to only JDI-related comments (commands, responses, feedback between them)
-  const jdiSegments: ThreadComment[] = [];
-  let inJdiConversation = false;
+): { history: string; previousRuns: number; isFollowUp: boolean; isPostImplementation: boolean } {
+  // Filter to only Software-Teams-related comments (commands, responses, feedback between them).
+  const segments: ThreadComment[] = [];
+  let inConversation = false;
 
   for (const comment of thread) {
     // Don't include the current triggering comment
     if (comment.id === currentCommentId) break;
 
-    if (/hey\s+jdi/i.test(comment.body)) {
-      inJdiConversation = true;
-      jdiSegments.push(comment);
-    } else if (inJdiConversation) {
-      // Include all comments between "Hey jdi" triggers and JDI responses
-      jdiSegments.push(comment);
-      if (comment.isJdi) {
-        // JDI responded — keep tracking for follow-up feedback
-      }
+    if (/hey\s+(?:software[\s-]?teams|jdi)/i.test(comment.body)) {
+      inConversation = true;
+      segments.push(comment);
+    } else if (inConversation) {
+      // Include all comments between trigger and Software Teams responses
+      segments.push(comment);
     }
   }
 
-  const previousJdiRuns = jdiSegments.filter((c) => c.isJdi).length;
+  const previousRuns = segments.filter((c) => c.isSoftwareTeams).length;
 
-  // Determine if this is a follow-up to an existing JDI conversation
-  const isFollowUp = previousJdiRuns > 0;
+  // Determine if this is a follow-up to an existing conversation
+  const isFollowUp = previousRuns > 0;
 
-  // Detect if implementation has already happened (JDI posted an "implement" response)
-  const isPostImplementation = jdiSegments.some(
-    (c) => c.isJdi && c.body.includes("<sup>implement</sup>"),
+  // Detect if implementation has already happened (Software Teams posted an "implement" response)
+  const isPostImplementation = segments.some(
+    (c) => c.isSoftwareTeams && c.body.includes("<sup>implement</sup>"),
   );
 
-  if (jdiSegments.length === 0) {
-    return { history: "", previousJdiRuns: 0, isFollowUp: false, isPostImplementation: false };
+  if (segments.length === 0) {
+    return { history: "", previousRuns: 0, isFollowUp: false, isPostImplementation: false };
   }
 
   // Format as conversation log
   const lines: string[] = ["## Previous Conversation", ""];
-  for (const comment of jdiSegments) {
-    const role = comment.isJdi ? "JDI" : `@${comment.author}`;
-    // Truncate long JDI responses to keep context manageable
+  for (const comment of segments) {
+    const role = comment.isSoftwareTeams ? "Software Teams" : `@${comment.author}`;
+    // Truncate long Software Teams responses to keep context manageable
     let body = comment.body;
-    if (comment.isJdi && body.length > 2000) {
+    if (comment.isSoftwareTeams && body.length > 2000) {
       body = body.slice(0, 2000) + "\n\n... (truncated)";
     }
     lines.push(`**${role}** (${comment.createdAt}):`);
@@ -166,7 +163,7 @@ export function buildConversationContext(
     lines.push("");
   }
 
-  return { history: lines.join("\n"), previousJdiRuns, isFollowUp, isPostImplementation };
+  return { history: lines.join("\n"), previousRuns, isFollowUp, isPostImplementation };
 }
 
 const COMMAND_EMOJI: Record<string, string> = {
@@ -178,13 +175,13 @@ const COMMAND_EMOJI: Record<string, string> = {
   ping: "🔹",
 };
 
-export function formatJdiComment(
+export function formatSoftwareTeamsComment(
   command: string,
   response: string,
 ): string {
   const emoji = COMMAND_EMOJI[command] ?? "◈";
   return [
-    `<h3>${emoji} JDI <sup>${command}</sup></h3>`,
+    `<h3>${emoji} Software Teams <sup>${command}</sup></h3>`,
     ``,
     `---`,
     ``,
@@ -198,7 +195,7 @@ export function formatErrorComment(
 ): string {
   const emoji = COMMAND_EMOJI[command] ?? "◈";
   return [
-    `<h3>${emoji} JDI <sup>${command} · failed</sup></h3>`,
+    `<h3>${emoji} Software Teams <sup>${command} · failed</sup></h3>`,
     ``,
     `---`,
     ``,

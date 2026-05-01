@@ -13,10 +13,10 @@ import { convertAgents } from "../utils/convert-agents";
  * `.software-teams/framework/` and `.software-teams/config/adapter.yaml` — never to these.
  */
 const PRESERVED_STATE_FILES = [
-  ".software-teams/PROJECT.yaml",
-  ".software-teams/REQUIREMENTS.yaml",
-  ".software-teams/ROADMAP.yaml",
-  ".software-teams/config/state.yaml",
+  ".software-teams/project.yaml",
+  ".software-teams/requirements.yaml",
+  ".software-teams/roadmap.yaml",
+  ".software-teams/state.yaml",
 ] as const;
 
 /**
@@ -139,8 +139,8 @@ export const syncFrameworkCommand = defineCommand({
     }
 
     // Reuse the canonical writer. force=true ensures all drifted files are
-    // overwritten. Project state (PROJECT.yaml, REQUIREMENTS.yaml,
-    // ROADMAP.yaml, config/state.yaml) is preserved because
+    // overwritten. Project state (project.yaml, requirements.yaml,
+    // roadmap.yaml, state.yaml) is preserved because
     // copyFrameworkFiles() never writes to those paths.
     const projectType = await detectProjectType(cwd);
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot);

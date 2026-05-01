@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
-import type { JdiStorage } from "../storage";
+import type { SoftwareTeamsStorage } from "../storage";
 
 const RULE_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
 
@@ -10,7 +10,7 @@ const RULE_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
  */
 export async function loadPersistedState(
   cwd: string,
-  storage: JdiStorage,
+  storage: SoftwareTeamsStorage,
 ): Promise<{ rulesPath: string | null; codebaseIndexPath: string | null }> {
   let rulesPath: string | null = null;
   let codebaseIndexPath: string | null = null;
@@ -60,7 +60,7 @@ export async function loadPersistedState(
  */
 export async function savePersistedState(
   cwd: string,
-  storage: JdiStorage,
+  storage: SoftwareTeamsStorage,
 ): Promise<{ rulesSaved: boolean; codebaseIndexSaved: boolean }> {
   let rulesSaved = false;
   let codebaseIndexSaved = false;

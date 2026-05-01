@@ -87,7 +87,7 @@ For each task:
 
 ### Step 4: Plan Completion
 - Run plan-level verification
-- Generate SUMMARY.md (via Write tool)
+- Generate summary.md (via Write tool)
 - Update final state
 
 ---

@@ -50,7 +50,7 @@ export const worktreeRemoveCommand = defineCommand({
         const { stdout } = await exec(["git", "worktree", "list"]);
         consola.info("Active worktrees:");
         consola.info(stdout);
-        consola.info("\nSpecify a worktree name: jdi worktree-remove <name>");
+        consola.info("\nSpecify a worktree name: software-teams worktree-remove <name>");
         return;
       }
     }

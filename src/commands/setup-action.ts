@@ -6,14 +6,14 @@ import { existsSync, mkdirSync } from "node:fs";
 export const setupActionCommand = defineCommand({
   meta: {
     name: "setup-action",
-    description: "Set up the JDI GitHub Action in your repository",
+    description: "Set up the Software Teams GitHub Action in your repository",
   },
   args: {},
   async run() {
     const cwd = process.cwd();
 
     // Copy workflow template
-    const workflowDest = join(cwd, ".github", "workflows", "jdi.yml");
+    const workflowDest = join(cwd, ".github", "workflows", "software-teams.yml");
     if (existsSync(workflowDest)) {
       consola.warn(`Workflow already exists at ${workflowDest}`);
       consola.info("Skipping workflow copy. Delete it manually to regenerate.");
@@ -21,7 +21,7 @@ export const setupActionCommand = defineCommand({
       // import.meta.dir resolves to dist/ after bundling, so go up one level
       const templatePath = join(import.meta.dir, "../action/workflow-template.yml");
       if (!existsSync(templatePath)) {
-        consola.error("Workflow template not found. Ensure @benzotti/jdi is properly installed.");
+        consola.error("Workflow template not found. Ensure @benzotti/software-teams is properly installed.");
         process.exit(1);
       }
 
@@ -37,10 +37,10 @@ export const setupActionCommand = defineCommand({
     consola.info("");
     consola.box(
       [
-        "JDI GitHub Action Setup",
+        "Software Teams GitHub Action Setup",
         "",
-        "Uses: JDI CLI via Claude Code",
-        "Trigger: 'Hey jdi' in issue/PR comments",
+        "Uses: Software Teams CLI via Claude Code",
+        "Trigger: 'Hey software-teams' in issue/PR comments",
         "",
         "Required secrets (set via GitHub UI or CLI):",
         "",
@@ -52,14 +52,14 @@ export const setupActionCommand = defineCommand({
         "",
         "Usage: Comment on any issue or PR with:",
         "",
-        "  Hey jdi plan <description>",
-        "  Hey jdi quick <small fix>",
-        "  Hey jdi do <clickup-ticket-url>",
-        "  Hey jdi review",
-        "  Hey jdi feedback",
-        "  Hey jdi ping",
+        "  Hey software-teams plan <description>",
+        "  Hey software-teams quick <small fix>",
+        "  Hey software-teams do <clickup-ticket-url>",
+        "  Hey software-teams review",
+        "  Hey software-teams feedback",
+        "  Hey software-teams ping",
         "",
-        "Conversation: Reply to JDI with feedback to iterate,",
+        "Conversation: Reply to Software Teams with feedback to iterate,",
         "or say 'approved' to finalise.",
       ].join("\n"),
     );

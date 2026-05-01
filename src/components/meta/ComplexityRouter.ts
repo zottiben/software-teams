@@ -4,7 +4,7 @@
  * Parsing rules applied:
  * - `## Heading` boundaries delimit sections (no YAML frontmatter).
  * - Body trim: leading/trailing whitespace only; internal whitespace preserved.
- * - Inline `<JDI:` references lifted into `requires` AND kept in body.
+ * - Inline `@ST:` references lifted into `requires` AND kept in body.
  */
 
 import type { Component } from "../types";
@@ -49,7 +49,7 @@ reasoning: "{why this mode was chosen}"
       description: "How to spawn a single specialist agent for simple plans",
       body: `Spawn one specialist agent directly via Task tool, **natively by name**.
 
-> **Three-tier plans (post-T9/T10):** when the plan has an \`ORCHESTRATION.md\`
+> **Three-tier plans (post-T9/T10):** when the plan has an \`orchestration.md\`
 > artefact, single-agent mode loads SPEC + ORCHESTRATION as the **orchestrator
 > brief** (the agent acts as its own orchestrator across the task graph). Each
 > per-task spawn it makes downstream still loads ONLY the per-agent slice

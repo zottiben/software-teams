@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-// Measures per-spawn context cost for a JDI three-tier plan.
+// Measures per-spawn context cost for a Software Teams three-tier plan.
 //
-// Preferred path: read .jdi/persistence/spawn-ledger.jsonl (populated by
-// `jdi spawn-log record` during /jdi:implement-plan). This gives real
-// per-spawn byte/token figures.
+// Preferred path: read .software-teams/persistence/spawn-ledger.jsonl
+// (populated by `software-teams spawn-log record` during
+// `/st:implement-plan`). This gives real per-spawn byte/token figures.
 //
 // Fallback path: static byte-count analysis of the plan artefacts. Used
 // when no ledger entries exist for the plan (e.g. running this script in
@@ -20,7 +20,7 @@ import { summariseLedger } from "../src/utils/spawn-ledger";
 
 const BYTES_PER_TOKEN = 4; // standard Claude heuristic
 const SPEC_SLICE_RATIO = 0.3; // estimate: agent loads ~30% of index narrative
-const LEDGER_PATH = join(".jdi", "persistence", "spawn-ledger.jsonl");
+const LEDGER_PATH = join(".software-teams", "persistence", "spawn-ledger.jsonl");
 
 const planSlug = process.argv[2] ?? "1-01-native-subagents";
 // The ledger plan_id is conventionally the leading "N-NN" portion of the slug
@@ -59,7 +59,7 @@ async function reportFromLedger(): Promise<boolean> {
 }
 
 async function reportStatic(): Promise<void> {
-  const dir = ".jdi/plans";
+  const dir = ".software-teams/plans";
   const indexPath = join(dir, `${planSlug}.plan.md`);
 
   const indexText = await readFile(indexPath, "utf8");
@@ -82,7 +82,7 @@ async function reportStatic(): Promise<void> {
   console.log(
     `Note: no ledger data found at ${LEDGER_PATH} for plan ${planId}. ` +
       `Falling back to static byte-count analysis. ` +
-      `Run \`jdi spawn-log record ...\` during /jdi:implement-plan to capture real numbers.\n`,
+      `Run \`software-teams spawn-log record ...\` during /st:implement-plan to capture real numbers.\n`,
   );
   console.log(`Index: ${indexBytes} B (${tok(indexBytes)} tok)`);
   console.log(`Index narrative: ${narrativeBytes} B (${tok(narrativeBytes)} tok)`);

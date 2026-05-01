@@ -17,7 +17,7 @@ export const implementCommand = defineCommand({
   args: {
     plan: {
       type: "positional",
-      description: "Path to the PLAN.md file (auto-detected from state if omitted)",
+      description: "Path to the plan.md file (auto-detected from state if omitted)",
       required: false,
     },
     output: {
@@ -54,7 +54,7 @@ export const implementCommand = defineCommand({
       const state = await readState(cwd);
       planPath = state?.current_plan?.path ?? undefined;
       if (!planPath) {
-        consola.error("No plan specified and no current plan found in state. Run `jdi plan` first or provide a plan path.");
+        consola.error("No plan specified and no current plan found in state. Run `software-teams plan` first or provide a plan path.");
         process.exit(1);
       }
       consola.info(`Using current plan: ${planPath}`);

@@ -15,9 +15,9 @@ a different lifetime.
 
 | Template | Tier | Purpose | Audience |
 |----------|------|---------|----------|
-| `SPEC.md` | 1 — WHAT | Problem, acceptance criteria, out-of-scope, glossary | Reviewer, future maintainer |
-| `ORCHESTRATION.md` | 2 — HOW | Task graph, agent routing, sequencing rules, quality gates | Orchestrator (implement-plan) |
-| `PLAN-TASK-AGENT.md` | 3 — slice | One file per task; what a single agent loads when spawned | The agent itself |
+| `spec.md` | 1 — WHAT | Problem, acceptance criteria, out-of-scope, glossary | Reviewer, future maintainer |
+| `orchestration.md` | 2 — HOW | Task graph, agent routing, sequencing rules, quality gates | Orchestrator (implement-plan) |
+| `plan-task-agent.md` | 3 — slice | One file per task; what a single agent loads when spawned | The agent itself |
 
 Cross-links use exact slug-derived paths:
 - `{slug}.spec.md`
@@ -34,8 +34,8 @@ work, or any plan where a separate WHAT vs HOW boundary helps reviewers.
 
 | Template | Purpose |
 |----------|---------|
-| `PLAN.md` | Monolithic plan: frontmatter + objective + task manifest + verification |
-| `PLAN-TASK.md` | Per-task file referenced from `PLAN.md`'s `task_files:` |
+| `plan.md` | Monolithic plan: frontmatter + objective + task manifest + verification |
+| `plan-task.md` | Per-task file referenced from `plan.md`'s `task_files:` |
 
 **Use single-tier when:** `/st:quick` flows, hotfixes, or plans with 1-3
 tasks where the three-tier ceremony exceeds the work.
@@ -47,7 +47,7 @@ tasks where the three-tier ceremony exceeds the work.
 | `project.yaml` | Project identity: name, summary, core value, tech stack, constraints |
 | `requirements.yaml` | Capabilities, risks, constraints — long-lived |
 | `roadmap.yaml` | Phase / plan ordering and milestones |
-| `SUMMARY.md` | Per-plan outcome record (written by software-teams-programmer post-execution) |
+| `summary.md` | Per-plan outcome record (written by software-teams-programmer post-execution) |
 | `CLAUDE-SHARED.md` | Shared context imported into the project's `CLAUDE.md` |
 | `RULES.md` | Per-project rule notes |
 

@@ -28,7 +28,7 @@ git log main..HEAD --oneline
 git diff main --stat
 ```
 
-Read if available: `.software-teams/state.yaml`, `.software-teams/state.yaml`, SUMMARY.md files in `.software-teams/plans/`.
+Read if available: `.software-teams/state.yaml`, `.software-teams/state.yaml`, summary.md files in `.software-teams/plans/`.
 
 ### Step 2: Resolve PR Template (MANDATORY)
 
@@ -38,7 +38,7 @@ Read if available: `.software-teams/state.yaml`, `.software-teams/state.yaml`, S
 
 ### Step 3: Analyse Changes
 
-Group commits by type. Read SUMMARY.md for key accomplishments.
+Group commits by type. Read summary.md for key accomplishments.
 
 ### Step 4: Generate PR Title
 
@@ -46,11 +46,11 @@ Format: `{type}: {concise description}` — types: `feat`, `fix`, `refactor`, `d
 
 ### Step 5: Generate PR Body
 
-Use template from Step 2. Populate from SUMMARY.md, git log, state.yaml, diff. Write "N/A" for inapplicable sections — do not remove them.
+Use template from Step 2. Populate from summary.md, git log, state.yaml, diff. Write "N/A" for inapplicable sections — do not remove them.
 
 **Fallback** (no repo template): Description (what/why), Related Links (ticket, plan reference), Changes (from git log), Screenshots (N/A if backend), Notes (deviations, decisions).
 
-**Section mapping**: Description ← SUMMARY.md one-liner; Related Links ← state.yaml ticket URL; Changes ← git log + diff stat; Notes ← SUMMARY.md deviations/decisions.
+**Section mapping**: Description ← summary.md one-liner; Related Links ← state.yaml ticket URL; Changes ← git log + diff stat; Notes ← summary.md deviations/decisions.
 
 ### Step 6: Verify Template Compliance (MANDATORY)
 

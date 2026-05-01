@@ -20,7 +20,7 @@ export interface ParsedOrchestration {
 }
 
 /**
- * Parse an ORCHESTRATION.md file: YAML frontmatter + the `## Tasks` markdown table.
+ * Parse an orchestration.md file: YAML frontmatter + the `## Tasks` markdown table.
  * Throws on missing required frontmatter (`plan_id`, `slug`, `tier`) or a malformed
  * table (header missing required columns).
  */
