@@ -395,7 +395,7 @@ If ANY of these is not true, STOP. Do not present a summary that implies success
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 
 ---
 

@@ -1,18 +1,40 @@
 /**
- * Baseline benchmark for the <JDI:X /> component-tag mechanism.
+ * Baseline benchmark for the component-tag mechanism.
  *
  * Records, for representative spawn scenarios, what the model actually pays for
  * today and what it would pay under each TS-injection alternative. Output is
  * written to `.software-teams/persistence/component-bench.jsonl` so subsequent
  * runs (after the pivot) can be diffed against this baseline.
  *
- * Run via: `bun run src/benchmarks/component-cost.ts`
+ * Modes:
+ *   --from-source   (default) Read source files from `framework/` — measures
+ *                   cost with @ST: tags unresolved, mirroring the pre-sync state.
+ *   --from-resolved  Read inlined output from `.claude/agents/` and
+ *                   `.claude/commands/st/` — measures cost post-sync, where
+ *                   every @ST: tag is already baked into the host file and no
+ *                   additional component tool calls are needed.
+ *
+ * Run via:
+ *   bun run src/benchmarks/component-cost.ts                  (from-source)
+ *   bun run src/benchmarks/component-cost.ts --from-source    (explicit)
+ *   bun run src/benchmarks/component-cost.ts --from-resolved  (post-migration)
  */
 
-import { readFileSync, mkdirSync } from "fs";
+import { readFileSync, appendFileSync, mkdirSync, existsSync } from "fs";
 import { join, basename } from "path";
 
 const REPO_ROOT = process.cwd();
+
+// --- CLI flag parsing ---
+const args = process.argv.slice(2);
+const FROM_RESOLVED = args.includes("--from-resolved");
+const FROM_SOURCE = args.includes("--from-source") || !FROM_RESOLVED;
+const MODE: "from-source" | "from-resolved" = FROM_RESOLVED ? "from-resolved" : "from-source";
+
+// Projected best-case inlined ceiling from the baseline benchmark design doc.
+// Used for assertion in --from-resolved mode.
+const PROJECTED_CEILING_TOKENS = 42009;
+const PROJECTED_CEILING_TOOL_CALLS = 19;
 
 // Approximate tokens-per-char for English Markdown. Anthropic's tokenizer is
 // closer to 1 token per ~3.7 chars; rounded conservatively to 4. The exact
@@ -87,19 +109,45 @@ function findComponentFile(name: string): string | null {
   return null;
 }
 
+/**
+ * Map a source-tree host file path to its resolved counterpart in .claude/.
+ *
+ * Agents:   framework/agents/X.md   → .claude/agents/X.md
+ * Commands: framework/commands/X.md → .claude/commands/st/X.md
+ *
+ * If no resolved counterpart exists, returns the original path (fallback to
+ * source). This ensures the benchmark never silently measures the wrong file.
+ */
+function resolveHostPath(sourceRelPath: string): string {
+  if (sourceRelPath.startsWith("framework/agents/")) {
+    const filename = sourceRelPath.replace("framework/agents/", "");
+    const resolved = join(REPO_ROOT, ".claude", "agents", filename);
+    if (existsSync(resolved)) return resolved;
+  }
+  if (sourceRelPath.startsWith("framework/commands/")) {
+    const filename = sourceRelPath.replace("framework/commands/", "");
+    const resolved = join(REPO_ROOT, ".claude", "commands", "st", filename);
+    if (existsSync(resolved)) return resolved;
+  }
+  // Fallback: use the source path (logs a warning below).
+  console.warn(`  [warn] No resolved counterpart for ${sourceRelPath}; using source file.`);
+  return join(REPO_ROOT, sourceRelPath);
+}
+
 function parseTags(host: string): TagRef[] {
   // Match `<JDI:Name />`, `<JDI:Name:Section />`, `<JDI:Name attr="x" />`,
   // `<JDI:Name:Section attr="x" />`. Anything between the name(:section) and
   // the closing `/>` is treated as attributes and discarded for now.
-  const re = /<JDI:([A-Za-z]+)(?::([A-Za-z][A-Za-z0-9-]*))?(\s+[^>]*?)?\s*\/?\s*>/g;
+  const reJdi = /<JDI:([A-Za-z]+)(?::([A-Za-z][A-Za-z0-9-]*))?(\s+[^>]*?)?\s*\/?\s*>/g;
+  // Also match `@ST:Name` and `@ST:Name:Section` — the post-rename syntax.
+  const reSt = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
   const tags: TagRef[] = [];
   let match: RegExpExecArray | null;
-  while ((match = re.exec(host)) !== null) {
-    tags.push({
-      name: match[1],
-      section: match[2],
-      raw: match[0],
-    });
+  while ((match = reJdi.exec(host)) !== null) {
+    tags.push({ name: match[1], section: match[2], raw: match[0] });
+  }
+  while ((match = reSt.exec(host)) !== null) {
+    tags.push({ name: match[1], section: match[2], raw: match[0] });
   }
   return tags;
 }
@@ -199,6 +247,40 @@ function resolveTag(tag: TagRef): ComponentResolution {
     exists: true,
     fullBytes,
     sectionBytes,
+  };
+}
+
+/**
+ * Measure a scenario in --from-resolved mode.
+ *
+ * The resolved file has all @ST: tags already inlined by `sync-agents`. No
+ * additional component tool calls are needed — the agent pays only for reading
+ * its own host file. Tag counts and resolution arrays are empty.
+ */
+function measureScenarioResolved(name: string, sourceRelPath: string): ScenarioResult {
+  const hostPath = resolveHostPath(sourceRelPath);
+  const host = readFileSync(hostPath, "utf-8");
+  const hostBytes = host.length;
+  const hostTokens = tokens(host);
+
+  // No tag resolution in resolved mode — content is already inlined.
+  return {
+    name,
+    hostFile: hostPath.replace(REPO_ROOT + "/", ""),
+    hostBytes,
+    hostTokens,
+    tagCount: 0,
+    uniqueTagCount: 0,
+    resolutions: [],
+    tokensToday: hostTokens,     // agent pays for this file only
+    toolCallsToday: 1,
+    tokensInlined: hostTokens,   // same — tags already inlined
+    toolCallsInlined: 1,
+    tokensRuntimeInjected: hostTokens,
+    toolCallsRuntimeInjected: 1,
+    tokensBestCaseInlined: hostTokens,
+    tokensBestCaseRuntime: hostTokens,
+    brokenReferences: [],
   };
 }
 
@@ -321,13 +403,13 @@ const SCENARIOS: Array<{ name: string; hostFile: string; spawnsPerPlan: number }
   { name: "implement-plan skill (orchestrator)", hostFile: "framework/commands/implement-plan.md", spawnsPerPlan: 1 },
   // Skill — orchestrator loads this once per /st:create-plan invocation.
   { name: "create-plan skill (orchestrator)", hostFile: "framework/commands/create-plan.md", spawnsPerPlan: 1 },
-  // Agent — heaviest tag user. Spawned ~1× per /st:create-plan.
+  // Agent — heaviest tag user. Spawned ~1x per /st:create-plan.
   { name: "software-teams-planner spawn", hostFile: "framework/agents/software-teams-planner.md", spawnsPerPlan: 1 },
   // Agent — typical implementer. ~7-10 spawns per implement-plan run.
   { name: "software-teams-backend spawn", hostFile: "framework/agents/software-teams-backend.md", spawnsPerPlan: 8 },
   // Agent — verifier. Runs once per code-touching task. ~10 spawns per plan.
   { name: "software-teams-qa-tester spawn", hostFile: "framework/agents/software-teams-qa-tester.md", spawnsPerPlan: 10 },
-  // Agent — broken-references demo. Note the dead <JDI:Architect:*/> refs.
+  // Agent — broken-references demo. Note the dead Architect refs.
   { name: "software-teams-architect spawn (broken refs)", hostFile: "framework/agents/software-teams-architect.md", spawnsPerPlan: 1 },
 ];
 
@@ -350,114 +432,134 @@ function pct(after: number, before: number): string {
   return `${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`;
 }
 
-function main() {
-  const out: { ranAt: string; scenarios: ScenarioResult[]; projections: unknown[] } = {
-    ranAt: new Date().toISOString(),
-    scenarios: [],
-    projections: [],
-  };
+function classifyDelta(deltaPercent: number): "pass" | "soft-fail" | "hard-fail" {
+  const abs = Math.abs(deltaPercent);
+  if (abs <= 2) return "pass";
+  if (abs <= 5) return "soft-fail";
+  return "hard-fail";
+}
 
-  console.log("\n=== Component-cost baseline benchmark ===\n");
+function main() {
+  console.log(`\n=== Component-cost benchmark [mode: ${MODE}] ===\n`);
   console.log(`Repo: ${REPO_ROOT}`);
   console.log(`Constants: CHARS_PER_TOKEN=${CHARS_PER_TOKEN}, TOOL_CALL_OVERHEAD_TOKENS=${TOOL_CALL_OVERHEAD_TOKENS}\n`);
 
+  const scenarios: ScenarioResult[] = [];
+  const projections: unknown[] = [];
+
   const summary: string[][] = [
-    ["Scenario", "Tags", "Host", "Today", "Inlined", "Runtime", "BestInline", "BestRuntime"],
+    ["Scenario", "Tags", "Host", "Today (tokens)", "Tool Calls"],
   ];
 
   for (const cfg of SCENARIOS) {
-    const result = measureScenario(cfg.name, cfg.hostFile);
-    out.scenarios.push(result);
-    out.projections.push(projectPerPlan({ spawnsPerPlan: cfg.spawnsPerPlan, scenario: result }));
+    const result =
+      MODE === "from-resolved"
+        ? measureScenarioResolved(cfg.name, cfg.hostFile)
+        : measureScenario(cfg.name, cfg.hostFile);
 
-    summary.push([
-      result.name,
-      `${result.tagCount}`,
-      `${result.hostTokens}t`,
-      `${result.tokensToday}`,
-      `${result.tokensInlined} (${pct(result.tokensInlined, result.tokensToday)})`,
-      `${result.tokensRuntimeInjected} (${pct(result.tokensRuntimeInjected, result.tokensToday)})`,
-      `${result.tokensBestCaseInlined} (${pct(result.tokensBestCaseInlined, result.tokensToday)})`,
-      `${result.tokensBestCaseRuntime} (${pct(result.tokensBestCaseRuntime, result.tokensToday)})`,
-    ]);
+    scenarios.push(result);
+    projections.push(projectPerPlan({ spawnsPerPlan: cfg.spawnsPerPlan, scenario: result }));
+
+    if (MODE === "from-source") {
+      summary.push([
+        result.name,
+        `${result.tagCount}`,
+        `${result.hostTokens}t`,
+        `${result.tokensToday}`,
+        `${result.toolCallsToday}`,
+      ]);
+    } else {
+      summary.push([
+        result.name,
+        "0 (inlined)",
+        `${result.hostTokens}t`,
+        `${result.tokensToday}`,
+        `${result.toolCallsToday}`,
+      ]);
+    }
 
     if (result.brokenReferences.length > 0) {
-      console.log(`⚠  ${result.name}: broken references found:`);
+      console.log(`  [warn] ${result.name}: broken references found:`);
       for (const ref of result.brokenReferences) console.log(`     ${ref}`);
       console.log();
     }
   }
 
-  console.log("Per-scenario cost (single invocation):");
-  console.log("  Today        = whole component file loaded per tag (status quo)");
-  console.log("  Inlined      = sync-time inline of explicit sections (B3)");
-  console.log("  Runtime      = runtime injection of explicit sections (B1/B2)");
-  console.log("  BestInline   = sync-time inline if every tag were section-specific (natural avg)");
-  console.log("  BestRuntime  = runtime injection if every tag were section-specific (natural avg)");
-  console.log();
   console.log(formatTable(summary));
   console.log();
 
-  // Projection: a typical implement-plan run = 1 orchestrator load + 8 backend spawns + 10 qa-tester spawns.
-  const planScenario = out.scenarios.find((s) => s.name.startsWith("implement-plan"))!;
-  const backendScenario = out.scenarios.find((s) => s.name.startsWith("software-teams-backend"))!;
-  const qaScenario = out.scenarios.find((s) => s.name.startsWith("software-teams-qa-tester"))!;
+  // Projection: typical implement-plan run = 1 skill load + 8 backend spawns + 10 qa-tester spawns.
+  const planScenario = scenarios.find((s) => s.name.startsWith("implement-plan"))!;
+  const backendScenario = scenarios.find((s) => s.name.startsWith("software-teams-backend"))!;
+  const qaScenario = scenarios.find((s) => s.name.startsWith("software-teams-qa-tester"))!;
 
-  const totals = {
-    today:
+  const planTotal = {
+    tokens:
       planScenario.tokensToday * 1 +
       backendScenario.tokensToday * 8 +
       qaScenario.tokensToday * 10,
-    inlined:
-      planScenario.tokensInlined * 1 +
-      backendScenario.tokensInlined * 8 +
-      qaScenario.tokensInlined * 10,
-    runtimeInjected:
-      planScenario.tokensRuntimeInjected * 1 +
-      backendScenario.tokensRuntimeInjected * 8 +
-      qaScenario.tokensRuntimeInjected * 10,
-    todayCalls:
+    toolCalls:
       planScenario.toolCallsToday * 1 +
       backendScenario.toolCallsToday * 8 +
       qaScenario.toolCallsToday * 10,
-    inlinedCalls:
-      planScenario.toolCallsInlined * 1 +
-      backendScenario.toolCallsInlined * 8 +
-      qaScenario.toolCallsInlined * 10,
-    runtimeCalls:
-      planScenario.toolCallsRuntimeInjected * 1 +
-      backendScenario.toolCallsRuntimeInjected * 8 +
-      qaScenario.toolCallsRuntimeInjected * 10,
   };
 
-  const bestInlineTotal =
-    planScenario.tokensBestCaseInlined * 1 +
-    backendScenario.tokensBestCaseInlined * 8 +
-    qaScenario.tokensBestCaseInlined * 10;
-  const bestRuntimeTotal =
-    planScenario.tokensBestCaseRuntime * 1 +
-    backendScenario.tokensBestCaseRuntime * 8 +
-    qaScenario.tokensBestCaseRuntime * 10;
+  console.log("Projection — typical implement-plan run (1 skill + 8 backend spawns + 10 qa-tester spawns):");
+  console.log(`  Total tokens:     ${planTotal.tokens}`);
+  console.log(`  Total tool calls: ${planTotal.toolCalls}`);
 
-  console.log("Projection — typical implement-plan run (1 skill load + 8 backend spawns + 10 qa-tester spawns):");
-  console.log(`  Today:                       ${totals.today} tokens, ${totals.todayCalls} component-related tool calls`);
-  console.log(`  Inlined explicit-only (B3):  ${totals.inlined} tokens (${pct(totals.inlined, totals.today)}), ${totals.inlinedCalls} tool calls`);
-  console.log(`  Runtime explicit-only:       ${totals.runtimeInjected} tokens (${pct(totals.runtimeInjected, totals.today)}), ${totals.runtimeCalls} tool calls`);
-  console.log(`  Best-case inlined:           ${bestInlineTotal} tokens (${pct(bestInlineTotal, totals.today)}), ${totals.inlinedCalls} tool calls`);
-  console.log(`  Best-case runtime:           ${bestRuntimeTotal} tokens (${pct(bestRuntimeTotal, totals.today)}), ${totals.runtimeCalls} tool calls`);
-  console.log();
+  let assertionResult: "pass" | "soft-fail" | "hard-fail" | "n/a" = "n/a";
+  let tokenDeltaPct = 0;
 
-  // Persist to spawn-ledger-style jsonl so future runs are diffable.
+  if (MODE === "from-resolved") {
+    tokenDeltaPct = ((planTotal.tokens - PROJECTED_CEILING_TOKENS) / PROJECTED_CEILING_TOKENS) * 100;
+    const callDelta = planTotal.toolCalls - PROJECTED_CEILING_TOOL_CALLS;
+    assertionResult = classifyDelta(tokenDeltaPct);
+
+    console.log();
+    console.log("--- Assertion vs projected ceiling ---");
+    console.log(`  Ceiling:   ${PROJECTED_CEILING_TOKENS} tokens / ${PROJECTED_CEILING_TOOL_CALLS} tool calls`);
+    console.log(`  Actual:    ${planTotal.tokens} tokens / ${planTotal.toolCalls} tool calls`);
+    console.log(`  Delta:     ${tokenDeltaPct > 0 ? "+" : ""}${tokenDeltaPct.toFixed(2)}% tokens, ${callDelta > 0 ? "+" : ""}${callDelta} tool calls`);
+    console.log(`  Result:    ${assertionResult.toUpperCase()}`);
+
+    if (assertionResult === "pass") {
+      console.log("  >> PASS: within ±2% of projected ceiling. R-06 closed.");
+    } else if (assertionResult === "soft-fail") {
+      console.log("  >> SOFT-FAIL: within ±5% but outside ±2%. Record and flag to head-engineering.");
+    } else {
+      console.log("  >> HARD-FAIL: outside ±5%. Block T17/T18. Escalate to head-engineering.");
+      console.log("     Do NOT adjust projection numbers to fit. Investigate authoring divergence.");
+    }
+    console.log();
+  }
+
+  // Persist — APPEND to JSONL, never overwrite.
   const outDir = join(REPO_ROOT, ".software-teams", "persistence");
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, "component-bench.jsonl");
-  Bun.write(
-    outFile,
-    Object.entries(out)
-      .map(([k, v]) => JSON.stringify({ key: k, value: v }))
-      .join("\n") + "\n",
-  );
-  console.log(`Recorded full result → ${outFile}\n`);
+
+  const entry = JSON.stringify({
+    ranAt: new Date().toISOString(),
+    mode: MODE,
+    planTotals: planTotal,
+    ...(MODE === "from-resolved"
+      ? {
+          assertion: {
+            projectedCeilingTokens: PROJECTED_CEILING_TOKENS,
+            projectedCeilingToolCalls: PROJECTED_CEILING_TOOL_CALLS,
+            tokenDeltaPct: parseFloat(tokenDeltaPct.toFixed(2)),
+            toolCallDelta: planTotal.toolCalls - PROJECTED_CEILING_TOOL_CALLS,
+            result: assertionResult,
+          },
+        }
+      : {}),
+    scenarios,
+    projections,
+  });
+
+  appendFileSync(outFile, entry + "\n");
+  console.log(`Appended result → ${outFile}\n`);
 }
 
 main();

@@ -51,7 +51,7 @@ Before writing code for any task:
 
 ---
 
-<JDI:AgentBase:Sandbox />
+@ST:AgentBase:Sandbox
 
 - Use **absolute paths** for all file operations
 - `.claude/` read warnings are **not blocking** — proceed anyway

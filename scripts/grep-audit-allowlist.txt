@@ -10,9 +10,34 @@ api\.clickup\.com
 # Phase 1 historical references (completed plan stays as-is for archival)
 \.software-teams/plans/1-01-native-subagents
 
+# Phase 2 historical references (completed plan stays as-is for archival)
+\.software-teams/plans/2-01-
+
+# T11 (2026-05-01, plan 3-01-component-system-pivot): Corpus-wide @ST: rename complete.
+# T12 (2026-05-01, plan 3-01-component-system-pivot): Grep audit — verified survivors below.
+#
+# Retained <JDI: strings fall into six exempt categories (R-3-02 protection):
+#   1. docs/typescript-injection-design.md — design doc with syntax examples (frozen, excluded from grep).
+#   2. .software-teams/plans/1-01-*, .software-teams/plans/2-01-* — archived plans (frozen).
+#   3. src/components/__fixtures__/broken-framework/broken.md — test fixture for legacy-ref detection.
+#   4. framework/components/**/*.md and framework/commands/**/*.md — Usage sections and inline-code
+#      spans inside backticks/fenced blocks; R-3-02 protects them from rename (showing legacy syntax
+#      as documentation examples). Mirrors in agents/ and commands/ directories are identical.
+#   5. src/components/**/*.ts, src/utils/**/*.ts, src/benchmarks/**/*.ts, src/commands/**/*.ts —
+#      TypeScript source body strings (component bodies carry legacy syntax), dual-regex scanner
+#      (validate.ts must recognise both syntaxes), benchmark regex, migration-script regex patterns,
+#      and test fixture assertions. None of these are brand-text; all are parser/content strings.
+#   6. scripts/rename-jdi-to-st.ts — the migration script itself documents the regex patterns it
+#      applies; those regex literals must contain <JDI: to compile correctly.
+#
+# All actionable (non-fenced, non-inline-code) <JDI: tags across framework/, .claude/,
+# .software-teams/framework/, agents/, commands/ have been converted to @ST: syntax.
+# The two prose occurrences found during T12 audit (software-teams-planner.md StateUpdate refs)
+# were fixed (renamed to @ST:StateUpdate) before this entry was finalised.
+<JDI:
+
 # Component parser class names and tags in framework files (not brand text)
 # Framework-level component resolution patterns; these are parser tags
-<JDI:
 
 # Agent framework documentation and headers describing agent purpose and role
 # Agent class names in descriptions; will be updated separately in documentation pass

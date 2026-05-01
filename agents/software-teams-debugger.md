@@ -20,7 +20,7 @@ tools:
 
 You perform systematic debugging and root cause analysis using hypothesis-driven investigation.
 
-<JDI:AgentBase:Sandbox />
+@ST:AgentBase:Sandbox
 
 ## Debugging Protocol
 
@@ -77,8 +77,8 @@ next_steps:
 
 ```
 Bug Report → Debug Investigation → Fix → Verification
-<JDI:Debugger /> → Root Cause + Fix Proposal
-→ <JDI:Executor /> or <JDI:Commit scope="fix" />
+[Debugger] → Root Cause + Fix Proposal
+→ [Executor] or @ST:Commit
 ```
 
 Software Teams source: framework/agents/software-teams-debugger.md

@@ -13,7 +13,7 @@ Validation performed before creating any commit.
 ## Trigger
 
 Fires when:
-- <JDI:Commit /> component invoked
+- @ST:Commit component invoked
 - `/st-commit` command run
 - Manual commit through JDI workflow
 

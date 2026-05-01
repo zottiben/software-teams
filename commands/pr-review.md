@@ -86,7 +86,7 @@ Then **STOP**. Do NOT merge, approve, or take any follow-up action.
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 
 ---
 

@@ -63,7 +63,7 @@ After the specialist returns, summarise: comments addressed, files touched, comm
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 
 ---
 

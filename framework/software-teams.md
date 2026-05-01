@@ -125,12 +125,11 @@ If `.claude/agents/` is empty (e.g. you have just cloned a Software Teams-using 
 
 ## Component System
 
-Software Teams uses **JSX-like component syntax** for referencing reusable markdown:
+Software Teams uses `@ST:` tags for referencing reusable markdown components:
 
-```markdown
-<JDI:Commit />                    # Full component
-<JDI:Commit:Message />            # Specific section
-<JDI:Commit scope="task" />       # With parameters
+```text
+@ST:Commit                        # Full component (all sections)
+@ST:Commit:MessageFormat          # Specific section only
 ```
 
 **How it works:** When agents encounter component references, they:
@@ -144,13 +143,13 @@ Components are **loaded on-demand** by agents, not pre-embedded in commands.
 
 ## Component Resolution Protocol
 
-**CRITICAL**: When you encounter a `<JDI:ComponentName />` tag anywhere in a spec,
+**CRITICAL**: When you encounter an `@ST:` tag anywhere in a spec,
 command, hook, or workflow, you MUST:
 
-1. **Parse** the tag to extract the component name, optional section, and parameters.
-   - `<JDI:Commit />` -> Component: Commit, Section: (none), Params: (none)
-   - `<JDI:StateUpdate:Progress />` -> Component: StateUpdate, Section: Progress, Params: (none)
-   - `<JDI:Commit scope="task" />` -> Component: Commit, Section: (none), Params: scope=task
+1. **Parse** the tag to extract the component name and optional section.
+   - `@ST:Commit` -> Component: Commit, Section: (none)
+   - `@ST:Commit:MessageFormat` -> Component: Commit, Section: MessageFormat
+   - `@ST:PRReview:Checklist` -> Component: PRReview, Section: Checklist
 
 2. **Locate** the component file by searching these directories in order:
    - `.software-teams/framework/components/execution/{ComponentName}.md`
@@ -340,7 +339,7 @@ Agent spawn prompts MUST follow this load order to maximise Anthropic API prompt
 | `/st:implement-plan` (simple) | ~800 tokens | ~3,000 |
 | `/st:implement-plan` (teams) | ~800 tokens | ~2,000 × N |
 
-**If approaching limits**: Switch to `budget` model profile and use section-specific component loading (`<JDI:Component:Section />`).
+**If approaching limits**: Switch to `budget` model profile and use section-specific component loading (`@ST:Commit:MessageFormat` style — name the section directly).
 
 ---
 

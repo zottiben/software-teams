@@ -119,7 +119,7 @@ Once the edit is applied and gates have run, the skill is **DONE**.
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 
 ---
 

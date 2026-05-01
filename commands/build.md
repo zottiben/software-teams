@@ -169,4 +169,4 @@ Planning, implementation, and every other phase are separate human-gated steps. 
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol

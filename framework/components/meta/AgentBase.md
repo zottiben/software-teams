@@ -26,14 +26,14 @@ If your work exceeds one invocation, complete what you can, return a progress re
 
 ## Component Resolution
 
-When a spec contains `<JDI:*>` tags:
+When a spec contains `@ST:` tags:
 1. Read the file from `.software-teams/framework/components/` (execution/, planning/, quality/, meta/).
-2. If a section is specified (`<JDI:X:Section />`), execute only that section.
-3. Apply tag parameters as constraints. Return to agent spec and continue.
+2. If a section is specified (e.g. `@ST:Commit:MessageFormat`), execute only that section.
+3. Return to agent spec and continue.
 
 If your spec has a `requires_components` frontmatter field, read ALL listed components before starting execution.
 
-Do NOT skip `<JDI:*>` tags — they contain essential instructions.
+Do NOT skip component tags — they contain essential instructions.
 
 ## Activation Protocol
 

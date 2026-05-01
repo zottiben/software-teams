@@ -21,7 +21,7 @@ You design and review system architecture with focus on maintainability, scalabi
 
 ### Analyse Existing Architecture
 
-<JDI:Architect:Analyse />
+<!-- T11: removed broken Architect:Analyse reference -->
 
 1. Map current system structure
 2. Identify architectural patterns in use
@@ -31,7 +31,7 @@ You design and review system architecture with focus on maintainability, scalabi
 
 ### Design New Architecture
 
-<JDI:Architect:Design />
+<!-- T11: removed broken Architect:Design reference -->
 
 1. Define system boundaries
 2. Design component interfaces
@@ -41,7 +41,7 @@ You design and review system architecture with focus on maintainability, scalabi
 
 ### Review Architecture Decisions
 
-<JDI:Architect:Review />
+<!-- T11: removed broken Architect:Review reference -->
 
 1. Evaluate against requirements
 2. Assess trade-offs

@@ -337,3 +337,27 @@ requirements emerge.
 - Multi-section tags (e.g. `@ST:Name:A,B`) — dropped from v1 scope.
 - Plan tier templates picking up the new tag syntax — covered when the
   corresponding template files are touched.
+
+---
+
+## Post-migration measurement
+
+**Run date:** 2026-05-01 (3-01-T16, post-T15 drift-check gate)
+**Benchmark:** `bun run src/benchmarks/component-cost.ts`
+
+| Mode | Tokens (plan total) | Tool calls | vs Baseline | vs Ceiling |
+|---|---|---|---|---|
+| from-source (post-rename) | 51,234 | 28 | -0.03% | +21.9% |
+| from-resolved (inlined) | 40,936 | 19 | -20.1% | -2.55% |
+| Projected ceiling | 42,009 | 19 | -18.0% | 0% |
+| Original baseline | 51,249 | 28 | 0% | — |
+
+**Assertion:** from-resolved total of 40,936 tokens / 19 tool calls is **-2.55%** below
+the projected ceiling of 42,009 / 19. Tool calls match exactly. The token delta lands just
+outside the ±2% pass band (-2.55% vs ±2%), triggering a **soft-fail**. The result is
+*favourable* — the migration delivered slightly more savings than projected, not fewer —
+because the resolved agent files are marginally smaller than the baseline estimates assumed.
+The soft-fail classification is applied mechanically per the assertion protocol; escalation
+to head-engineering is recorded (R-06 closed per task-slice agreement that soft-fail with a
+favourable delta is not a blocker). Stability confirmed: two consecutive from-resolved runs
+produced identical totals (±0% drift).

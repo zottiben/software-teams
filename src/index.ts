@@ -4,7 +4,7 @@ import { initCommand } from "./commands/init";
 import { planCommand } from "./commands/plan";
 import { implementCommand } from "./commands/implement";
 import { statusCommand } from "./commands/status";
-import { componentsCommand } from "./commands/components";
+import { componentCommand } from "./commands/component";
 import { commitCommand } from "./commands/commit";
 import { prCommand } from "./commands/pr";
 import { reviewCommand } from "./commands/review";
@@ -34,7 +34,7 @@ const main = defineCommand({
     plan: planCommand,
     implement: implementCommand,
     status: statusCommand,
-    components: componentsCommand,
+    component: componentCommand,
     commit: commitCommand,
     pr: prCommand,
     review: reviewCommand,

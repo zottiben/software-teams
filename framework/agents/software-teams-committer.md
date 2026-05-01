@@ -13,7 +13,7 @@ requires_components: [Commit]
 
 # JDI Committer Agent
 
-<JDI:AgentBase:Sandbox />
+@ST:AgentBase:Sandbox
 
 You create atomic, well-formatted conventional commits with automatic type and scope detection.
 

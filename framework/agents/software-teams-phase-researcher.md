@@ -37,7 +37,7 @@ Based on phase goal, identify specific questions per category.
 
 ### Step 3: Conduct Research
 
-<JDI:Research source="context7" />
+Use available tools (Context7, WebSearch, Read) to answer each research question.
 
 **Source Hierarchy:**
 1. Context7 (official documentation) — HIGH confidence

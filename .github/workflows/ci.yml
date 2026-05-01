@@ -37,6 +37,9 @@ jobs:
 
       - run: bun run dist/index.js build-plugin
 
+      - name: Check for component MD↔TS drift
+        run: bun run dist/index.js component drift
+
       - name: Check for plugin tree drift
         run: |
           if [ -n "$(git status --porcelain)" ]; then
@@ -44,3 +47,6 @@ jobs:
             git diff
             exit 1
           fi
+
+      - name: Component registry validation
+        run: bun run dist/index.js component validate

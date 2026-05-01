@@ -56,7 +56,7 @@ When invoked as `<JDI:Commit />`:
    fi
    ```
 
-5. **Create commit message** — Use <JDI:Commit:MessageFormat />
+5. **Create commit message** — Use @ST:Commit:MessageFormat
 
 6. **Execute commit**
    ```bash

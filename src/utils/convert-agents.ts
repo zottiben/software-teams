@@ -1,7 +1,8 @@
-import { join, dirname, resolve, relative, basename } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { join, dirname, resolve, relative, basename } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { JdiStorage } from "../storage/interface";
+import { getComponent } from "../components/resolve";
 
 export type ConflictMode = "overwrite" | "skip" | "error";
 
@@ -134,6 +135,30 @@ function buildOutputFrontmatter(fm: AgentFrontmatter): {
   };
 }
 
+// ---------------------------------------------------------------------------
+// @ST: tag expansion (sync-time inlining, design-doc §"Tag syntax in source files")
+// ---------------------------------------------------------------------------
+
+/** Verbatim regex from the design doc. */
+const ST_TAG_RE = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
+
+/**
+ * Replace every `@ST:Name(:Section)?` tag in `body` with the resolved
+ * component text. Throws with a clear context message for any unresolved tag.
+ * Pre-T11: no `@ST:` tags exist in the corpus, so this is a no-op.
+ */
+function expandComponentTags(body: string): string {
+  return body.replace(ST_TAG_RE, (_match, name, section) => {
+    try {
+      return getComponent(name, section);
+    } catch (err) {
+      throw new Error(
+        `convert-agents: unresolved component tag '@ST:${name}${section ? `:${section}` : ""}': ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  });
+}
+
 /**
  * Render a single agent source file to its Claude-Code-native form.
  * The result is byte-stable for a given input.
@@ -148,7 +173,10 @@ function renderAgentOutput(parsed: ParsedAgentFile, sourcePath: string): string 
 
   // Preserve the canonical body exactly; just trim leading/trailing whitespace
   // so the banner and footer sit cleanly around it.
-  const body = parsed.body.replace(/^\s+/, "").replace(/\s+$/, "");
+  // Then expand any @ST:Name(:Section)? tags synchronously.
+  const body = expandComponentTags(
+    parsed.body.replace(/^\s+/, "").replace(/\s+$/, ""),
+  );
 
   return [
     "---",

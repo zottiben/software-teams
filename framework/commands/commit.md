@@ -64,4 +64,4 @@ After the committer returns, print the commit hash and subject line. Then **STOP
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol

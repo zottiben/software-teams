@@ -87,11 +87,11 @@ Learnings-based findings should use the same severity classification as other fi
 
 ### Step 6: Perform Code Review
 
-Apply <JDI:PRReview:Checklist /> to analyse each change. Include learnings violations alongside standard checklist findings.
+Apply @ST:PRReview:Checklist to analyse each change. Include learnings violations alongside standard checklist findings.
 
 ### Step 7: Categorise Findings (Internal)
 
-Categorise using <JDI:PRReview:SeverityGuide />. Build internal list with: file path, line number, severity, title, explanation, suggested fix. Do NOT output detailed findings yet.
+Categorise using @ST:PRReview:SeverityGuide. Build internal list with: file path, line number, severity, title, explanation, suggested fix. Do NOT output detailed findings yet.
 
 ### Step 8: Review Checkpoint
 
@@ -107,7 +107,7 @@ If `post="false"`: note output will go to `.software-teams/reviews/PR-[number]-r
 
 ### Steps 9-10: Build & Submit Review (post=true only)
 
-Use <JDI:PRReview:PostComments /> to build and submit the atomic review.
+Use @ST:PRReview:PostComments to build and submit the atomic review.
 
 ### Step 11: Cleanup (MANDATORY)
 

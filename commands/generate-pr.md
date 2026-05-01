@@ -83,7 +83,7 @@ On approval, run `gh pr create` with the confirmed title and body. Report the PR
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 
 ---
 

@@ -204,7 +204,7 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 ### Step 0a: Agent Discovery (MANDATORY — read AgentRouter first)
 
-<JDI:AgentRouter mode="discover" />
+@ST:AgentRouter
 
 Before breaking down tasks, you MUST enumerate every agent available to this
 session. Read each discovered `.md` file's YAML frontmatter for `name` and
@@ -253,7 +253,7 @@ If the user provides reference PRs, tickets, or example implementations:
 
 ### Step 1: Discovery
 
-<JDI:TaskBreakdown source="requirements" />
+@ST:TaskBreakdown
 
 Apply Priority Bands (see `TaskBreakdown.md`) — every task gets a `priority:` field in its frontmatter (`must`, `should`, or `nice`).
 
@@ -286,7 +286,7 @@ agent_rationale: {One sentence explaining why this specialist is the best fit}
 
 ### Step 3a: Agent Assignment (MANDATORY when available_agents is non-empty)
 
-<JDI:AgentRouter mode="match" />
+@ST:AgentRouter
 
 For every task produced in Step 3, pick exactly one specialist from the
 `available_agents` catalogue discovered in Step 0a. Use the priority hierarchy
@@ -311,13 +311,13 @@ task to `narrative-director`); leaving `agent:` blank when specialists exist.
 
 ### Step 4: Dependency Analysis
 
-<JDI:TaskBreakdown mode="dependencies" />
+@ST:TaskBreakdown
 
 Map requires/provides for each task. Identify sequential vs parallel opportunities.
 
 ### Step 5: Wave Computation
 
-<JDI:WaveComputation />
+@ST:WaveComputation
 
 Define dependency frontmatter with `requires`, `provides`, `affects`, `subsystem`, `tags`.
 
@@ -365,7 +365,7 @@ Types: `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-actio
 
 ### Step 7: Generate Plan Document and Update Scaffolding (WRITE FILES)
 
-**Do NOT manually edit `.software-teams/config/state.yaml`** — use `software-teams state` CLI commands for transitions. Only record decisions, deviations, or blockers via `<JDI:StateUpdate />`.
+**Do NOT manually edit `.software-teams/config/state.yaml`** — use `software-teams state` CLI commands for transitions. Only record decisions, deviations, or blockers via `@ST:StateUpdate`.
 
 #### 7-pre: Update Variables
 Read `.software-teams/config/variables.yaml` (create from template if missing). Update: `feature.name`, `feature.description`, `feature.type`.

@@ -40,6 +40,8 @@ software-teams sync-agents
 ```
 
 Full migration guide: [`docs/migration-native-subagents.md`](docs/migration-native-subagents.md).
+Component system pivot (`<JDI:` → `@ST:`, markdown → TypeScript):
+[`docs/migration-component-system-pivot.md`](docs/migration-component-system-pivot.md).
 
 ---
 

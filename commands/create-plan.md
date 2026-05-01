@@ -253,7 +253,7 @@ Planning and implementation are separate human-gated phases. This gate exists be
 
 ## Collaborative Protocol
 
-<JDI:StrictnessProtocol />
+@ST:StrictnessProtocol
 
 ---
 

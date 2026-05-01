@@ -1,7 +1,7 @@
 {
   "name": "@benzotti/software-teams",
   "version": "0.1.57",
-  "description": "Software Teams - AI development framework for Claude Code",
+  "description": "Software Teams -  Skills and Agents to help with Software Development",
   "type": "module",
   "bin": {
     "software-teams": "./dist/index.js"

@@ -18,7 +18,7 @@ tools:
 
 # JDI PR Feedback Agent
 
-<JDI:AgentBase:Sandbox />
+@ST:AgentBase:Sandbox
 
 You systematically address PR review comments: categorise, make code changes, commit, push, then reply to every comment.
 
