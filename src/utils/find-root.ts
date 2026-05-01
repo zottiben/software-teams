@@ -2,8 +2,10 @@ import { join, dirname, resolve } from "node:path";
 import { existsSync } from "node:fs";
 
 /**
- * Walk up from `startDir` looking for a directory that contains
- * `.software-teams/config/state.yaml`. Returns the absolute path of that directory.
+ * Walk up from `startDir` looking for a directory that contains a
+ * Software Teams state.yaml file (Phase B target: `.software-teams/state.yaml`,
+ * legacy fallback: `.software-teams/config/state.yaml`). Returns the
+ * absolute path of that directory.
  *
  * Throws a descriptive error if no such directory is found before reaching
  * the filesystem root.
@@ -12,7 +14,7 @@ export function findJdiRoot(startDir: string): string {
   const root = findJdiRootOrNull(startDir);
   if (root == null) {
     throw new Error(
-      `No Software Teams project found (searched from ${startDir} upward for .software-teams/config/state.yaml). Run \`software-teams init\` to set one up.`,
+      `No Software Teams project found (searched from ${startDir} upward for .software-teams/state.yaml). Run \`software-teams init\` to set one up.`,
     );
   }
   return root;
@@ -24,11 +26,13 @@ export function findJdiRoot(startDir: string): string {
  */
 export function findJdiRootOrNull(startDir: string): string | null {
   let current = resolve(startDir);
-  // Walk upward until we hit the filesystem root.
-  // `dirname('/')` returns '/', so use that as the termination condition.
   while (true) {
-    const candidate = join(current, ".software-teams", "config", "state.yaml");
-    if (existsSync(candidate)) {
+    // Phase B location.
+    if (existsSync(join(current, ".software-teams", "state.yaml"))) {
+      return current;
+    }
+    // Legacy pre-Phase B location.
+    if (existsSync(join(current, ".software-teams", "config", "state.yaml"))) {
       return current;
     }
     const parent = dirname(current);

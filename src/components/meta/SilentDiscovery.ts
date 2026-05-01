@@ -22,9 +22,9 @@ const SilentDiscovery: Component = {
 | File | Purpose |
 |------|---------|
 | \`.software-teams/config/state.yaml\` | Current phase, plan, task, and status. Source of truth for "where are we?" |
-| \`.software-teams/PROJECT.yaml\` | Tech stack, project name, team configuration |
-| \`.software-teams/REQUIREMENTS.yaml\` | Risks, constraints, non-functional requirements |
-| \`.software-teams/ROADMAP.yaml\` | Phase structure, upcoming plans, milestones |
+| \`.software-teams/project.yaml\` | Tech stack, project name, team configuration |
+| \`.software-teams/requirements.yaml\` | Risks, constraints, non-functional requirements |
+| \`.software-teams/roadmap.yaml\` | Phase structure, upcoming plans, milestones |
 | \`.software-teams/plans/*.plan.md\` (glob) | Existing plan index files — check frontmatter for \`provides\`, \`status\`, completion |
 | \`.software-teams/codebase/SUMMARY.md\` | Codebase index, if present |
 | Test suite files (glob: \`**/*.test.*\`, \`**/*.spec.*\`, \`**/__tests__/**\`) | Detect existing test framework and patterns |

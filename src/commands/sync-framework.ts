@@ -20,32 +20,20 @@ const PRESERVED_STATE_FILES = [
 ] as const;
 
 /**
- * Subdirectories shipped from the package root into a consumer's
- * `.software-teams/framework/<sub>/` install. Mirrors PACKAGE_SUBDIRS in
- * copy-framework.ts; kept in sync by hand for now.
+ * Subdirectories that copy-framework.ts writes into a consumer's
+ * `.software-teams/<sub>/` install (Phase B target — no `framework/`
+ * wrapper). Kept in sync with COPIED_SUBDIRS in copy-framework.ts.
  */
-const PACKAGE_SUBDIRS = [
-  "templates",
-  "teams",
-  "hooks",
-  "stacks",
-  "learnings",
-  "rules",
-  "agents",
-  "commands",
-  "config",
-];
+const COPIED_SUBDIRS = ["templates", "hooks", "stacks", "learnings", "rules"];
 
 /**
- * Enumerate canonical package files (relative paths). The legacy `framework/`
- * wrapper directory was retired in Phase A; each subtree now lives at the
- * package root directly. Output paths are still keyed by subdir so the
- * destination layout under `.software-teams/framework/` remains consistent
- * (Phase B collapses that mirror).
+ * Enumerate package-side files that the consumer's `.software-teams/`
+ * install holds copies of. Each path is keyed by the COPIED_SUBDIRS layout
+ * so detectFrameworkChanges can compare source vs destination.
  */
 async function listFrameworkFiles(packageRoot: string): Promise<string[]> {
   const out: string[] = [];
-  for (const sub of PACKAGE_SUBDIRS) {
+  for (const sub of COPIED_SUBDIRS) {
     const subDir = join(packageRoot, sub);
     if (!existsSync(subDir)) continue;
     const subGlob = new Bun.Glob("**/*");
@@ -53,17 +41,14 @@ async function listFrameworkFiles(packageRoot: string): Promise<string[]> {
       out.push(`${sub}/${file}`);
     }
   }
-  // Top-level doctrine file lives at the package root.
-  if (existsSync(join(packageRoot, "software-teams.md"))) {
-    out.push("software-teams.md");
-  }
   out.sort();
   return out;
 }
 
 /**
- * Compare canonical package-side content against `.software-teams/framework/<file>`
- * and return the relative paths that differ.
+ * Compare canonical package-side content against the consumer's
+ * `.software-teams/<sub>/<file>` install and return the relative paths that
+ * differ.
  */
 export async function detectFrameworkChanges(
   cwd: string,
@@ -73,7 +58,7 @@ export async function detectFrameworkChanges(
   const changed: string[] = [];
   const files = await listFrameworkFiles(packageRoot);
   for (const file of files) {
-    const dest = join(cwd, ".software-teams", "framework", file);
+    const dest = join(cwd, ".software-teams", file);
     if (!existsSync(dest)) {
       missing.push(file);
       continue;

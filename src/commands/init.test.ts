@@ -73,27 +73,26 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
     expect(existsSync(join(cwd, ".claude", "commands", "jdi"))).toBe(false);
   });
 
-  test("framework copyFrameworkFiles writes to .software-teams/framework/ (not .jdi/framework/)", async () => {
+  test("copyFrameworkFiles writes doctrine subtrees to .software-teams/<sub>/ (not .software-teams/framework/)", async () => {
     const cwd = makeTempDir();
-    // Copy framework using the utility with the real framework source
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
-    expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(true);
-    expect(existsSync(join(cwd, ".software-teams", "framework", "agents"))).toBe(true);
-    expect(existsSync(join(cwd, ".software-teams", "framework", "commands"))).toBe(true);
+    // Phase B target: doctrine lives at .software-teams/<sub>/ directly.
+    expect(existsSync(join(cwd, ".software-teams", "templates"))).toBe(true);
+    expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(false);
 
-    // Regression: .jdi/framework/ must NOT be created
+    // Regression: .jdi/ must NOT be created
     expect(existsSync(join(cwd, ".jdi"))).toBe(false);
   });
 
-  test("init generates 24 .claude/agents/software-teams-*.md files (from renamed tree)", async () => {
+  test("init generates 24 .claude/agents/software-teams-*.md files (from package source)", async () => {
     const cwd = makeTempDir();
-    // Setup framework and then generate agents
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
     const result = await convertAgents({
       cwd,
-      sourceDir: ".software-teams/framework/agents",
+      // Phase B: source agents from the package's `agents/` dir directly.
+      sourceDir: join(PACKAGE_ROOT, "agents"),
       targetDir: ".claude/agents",
     });
     expect(result.errors).toEqual([]);
@@ -115,11 +114,10 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
 
   test("init creates .claude/AGENTS.md and .claude/RULES.md", async () => {
     const cwd = makeTempDir();
-    // Generate agents which creates AGENTS.md and RULES.md
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
     await convertAgents({
       cwd,
-      sourceDir: ".software-teams/framework/agents",
+      sourceDir: join(PACKAGE_ROOT, "agents"),
       targetDir: ".claude/agents",
     });
 

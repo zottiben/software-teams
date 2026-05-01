@@ -117,7 +117,7 @@ export async function transitionToExecuting(
 
 /**
  * Transition state to "complete" after implementation finishes.
- * Reads ROADMAP.yaml to advance to the next plan in the current phase if one exists.
+ * Reads roadmap.yaml to advance to the next plan in the current phase if one exists.
  */
 export async function transitionToComplete(cwd: string): Promise<void> {
   const state = await readState(cwd) ?? {};
@@ -132,9 +132,13 @@ export async function transitionToComplete(cwd: string): Promise<void> {
   }
   state.progress.plans_completed = (state.progress.plans_completed ?? 0) + 1;
 
-  // Try to advance to next plan in the current phase via ROADMAP.yaml
+  // Try to advance to next plan in the current phase via roadmap.yaml
+  // (legacy uppercase ROADMAP.yaml supported as a fallback for projects that
+  // haven't migrated to the Phase B lowercase target).
   try {
-    const roadmapPath = join(cwd, ".software-teams", "ROADMAP.yaml");
+    const lcPath = join(cwd, ".software-teams", "roadmap.yaml");
+    const ucPath = join(cwd, ".software-teams", "ROADMAP.yaml");
+    const roadmapPath = existsSync(lcPath) ? lcPath : ucPath;
     if (existsSync(roadmapPath)) {
       const content = await Bun.file(roadmapPath).text();
       const roadmap = parseYaml(content) as Record<string, unknown>;

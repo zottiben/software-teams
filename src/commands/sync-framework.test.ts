@@ -26,36 +26,33 @@ const REPO_ROOT = join(import.meta.dir, "..", "..");
 const PACKAGE_ROOT = REPO_ROOT;
 
 /**
- * Build a fixture cwd that contains a partial `.software-teams/framework/` snapshot —
- * a couple of stale files and a few missing ones — so refresh-detection has
- * something to find. State files (PROJECT.yaml etc.) are seeded so we can
- * verify the writer never clobbers them.
+ * Build a fixture cwd with a partial Phase-B `.software-teams/` snapshot —
+ * a couple of stale doctrine files plus seeded state files — so
+ * refresh-detection has something to find. State files (project.yaml etc.)
+ * are seeded so we can verify the writer never clobbers them.
  */
 async function makeStaleFixture(): Promise<string> {
   const cwd = makeTempDir();
-  mkdirSync(join(cwd, ".software-teams", "framework", "agents"), { recursive: true });
-  mkdirSync(join(cwd, ".software-teams", "config"), { recursive: true });
+  mkdirSync(join(cwd, ".software-teams", "templates"), { recursive: true });
+  mkdirSync(join(cwd, ".software-teams", "rules"), { recursive: true });
 
-  // A stale agent file that differs from canonical.
+  // A stale template file that differs from canonical.
   await writeFile(
-    join(cwd, ".software-teams", "framework", "agents", "software-teams-programmer.md"),
+    join(cwd, ".software-teams", "templates", "PLAN.md"),
     "STALE — older snapshot content\n",
   );
-  // A stale top-level file.
+  // A stale rules file (commit-rules.md exists in the package's rules/).
   await writeFile(
-    join(cwd, ".software-teams", "framework", "software-teams.md"),
-    "STALE software-teams.md — pre-T7 doctrine snapshot\n",
+    join(cwd, ".software-teams", "rules", "commit-rules.md"),
+    "STALE commit rules — pre-refresh snapshot\n",
   );
 
   // Project state files that MUST be preserved.
-  await writeFile(join(cwd, ".software-teams", "PROJECT.yaml"), "name: fixture-project\n");
+  await writeFile(join(cwd, ".software-teams", "project.yaml"), "name: fixture-project\n");
+  await writeFile(join(cwd, ".software-teams", "requirements.yaml"), "requirements: []\n");
+  await writeFile(join(cwd, ".software-teams", "roadmap.yaml"), "phases: []\n");
   await writeFile(
-    join(cwd, ".software-teams", "REQUIREMENTS.yaml"),
-    "requirements: []\n",
-  );
-  await writeFile(join(cwd, ".software-teams", "ROADMAP.yaml"), "phases: []\n");
-  await writeFile(
-    join(cwd, ".software-teams", "config", "state.yaml"),
+    join(cwd, ".software-teams", "state.yaml"),
     "current_plan: {phase: 1, plan: 1}\nstate: real-fixture-state\n",
   );
 
@@ -66,12 +63,12 @@ describe("sync-framework — change detection", () => {
   test("detects missing and drifted files in stale snapshot", async () => {
     const cwd = await makeStaleFixture();
     const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
-    // We seeded only two files into the stale snapshot, so most of the tree
-    // is missing.
-    expect(missing.length).toBeGreaterThan(20);
-    // The two seeded files differ from canonical.
-    expect(changed).toContain("agents/software-teams-programmer.md");
-    expect(changed).toContain("software-teams.md");
+    // We seeded only two files into the stale snapshot, so most of the
+    // doctrine tree is missing.
+    expect(missing.length).toBeGreaterThan(5);
+    // The seeded files differ from canonical.
+    expect(changed).toContain("templates/PLAN.md");
+    expect(changed).toContain("rules/commit-rules.md");
   });
 
   test("returns empty arrays when snapshot matches canonical", async () => {
@@ -89,53 +86,31 @@ describe("sync-framework — orchestration", () => {
     const cwd = await makeStaleFixture();
 
     // Confirm pre-state: stale content present.
-    const staleAgentBefore = await readFile(
-      join(cwd, ".software-teams", "framework", "agents", "software-teams-programmer.md"),
+    const staleBefore = await readFile(
+      join(cwd, ".software-teams", "templates", "PLAN.md"),
       "utf-8",
     );
-    expect(staleAgentBefore).toContain("STALE");
+    expect(staleBefore).toContain("STALE");
 
     // Run the same orchestration the CLI command runs (force=true so it
     // overwrites the stale file).
     await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
-    const conv = await convertAgents({ cwd });
+    const conv = await convertAgents({ cwd, sourceDir: join(PACKAGE_ROOT, "agents") });
 
     // Snapshot updated.
-    const refreshedAgent = await readFile(
-      join(cwd, ".software-teams", "framework", "agents", "software-teams-programmer.md"),
+    const refreshed = await readFile(
+      join(cwd, ".software-teams", "templates", "PLAN.md"),
       "utf-8",
     );
-    expect(refreshedAgent).not.toContain("STALE");
-    expect(refreshedAgent).toContain("name: software-teams-programmer");
-    expect(refreshedAgent).toContain("model:");
-    expect(refreshedAgent).toContain("tools:");
+    expect(refreshed).not.toContain("STALE");
 
-    // software-teams.md no longer carries the old "non-negotiable platform constraint"
-    // wording (T7 doctrine polish).
-    const jdiDoc = await readFile(
-      join(cwd, ".software-teams", "framework", "software-teams.md"),
-      "utf-8",
-    );
-    expect(jdiDoc).not.toContain("non-negotiable platform constraint");
-
-    // T9 templates exist in the refreshed snapshot.
-    for (const t of [
-      "SPEC.md",
-      "ORCHESTRATION.md",
-      "PLAN-TASK-AGENT.md",
-      "RULES.md",
-      "README.md",
-    ]) {
+    // Three-tier templates exist post-refresh.
+    for (const t of ["SPEC.md", "ORCHESTRATION.md", "PLAN-TASK-AGENT.md", "RULES.md"]) {
       expect(
-        existsSync(join(cwd, ".software-teams", "framework", "templates", t)),
+        existsSync(join(cwd, ".software-teams", "templates", t)),
         `expected template ${t} to be present after refresh`,
       ).toBe(true);
     }
-
-    // AGENTS-MODELS.md exists.
-    expect(
-      existsSync(join(cwd, ".software-teams", "framework", "agents", "AGENTS-MODELS.md")),
-    ).toBe(true);
 
     // convertAgents wrote the native subagent layer.
     expect(conv.errors).toEqual([]);
@@ -146,23 +121,18 @@ describe("sync-framework — orchestration", () => {
   test("does not clobber project state files", async () => {
     const cwd = await makeStaleFixture();
 
-    const beforeProject = await readFile(join(cwd, ".software-teams", "PROJECT.yaml"), "utf-8");
-    const beforeReqs = await readFile(join(cwd, ".software-teams", "REQUIREMENTS.yaml"), "utf-8");
-    const beforeRoadmap = await readFile(join(cwd, ".software-teams", "ROADMAP.yaml"), "utf-8");
-    const beforeState = await readFile(
-      join(cwd, ".software-teams", "config", "state.yaml"),
-      "utf-8",
-    );
+    const beforeProject = await readFile(join(cwd, ".software-teams", "project.yaml"), "utf-8");
+    const beforeReqs = await readFile(join(cwd, ".software-teams", "requirements.yaml"), "utf-8");
+    const beforeRoadmap = await readFile(join(cwd, ".software-teams", "roadmap.yaml"), "utf-8");
+    const beforeState = await readFile(join(cwd, ".software-teams", "state.yaml"), "utf-8");
 
     await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
-    await convertAgents({ cwd });
+    await convertAgents({ cwd, sourceDir: join(PACKAGE_ROOT, "agents") });
 
-    expect(await readFile(join(cwd, ".software-teams", "PROJECT.yaml"), "utf-8")).toBe(beforeProject);
-    expect(await readFile(join(cwd, ".software-teams", "REQUIREMENTS.yaml"), "utf-8")).toBe(beforeReqs);
-    expect(await readFile(join(cwd, ".software-teams", "ROADMAP.yaml"), "utf-8")).toBe(beforeRoadmap);
-    expect(await readFile(join(cwd, ".software-teams", "config", "state.yaml"), "utf-8")).toBe(
-      beforeState,
-    );
+    expect(await readFile(join(cwd, ".software-teams", "project.yaml"), "utf-8")).toBe(beforeProject);
+    expect(await readFile(join(cwd, ".software-teams", "requirements.yaml"), "utf-8")).toBe(beforeReqs);
+    expect(await readFile(join(cwd, ".software-teams", "roadmap.yaml"), "utf-8")).toBe(beforeRoadmap);
+    expect(await readFile(join(cwd, ".software-teams", "state.yaml"), "utf-8")).toBe(beforeState);
   });
 
   test("post-refresh: detectFrameworkChanges reports clean", async () => {

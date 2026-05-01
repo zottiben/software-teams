@@ -200,31 +200,41 @@ function resolveAgainst(cwd: string, p: string): string {
 }
 
 /**
- * Resolve the default source directory: prefer an installed-project layout
- * (`.software-teams/framework/agents`), fall back to repo-root `agents/`.
+ * Resolve the default source directory for agent specs.
  *
- * Repo-root path moved from `framework/agents/` to `agents/` when the plugin
- * tree was promoted to source of truth — the Claude Code plugin spec mandates
- * `<plugin-root>/agents/`, so a duplicate generated tree no longer earns its
- * keep. Consumer install path (`.software-teams/framework/agents`) is
- * unchanged: copy-framework writes there from the package's `agents/` dir.
+ * Resolution order (post Phase B):
+ * 1. `<cwd>/agents/` — self-host invocation in the Software Teams repo.
+ * 2. `<cwd>/.software-teams/framework/agents/` — legacy consumer mirror
+ *    (kept as a fallback for projects that initialised before Phase B).
+ * 3. `<package>/agents/` — the npm-installed package's plugin-tree source
+ *    (resolved relative to import.meta.dir).
  */
 function resolveDefaultSourceDir(cwd: string): string {
-  const installed = join(cwd, ".software-teams", "framework", "agents");
-  if (existsSync(installed)) return installed;
-  return join(cwd, "agents");
+  const selfHost = join(cwd, "agents");
+  if (existsSync(selfHost)) return selfHost;
+  const legacyMirror = join(cwd, ".software-teams", "framework", "agents");
+  if (existsSync(legacyMirror)) return legacyMirror;
+  // Package root resolution mirrors copy-framework.ts.
+  const oneUp = join(import.meta.dir, "..");
+  const twoUp = join(import.meta.dir, "..", "..");
+  const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
+  return join(packageRoot, "agents");
 }
 
 /**
- * Resolve the canonical RULES.md template path: prefer the installed-project
- * layout (`.software-teams/framework/templates/RULES.md`), fall back to
- * repo-root `templates/RULES.md` (the legacy `framework/` wrapper was retired
- * in Phase A; the templates tree now lives at the package root).
+ * Resolve the canonical RULES.md template path. Resolution order mirrors
+ * resolveDefaultSourceDir: self-host (cwd/templates), legacy consumer mirror
+ * (`.software-teams/framework/templates/`), then the package root.
  */
 function resolveDefaultRulesSource(cwd: string): string {
-  const installed = join(cwd, ".software-teams", "framework", "templates", "RULES.md");
-  if (existsSync(installed)) return installed;
-  return join(cwd, "templates", "RULES.md");
+  const selfHost = join(cwd, "templates", "RULES.md");
+  if (existsSync(selfHost)) return selfHost;
+  const legacyMirror = join(cwd, ".software-teams", "framework", "templates", "RULES.md");
+  if (existsSync(legacyMirror)) return legacyMirror;
+  const oneUp = join(import.meta.dir, "..");
+  const twoUp = join(import.meta.dir, "..", "..");
+  const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
+  return join(packageRoot, "templates", "RULES.md");
 }
 
 const CATALOGUE_BANNER =

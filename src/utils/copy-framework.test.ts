@@ -52,14 +52,21 @@ function makePackageFixture(): { packageRoot: string } {
 }
 
 describe("copyFrameworkFiles", () => {
-  test("copies framework files to .software-teams/framework/", async () => {
+  test("copies doctrine subtrees to .software-teams/<sub>/", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
+    // Add a stack file so the assertion has something to find.
+    mkdirSync(join(packageRoot, "templates"), { recursive: true });
+    writeFileSync(join(packageRoot, "templates", "PLAN.md"), "# Plan template");
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    expect(existsSync(join(dir, ".software-teams", "framework", "agents"))).toBe(true);
-    expect(existsSync(join(dir, ".software-teams", "framework", "teams"))).toBe(true);
-    expect(existsSync(join(dir, ".software-teams", "framework", "software-teams.md"))).toBe(true);
+    // Phase B target: doctrine subtrees go to `.software-teams/<sub>/`,
+    // NOT `.software-teams/framework/<sub>/`. agents/ and commands/ are NOT
+    // copied to .software-teams/ — the runtime resolves them from the
+    // package directly (or via .claude/agents/+.claude/commands/st/).
+    expect(existsSync(join(dir, ".software-teams", "templates"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "templates", "PLAN.md"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "framework"))).toBe(false);
   });
 
   test("copies command stubs to .claude/commands/st/", async () => {
@@ -122,22 +129,25 @@ describe("copyFrameworkFiles", () => {
     expect(content).toContain("bun install");
   });
 
-  test("copies command stubs to .software-teams/framework/commands/", async () => {
+  test("does NOT generate .software-teams/framework/ mirror (Phase B retirement)", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const frameworkCommandsDir = join(dir, ".software-teams", "framework", "commands");
-    expect(existsSync(frameworkCommandsDir)).toBe(true);
-    expect(existsSync(join(frameworkCommandsDir, "create-plan.md"))).toBe(true);
+    // Phase B retired the consumer-side framework/ wrapper; verify nothing
+    // gets written there.
+    expect(existsSync(join(dir, ".software-teams", "framework"))).toBe(false);
   });
 
   test("skips existing files when force=false", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
+    // Add a templates/PLAN.md so Phase B's COPIED_SUBDIRS pass copies it.
+    mkdirSync(join(packageRoot, "templates"), { recursive: true });
+    writeFileSync(join(packageRoot, "templates", "PLAN.md"), "# Plan");
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const customPath = join(dir, ".software-teams", "framework", "software-teams.md");
+    const customPath = join(dir, ".software-teams", "templates", "PLAN.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
@@ -149,9 +159,11 @@ describe("copyFrameworkFiles", () => {
   test("overwrites existing files when force=true", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
+    mkdirSync(join(packageRoot, "templates"), { recursive: true });
+    writeFileSync(join(packageRoot, "templates", "PLAN.md"), "# Plan");
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const customPath = join(dir, ".software-teams", "framework", "software-teams.md");
+    const customPath = join(dir, ".software-teams", "templates", "PLAN.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     await copyFrameworkFiles(dir, "generic", true, false, packageRoot);

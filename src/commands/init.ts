@@ -56,28 +56,37 @@ export const initCommand = defineCommand({
       await Bun.write(join(cwd, dir, ".gitkeep"), "");
     }
 
-    // Copy framework files with adapter resolution
-    // In CI mode, never overwrite existing persistence data
+    // Resolve the package root the same way copyFrameworkFiles does.
+    const oneUp = join(import.meta.dir, "..");
+    const twoUp = join(import.meta.dir, "..", "..");
+    const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
+
+    // Copy doctrine subtrees (templates, hooks, stacks, learnings, rules) to
+    // .software-teams/<sub>/.
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
 
-    // Initialise config files from framework templates
-    // variables.yaml retired in Phase A — agents use state.yaml for shared state.
-    const configFiles = ["state.yaml", "software-teams-config.yaml"];
-    for (const file of configFiles) {
-      const src = join(cwd, ".software-teams", "framework", "config", file);
-      const dest = join(cwd, ".software-teams", "config", file);
-      if (existsSync(src) && (args.force || !existsSync(dest))) {
-        const content = await Bun.file(src).text();
-        await Bun.write(dest, content);
+    // Initialise config files from package's config/ templates. Phase B
+    // renamed software-teams-config.yaml → config.yaml; state.yaml lives at
+    // .software-teams/state.yaml (out of config/).
+    const cfgSrcDir = join(packageRoot, "config");
+    if (existsSync(cfgSrcDir)) {
+      const cfgDest = join(cwd, ".software-teams", "config", "config.yaml");
+      const cfgSrc = join(cfgSrcDir, "config.yaml");
+      if (existsSync(cfgSrc) && (args.force || !existsSync(cfgDest))) {
+        await Bun.write(cfgDest, await Bun.file(cfgSrc).text());
+      }
+      const stateSrc = join(cfgSrcDir, "state.yaml");
+      const stateDest = join(cwd, ".software-teams", "state.yaml");
+      if (existsSync(stateSrc) && (args.force || !existsSync(stateDest))) {
+        await Bun.write(stateDest, await Bun.file(stateSrc).text());
       }
     }
 
-    // Generate Claude Code native subagents from canonical framework specs.
-    // Behind a feature flag (`features.native_subagents`, default true) so
-    // operators can opt out via `.software-teams/config/software-teams-config.yaml`. (R-01 mitigation.)
+    // Generate Claude Code native subagents from canonical agent specs.
+    // Behind a feature flag (`features.native_subagents`, default true).
     {
       const { parse: parseYaml } = await import("yaml");
-      const cfgPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
+      const cfgPath = join(cwd, ".software-teams", "config", "config.yaml");
       let nativeSubagentsEnabled = true;
       if (existsSync(cfgPath)) {
         try {
@@ -100,7 +109,8 @@ export const initCommand = defineCommand({
       } else {
         const conv = await convertAgents({
           cwd,
-          sourceDir: ".software-teams/framework/agents",
+          // Resolve agent specs from the package's `agents/` dir.
+          sourceDir: join(packageRoot, "agents"),
           targetDir: ".claude/agents",
         });
         if (!args.ci) {
@@ -114,14 +124,18 @@ export const initCommand = defineCommand({
       }
     }
 
-    // Scaffold project templates (only if missing)
-    const scaffoldFiles = ["PROJECT.yaml", "REQUIREMENTS.yaml", "ROADMAP.yaml"];
-    for (const file of scaffoldFiles) {
-      const src = join(cwd, ".software-teams", "framework", "templates", file);
-      const dest = join(cwd, ".software-teams", file);
+    // Scaffold project templates (only if missing). Phase B lowercases the
+    // top-level filenames: PROJECT.yaml → project.yaml, etc.
+    const scaffoldFiles: Array<{ src: string; dest: string }> = [
+      { src: "PROJECT.yaml", dest: "project.yaml" },
+      { src: "REQUIREMENTS.yaml", dest: "requirements.yaml" },
+      { src: "ROADMAP.yaml", dest: "roadmap.yaml" },
+    ];
+    for (const { src: srcName, dest: destName } of scaffoldFiles) {
+      const src = join(packageRoot, "templates", srcName);
+      const dest = join(cwd, ".software-teams", destName);
       if (existsSync(src) && !existsSync(dest)) {
-        const content = await Bun.file(src).text();
-        await Bun.write(dest, content);
+        await Bun.write(dest, await Bun.file(src).text());
       }
     }
 

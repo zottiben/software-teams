@@ -4,21 +4,17 @@ import type { ProjectType } from "./detect-project";
 
 /**
  * Subdirectories shipped from the package root into a consumer's
- * `.software-teams/framework/` install. The legacy `framework/` wrapper
- * directory at the package root was retired in Phase A — each subtree now
- * lives at the package root directly. The destination layout under
- * `.software-teams/framework/` is unchanged in Phase A; Phase B collapses it.
+ * `.software-teams/<sub>/` install. Phase B retired the
+ * `.software-teams/framework/` mirror and dropped subtrees that have no
+ * runtime consumer-side reader: `teams/` and `agents/`+`commands/` (the
+ * latter resolved from .claude/agents/ + .claude/commands/st/ already).
  */
-const PACKAGE_SUBDIRS = [
+const COPIED_SUBDIRS = [
   "templates",
-  "teams",
   "hooks",
   "stacks",
   "learnings",
   "rules",
-  "agents",
-  "commands",
-  "config",
 ] as const;
 
 export async function copyFrameworkFiles(
@@ -43,13 +39,14 @@ export async function copyFrameworkFiles(
   const packageRoot =
     packageRootOverride ??
     (existsSync(join(oneUp, "package.json")) ? oneUp : twoUp);
-  const frameworkDest = join(cwd, ".software-teams", "framework");
+  const consumerRoot = join(cwd, ".software-teams");
 
-  // Copy each per-subdir tree from the package into .software-teams/framework/<sub>.
-  for (const sub of PACKAGE_SUBDIRS) {
+  // Copy doctrine subtrees directly to .software-teams/<sub>/ (no framework/
+  // wrapper). Phase B target layout.
+  for (const sub of COPIED_SUBDIRS) {
     const srcDir = join(packageRoot, sub);
     if (!existsSync(srcDir)) continue;
-    const destDir = join(frameworkDest, sub);
+    const destDir = join(consumerRoot, sub);
     const subGlob = new Bun.Glob("**/*");
     for await (const file of subGlob.scan({ cwd: srcDir })) {
       const src = join(srcDir, file);
@@ -59,16 +56,6 @@ export async function copyFrameworkFiles(
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       const content = await Bun.file(src).text();
       await Bun.write(dest, content);
-    }
-  }
-
-  // Copy the top-level doctrine file.
-  const doctrineSrc = join(packageRoot, "software-teams.md");
-  if (existsSync(doctrineSrc)) {
-    const doctrineDest = join(frameworkDest, "software-teams.md");
-    if (force || !existsSync(doctrineDest)) {
-      const content = await Bun.file(doctrineSrc).text();
-      await Bun.write(doctrineDest, content);
     }
   }
 
