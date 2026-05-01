@@ -9,6 +9,13 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Activates the BENCH_ASSERT-gated test in
+      # src/benchmarks/component-cost.test.ts which checks the most recent
+      # `from-resolved` benchmark entry against the projected 42,009-token
+      # ceiling within ±5%. Flipped on as part of plan 4-01-T5 once the
+      # post-audit measurement was confirmed inside the soft-fail band.
+      BENCH_ASSERT: "1"
     steps:
       - uses: actions/checkout@v4
 

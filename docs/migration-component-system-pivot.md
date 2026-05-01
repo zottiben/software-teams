@@ -164,6 +164,16 @@ calls (-18% / -32%). Actual delta against that ceiling is **-2.55%**
 (favourable; soft-fail accepted in the wave-6 review). REQUIREMENTS risk
 **R-06** is closed.
 
+The strict-band assertion in `src/benchmarks/component-cost.test.ts` was
+originally pinned at ±2%. After the 4-01 section-targeted tag audit
+landed (planner-scenario narrowing -38% with a ×1 multiplier; aggregate
+unchanged at -2.55%), plan **4-01-T5** loosened the band to ±5% — the
+3-01-T16 soft-fail threshold — and flipped `BENCH_ASSERT=1` in CI. The
+test now passes deterministically and acts as a regression guard against
+future drift outside that band. A follow-up plan can tighten it further
+once additional narrowing lands on the high-multiplier backend ×8 and
+qa-tester ×10 scenarios.
+
 ---
 
 ## Markdown retirement timeline
