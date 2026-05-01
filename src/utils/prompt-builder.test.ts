@@ -144,7 +144,8 @@ describe("prompt-builder regression invariants", () => {
     test("includes header with instructions", () => {
       const result = buildLearningsBlock("typescript").join("\n");
       expect(result).toContain("## Learnings");
-      expect(result).toMatch(/learnings override defaults/i);
+      // Phase D: copy is "rules override defaults" (learnings folded into rules/).
+      expect(result).toMatch(/rules override defaults/i);
     });
   });
 });

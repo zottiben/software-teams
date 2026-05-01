@@ -87,13 +87,17 @@ export function buildAutoCommitBlock(commitType: "feat" | "fix" | "any"): string
 }
 
 /**
- * Build tech-stack-aware learnings instructions.
- * Maps tech stack keywords to the relevant learnings files.
- * Always includes general.md; domain files added based on stack.
+ * Build tech-stack-aware rules instructions.
+ *
+ * Phase D folded the legacy `.software-teams/framework/learnings/*.md`
+ * tree into `.software-teams/rules/`. Always includes general.md; domain
+ * files added based on stack. Heading kept as "Learnings" — the rules
+ * directory still carries the same content, just in a single location
+ * alongside commits.md / deviations.md.
  */
 export function buildLearningsBlock(techStack: string): string[] {
   const lower = techStack.toLowerCase();
-  const base = ".software-teams/framework/learnings";
+  const base = ".software-teams/rules";
   const files = [`${base}/general.md`];
 
   if (/php|laravel/.test(lower)) files.push(`${base}/backend.md`);
@@ -103,7 +107,7 @@ export function buildLearningsBlock(techStack: string): string[] {
 
   return [
     `## Learnings`,
-    `Read these learnings files and follow any conventions found (learnings override defaults):`,
+    `Read these rules files and follow any conventions found (rules override defaults):`,
     ...files.map((f) => `- ${f}`),
   ];
 }

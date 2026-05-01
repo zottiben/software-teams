@@ -41,9 +41,9 @@ async function makeStaleFixture(): Promise<string> {
     join(cwd, ".software-teams", "templates", "PLAN.md"),
     "STALE — older snapshot content\n",
   );
-  // A stale rules file (commit-rules.md exists in the package's rules/).
+  // A stale rules file (commits.md exists in the package's rules/ post-Phase D).
   await writeFile(
-    join(cwd, ".software-teams", "rules", "commit-rules.md"),
+    join(cwd, ".software-teams", "rules", "commits.md"),
     "STALE commit rules — pre-refresh snapshot\n",
   );
 
@@ -68,7 +68,7 @@ describe("sync-framework — change detection", () => {
     expect(missing.length).toBeGreaterThan(5);
     // The seeded files differ from canonical.
     expect(changed).toContain("templates/PLAN.md");
-    expect(changed).toContain("rules/commit-rules.md");
+    expect(changed).toContain("rules/commits.md");
   });
 
   test("returns empty arrays when snapshot matches canonical", async () => {

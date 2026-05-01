@@ -117,7 +117,7 @@ export const fetchLearningsCommand = defineCommand({
     }
 
     const cwd = process.cwd();
-    const learningsDir = join(cwd, ".software-teams/framework/learnings");
+    const learningsDir = join(cwd, ".software-teams/rules");
     mkdirSync(learningsDir, { recursive: true });
 
     const tmpDir = mkdtempSync(join(tmpdir(), "st-learnings-"));

@@ -303,7 +303,7 @@ export const promoteLearningsCommand = defineCommand({
 
     // Promote learnings
     const cwd = process.cwd();
-    const learningsDir = join(cwd, ".software-teams/framework/learnings");
+    const learningsDir = join(cwd, ".software-teams/rules");
 
     if (!hasLearningsContent(learningsDir)) {
       consola.info("No learnings content to commit — skipping");
