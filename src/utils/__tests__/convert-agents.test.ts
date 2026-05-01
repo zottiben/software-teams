@@ -253,12 +253,6 @@ describe("convertAgents — wave-1 rebrand glob verification", () => {
     expect(files.every((f) => f.startsWith("software-teams-"))).toBe(true);
   });
 
-  test("glob NEVER matches old jdi-*.md pattern (regression guard)", async () => {
-    const sourceDir = REAL_SOURCE;
-    const legacyAgentFiles = readdirSync(sourceDir).filter((f) => /^jdi-.+\.md$/.test(f));
-    expect(legacyAgentFiles.length).toBe(0);
-  });
-
   test("convertAgents produces 24 agent entries (glob success)", async () => {
     const cwd = await makeFixtureCwd();
     const result = await convertAgents({ cwd });
@@ -268,12 +262,11 @@ describe("convertAgents — wave-1 rebrand glob verification", () => {
     const agentFiles = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
     expect(agentFiles.length).toBe(24);
 
-    // Spot-check that names are correctly renamed
+    // Spot-check representative agent names.
     expect(agentFiles.some((f) => f === "software-teams-planner.md")).toBe(true);
     expect(agentFiles.some((f) => f === "software-teams-qa-tester.md")).toBe(true);
     expect(agentFiles.some((f) => f === "software-teams-backend.md")).toBe(true);
-    expect(agentFiles.some((f) => /^software-teams-/.test(f))).toBe(true);
-    expect(agentFiles.some((f) => /^jdi-/.test(f))).toBe(false);
+    expect(agentFiles.every((f) => /^software-teams-/.test(f))).toBe(true);
   });
 });
 
@@ -393,12 +386,11 @@ End.
 
   /**
    * Test 4: Code-block preservation.
-   * T11 should have protected backtick-enclosed <JDI: strings from rename.
-   * This test verifies that a synthetic input containing `<JDI:OldThing />`
-   * inside inline backticks survives round-trip through expandComponentTags
-   * unchanged (since expandComponentTags only matches @ST:, not <JDI:).
+   * The expander only matches `@ST:` tags. Anything else inside backticks
+   * (HTML-style placeholders, made-up tag syntaxes, etc.) survives the
+   * round-trip unchanged.
    */
-  test("code-block preservation: inline backtick <JDI: survives unchanged", async () => {
+  test("code-block preservation: non-@ST: tags inside backticks survive unchanged", async () => {
     const cwd = makeTempDir();
     const sourceDir = join(cwd, "agents");
     mkdirSync(sourceDir, { recursive: true });
@@ -413,13 +405,13 @@ tools: [Read]
 
 # Test Agent
 
-This is an example of the old syntax (documentation):
+A reference to an unrelated tag syntax (documentation):
 \`\`\`
-@ST:Verify:Task  <!-- This is the new syntax -->
-<JDI:Verify /> <!-- This is the old syntax, inside backticks -->
+@ST:Verify:Task  <!-- This is the @ST: syntax -->
+<Other:Verify /> <!-- A made-up tag the expander must not touch -->
 \`\`\`
 
-And inline: \`<JDI:OldThing />\` stays as-is.
+And inline: \`<Other:Thing />\` stays as-is.
 
 End.
 `;
@@ -434,15 +426,10 @@ End.
     const content = await readFile(targetPath, "utf-8");
     const { body } = parseFrontmatter(content);
 
-    // The inline-backtick `<JDI:OldThing />` should be preserved exactly
-    expect(body).toContain("`<JDI:OldThing />`");
-    // The fenced block should be preserved with both syntaxes
-    expect(body).toContain("<JDI:Verify />");
-    // @ST:Verify:Task in the fenced block should NOT be expanded (it's inside backticks from T11)
-    // Actually, our expandComponentTags runs on the already-protected body from T11,
-    // so the @ST: tag inside the fenced block would still match the regex. Let's just verify
-    // the inline backtick is preserved.
-    expect(body).toContain("`<JDI:OldThing />`");
+    // Inline-backtick `<Other:Thing />` is preserved verbatim.
+    expect(body).toContain("`<Other:Thing />`");
+    // The fenced-block tag survives too.
+    expect(body).toContain("<Other:Verify />");
   });
 
   /**

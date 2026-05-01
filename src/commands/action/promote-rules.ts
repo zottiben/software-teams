@@ -9,7 +9,6 @@ import {
   RULE_CATEGORIES,
   isRuleFile,
   EXTERNAL_RULES_PATH,
-  EXTERNAL_RULES_PATH_LEGACY,
 } from "./fetch-rules";
 
 function writeGitHubOutput(key: string, value: string): void {
@@ -28,10 +27,8 @@ export interface SoftwareTeamsInvolvement {
 
 /**
  * Check if Software Teams was involved in the PR associated with a commit.
- * Looks for:
- * - Comments from github-actions[bot] mentioning software-teams or the
- *   legacy "jdi"/"JDI" branding (back-compat for older PRs).
- * - Commits authored by software-teams[bot] (or legacy jdi[bot]).
+ * Looks for github-actions[bot] comments mentioning software-teams, plus
+ * commits authored by software-teams[bot].
  */
 export function checkSoftwareTeamsInvolvement(repo: string, sha: string): SoftwareTeamsInvolvement {
   // Find the PR associated with this commit
@@ -48,21 +45,19 @@ export function checkSoftwareTeamsInvolvement(repo: string, sha: string): Softwa
 
   const prNumber = parseInt(prNumberStr, 10);
 
-  // Check for Software Teams comments (matches new branding plus legacy jdi/JDI).
   const commentsResult = Bun.spawnSync(
     [
       "gh", "api", `repos/${repo}/issues/${prNumber}/comments`, "--paginate",
-      "--jq", `[.[] | select(.user.login == "github-actions[bot]" and (.body | test("software.?teams|jdi|JDI"; "i")))] | length`,
+      "--jq", `[.[] | select(.user.login == "github-actions[bot]" and (.body | test("software.?teams"; "i")))] | length`,
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
   const stActivity = parseInt(commentsResult.stdout.toString().trim() || "0", 10);
 
-  // Check for software-teams[bot] commits (legacy: jdi[bot]).
   const commitsResult = Bun.spawnSync(
     [
       "gh", "api", `repos/${repo}/pulls/${prNumber}/commits`, "--paginate",
-      "--jq", `[.[] | select(.commit.author.name == "software-teams[bot]" or .commit.author.name == "jdi[bot]")] | length`,
+      "--jq", `[.[] | select(.commit.author.name == "software-teams[bot]")] | length`,
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
@@ -200,15 +195,7 @@ export function commitRulesToExternalRepo(
     const remoteSubdir = join(tmpDir, EXTERNAL_RULES_PATH);
     mkdirSync(remoteSubdir, { recursive: true });
 
-    // Carry forward any data that lives at the legacy `jdi/learnings/`
-    // path so we can phase it out without losing rules. This merges
-    // legacy → new path inside the clone before pushing.
-    const legacySubdir = join(tmpDir, EXTERNAL_RULES_PATH_LEGACY);
-    if (existsSync(legacySubdir)) {
-      mergeRules(legacySubdir, remoteSubdir);
-    }
-
-    // Merge rules from local into the external repo (new path).
+    // Merge rules from local into the external repo.
     mergeRules(rulesDir, remoteSubdir);
 
     // Configure git in the cloned repo
@@ -334,7 +321,7 @@ export const promoteRulesCommand = defineCommand({
     }
 
     const rulesRepo = args["rules-repo"];
-    const token = args["rules-token"] || process.env.RULES_TOKEN || process.env.LEARNINGS_TOKEN || process.env.GH_TOKEN || "";
+    const token = args["rules-token"] || process.env.RULES_TOKEN || process.env.GH_TOKEN || "";
     const prNumber = args["pr-number"] ? parseInt(args["pr-number"], 10) : undefined;
 
     if (rulesRepo) {

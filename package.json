@@ -26,10 +26,12 @@
   },
   "files": [
     "dist",
-    "framework",
     "action",
     "agents",
-    "commands"
+    "commands",
+    "templates",
+    "rules",
+    "config"
   ],
   "repository": {
     "type": "git",

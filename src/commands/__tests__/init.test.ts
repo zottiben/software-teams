@@ -24,8 +24,8 @@ afterEach(() => {
 const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 const PACKAGE_ROOT = REPO_ROOT;
 
-describe("init — scaffolding layout (wave 1 rebrand)", () => {
-  test("init creates .software-teams/ directory structure (not .jdi/)", async () => {
+describe("init — scaffolding layout", () => {
+  test("init creates .software-teams/ directory structure", async () => {
     const cwd = makeTempDir();
     // Create the required directories that init would create
     const dirs = [
@@ -55,34 +55,22 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
     expect(existsSync(join(cwd, ".software-teams", "config"))).toBe(true);
     expect(existsSync(join(cwd, ".software-teams", "persistence"))).toBe(true);
     expect(existsSync(join(cwd, ".software-teams", "feedback"))).toBe(true);
-
-    // Regression: .jdi/ must NOT be created
-    expect(existsSync(join(cwd, ".jdi"))).toBe(false);
   });
 
-  test("init creates .claude/ structure with st/ commands (not jdi/)", async () => {
+  test("init creates .claude/commands/st/ structure", async () => {
     const cwd = makeTempDir();
-    // Simulate init's directory creation
     mkdirSync(join(cwd, ".claude", "commands", "st"), { recursive: true });
     await Bun.write(join(cwd, ".claude", "commands", "st", ".gitkeep"), "");
 
-    // Verify .claude/commands/st/ exists
     expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(true);
-
-    // Regression: .claude/commands/jdi/ must NOT exist
-    expect(existsSync(join(cwd, ".claude", "commands", "jdi"))).toBe(false);
   });
 
-  test("copyFrameworkFiles writes doctrine subtrees to .software-teams/<sub>/ (not .software-teams/framework/)", async () => {
+  test("copyFrameworkFiles writes doctrine subtrees directly under .software-teams/", async () => {
     const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
-    // Phase B target: doctrine lives at .software-teams/<sub>/ directly.
     expect(existsSync(join(cwd, ".software-teams", "templates"))).toBe(true);
     expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(false);
-
-    // Regression: .jdi/ must NOT be created
-    expect(existsSync(join(cwd, ".jdi"))).toBe(false);
   });
 
   test("init generates 24 .claude/agents/software-teams-*.md files (from package source)", async () => {
@@ -107,9 +95,6 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
     expect(agentFiles.some((f) => f === "software-teams-planner.md")).toBe(true);
     expect(agentFiles.some((f) => f === "software-teams-qa-tester.md")).toBe(true);
     expect(agentFiles.some((f) => f === "software-teams-programmer.md")).toBe(true);
-
-    // Regression: old jdi-*.md names must NOT appear
-    expect(agentFiles.some((f) => /^jdi-/.test(f))).toBe(false);
   });
 
   test("init creates .claude/AGENTS.md and .claude/RULES.md", async () => {
@@ -125,32 +110,22 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
     expect(existsSync(join(cwd, ".claude", "RULES.md"))).toBe(true);
   });
 
-  test(".claude/CLAUDE.md file references use /st: routing (not /jdi:)", async () => {
+  test(".claude/CLAUDE.md template uses /st: routing", async () => {
     const cwd = makeTempDir();
-    // Copy the CLAUDE.md template from framework
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
-    // The framework template should be in framework/templates/.claude/
     const claudeMdPath = join(PACKAGE_ROOT, "templates", ".claude", "CLAUDE.md");
     if (existsSync(claudeMdPath)) {
       const claudeMdContent = await readFile(claudeMdPath, "utf-8");
-      // The template should use /st: routing
       expect(claudeMdContent).toMatch(/\/st:/);
-      // And should NOT have /jdi: references
-      expect(claudeMdContent).not.toMatch(/\/jdi:/);
     }
   });
 
-  test("plugin agents use software-teams- naming (not jdi-)", async () => {
-    // agents/ moved from framework/agents/ to <repo-root>/agents/ when the
-    // plugin tree was promoted to source-of-truth.
+  test("plugin agents use software-teams- naming", async () => {
     const agentsDir = join(REPO_ROOT, "agents");
     const agentFiles = readdirSync(agentsDir).filter((f) => /^software-teams-/.test(f));
 
     expect(agentFiles.length).toBeGreaterThanOrEqual(1);
     expect(agentFiles.every((f) => f.startsWith("software-teams-"))).toBe(true);
-
-    const legacyAgentFiles = readdirSync(agentsDir).filter((f) => /^jdi-/.test(f));
-    expect(legacyAgentFiles.length).toBe(0);
   });
 });

@@ -5,7 +5,7 @@
  * - Clean fixture → { ok: true }
  * - Synthetic broken `requires` → { ok: false, errors } with file:line
  * - `@ST:Name(:Section)?` markdown scan; only the `@ST:` syntax is
- *   recognised — legacy `<JDI:...>` tags are intentionally NOT matched.
+ *   recognised — other tag syntaxes are intentionally NOT matched.
  *
  * Uses a test-only fixture registry and fixture markdown directory.
  */
@@ -320,14 +320,13 @@ describe("Component Registry Validator", () => {
       }
     });
 
-    test("does NOT recognise legacy <JDI: syntax", () => {
-      // Sanity check: a markdown file with only <JDI:...> tags should not
-      // produce broken-ref errors from the markdown scan, because the scanner
-      // is now @ST:-only.
-      const tmpDir = makeTempDir("legacy-only");
+    test("ignores tag syntaxes other than @ST:", () => {
+      // Sanity check: a markdown file with only non-@ST: tags must not
+      // produce broken-ref errors from the markdown scan.
+      const tmpDir = makeTempDir("non-st-only");
       writeFileSync(
-        join(tmpDir, "legacy.md"),
-        "<JDI:Whatever />\n<JDI:Architect:Analyse />\n",
+        join(tmpDir, "non-st.md"),
+        "<Other:Whatever />\n<Other:Section:Name />\n",
       );
       // Use the live registry (validateRegistry) — pointed at a tmp dir with
       // only legacy tags. No @ST: tags = no errors from the scan.

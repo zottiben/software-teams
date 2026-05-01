@@ -11,7 +11,7 @@ import { spawnSync } from "bun";
 import { join } from "node:path";
 
 // Paths
-const REPO_ROOT = join(import.meta.dir, "../../../..");
+const REPO_ROOT = join(import.meta.dir, "../../..");
 const DIST_INDEX = join(REPO_ROOT, "dist/index.js");
 
 /**
@@ -40,8 +40,8 @@ describe("software-teams component CLI", () => {
    */
   beforeAll(async () => {
     const buildResult = await Bun.build({
-      entrypoints: ["/Users/benzotti/src/jdi/src/index.ts"],
-      outdir: REPO_ROOT + "/dist",
+      entrypoints: [join(REPO_ROOT, "src", "index.ts")],
+      outdir: join(REPO_ROOT, "dist"),
       format: "esm",
     });
 

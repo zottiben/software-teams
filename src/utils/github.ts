@@ -77,7 +77,7 @@ export async function fetchCommentThread(
         body: parsed.body,
         createdAt: parsed.createdAt,
         // Detect Software Teams' own comments by the header.
-        isSoftwareTeams: parsed.body.includes("Software Teams <sup>") || parsed.body.includes("JDI <sup>"),
+        isSoftwareTeams: parsed.body.includes("Software Teams <sup>"),
       });
     } catch {
       // skip malformed lines
@@ -126,7 +126,7 @@ export function buildConversationContext(
     // Don't include the current triggering comment
     if (comment.id === currentCommentId) break;
 
-    if (/hey\s+(?:software[\s-]?teams|jdi)/i.test(comment.body)) {
+    if (/hey\s+software[\s-]?teams/i.test(comment.body)) {
       inConversation = true;
       segments.push(comment);
     } else if (inConversation) {

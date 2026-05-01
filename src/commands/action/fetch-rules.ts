@@ -30,25 +30,13 @@ export function isRuleFile(filename: string): boolean {
 
 /**
  * The path inside the external rules repo where Software Teams stores
- * round-tripped rules. Renamed from `jdi/learnings/` for brand consistency
- * with the rest of the framework.
+ * round-tripped rules.
  */
 export const EXTERNAL_RULES_PATH = "software-teams/rules";
 
 /**
- * Legacy path inside the external rules repo. Read-supported as a
- * back-compat fallback for repos that haven't migrated yet; writes always
- * go to EXTERNAL_RULES_PATH.
- */
-export const EXTERNAL_RULES_PATH_LEGACY = "jdi/learnings";
-
-/**
- * Sparse-clone the external rules repo's rules directory. Pulls both the
- * new path (software-teams/rules/) and the legacy path (jdi/learnings/) so
- * reads can fall back to legacy data while new writes land in the new path.
- *
- * Returns the resolved path inside the clone whose directory actually
- * exists (preferring the new path), or null when neither is present.
+ * Sparse-clone the external rules repo's rules directory and return the
+ * resolved path inside the clone, or null when the directory is absent.
  */
 export function cloneRulesRepo(
   repo: string,
@@ -67,9 +55,8 @@ export function cloneRulesRepo(
     return null;
   }
 
-  // Sparse-checkout both new and legacy paths; whichever exists is what we read from.
   Bun.spawnSync(
-    ["git", "sparse-checkout", "set", EXTERNAL_RULES_PATH, EXTERNAL_RULES_PATH_LEGACY],
+    ["git", "sparse-checkout", "set", EXTERNAL_RULES_PATH],
     {
       cwd: tmpDir,
       stdout: "pipe",
@@ -77,16 +64,8 @@ export function cloneRulesRepo(
     },
   );
 
-  const newPath = join(tmpDir, EXTERNAL_RULES_PATH);
-  const legacyPath = join(tmpDir, EXTERNAL_RULES_PATH_LEGACY);
-  if (existsSync(newPath)) return newPath;
-  if (existsSync(legacyPath)) {
-    consola.info(
-      `Reading rules from legacy path (${EXTERNAL_RULES_PATH_LEGACY}); next write will land at ${EXTERNAL_RULES_PATH}.`,
-    );
-    return legacyPath;
-  }
-  return null;
+  const path = join(tmpDir, EXTERNAL_RULES_PATH);
+  return existsSync(path) ? path : null;
 }
 
 /**
@@ -277,7 +256,7 @@ export const fetchRulesCommand = defineCommand({
       return;
     }
 
-    const token = args["rules-token"] || process.env.RULES_TOKEN || process.env.LEARNINGS_TOKEN || process.env.GH_TOKEN || "";
+    const token = args["rules-token"] || process.env.RULES_TOKEN || process.env.GH_TOKEN || "";
     if (!token) {
       consola.warn("No token available for rules repo — skipping");
       return;

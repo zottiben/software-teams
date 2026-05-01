@@ -44,8 +44,8 @@ function parseComment(
   const hasDryRun = /--dry-run/i.test(comment);
   const cleanComment = comment.replace(/--dry-run/gi, "").trim();
 
-  // Strip "Hey software-teams" prefix (case-insensitive); legacy "Hey jdi" still tolerated.
-  const match = cleanComment.match(/hey\s+(?:software[\s-]?teams|jdi)\s+(.+)/is);
+  // Strip "Hey software-teams" prefix (case-insensitive).
+  const match = cleanComment.match(/hey\s+software[\s-]?teams\s+(.+)/is);
   if (!match) {
     // No trigger prefix — if this is a follow-up in an existing conversation,
     // treat the entire comment as feedback
