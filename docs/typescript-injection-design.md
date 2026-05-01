@@ -47,8 +47,8 @@ export interface Component {
   readonly category: ComponentCategory;  // narrow union, validated at compile time
   readonly description: string;
   readonly sections: Readonly<Record<string, ComponentSection>>;
-  /** When a tag has no #section, return all sections concatenated in this order.
-   *  Defaults to the order keys appear in `sections`. */
+  /** When a tag has no `:section`, return all sections concatenated in this
+   *  order. Defaults to the order keys appear in `sections`. */
   readonly defaultOrder?: readonly string[];
 }
 
@@ -117,7 +117,7 @@ Resolution rules:
    from Levenshtein closest match.
 2. `section` matches a key in `component.sections`; same fallback.
 3. Transitive deps are concatenated **before** the requested section, in
-   declaration order, deduplicated by `${component}#${section}` key.
+   declaration order, deduplicated by `${component}:${section}` key.
 4. The resolver caches resolved text per `(name, section)` key in-process —
    safe because components are immutable.
 
@@ -125,18 +125,23 @@ Resolution rules:
 
 ## Tag syntax in source files
 
-Pick `#` over `:` for section delimiter — shell-safer (no escaping in Bash
-arguments), avoids confusion with future namespacing:
+Drop the XML-like `<...>` wrapping in favour of an `@`-prefixed reference.
+Lighter on bytes, easier to type, doesn't look like a structural directive:
 
-| Old                                      | New                                |
-|------------------------------------------|------------------------------------|
-| `<JDI:AgentBase />`                      | `<ST:AgentBase />`                 |
-| `<JDI:AgentBase:Sandbox />`              | `<ST:AgentBase#Sandbox />`         |
-| `<JDI:AgentRouter mode="discover" />`    | `<ST:AgentRouter#discover />`      |
-| `<JDI:Architect:Analyse />` (broken)     | rejected at compile time           |
+| Old                                      | New                          |
+|------------------------------------------|------------------------------|
+| `<JDI:AgentBase />`                      | `@ST:AgentBase`              |
+| `<JDI:AgentBase:Sandbox />`              | `@ST:AgentBase:Sandbox`      |
+| `<JDI:AgentRouter mode="discover" />`    | `@ST:AgentRouter:discover`   |
+| `<JDI:Architect:Analyse />` (broken)     | rejected at compile time     |
 
-Multi-section: `<ST:AgentBase#Sandbox,Standards />` — comma-separated names,
-order preserved. Resolves each in turn, deduplicates transitive deps.
+Parser regex: `/@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g`
+— group 1 is the component name, optional group 2 is the section. Word
+boundary terminates the tag (whitespace, punctuation, or end of line).
+
+Tag attributes (`mode="x"` etc.) are dropped — never used by the new
+resolver. The information they carried (e.g. `<JDI:AgentRouter mode="discover" />`)
+becomes the section name (`@ST:AgentRouter:discover`).
 
 ---
 
@@ -159,8 +164,8 @@ software-teams component get <name> --json
   -> JSON: { name, sections: [{name, body, ...}], ... }
 
 software-teams component validate
-  -> Walks the registry + scans all framework markdown for <ST:X#Y /> tags;
-     reports broken refs and cycles. Exits 1 on error.
+  -> Walks the registry + scans all framework markdown for @ST:Name(:Section)?
+     tags; reports broken refs and cycles. Exits 1 on error.
      Wired into CI (extends the existing plugin-drift-check job).
 ```
 
@@ -176,7 +181,7 @@ discount: zero runtime tool calls, predictable bytes per spawn, cache-friendly.
 
 ```
 framework/agents/software-teams-planner.md  (source)
-   <ST:AgentRouter#discover />
+   @ST:AgentRouter:discover
                 |
                 v
 software-teams sync-agents  (build step)
@@ -184,12 +189,12 @@ software-teams sync-agents  (build step)
                 v
 .claude/agents/software-teams-planner.md   (output, ships)
    "...existing prose...
-    [content of AgentRouter#discover and its transitive deps inlined here]
+    [content of AgentRouter:discover and its transitive deps inlined here]
     ...rest of prose..."
 ```
 
 `sync-agents` already exists; we extend `convert-agents.ts` to pre-process
-`<ST:...>` tags before writing output. Same code path applies to
+`@ST:...` tags before writing output. Same code path applies to
 `build-plugin` (the new plugin tree generation from Wave 3).
 
 **Escape hatch — runtime injection (B1).** For the rare case where the
@@ -204,9 +209,10 @@ software-teams component get Verify contract-check
 The output is appended to its working context. This costs one Bash call per
 section but is the only path that supports dynamic resolution.
 
-**Tagging itself.** `<ST:X />` tags written into source markdown serve as
-both the inlining marker AND a human-readable signal that "doctrine lives
-here". They survive in the source tree; they get expanded in the build tree.
+**Tagging itself.** `@ST:Name(:Section)?` tags written into source markdown
+serve as both the inlining marker AND a human-readable signal that "doctrine
+lives here". They survive in the source tree; they get expanded in the build
+tree.
 
 ---
 
@@ -220,8 +226,11 @@ One-time, scripted.
    `ComponentSection[]`, write `src/components/{category}/{Name}.ts`. The
    markdown files stay as documentation/fallback for one release; CI fails if
    they drift from the TS source (similar to the plugin-drift-check pattern).
-2. **Bulk-rename tags.** `<JDI:Name />` → `<ST:Name />`,
-   `<JDI:Name:Section />` → `<ST:Name#Section />`. Pure sed pass.
+2. **Bulk-rename tags.** `<JDI:Name />` → `@ST:Name`,
+   `<JDI:Name:Section />` → `@ST:Name:Section`,
+   `<JDI:Name attr="x" />` → `@ST:Name:x` (attribute becomes section).
+   Driven by a single regex pass with a small lookup for known
+   attribute→section conversions (e.g. `mode="discover"` → `:discover`).
 3. **Wire `sync-agents` to expand tags.** Extend `convert-agents.ts` to call
    `getComponent()` for every tag it finds before writing the output file.
 4. **Add `software-teams component` CLI.** Wraps the resolver. Used by
@@ -229,7 +238,7 @@ One-time, scripted.
 5. **Validate.** `software-teams component validate` must pass against the
    live tree. Wire into CI.
 6. **Author follow-up audit (separate plan).** Walk the corpus of newly
-   `<ST:X />` tags, identify which can be tightened to `<ST:X#Section />`,
+   `@ST:Name` tags, identify which can be tightened to `@ST:Name:Section`,
    submit a PR per category. This is where the latent -14 to -18% token
    savings get realised.
 
@@ -237,8 +246,8 @@ One-time, scripted.
 
 ## Validation rules
 
-- Every `<ST:Name />` references a registered component.
-- Every `<ST:Name#Section />` references an existing section.
+- Every `@ST:Name` references a registered component.
+- Every `@ST:Name:Section` references an existing section.
 - Section dependency graph is acyclic.
 - Section names are unique within a component.
 - Each component has at least one section.
@@ -298,8 +307,9 @@ requirements emerge.
 ## Out of scope (separate work items)
 
 - Re-authoring tags as section-targeted (Stage 5+ audit).
-- User-side overrides (deferred).
+- User-side overrides (deferred — design pivot drops them).
 - An MCP server (Option B2 in the earlier discussion) — sync-time inlining
   is enough for now; revisit if structured returns are needed.
+- Multi-section tags (e.g. `@ST:Name:A,B`) — dropped from v1 scope.
 - Plan tier templates picking up the new tag syntax — covered when the
   corresponding template files are touched.
