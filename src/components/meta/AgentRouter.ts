@@ -228,7 +228,7 @@ Agent(
 )
 \`\`\`
 
-The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`framework/components/meta/ComplexityRouter.md\` for the prompt body and \`.claude/RULES.md\` / \`framework/templates/RULES.md\` for the orchestration doctrine.
+The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/RULES.md\` / \`framework/templates/RULES.md\` for the orchestration doctrine.
 
 If \`plan.primary_agent\` is missing (legacy plan or empty \`available_agents\`), use the legacy fallback below.
 
@@ -264,7 +264,7 @@ Tasks with no \`agent:\` field fall back to the domain default (\`software-teams
 >   mode: "acceptEdits",
 >   name: "{plan.primary_agent}",
 >   prompt: "You are {plan.primary_agent}. Read .software-teams/framework/agents/{plan.primary_agent}.md
->   for your full role and instructions. Also read .software-teams/framework/components/meta/AgentBase.md
+>   for your full role and instructions. Also read the AgentBase component
 >   for the Software Teams base protocol.
 >
 >   <standard single-agent spawn prompt from ComplexityRouter>"
@@ -315,8 +315,8 @@ The implement-plan pass MUST:
 
 Referenced by:
 - \`framework/agents/software-teams-planner.md\` (discover + match)
-- \`framework/components/meta/ComplexityRouter.md\` (spawn)
-- \`framework/components/meta/AgentTeamsOrchestration.md\` (spawn)
+- \`the ComplexityRouter component\` (spawn)
+- \`the AgentTeamsOrchestration component\` (spawn)
 - \`framework/commands/create-plan.md\` (discover)
 - \`framework/commands/implement-plan.md\` (spawn)`,
     },

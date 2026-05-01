@@ -41,7 +41,7 @@ export type SectionRef =
  * supported runtime knobs even though resolution doesn't apply them.
  *
  * Migrated 1:1 from the existing markdown frontmatter `params:` block
- * (see `framework/components/execution/Verify.md`).
+ * (see `the Verify component`).
  */
 export interface ComponentParam {
   readonly name: string;
@@ -83,6 +83,7 @@ export interface Component {
 
 /**
  * The four top-level organisational categories for components, mirroring the
- * `framework/components/{category}/` directory layout.
+ * `src/components/{category}/` directory layout (the markdown layer was
+ * retired in plan 3-02; the TS modules are the sole source of truth).
  */
 export type ComponentCategory = "meta" | "execution" | "planning" | "quality";

@@ -1,23 +1,23 @@
 /**
  * Baseline benchmark for the component-tag mechanism.
  *
- * Records, for representative spawn scenarios, what the model actually pays for
- * today and what it would pay under each TS-injection alternative. Output is
- * written to `.software-teams/persistence/component-bench.jsonl` so subsequent
- * runs (after the pivot) can be diffed against this baseline.
+ * Records, for representative spawn scenarios, what the model actually pays
+ * after the pivot — i.e. cost with every @ST: tag inlined at sync time.
+ * Output is appended to `.software-teams/persistence/component-bench.jsonl`
+ * so successive runs can be diffed.
  *
- * Modes:
- *   --from-source   (default) Read source files from `framework/` — measures
- *                   cost with @ST: tags unresolved, mirroring the pre-sync state.
- *   --from-resolved  Read inlined output from `.claude/agents/` and
- *                   `.claude/commands/st/` — measures cost post-sync, where
- *                   every @ST: tag is already baked into the host file and no
- *                   additional component tool calls are needed.
+ * Mode:
+ *   --from-resolved  (default) Read inlined output from `.claude/agents/` and
+ *                    `.claude/commands/st/` — measures cost post-sync, where
+ *                    every @ST: tag is already baked into the host file.
+ *
+ * The legacy `--from-source` mode (read source markdown + resolve tags) was
+ * retired alongside `framework/components/**\/*.md` in plan 3-02. Source
+ * resolution is now meaningless because there is no markdown layer to scan.
  *
  * Run via:
- *   bun run src/benchmarks/component-cost.ts                  (from-source)
- *   bun run src/benchmarks/component-cost.ts --from-source    (explicit)
- *   bun run src/benchmarks/component-cost.ts --from-resolved  (post-migration)
+ *   bun run src/benchmarks/component-cost.ts                  (from-resolved)
+ *   bun run src/benchmarks/component-cost.ts --from-resolved  (explicit)
  */
 
 import { readFileSync, appendFileSync, mkdirSync, existsSync } from "node:fs";
@@ -27,9 +27,15 @@ const REPO_ROOT = process.cwd();
 
 // --- CLI flag parsing ---
 const args = process.argv.slice(2);
-const FROM_RESOLVED = args.includes("--from-resolved");
-const FROM_SOURCE = args.includes("--from-source") || !FROM_RESOLVED;
-const MODE: "from-source" | "from-resolved" = FROM_RESOLVED ? "from-resolved" : "from-source";
+if (args.includes("--from-source")) {
+  console.error(
+    "--from-source mode was retired in plan 3-02 (markdown component layer deleted).\n" +
+      "Run without flags or with --from-resolved to measure the inlined output in .claude/agents/.",
+  );
+  process.exit(1);
+}
+// Default and only supported mode post-3-02.
+const MODE: "from-resolved" = "from-resolved";
 
 // Projected best-case inlined ceiling from the baseline benchmark design doc.
 // Used for assertion in --from-resolved mode.
@@ -426,12 +432,6 @@ function formatTable(rows: string[][]) {
   return out.join("\n");
 }
 
-function pct(after: number, before: number): string {
-  if (before === 0) return "—";
-  const delta = ((after - before) / before) * 100;
-  return `${delta > 0 ? "+" : ""}${delta.toFixed(1)}%`;
-}
-
 function classifyDelta(deltaPercent: number): "pass" | "soft-fail" | "hard-fail" {
   const abs = Math.abs(deltaPercent);
   if (abs <= 2) return "pass";
@@ -460,23 +460,13 @@ function main() {
     scenarios.push(result);
     projections.push(projectPerPlan({ spawnsPerPlan: cfg.spawnsPerPlan, scenario: result }));
 
-    if (MODE === "from-source") {
-      summary.push([
-        result.name,
-        `${result.tagCount}`,
-        `${result.hostTokens}t`,
-        `${result.tokensToday}`,
-        `${result.toolCallsToday}`,
-      ]);
-    } else {
-      summary.push([
-        result.name,
-        "0 (inlined)",
-        `${result.hostTokens}t`,
-        `${result.tokensToday}`,
-        `${result.toolCallsToday}`,
-      ]);
-    }
+    summary.push([
+      result.name,
+      "0 (inlined)",
+      `${result.hostTokens}t`,
+      `${result.tokensToday}`,
+      `${result.toolCallsToday}`,
+    ]);
 
     if (result.brokenReferences.length > 0) {
       console.log(`  [warn] ${result.name}: broken references found:`);

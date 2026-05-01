@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { getComponent } from "./components/resolve";
 
 const repoRoot = join(import.meta.dir, "..");
 const frameworkRoot = join(repoRoot, "framework");
@@ -115,13 +116,13 @@ describe("framework file invariants", () => {
     expect(content).toMatch(/learnings/i);
   });
 
-  test("components/meta/ComplexityRouter.md references task files", () => {
-    const content = readFrameworkFile("components/meta/ComplexityRouter.md");
+  test("ComplexityRouter component references task files", () => {
+    const content = getComponent("ComplexityRouter");
     expect(content).toMatch(/TASK_FILE|task.file|task_file/i);
   });
 
-  test("components/meta/SilentDiscovery.md includes test suite detection", () => {
-    const content = readFrameworkFile("components/meta/SilentDiscovery.md");
+  test("SilentDiscovery component includes test suite detection", () => {
+    const content = getComponent("SilentDiscovery");
     expect(content).toMatch(/test.suite|test_suite/i);
     expect(content).toMatch(/\.test\.\*|\.spec\.\*/);
   });
@@ -149,8 +150,8 @@ describe("framework file invariants", () => {
     expect(content).toMatch(/type:\s*test|type: test/);
   });
 
-  test("components/planning/TaskBreakdown.md includes test task rules", () => {
-    const content = readFrameworkFile("components/planning/TaskBreakdown.md");
+  test("TaskBreakdown component includes test task rules", () => {
+    const content = getComponent("TaskBreakdown");
     expect(content).toMatch(/Test Task Rules|test task/i);
     expect(content).toMatch(/type.*test/i);
   });
@@ -371,8 +372,8 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
     },
   );
 
-  test("AgentRouter.md §4 contains a lint-allowlisted LEGACY FALLBACK block", () => {
-    const content = readFrameworkFile("components/meta/AgentRouter.md");
+  test("AgentRouter component §4 contains a lint-allowlisted LEGACY FALLBACK block", () => {
+    const content = getComponent("AgentRouter");
     expect(content).toMatch(/<!--\s*lint-allow:\s*legacy-injection\s*-->/);
     expect(content).toMatch(/<!--\s*\/lint-allow\s*-->/);
     expect(content).toMatch(/LEGACY FALLBACK/i);
@@ -420,26 +421,11 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
   });
 });
 
-describe("wave-2 AgentRouter.md §4 structural shape", () => {
-  function extractSection4(content: string): string {
-    // §4 starts at the heading "## 4." and runs until the next "## " heading
-    // at the same level.
-    const startRe = /^##\s*4\.\s/m;
-    const startMatch = startRe.exec(content);
-    if (!startMatch) return "";
-    const start = startMatch.index;
-    const rest = content.slice(start + startMatch[0].length);
-    // Next top-level "## " heading marks the end.
-    const nextRe = /^##\s+(?!#)/m;
-    const nextMatch = nextRe.exec(rest);
-    const end = nextMatch ? start + startMatch[0].length + nextMatch.index : content.length;
-    return content.slice(start, end);
-  }
-
+describe("wave-2 AgentRouter §4 structural shape", () => {
   test("§4 has a 'Native ... default' lead paragraph and a 'Legacy fallback' subheading", () => {
-    const content = readFrameworkFile("components/meta/AgentRouter.md");
-    const section4 = extractSection4(content);
-    expect(section4.length, "AgentRouter.md must contain a §4 heading").toBeGreaterThan(0);
+    // §4 in the AgentRouter component is the Execution section in the TS module.
+    const section4 = getComponent("AgentRouter", "Execution");
+    expect(section4.length, "AgentRouter Execution section must be non-empty").toBeGreaterThan(0);
 
     // Native default lead — accept "Native subagents are the default" or
     // "Native (default)" or similar phrasing.

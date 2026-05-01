@@ -1,6 +1,6 @@
 {
   "name": "software-teams",
-  "description": "Software Teams - AI development framework for Claude Code",
+  "description": "Software Teams -  Skills and Agents to help with Software Development",
   "version": "0.1.57",
   "author": {
     "name": "Ben Zotti",
@@ -16,6 +16,7 @@
     "ai-agents",
     "spec-driven-development",
     "software-teams",
+    "software-development",
     "framework",
     "subagents",
     "orchestration"

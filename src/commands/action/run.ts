@@ -8,6 +8,7 @@ import { createStorage } from "../../storage";
 import { loadPersistedState, savePersistedState } from "../../utils/storage-lifecycle";
 import { extractClickUpId, fetchClickUpTicket, formatTicketAsContext } from "../../utils/clickup";
 import { checkAuthorization } from "../../utils/auth";
+import { getComponent } from "../../components/resolve";
 import { sanitizeUserInput, fenceUserInput } from "../../utils/sanitize";
 import { readState, writeState } from "../../utils/state";
 import { applyDryRunMode, buildLearningsBlock } from "../../utils/prompt-builder";
@@ -355,7 +356,11 @@ export const runCommand = defineCommand({
       contextLines.push(``, ticketContext);
     }
 
-    const baseProtocol = resolve(cwd, ".software-teams/framework/components/meta/AgentBase.md");
+    // Inline component bodies from the TS registry — no markdown files to read.
+    const baseProtocolBody = getComponent("AgentBase");
+    const complexityRouterBody = getComponent("ComplexityRouter");
+    const orchestrationBody = getComponent("AgentTeamsOrchestration");
+    const baseProtocolBlock = ["## Agent Base Protocol", baseProtocolBody, ""];
 
     // Build prompt based on whether this is feedback or a new command
     let prompt: string;
@@ -363,7 +368,7 @@ export const runCommand = defineCommand({
     if (intent.isFeedback && isPostImplementation) {
       // ── Post-implementation iteration — allow code changes, commit, push ──
       prompt = [
-        `Read ${baseProtocol} for the base agent protocol.`,
+        ...baseProtocolBlock,
         ``,
         ...contextLines,
         ``,
@@ -392,7 +397,7 @@ export const runCommand = defineCommand({
       const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
 
       prompt = [
-        `Read ${baseProtocol} for the base agent protocol.`,
+        ...baseProtocolBlock,
         `You are software-teams-planner. Read ${agentSpec} for your full specification.`,
         ``,
         ...contextLines,
@@ -431,7 +436,7 @@ export const runCommand = defineCommand({
       switch (intent.command) {
         case "plan":
           prompt = [
-            `Read ${baseProtocol} for the base agent protocol.`,
+            ...baseProtocolBlock,
             `You are software-teams-planner. Read ${agentSpec} for your full specification.`,
             ``,
             ...contextLines,
@@ -493,9 +498,9 @@ export const runCommand = defineCommand({
 
         case "implement":
           prompt = [
-            `Read ${baseProtocol} for the base agent protocol.`,
-            `Read ${resolve(cwd, ".software-teams/framework/components/meta/ComplexityRouter.md")} for complexity routing rules.`,
-            `Read ${resolve(cwd, ".software-teams/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
+            ...baseProtocolBlock,
+            `## Complexity Routing`, complexityRouterBody, "",
+            `## Agent Teams Orchestration (if needed)`, orchestrationBody, "",
             ``,
             ...contextLines,
             ``,
@@ -517,7 +522,7 @@ export const runCommand = defineCommand({
 
         case "quick":
           prompt = [
-            `Read ${baseProtocol} for the base agent protocol.`,
+            ...baseProtocolBlock,
             ``,
             ...contextLines,
             ``,
@@ -540,7 +545,7 @@ export const runCommand = defineCommand({
 
         case "review":
           prompt = [
-            `Read ${baseProtocol} for the base agent protocol.`,
+            ...baseProtocolBlock,
             ``,
             ...contextLines,
             historyBlock,
@@ -551,7 +556,7 @@ export const runCommand = defineCommand({
 
         case "feedback":
           prompt = [
-            `Read ${baseProtocol} for the base agent protocol.`,
+            ...baseProtocolBlock,
             ``,
             ...contextLines,
             historyBlock,
@@ -562,7 +567,7 @@ export const runCommand = defineCommand({
 
         default:
           prompt = [
-            `Read ${baseProtocol} for the base agent protocol.`,
+            ...baseProtocolBlock,
             ``,
             ...contextLines,
             historyBlock,
@@ -596,9 +601,9 @@ export const runCommand = defineCommand({
       if (intent.fullFlow && success) {
         consola.info("Full flow: now running implement...");
         const implementPrompt = [
-          `Read ${baseProtocol} for the base agent protocol.`,
-          `Read ${resolve(cwd, ".software-teams/framework/components/meta/ComplexityRouter.md")} for complexity routing rules.`,
-          `Read ${resolve(cwd, ".software-teams/framework/components/meta/AgentTeamsOrchestration.md")} for Agent Teams orchestration (if needed).`,
+          ...baseProtocolBlock,
+          `## Complexity Routing`, complexityRouterBody, "",
+          `## Agent Teams Orchestration (if needed)`, orchestrationBody, "",
           ``,
           ...contextLines,
           ``,

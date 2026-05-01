@@ -19,12 +19,17 @@ You have a finite per-invocation budget (tokens, tool calls, wall time). Long ru
 
 If your work exceeds one invocation, complete what you can, return a progress report naming exactly what remains, and let the orchestrator re-spawn you.
 
-When a spec contains \`@ST:\` tags:
-1. Read the file from \`.software-teams/framework/components/\` (execution/, planning/, quality/, meta/).
-2. If a section is specified (e.g. \`@ST:Commit:MessageFormat\`), execute only that section.
-3. Return to agent spec and continue.
+\`@ST:\` tags in your spec are pre-resolved at sync time — the body
+content is inlined into your agent spec before you read it. Treat any text
+inside the spec as if it were part of the agent definition itself.
 
-If your spec has a \`requires_components\` frontmatter field, read ALL listed components before starting execution.
+If a tag survives unresolved (it should not, but as a fallback):
+1. Run \`software-teams component get <Name>\` for the whole component, or
+   \`software-teams component get <Name> <Section>\` for a specific section.
+2. Use the returned body in place of the tag.
+
+If your spec has a \`requires_components\` frontmatter field, batch-fetch
+the listed components via the same CLI before starting execution.
 
 Do NOT skip component tags — they contain essential instructions.
 
@@ -378,7 +383,7 @@ Agent(
 )
 \`\`\`
 
-The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`framework/components/meta/ComplexityRouter.md\` for the prompt body and \`.claude/RULES.md\` / \`framework/templates/RULES.md\` for the orchestration doctrine.
+The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/RULES.md\` / \`framework/templates/RULES.md\` for the orchestration doctrine.
 
 If \`plan.primary_agent\` is missing (legacy plan or empty \`available_agents\`), use the legacy fallback below.
 
@@ -414,7 +419,7 @@ Tasks with no \`agent:\` field fall back to the domain default (\`software-teams
 >   mode: "acceptEdits",
 >   name: "{plan.primary_agent}",
 >   prompt: "You are {plan.primary_agent}. Read .software-teams/framework/agents/{plan.primary_agent}.md
->   for your full role and instructions. Also read .software-teams/framework/components/meta/AgentBase.md
+>   for your full role and instructions. Also read the AgentBase component
 >   for the Software Teams base protocol.
 >
 >   <standard single-agent spawn prompt from ComplexityRouter>"
@@ -459,8 +464,8 @@ The implement-plan pass MUST:
 
 Referenced by:
 - \`framework/agents/software-teams-planner.md\` (discover + match)
-- \`framework/components/meta/ComplexityRouter.md\` (spawn)
-- \`framework/components/meta/AgentTeamsOrchestration.md\` (spawn)
+- \`the ComplexityRouter component\` (spawn)
+- \`the AgentTeamsOrchestration component\` (spawn)
 - \`framework/commands/create-plan.md\` (discover)
 - \`framework/commands/implement-plan.md\` (spawn)"
 `;

@@ -4,16 +4,34 @@
  * Covers:
  * - Clean fixture → { ok: true }
  * - Synthetic broken `requires` → { ok: false, errors } with file:line
- * - Dual-regex scan picks up BOTH `<JDI:Name />` and `@ST:Name` tags
- * - Historical `<JDI:Architect:Analyse />` is reported when live tree scanned
+ * - `@ST:Name(:Section)?` markdown scan; legacy `<JDI:` recognition was
+ *   dropped in plan 3-02 once the migration window closed.
  *
  * Uses a test-only fixture registry and fixture markdown directory.
  */
 
-import { describe, test, expect } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import { describe, test, expect, afterEach } from "bun:test";
+import { readFileSync, existsSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import type { SectionRef } from "./types";
 import { fixtureRegistry, fixtureRegistryClean } from "./__fixtures__/index";
+import { validateRegistry } from "./validate";
+
+// Tracker for tmpdirs created by `makeTempDir`; cleaned after each test.
+const tmpDirsCreated: string[] = [];
+
+function makeTempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), `st-validate-${prefix}-`));
+  tmpDirsCreated.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  for (const d of tmpDirsCreated.splice(0)) {
+    rmSync(d, { recursive: true, force: true });
+  }
+});
 
 // ============================================================================
 // Inline validator for testing with fixture registry
@@ -168,8 +186,7 @@ function validateFixtureRegistry(
   // ------------------------------------------------------------------
   // Pass 2: markdown source scan
   // ------------------------------------------------------------------
-  const TAG_REGEX =
-    /(?:<JDI:|@ST:)([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
+  const TAG_REGEX = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
 
   if (existsSync(frameworkPath)) {
     const g = new Bun.Glob("**/*.md");
@@ -285,7 +302,7 @@ describe("Component Registry Validator", () => {
     });
   });
 
-  describe("dual-regex scan (legacy + new syntax)", () => {
+  describe("@ST: markdown scan (legacy <JDI: recognition retired in 3-02)", () => {
     test("detects @ST: tags", () => {
       const fixtureFrameworkPath = new URL(
         "./__fixtures__/broken-framework",
@@ -303,37 +320,28 @@ describe("Component Registry Validator", () => {
       }
     });
 
-    test("detects <JDI: tags (legacy syntax)", () => {
-      const fixtureFrameworkPath = new URL(
-        "./__fixtures__/broken-framework",
-        import.meta.url,
-      ).pathname;
-
-      const result = validateFixtureRegistry(fixtureFrameworkPath, fixtureRegistryClean);
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        // broken.md has <JDI:LegacyComponent /> and <JDI:Architect:Analyse />
-        const hasLegacySyntax = result.errors.some((e) =>
-          e.includes("LegacyComponent") || e.includes("Architect"),
-        );
-        expect(hasLegacySyntax).toBe(true);
-      }
-    });
-
-    test("historical Architect:Analyse broken ref is reported", () => {
-      const fixtureFrameworkPath = new URL(
-        "./__fixtures__/broken-framework",
-        import.meta.url,
-      ).pathname;
-
-      const result = validateFixtureRegistry(fixtureFrameworkPath, fixtureRegistryClean);
-      expect(result.ok).toBe(false);
-      if (!result.ok) {
-        // broken.md has <JDI:Architect:Analyse />
-        const hasArchitectAnalyse = result.errors.some((e) =>
-          e.includes("Architect"),
-        );
-        expect(hasArchitectAnalyse).toBe(true);
+    test("does NOT recognise legacy <JDI: syntax (migration window closed in plan 3-02)", () => {
+      // Sanity check: a markdown file with only <JDI:...> tags should not
+      // produce broken-ref errors from the markdown scan, because the scanner
+      // is now @ST:-only.
+      const tmpDir = makeTempDir("legacy-only");
+      writeFileSync(
+        join(tmpDir, "legacy.md"),
+        "<JDI:Whatever />\n<JDI:Architect:Analyse />\n",
+      );
+      // Use the live registry (validateRegistry) — pointed at a tmp dir with
+      // only legacy tags. No @ST: tags = no errors from the scan.
+      const prevEnv = process.env.COMPONENT_VALIDATE_FRAMEWORK_DIR;
+      process.env.COMPONENT_VALIDATE_FRAMEWORK_DIR = tmpDir;
+      try {
+        const result = validateRegistry();
+        expect(result.ok).toBe(true);
+      } finally {
+        if (prevEnv === undefined) {
+          delete process.env.COMPONENT_VALIDATE_FRAMEWORK_DIR;
+        } else {
+          process.env.COMPONENT_VALIDATE_FRAMEWORK_DIR = prevEnv;
+        }
       }
     });
   });

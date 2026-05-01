@@ -4,8 +4,8 @@
  * Checks:
  * 1. Every section's `requires` references resolve without error.
  * 2. The dependency graph is acyclic (DFS three-colour marking).
- * 3. Scans `framework/**\/*.md` for `@ST:` and `<JDI:` tags and reports
- *    every broken ref (component not found, or section not found).
+ * 3. Scans `framework/**\/*.md` for `@ST:` tags and reports every broken
+ *    ref (component not found, or section not found).
  *
  * Called at build time and from `software-teams component validate` CLI (T7).
  *
@@ -22,14 +22,13 @@ import { tryResolve } from "./resolve";
 // ---------------------------------------------------------------------------
 
 /**
- * Matches both legacy `<JDI:Name(:Section)?>` and new `@ST:Name(:Section)?`
- * syntax. Group 1 = component name; group 2 = section name (optional).
+ * Matches `@ST:Name(:Section)?` source tags. Group 1 = component name;
+ * group 2 = section name (optional).
  *
- * The dual recognition is intentional for the migration window. Dropping
- * `<JDI:` recognition is a follow-up task (T11).
+ * The legacy `<JDI:` recognition was dropped in plan 3-02 once the
+ * migration window closed.
  */
-const TAG_REGEX =
-  /(?:<JDI:|@ST:)([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
+const TAG_REGEX = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
 
 // ---------------------------------------------------------------------------
 // Internal types
@@ -142,12 +141,9 @@ function dfsCheck(
  * resolves. Runs DFS three-colour cycle detection across the full graph.
  *
  * **Pass 2 — markdown source scan.**
- * Scans all `*.md` files under `framework/` (via `Bun.Glob`) for both
- * `@ST:Name(:Section)?` and `<JDI:Name(:Section)?>` tags. Reports broken
- * refs with file path and line number (one error per broken tag).
- *
- * The dual-syntax scan catches the historical `<JDI:Architect:Analyse />`
- * broken ref (there is no `Architect` component) even before T11's bulk rename.
+ * Scans all `*.md` files under `framework/` (via `Bun.Glob`) for
+ * `@ST:Name(:Section)?` tags. Reports broken refs with file path and
+ * line number (one error per broken tag).
  *
  * @returns `{ ok: true }` when the registry and all markdown refs are valid,
  *   or `{ ok: false; errors: string[] }` listing every problem found.

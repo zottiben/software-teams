@@ -4,9 +4,10 @@
  * Subcommands:
  *   get <name> [section]  — resolve and print component body to stdout.
  *   list                  — markdown table of all registered components.
- *   validate              — CI-facing registry + drift check (see validate JSDoc).
+ *   validate              — CI-facing registry validation.
  *
- * The hidden `drift` subcommand (T5) is preserved unchanged.
+ * The hidden `drift` subcommand was retired in plan 3-02 alongside the
+ * markdown component layer.
  *
  * @see docs/typescript-injection-design.md §"CLI surface"
  * @see .software-teams/plans/3-01-component-system-pivot.T7.md
@@ -17,7 +18,6 @@ import { consola } from "consola";
 import { getComponent } from "../components/resolve";
 import { validateRegistry } from "../components/validate";
 import { registry } from "../components/registry";
-import { checkComponentDrift } from "../utils/component-drift";
 
 // ─── get subcommand ───────────────────────────────────────────────────────────
 
@@ -145,138 +145,35 @@ const listCommand = defineCommand({
  * CI DEPENDENCY NOTICE
  * ====================
  * This command is called by the CI pipeline (component-drift-check job).
- * It performs two independent checks and reports each under its own heading:
+ * Validates the component registry: every section's `requires` list resolves,
+ * the dep graph is acyclic, and every @ST: tag in framework markdown has a
+ * matching component+section.
  *
- *   1. Registry graph validation (`validateRegistry`) — checks that every
- *      section's `requires` list resolves, the dep graph is acyclic, and every
- *      @ST:/<JDI: tag in framework markdown has a matching component+section.
- *
- *   2. Markdown ↔ TS drift check (`checkComponentDrift`) — verifies that the
- *      markdown source files and TS modules have not diverged.
+ * Drift-check (markdown ↔ TS comparison) was retired in plan 3-02 once the
+ * markdown component layer was deleted; the TS registry is the sole source.
  *
  * Exit code:
- *   0 — both checks passed.
- *   1 — one or more errors found (details printed to stderr before exit).
- *
- * DO NOT change the exit-code contract or remove either check without updating
- * the CI job that depends on this command. If you find yourself wanting to
- * simplify this, read the comment above first.
+ *   0 — clean.
+ *   1 — one or more errors (details printed to stderr before exit).
  */
 const validateCommand = defineCommand({
   meta: {
     name: "validate",
-    description:
-      "Validate the component registry and check for markdown ↔ TS drift (CI use)",
+    description: "Validate the component registry (CI use)",
   },
-  args: {
-    "framework-dir": {
-      type: "string",
-      description:
-        "Absolute path to the framework/ directory (default: <cwd>/framework)",
-    },
-  },
-  async run({ args }) {
-    let failed = false;
-
-    // ── Check 1: Registry validation ─────────────────────────────────────────
+  async run() {
     consola.info("## Registry validation");
     const registryResult = validateRegistry();
     if (registryResult.ok) {
       consola.success("Component registry validated cleanly.");
-    } else {
-      failed = true;
-      consola.error(
-        `Registry validation failed with ${registryResult.errors.length} error(s):`,
-      );
-      for (const err of registryResult.errors) {
-        consola.error(`  ${err}`);
-      }
+      return;
     }
-
-    // ── Check 2: Markdown ↔ TS drift ─────────────────────────────────────────
-    consola.info("## Markdown ↔ TS drift check");
-    const frameworkDir = args["framework-dir"] as string | undefined;
-    const driftResult = await checkComponentDrift(
-      frameworkDir ? { frameworkDir } : {},
+    consola.error(
+      `Registry validation failed with ${registryResult.errors.length} error(s):`,
     );
-    if (driftResult.ok) {
-      consola.success(
-        "Component drift: clean — all markdown sections match TS source.",
-      );
-    } else {
-      failed = true;
-      consola.error(
-        `Drift check failed: ${driftResult.diffs.length} section(s) drifted:`,
-      );
-      for (const diff of driftResult.diffs) {
-        consola.error(`  ${diff.component}:${diff.section}`);
-      }
+    for (const err of registryResult.errors) {
+      consola.error(`  ${err}`);
     }
-
-    if (failed) {
-      process.exit(1);
-    }
-  },
-});
-
-// ─── drift subcommand ─────────────────────────────────────────────────────────
-
-/**
- * Hidden CI subcommand: fails (exit 1) when any markdown component has drifted
- * from its TS counterpart. Exits 0 on a clean tree.
- *
- * Hidden because it is a CI concern, not a user-facing feature. T7 may
- * surface it as a public flag later if useful.
- */
-const driftCommand = defineCommand({
-  meta: {
-    name: "drift",
-    description: "Check for Markdown ↔ TS component drift (CI use only)",
-    // Hidden from help output — not a user-facing command.
-  },
-  args: {
-    "framework-dir": {
-      type: "string",
-      description:
-        "Absolute path to the framework/ directory (default: <cwd>/framework)",
-    },
-  },
-  async run({ args }) {
-    const frameworkDir = args["framework-dir"] as string | undefined;
-    const result = await checkComponentDrift(
-      frameworkDir ? { frameworkDir } : {},
-    );
-
-    if (result.ok) {
-      console.log("component drift: clean — all markdown sections match TS source");
-      process.exit(0);
-    }
-
-    console.error(
-      `component drift: ${result.diffs.length} section(s) drifted:\n`,
-    );
-    for (const diff of result.diffs) {
-      console.error(`--- ${diff.component}:${diff.section} (markdown / actual)`);
-      console.error(`+++ ${diff.component}:${diff.section} (TS module / expected)`);
-      console.error("");
-      console.error("  ACTUAL (markdown):");
-      for (const line of diff.actual.split("\n").slice(0, 10)) {
-        console.error(`    ${line}`);
-      }
-      if (diff.actual.split("\n").length > 10) {
-        console.error("    ... (truncated)");
-      }
-      console.error("");
-      console.error("  EXPECTED (TS):");
-      for (const line of diff.expected.split("\n").slice(0, 10)) {
-        console.error(`    ${line}`);
-      }
-      if (diff.expected.split("\n").length > 10) {
-        console.error("    ... (truncated)");
-      }
-      console.error("");
-    }
-
     process.exit(1);
   },
 });
@@ -295,7 +192,6 @@ export const componentCommand = defineCommand({
     description: "Manage and inspect Software Teams components",
   },
   subCommands: {
-    drift: driftCommand,
     get: getCommand,
     list: listCommand,
     validate: validateCommand,

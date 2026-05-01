@@ -1,6 +1,6 @@
 {
   "name": "@benzotti/software-teams",
-  "version": "0.1.57",
+  "version": "1.0.0",
   "description": "Software Teams -  Skills and Agents to help with Software Development",
   "type": "module",
   "bin": {
@@ -11,7 +11,7 @@
     "./storage": "./src/storage/index.ts"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target bun --external 'node:*'",
+    "build": "bun build src/index.ts --outdir dist --target bun --external node:fs --external node:fs/promises --external node:path --external node:os",
     "dev": "bun run src/index.ts",
     "test": "bun test"
   },

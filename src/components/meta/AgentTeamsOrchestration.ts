@@ -18,7 +18,7 @@ const AgentTeamsOrchestration: Component = {
     CorePattern: {
       name: "CorePattern",
       description: "Six-step orchestration pattern for Agent Teams",
-      body: `1. **Pre-flight** — Read command spec, \`@ST:CodebaseContext\`, read state.yaml, set status to "executing". Read each task file's \`agent:\` frontmatter field so you know which specialist to spawn per task (see \`.software-teams/framework/components/meta/AgentRouter.md\`).
+      body: `1. **Pre-flight** — Read command spec, \`@ST:CodebaseContext\`, read state.yaml, set status to "executing". Read each task file's \`agent:\` frontmatter field so you know which specialist to spawn per task (see \`the AgentRouter component\`).
 2. **Create Team** — \`TeamCreate(team_name: "{team-name}")\`
 3. **Create Tasks** — TaskCreate per work unit, set \`addBlockedBy\` dependencies
 4. **Spawn Teammates** — Task tool, one call per task. **Native spawn is the default** for both \`source: software-teams\` and \`source: claude-code\` agents (see \`AgentRouter.md\` §4):
@@ -77,7 +77,7 @@ task). The slice's \`**Read first:**\` line names the SPEC sections you need —
 read ONLY those sections, NOT the full spec or full orchestration. Do NOT
 read sibling slices ({slug}.T{m}.md for m != n).
 
-Also read .software-teams/framework/components/meta/AgentBase.md for the Software Teams base protocol.
+Also read the AgentBase component for the Software Teams base protocol.
 If your spec has requires_components in frontmatter, batch-read them before
 starting.
 
@@ -97,7 +97,7 @@ Spawned via \`Agent(subagent_type="{task.agent}", mode="acceptEdits", ...)\`. Cl
 Code auto-loads the agent spec from \`.claude/agents/{task.agent}.md\` when spawned
 by name — do NOT inject \`"You are {task.agent}. Read framework/agents/..."\`
 preamble. Software Teams specialists land in \`.claude/agents/\` via \`software-teams sync-agents\`. See
-\`.software-teams/framework/components/meta/AgentRouter.md\` §4 for the legacy fallback.`,
+\`the AgentRouter component\` §4 for the legacy fallback.`,
     },
     PostAgentOps: {
       name: "PostAgentOps",

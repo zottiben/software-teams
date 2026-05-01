@@ -44,12 +44,17 @@ If your work exceeds one invocation, complete what you can, return a progress re
     ComponentResolution: {
       name: "ComponentResolution",
       description: "How to handle @ST: tags in specs",
-      body: `When a spec contains \`@ST:\` tags:
-1. Read the file from \`.software-teams/framework/components/\` (execution/, planning/, quality/, meta/).
-2. If a section is specified (e.g. \`@ST:Commit:MessageFormat\`), execute only that section.
-3. Return to agent spec and continue.
+      body: `\`@ST:\` tags in your spec are pre-resolved at sync time — the body
+content is inlined into your agent spec before you read it. Treat any text
+inside the spec as if it were part of the agent definition itself.
 
-If your spec has a \`requires_components\` frontmatter field, read ALL listed components before starting execution.
+If a tag survives unresolved (it should not, but as a fallback):
+1. Run \`software-teams component get <Name>\` for the whole component, or
+   \`software-teams component get <Name> <Section>\` for a specific section.
+2. Use the returned body in place of the tag.
+
+If your spec has a \`requires_components\` frontmatter field, batch-fetch
+the listed components via the same CLI before starting execution.
 
 Do NOT skip component tags — they contain essential instructions.`,
     },

@@ -29,10 +29,11 @@ jobs:
 
       - run: bun test
 
-  component-drift-check:
-    # Replaces the old plugin-drift-check job. Plugin tree (agents/+commands/)
-    # is now the source of truth — no generator, no drift to assert. Job retained
-    # to keep the @ST: component registry's MD↔TS drift + validate gates running.
+  component-validate:
+    # Validates the @ST: component registry: every section's `requires`
+    # resolves, the dep graph is acyclic, and every @ST: tag in framework
+    # markdown points at a real component+section. The MD↔TS drift step
+    # was retired in plan 3-02 alongside the markdown component layer.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,9 +45,6 @@ jobs:
       - run: bun install
 
       - run: bun run build
-
-      - name: Check for component MD↔TS drift
-        run: bun run dist/index.js component drift
 
       - name: Component registry validation
         run: bun run dist/index.js component validate

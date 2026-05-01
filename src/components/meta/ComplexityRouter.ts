@@ -74,7 +74,7 @@ with Claude Code:
 If unset or not found, fall back to \`general-purpose\` and record an
 \`agent_downgrade:\` note in the summary. Never silently default to
 \`general-purpose\` when a pin exists.
-See \`.software-teams/framework/components/meta/AgentRouter.md\` §4 for full spawn rules.
+See \`the AgentRouter component\` §4 for full spawn rules.
 
 ### Native spawn (default — both \`source: software-teams\` and \`source: claude-code\`)
 
@@ -116,7 +116,7 @@ software-teams-backend / software-teams-frontend spec inside the prompt as a las
     AgentTeamsMode: {
       name: "AgentTeamsMode",
       description: "How to run full Agent Teams orchestration for complex plans",
-      body: `Follow full orchestration from \`.software-teams/framework/components/meta/AgentTeamsOrchestration.md\`:
+      body: `Follow full orchestration from \`the AgentTeamsOrchestration component\`:
 TeamCreate → TaskCreate per plan task → spawn specialists per tech-stack routing → wave-based coordination → collect deferred ops → shutdown → TeamDelete.`,
     },
     Usage: {
