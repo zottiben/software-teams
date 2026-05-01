@@ -42,6 +42,26 @@ export type SectionRef =
   | string                              // shorthand for default section: "AgentBase"
   | { component: string; section: string }; // explicit: { component: "AgentBase", section: "Sandbox" }
 
+/**
+ * Declarative parameter metadata for a component. The resolver IGNORES params
+ * in v1 — they are surfaced via `getComponentInfo()` and the `component list`
+ * CLI for documentation and tooling. Components like `Verify` declare params
+ * (`scope`, `strict`, `include_tests`) so callers and reviewers see the
+ * supported runtime knobs even though resolution doesn't apply them.
+ *
+ * Migrated 1:1 from the existing markdown frontmatter `params:` block
+ * (see `framework/components/execution/Verify.md`).
+ */
+export interface ComponentParam {
+  readonly name: string;
+  readonly type: "string" | "boolean" | "number";
+  readonly required: boolean;
+  readonly default?: string | boolean | number;
+  /** Closed enum of valid values for `type: "string"` params. Empty/omit means open. */
+  readonly options?: readonly string[];
+  readonly description: string;
+}
+
 export interface Component {
   readonly name: string;                 // e.g. "AgentBase"
   readonly category: ComponentCategory;  // narrow union, validated at compile time
@@ -50,6 +70,10 @@ export interface Component {
   /** When a tag has no `:section`, return all sections concatenated in this
    *  order. Defaults to the order keys appear in `sections`. */
   readonly defaultOrder?: readonly string[];
+  /** Optional declarative parameter metadata (from the legacy markdown
+   *  frontmatter `params:` block). Surfaced for tooling; not used by the
+   *  resolver in v1. */
+  readonly params?: readonly ComponentParam[];
 }
 
 export type ComponentCategory = "meta" | "execution" | "planning" | "quality";
