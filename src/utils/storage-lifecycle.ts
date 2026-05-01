@@ -1,25 +1,29 @@
 import { join } from "node:path";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import type { JdiStorage } from "../storage";
 
-const LEARNINGS_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
+const RULE_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
 
 /**
- * Load persisted state (learnings + codebase-index) from storage
- * and write to local files that agents can read.
+ * Load persisted state (rules + codebase-index) from storage and write
+ * to local files that agents can read.
  */
 export async function loadPersistedState(
   cwd: string,
   storage: JdiStorage,
-): Promise<{ learningsPath: string | null; codebaseIndexPath: string | null }> {
-  let learningsPath: string | null = null;
+): Promise<{ rulesPath: string | null; codebaseIndexPath: string | null }> {
+  let rulesPath: string | null = null;
   let codebaseIndexPath: string | null = null;
 
-  // Load each learnings category file individually
-  const dir = join(cwd, ".software-teams", "framework", "learnings");
+  // Load each rule category file individually
+  const dir = join(cwd, ".software-teams", "rules");
   let anyLoaded = false;
-  for (const category of LEARNINGS_CATEGORIES) {
-    const content = await storage.load(`learnings-${category}`);
+  for (const category of RULE_CATEGORIES) {
+    // Try the new key first, then fall back to the legacy `learnings-*` key
+    // for caches written before the rename.
+    const content =
+      (await storage.load(`rules-${category}`)) ??
+      (await storage.load(`learnings-${category}`));
     if (content) {
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       await Bun.write(join(dir, `${category}.md`), content);
@@ -27,26 +31,15 @@ export async function loadPersistedState(
     }
   }
 
-  // Fallback: load legacy consolidated learnings if no category files found
-  if (!anyLoaded) {
-    const learnings = await storage.load("learnings");
-    if (learnings) {
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-      const consolidatedPath = join(dir, "_consolidated.md");
-      await Bun.write(consolidatedPath, learnings);
-      learningsPath = consolidatedPath;
-    }
-  } else {
-    learningsPath = dir;
-  }
-
-  // Final fallback: check if learnings already exist on disk (e.g. committed to repo).
-  // This handles the case where cache has been evicted but learnings were persisted via git.
-  if (!learningsPath && existsSync(dir)) {
-    const { readdirSync } = await import("fs");
+  if (anyLoaded) {
+    rulesPath = dir;
+  } else if (existsSync(dir)) {
+    // Final fallback: rules already exist on disk (e.g. committed to repo).
+    // This handles the case where cache has been evicted but rules were
+    // persisted via git.
     const files = readdirSync(dir).filter((f) => f.endsWith(".md"));
     if (files.length > 0) {
-      learningsPath = dir;
+      rulesPath = dir;
     }
   }
 
@@ -58,25 +51,25 @@ export async function loadPersistedState(
     await Bun.write(codebaseIndexPath, codebaseIndex);
   }
 
-  return { learningsPath, codebaseIndexPath };
+  return { rulesPath, codebaseIndexPath };
 }
 
 /**
- * Save updated state (learnings + codebase-index) back to storage
- * after agent execution.
+ * Save updated state (rules + codebase-index) back to storage after
+ * agent execution.
  */
 export async function savePersistedState(
   cwd: string,
   storage: JdiStorage,
-): Promise<{ learningsSaved: boolean; codebaseIndexSaved: boolean }> {
-  let learningsSaved = false;
+): Promise<{ rulesSaved: boolean; codebaseIndexSaved: boolean }> {
+  let rulesSaved = false;
   let codebaseIndexSaved = false;
 
-  // Save each learnings category file individually
-  const learningsDir = join(cwd, ".software-teams", "framework", "learnings");
-  if (existsSync(learningsDir)) {
-    for (const category of LEARNINGS_CATEGORIES) {
-      const filePath = join(learningsDir, `${category}.md`);
+  // Save each rule category file individually
+  const rulesDir = join(cwd, ".software-teams", "rules");
+  if (existsSync(rulesDir)) {
+    for (const category of RULE_CATEGORIES) {
+      const filePath = join(rulesDir, `${category}.md`);
       if (!existsSync(filePath)) continue;
 
       const content = await Bun.file(filePath).text();
@@ -88,8 +81,8 @@ export async function savePersistedState(
       );
       if (lines.length === 0) continue;
 
-      await storage.save(`learnings-${category}`, trimmed);
-      learningsSaved = true;
+      await storage.save(`rules-${category}`, trimmed);
+      rulesSaved = true;
     }
   }
 
@@ -103,5 +96,5 @@ export async function savePersistedState(
     }
   }
 
-  return { learningsSaved, codebaseIndexSaved };
+  return { rulesSaved, codebaseIndexSaved };
 }

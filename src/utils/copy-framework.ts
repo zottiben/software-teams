@@ -11,7 +11,7 @@ import type { ProjectType } from "./detect-project";
  * were folded into the TS component registry — agents fetch them via
  * `software-teams component get <Name>` instead of reading a copied .md.
  */
-const COPIED_SUBDIRS = ["templates", "learnings", "rules"] as const;
+const COPIED_SUBDIRS = ["templates", "rules"] as const;
 
 export async function copyFrameworkFiles(
   cwd: string,
@@ -131,7 +131,7 @@ Based on the user's request, follow the appropriate workflow:
 - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml. Run \`software-teams component get ComplexityRouter\` to decide single-agent vs teams mode.
 - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
 - **Review** ("review"): Run \`software-teams component get PRReview\` for the review checklist; review PR changes against it.
-- **PR feedback** ("feedback"): Address review comments using \`.software-teams/framework/agents/software-teams-pr-feedback.md\`. Extract learnings from reviewer preferences.
+- **PR feedback** ("feedback"): Address review comments using \`.software-teams/framework/agents/software-teams-pr-feedback.md\`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
 - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
 ## Auto-Commit (CI Mode)

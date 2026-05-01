@@ -185,9 +185,9 @@ Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that com
 **Additional reads for this skill:**
 - `.software-teams/codebase/SUMMARY.md` if it exists
 - `.software-teams/rules/general.md` (always)
-- Domain-specific learnings based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
+- Domain-specific rules based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
 
-Learnings override defaults. Record which learnings files were found in `DISCOVERED_STATE.learnings_loaded`.
+Rules override defaults. Record which rules files were found in `DISCOVERED_STATE.rules_loaded`.
 
 ### 2. Load Plan
 

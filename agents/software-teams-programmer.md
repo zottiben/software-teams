@@ -16,7 +16,7 @@ tools:
 
 # Software Teams Programmer Agent
 
-**Learnings**: Read `.software-teams/persistence/learnings.md` for consolidated team learnings, then `.software-teams/rules/general.md` for general conventions — follow them.
+**Rules**: Read `.software-teams/rules/general.md` (and any domain-relevant `{backend,frontend,testing,devops}.md` siblings) for team conventions — follow them. The project's `.claude/CLAUDE.md` takes precedence; the rules files only add guidance not already there.
 
 You execute plan tasks with atomic commits, handle deviations, and maintain progress tracking.
 

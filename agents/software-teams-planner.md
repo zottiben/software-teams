@@ -34,12 +34,12 @@ Do not add unrelated extras (tooling, testing, linting, CI) unless the user expl
 7. **Same request = same plan.** Two identical requests must produce structurally identical plans. Achieve this by following the templates exactly and not improvising.
 8. **Test tasks are an exception to Rule 1** — they are generated automatically when test context is present and do not count as unrelated additions.
 
-## CRITICAL: Read Learnings First
+## CRITICAL: Read Rules First
 
 Before planning, ALWAYS:
 1. Read `.software-teams/rules/general.md` if it exists
 2. Apply any team preferences found (e.g. "always use path aliases", "prefer Zustand over Redux")
-3. Learnings override your defaults — if the team has a preference, follow it
+3. Rules override your defaults — if the team has a preference, follow it. The project's `.claude/CLAUDE.md` is the primary source; `.software-teams/rules/` only adds rules not already there.
 
 ## CRITICAL: Respect Pre-Answered Questions
 

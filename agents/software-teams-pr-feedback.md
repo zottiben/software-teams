@@ -59,21 +59,22 @@ gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews
 ### Step 4: Fetch ClickUp Context (For Clarifications)
 Read `variables.yaml` for `context.clickup_task_url`. If available, fetch ticket details.
 
-### Step 5: Scan for Learning Opportunities (MANDATORY)
+### Step 5: Scan for New Rules (MANDATORY)
 
 Scan every comment for these signals:
 - Explicit phrases: "we usually", "we prefer", "convention is", "we never", "we always", "we can", "we don't", "the pattern is", "like the other"
 - Implicit preferences: reviewer correcting an approach, suggesting an alternative pattern
 - Architectural opinions: where state should live, what layer owns what, component structure
 
-For each learning found:
+For each rule found:
 1. Extract the rule
-2. Determine category (see table below)
-3. Read target learnings file (create if missing)
-4. Check for duplicates
-5. Append with `- Source: PR #{number} review ({reviewer_name})`
+2. **CLAUDE.md dedup**: read `.claude/CLAUDE.md` and `./CLAUDE.md`. If the rule is already documented there, skip it — those files are the project's primary instructions and the `.software-teams/rules/` files exist to ADD guidance, not duplicate it.
+3. Determine category (see table below)
+4. Read target rules file (create if missing)
+5. Check for duplicates within the rules file (exact + semantic match)
+6. Append survivors with `- Source: PR #{number} review ({reviewer_name})`
 
-**Learnings file mapping** (`.software-teams/rules/`):
+**Rules file mapping** (`.software-teams/rules/`):
 
 | File | Scope | Read by |
 |------|-------|---------|
@@ -83,9 +84,7 @@ For each learning found:
 | `devops.md` | CI/CD, Docker, infrastructure, build config | software-teams-devops |
 | `general.md` | Cross-cutting concerns, conventions, process | software-teams-programmer |
 
-After updating category files, also write the consolidated learnings to `.software-teams/persistence/learnings.md` so they persist across PRs via the GitHub Actions cache.
-
-If zero learnings found, output brief explanation why in feedback report under `## Learnings`.
+If zero rules found (or all duplicates), output brief explanation why in feedback report under `## Rules`.
 
 ### Step 6: Process All Comments
 Collect required code changes by priority. Prepare response text for each.
@@ -110,7 +109,7 @@ Stage files individually (never `git add .`), commit with conventional format, p
 | `nitpick` (fixed) | "Fixed in {hash}.\n\n- Claude" |
 | `praise` | "Thanks.\n\n- Claude" |
 
-**With `--no-comments`:** Write to `.software-teams/feedback/PR-{pr_number}-feedback.md` with frontmatter, summary table, responses, and mandatory `## Learnings` section.
+**With `--no-comments`:** Write to `.software-teams/feedback/PR-{pr_number}-feedback.md` with frontmatter, summary table, responses, and mandatory `## Rules` section.
 
 ---
 
@@ -123,5 +122,6 @@ comments_total: {count}
 comments_replied: {count}
 changes_made: {count}
 commit_hash: {hash}
-learnings_added: {count}
+rules_added: {count}
+duplicates_skipped_claude_md: {count}
 ```

@@ -2,7 +2,7 @@ import { describe, test, expect, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { hasLearningsContent } from "./promote-learnings";
+import { hasRulesContent } from "./promote-rules";
 
 let tempDir: string;
 function makeTempDir(): string {
@@ -14,43 +14,43 @@ afterEach(() => {
   if (tempDir) rmSync(tempDir, { recursive: true, force: true });
 });
 
-describe("hasLearningsContent", () => {
+describe("hasRulesContent", () => {
   test("returns true when .md has non-header content", () => {
     const base = makeTempDir();
-    const learningsDir = join(base, "learnings");
-    mkdirSync(learningsDir, { recursive: true });
+    const rulesDir = join(base, "rules");
+    mkdirSync(rulesDir, { recursive: true });
     writeFileSync(
-      join(learningsDir, "general.md"),
+      join(rulesDir, "general.md"),
       "# Team Preferences\n\n- Always use TypeScript\n- Prefer Bun over Node\n",
     );
 
-    expect(hasLearningsContent(learningsDir)).toBe(true);
+    expect(hasRulesContent(rulesDir)).toBe(true);
   });
 
   test("returns false for empty/header-only files", () => {
     const base = makeTempDir();
-    const learningsDir = join(base, "learnings");
-    mkdirSync(learningsDir, { recursive: true });
+    const rulesDir = join(base, "rules");
+    mkdirSync(rulesDir, { recursive: true });
     writeFileSync(
-      join(learningsDir, "general.md"),
+      join(rulesDir, "general.md"),
       "# Team Preferences\n\n## Section\n\n<!-- comment -->\n",
     );
 
-    expect(hasLearningsContent(learningsDir)).toBe(false);
+    expect(hasRulesContent(rulesDir)).toBe(false);
   });
 
   test("returns false when directory does not exist", () => {
     const base = makeTempDir();
-    const learningsDir = join(base, "nonexistent");
+    const rulesDir = join(base, "nonexistent");
 
-    expect(hasLearningsContent(learningsDir)).toBe(false);
+    expect(hasRulesContent(rulesDir)).toBe(false);
   });
 
   test("returns false for empty directory", () => {
     const base = makeTempDir();
-    const learningsDir = join(base, "learnings");
-    mkdirSync(learningsDir, { recursive: true });
+    const rulesDir = join(base, "rules");
+    mkdirSync(rulesDir, { recursive: true });
 
-    expect(hasLearningsContent(learningsDir)).toBe(false);
+    expect(hasRulesContent(rulesDir)).toBe(false);
   });
 });

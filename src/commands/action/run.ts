@@ -11,7 +11,7 @@ import { checkAuthorization } from "../../utils/auth";
 import { getComponent } from "../../components/resolve";
 import { sanitizeUserInput, fenceUserInput } from "../../utils/sanitize";
 import { readState, writeState } from "../../utils/state";
-import { applyDryRunMode, buildLearningsBlock } from "../../utils/prompt-builder";
+import { applyDryRunMode, buildRulesBlock } from "../../utils/prompt-builder";
 import { runQualityGates } from "../../utils/verify";
 import { formatVerificationResults } from "../../utils/github";
 import {
@@ -271,7 +271,7 @@ export const runCommand = defineCommand({
       const frameworkExists = existsSync(join(cwd, ".software-teams/framework"));
       const claudeMdExists = existsSync(join(cwd, ".claude/CLAUDE.md"));
       const stateExists = existsSync(join(cwd, ".software-teams/config/state.yaml"));
-      const learningsExists = existsSync(join(cwd, ".software-teams/persistence/learnings.md"));
+      const rulesExists = existsSync(join(cwd, ".software-teams/rules"));
 
       let version = "unknown";
       try {
@@ -290,7 +290,7 @@ export const runCommand = defineCommand({
         `| Framework files | ${frameworkExists ? "found" : "missing"} |`,
         `| CLAUDE.md | ${claudeMdExists ? "found" : "missing"} |`,
         `| State config | ${stateExists ? "found" : "missing"} |`,
-        `| Learnings | ${learningsExists ? "found" : "missing"} |`,
+        `| Rules | ${rulesExists ? "found" : "missing"} |`,
         `| Version | \`${version}\` |`,
       ].join("\n");
 
@@ -316,7 +316,7 @@ export const runCommand = defineCommand({
 
     // Load persisted state via storage
     const storage = await createStorage(cwd);
-    const { learningsPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
+    const { rulesPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
 
     // Fetch ClickUp ticket context if URL present
     let ticketContext = "";
@@ -346,8 +346,8 @@ export const runCommand = defineCommand({
       `- Working directory: ${cwd}`,
     ];
 
-    if (learningsPath) {
-      contextLines.push(`- Learnings: ${learningsPath}`);
+    if (rulesPath) {
+      contextLines.push(`- Rules: ${rulesPath}`);
     }
     if (codebaseIndexPath) {
       contextLines.push(`- Codebase index: ${codebaseIndexPath}`);
@@ -372,7 +372,7 @@ export const runCommand = defineCommand({
         ``,
         ...contextLines,
         ``,
-        ...buildLearningsBlock(techStack),
+        ...buildRulesBlock(techStack),
         ``,
         fenceUserInput("conversation-history", conversationHistory),
         ``,
@@ -453,8 +453,8 @@ export const runCommand = defineCommand({
             `If something is ambiguous, ask — do not guess.`,
             `NEVER use time estimates (minutes, hours, etc). Use t-shirt sizes: S, M, L. This is mandatory.`,
             ``,
-            `## Learnings`,
-            `Before planning, read .software-teams/persistence/learnings.md and .software-teams/framework/learnings/ if they exist. Apply any team preferences found.`,
+            `## Rules`,
+            `Before planning, read .software-teams/rules/ if it exists. Apply any team preferences found.`,
             ``,
             `## Plan File Format`,
             `CRITICAL: You MUST write plan files in SPLIT format as defined in your spec (Step 7a):`,
@@ -504,7 +504,7 @@ export const runCommand = defineCommand({
             ``,
             ...contextLines,
             ``,
-            ...buildLearningsBlock(techStack),
+            ...buildRulesBlock(techStack),
             historyBlock,
             `## Task`,
             `Execute the current implementation plan. Read state.yaml for the active plan path.`,
@@ -526,7 +526,7 @@ export const runCommand = defineCommand({
             ``,
             ...contextLines,
             ``,
-            ...buildLearningsBlock(techStack),
+            ...buildRulesBlock(techStack),
             historyBlock,
             `## Task`,
             `Make this quick change:`,
@@ -607,7 +607,7 @@ export const runCommand = defineCommand({
           ``,
           ...contextLines,
           ``,
-          ...buildLearningsBlock(techStack),
+          ...buildRulesBlock(techStack),
           ``,
           `## Task`,
           `Execute the most recently created implementation plan in .software-teams/plans/.`,
@@ -649,7 +649,7 @@ export const runCommand = defineCommand({
 
     // Save updated state back to storage
     const saved = await savePersistedState(cwd, storage);
-    if (saved.learningsSaved) consola.info("Learnings persisted to storage");
+    if (saved.rulesSaved) consola.info("Rules persisted to storage");
     if (saved.codebaseIndexSaved) consola.info("Codebase index persisted to storage");
 
     // Update placeholder comment with final response (or post new if placeholder failed)

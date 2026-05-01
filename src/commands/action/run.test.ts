@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { buildLearningsBlock } from "../../utils/prompt-builder";
+import { buildRulesBlock } from "../../utils/prompt-builder";
 
 /**
  * run.ts (formerly action.ts) builds prompts inline in its switch cases.
@@ -8,7 +8,7 @@ import { buildLearningsBlock } from "../../utils/prompt-builder";
  *
  * The plan case prompt references "split format" / "Plan File Format" / "SPLIT" inline.
  * The refinement case prompt references "SPLIT plan format" inline.
- * The implement case uses buildLearningsBlock from prompt-builder.
+ * The implement case uses buildRulesBlock from prompt-builder.
  *
  * Since the inline strings in run.ts are string literals within a command handler
  * (not easily importable), we verify the shared functions and document the expected
@@ -48,15 +48,15 @@ describe("action run command prompt invariants", () => {
     });
   });
 
-  describe("implement case - learnings", () => {
-    test("implement case uses buildLearningsBlock", async () => {
+  describe("implement case - rules", () => {
+    test("implement case uses buildRulesBlock", async () => {
       const source = await Bun.file(new URL("./run.ts", import.meta.url).pathname).text();
-      expect(source).toContain("buildLearningsBlock");
+      expect(source).toContain("buildRulesBlock");
     });
 
-    test("buildLearningsBlock output contains learnings header", () => {
-      const block = buildLearningsBlock("typescript").join("\n");
-      expect(block).toContain("## Learnings");
+    test("buildRulesBlock output contains rules header", () => {
+      const block = buildRulesBlock("typescript").join("\n");
+      expect(block).toContain("## Rules");
     });
   });
 });

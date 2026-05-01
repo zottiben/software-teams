@@ -5,12 +5,12 @@ import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import {
-  mergeLearnings,
-  LEARNING_CATEGORIES,
-  isLearningFile,
-  EXTERNAL_LEARNINGS_PATH,
-  EXTERNAL_LEARNINGS_PATH_LEGACY,
-} from "./fetch-learnings";
+  mergeRules,
+  RULE_CATEGORIES,
+  isRuleFile,
+  EXTERNAL_RULES_PATH,
+  EXTERNAL_RULES_PATH_LEGACY,
+} from "./fetch-rules";
 
 function writeGitHubOutput(key: string, value: string): void {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -20,7 +20,7 @@ function writeGitHubOutput(key: string, value: string): void {
   console.log(`${key}=${value}`);
 }
 
-export interface JdiInvolvement {
+export interface SoftwareTeamsInvolvement {
   skip: boolean;
   branch?: string;
   prNumber?: number;
@@ -33,7 +33,7 @@ export interface JdiInvolvement {
  *   legacy "jdi"/"JDI" branding (back-compat for older PRs).
  * - Commits authored by software-teams[bot] (or legacy jdi[bot]).
  */
-export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
+export function checkSoftwareTeamsInvolvement(repo: string, sha: string): SoftwareTeamsInvolvement {
   // Find the PR associated with this commit
   const prResult = Bun.spawnSync(
     ["gh", "api", `repos/${repo}/commits/${sha}/pulls`, "--jq", ".[0].number // empty"],
@@ -56,7 +56,7 @@ export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
-  const jdiActivity = parseInt(commentsResult.stdout.toString().trim() || "0", 10);
+  const stActivity = parseInt(commentsResult.stdout.toString().trim() || "0", 10);
 
   // Check for software-teams[bot] commits (legacy: jdi[bot]).
   const commitsResult = Bun.spawnSync(
@@ -66,9 +66,9 @@ export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
-  const jdiCommits = parseInt(commitsResult.stdout.toString().trim() || "0", 10);
+  const stCommits = parseInt(commitsResult.stdout.toString().trim() || "0", 10);
 
-  if (jdiActivity > 0 || jdiCommits > 0) {
+  if (stActivity > 0 || stCommits > 0) {
     // Get the branch name
     const branchResult = Bun.spawnSync(
       ["gh", "api", `repos/${repo}/pulls/${prNumber}`, "--jq", ".head.ref"],
@@ -77,32 +77,32 @@ export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
     const branch = branchResult.stdout.toString().trim();
 
     consola.info(
-      `JDI was active on PR #${prNumber} (comments: ${jdiActivity}, commits: ${jdiCommits}) — promoting learnings`,
+      `Software Teams was active on PR #${prNumber} (comments: ${stActivity}, commits: ${stCommits}) — promoting rules`,
     );
     return { skip: false, branch, prNumber };
   }
 
-  consola.info(`No JDI activity on PR #${prNumber} — skipping`);
+  consola.info(`No Software Teams activity on PR #${prNumber} — skipping`);
   return { skip: true };
 }
 
 /**
- * Check if any LEARNING category files in the rules directory have
+ * Check if any RULE_CATEGORIES files in the rules directory have
  * non-header content. Returns false if directory doesn't exist or the
- * learning category files only contain headers/comments/blank lines.
+ * rule category files only contain headers/comments/blank lines.
  *
- * Phase D: only LEARNING_CATEGORIES files are considered. Non-learning
- * rules files (commits.md, deviations.md) sit alongside but are NOT
- * inputs to the learnings promotion flow.
+ * Only RULE_CATEGORIES files are considered. Non-rule files
+ * (commits.md, deviations.md) sit alongside but are NOT inputs to
+ * the rules promotion flow.
  */
-export function hasLearningsContent(learningsDir: string): boolean {
-  if (!existsSync(learningsDir)) {
+export function hasRulesContent(rulesDir: string): boolean {
+  if (!existsSync(rulesDir)) {
     return false;
   }
 
-  const files = readdirSync(learningsDir).filter((f) => isLearningFile(f));
+  const files = readdirSync(rulesDir).filter((f) => isRuleFile(f));
   for (const file of files) {
-    const content = readFileSync(join(learningsDir, file), "utf-8");
+    const content = readFileSync(join(rulesDir, file), "utf-8");
     const lines = content.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
@@ -118,17 +118,17 @@ export function hasLearningsContent(learningsDir: string): boolean {
 }
 
 /**
- * Commit learnings to the same repository on the current branch.
- * Only stages LEARNING_CATEGORIES files — `commits.md` / `deviations.md`
- * (non-learning rules) are kept out of the auto-commit.
+ * Commit rules to the same repository on the current branch.
+ * Only stages RULE_CATEGORIES files — `commits.md` / `deviations.md`
+ * (project-only rules) are kept out of the auto-commit.
  */
-export function commitLearningsToSameRepo(learningsDir: string, prNumber?: number): boolean {
-  const learningPaths = LEARNING_CATEGORIES.map((c) => join(learningsDir, `${c}.md`)).filter((p) => existsSync(p));
-  if (learningPaths.length === 0) {
-    consola.info("No learning category files present — nothing to commit");
+export function commitRulesToSameRepo(rulesDir: string, prNumber?: number): boolean {
+  const rulePaths = RULE_CATEGORIES.map((c) => join(rulesDir, `${c}.md`)).filter((p) => existsSync(p));
+  if (rulePaths.length === 0) {
+    consola.info("No rule category files present — nothing to commit");
     return false;
   }
-  Bun.spawnSync(["git", "add", ...learningPaths], {
+  Bun.spawnSync(["git", "add", ...rulePaths], {
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -140,13 +140,13 @@ export function commitLearningsToSameRepo(learningsDir: string, prNumber?: numbe
   });
 
   if (diffResult.exitCode === 0) {
-    consola.info("Learnings unchanged — nothing to commit");
+    consola.info("Rules unchanged — nothing to commit");
     return false;
   }
 
   const message = prNumber
-    ? `chore(software-teams): update team learnings\n\nAuto-committed by Software Teams after PR #${prNumber} merged.\nThese learnings are accumulated from PR reviews and feedback.`
-    : `chore(software-teams): update team learnings`;
+    ? `chore(software-teams): update team rules\n\nAuto-committed by Software Teams after PR #${prNumber} merged.\nThese rules are accumulated from PR reviews and feedback.`
+    : `chore(software-teams): update team rules`;
 
   const commitResult = Bun.spawnSync(["git", "commit", "-m", message], {
     stdout: "pipe",
@@ -154,7 +154,7 @@ export function commitLearningsToSameRepo(learningsDir: string, prNumber?: numbe
   });
 
   if (commitResult.exitCode !== 0) {
-    consola.error("Failed to commit learnings:", commitResult.stderr.toString());
+    consola.error("Failed to commit rules:", commitResult.stderr.toString());
     return false;
   }
 
@@ -164,20 +164,20 @@ export function commitLearningsToSameRepo(learningsDir: string, prNumber?: numbe
   });
 
   if (pushResult.exitCode !== 0) {
-    consola.error("Failed to push learnings:", pushResult.stderr.toString());
+    consola.error("Failed to push rules:", pushResult.stderr.toString());
     return false;
   }
 
-  consola.success("Learnings committed and pushed");
+  consola.success("Rules committed and pushed");
   return true;
 }
 
 /**
- * Commit learnings to an external repository.
- * Clones the repo, merges learnings, commits and pushes.
+ * Commit rules to an external repository.
+ * Clones the repo, merges rules, commits and pushes.
  */
-export function commitLearningsToExternalRepo(
-  learningsDir: string,
+export function commitRulesToExternalRepo(
+  rulesDir: string,
   externalRepo: string,
   token: string,
   prNumber?: number,
@@ -193,32 +193,32 @@ export function commitLearningsToExternalRepo(
     );
 
     if (cloneResult.exitCode !== 0) {
-      consola.warn(`Could not clone learnings repo ${externalRepo} — skipping commit`);
+      consola.warn(`Could not clone rules repo ${externalRepo} — skipping commit`);
       return false;
     }
 
-    const remoteSubdir = join(tmpDir, EXTERNAL_LEARNINGS_PATH);
+    const remoteSubdir = join(tmpDir, EXTERNAL_RULES_PATH);
     mkdirSync(remoteSubdir, { recursive: true });
 
     // Carry forward any data that lives at the legacy `jdi/learnings/`
-    // path so we can phase it out without losing learnings. This merges
+    // path so we can phase it out without losing rules. This merges
     // legacy → new path inside the clone before pushing.
-    const legacySubdir = join(tmpDir, EXTERNAL_LEARNINGS_PATH_LEGACY);
+    const legacySubdir = join(tmpDir, EXTERNAL_RULES_PATH_LEGACY);
     if (existsSync(legacySubdir)) {
-      mergeLearnings(legacySubdir, remoteSubdir);
+      mergeRules(legacySubdir, remoteSubdir);
     }
 
-    // Merge learnings from local into the external repo (new path).
-    mergeLearnings(learningsDir, remoteSubdir);
+    // Merge rules from local into the external repo (new path).
+    mergeRules(rulesDir, remoteSubdir);
 
     // Configure git in the cloned repo
     Bun.spawnSync(["git", "config", "user.name", "software-teams[bot]"], { cwd: tmpDir });
     Bun.spawnSync(["git", "config", "user.email", "software-teams[bot]@users.noreply.github.com"], { cwd: tmpDir });
 
-    // Stage learning category files only (non-learning rules like
-    // commits.md / deviations.md must NOT leak into the shared repo).
-    const stagePaths = LEARNING_CATEGORIES.map(
-      (c) => `${EXTERNAL_LEARNINGS_PATH}/${c}.md`,
+    // Stage rule category files only (project-only rules like commits.md /
+    // deviations.md must NOT leak into the shared repo).
+    const stagePaths = RULE_CATEGORIES.map(
+      (c) => `${EXTERNAL_RULES_PATH}/${c}.md`,
     );
     Bun.spawnSync(["git", "add", ...stagePaths], {
       cwd: tmpDir,
@@ -234,13 +234,13 @@ export function commitLearningsToExternalRepo(
     });
 
     if (diffResult.exitCode === 0) {
-      consola.info("Learnings unchanged in external repo — nothing to commit");
+      consola.info("Rules unchanged in external repo — nothing to commit");
       return false;
     }
 
     const source = sourceRepo || "unknown";
     const prRef = prNumber ? `PR #${prNumber}` : "merge";
-    const message = `chore(software-teams): update learnings from ${source}\n\nSource: ${prRef} on ${source}\nLearnings accumulated from PR reviews and feedback.`;
+    const message = `chore(software-teams): update rules from ${source}\n\nSource: ${prRef} on ${source}\nRules accumulated from PR reviews and feedback.`;
 
     const commitResult = Bun.spawnSync(["git", "commit", "-m", message], {
       cwd: tmpDir,
@@ -264,17 +264,17 @@ export function commitLearningsToExternalRepo(
       return false;
     }
 
-    consola.success(`Learnings committed to ${externalRepo}/${EXTERNAL_LEARNINGS_PATH}`);
+    consola.success(`Rules committed to ${externalRepo}/${EXTERNAL_RULES_PATH}`);
     return true;
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
 }
 
-export const promoteLearningsCommand = defineCommand({
+export const promoteRulesCommand = defineCommand({
   meta: {
-    name: "promote-learnings",
-    description: "Check JDI involvement and promote learnings after PR merge",
+    name: "promote-rules",
+    description: "Check Software Teams involvement and promote rules after PR merge",
   },
   args: {
     repo: {
@@ -299,13 +299,13 @@ export const promoteLearningsCommand = defineCommand({
       type: "string",
       description: "Branch name (if already known)",
     },
-    "learnings-repo": {
+    "rules-repo": {
       type: "string",
-      description: "External learnings repository",
+      description: "External rules repository",
     },
-    "learnings-token": {
+    "rules-token": {
       type: "string",
-      description: "Token for the learnings repo",
+      description: "Token for the rules repo",
     },
   },
   run({ args }) {
@@ -313,7 +313,7 @@ export const promoteLearningsCommand = defineCommand({
     const sha = args.sha;
 
     if (args["check-only"]) {
-      const involvement = checkJdiInvolvement(repo, sha);
+      const involvement = checkSoftwareTeamsInvolvement(repo, sha);
       writeGitHubOutput("skip", String(involvement.skip));
       if (involvement.branch) {
         writeGitHubOutput("branch", involvement.branch);
@@ -324,23 +324,23 @@ export const promoteLearningsCommand = defineCommand({
       return;
     }
 
-    // Promote learnings
+    // Promote rules
     const cwd = process.cwd();
-    const learningsDir = join(cwd, ".software-teams/rules");
+    const rulesDir = join(cwd, ".software-teams/rules");
 
-    if (!hasLearningsContent(learningsDir)) {
-      consola.info("No learnings content to commit — skipping");
+    if (!hasRulesContent(rulesDir)) {
+      consola.info("No rules content to commit — skipping");
       return;
     }
 
-    const learningsRepo = args["learnings-repo"];
-    const token = args["learnings-token"] || process.env.LEARNINGS_TOKEN || process.env.GH_TOKEN || "";
+    const rulesRepo = args["rules-repo"];
+    const token = args["rules-token"] || process.env.RULES_TOKEN || process.env.LEARNINGS_TOKEN || process.env.GH_TOKEN || "";
     const prNumber = args["pr-number"] ? parseInt(args["pr-number"], 10) : undefined;
 
-    if (learningsRepo) {
-      commitLearningsToExternalRepo(learningsDir, learningsRepo, token, prNumber, repo);
+    if (rulesRepo) {
+      commitRulesToExternalRepo(rulesDir, rulesRepo, token, prNumber, repo);
     } else {
-      commitLearningsToSameRepo(learningsDir, prNumber);
+      commitRulesToSameRepo(rulesDir, prNumber);
     }
   },
 });

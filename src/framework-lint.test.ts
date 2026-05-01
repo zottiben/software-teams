@@ -103,14 +103,14 @@ describe("framework file invariants", () => {
     expect(content).toContain("task_id");
   });
 
-  test("agents/software-teams-backend.md references learnings", () => {
+  test("agents/software-teams-backend.md references rules", () => {
     const content = readFrameworkFile("agents/software-teams-backend.md");
-    expect(content).toMatch(/learnings/i);
+    expect(content).toMatch(/\.software-teams\/rules/);
   });
 
-  test("agents/software-teams-frontend.md references learnings", () => {
+  test("agents/software-teams-frontend.md references rules", () => {
     const content = readFrameworkFile("agents/software-teams-frontend.md");
-    expect(content).toMatch(/learnings/i);
+    expect(content).toMatch(/\.software-teams\/rules/);
   });
 
   test("ComplexityRouter component references task files", () => {

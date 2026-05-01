@@ -70,26 +70,25 @@ runs:
 
           ## Framework
 
-          Read `.software-teams/framework/components/meta/AgentBase.md` for the base agent protocol.
-          Your framework files are in `.software-teams/framework/` — agents, components, learnings, and teams.
+          The base agent protocol is registered as the `AgentBase` component (fetch via `software-teams component get AgentBase` if you need its body verbatim).
           Your state is tracked in `.software-teams/config/state.yaml`.
           Plans live in `.software-teams/plans/`.
 
-          ## Learnings
+          ## Rules
 
-          Check `.software-teams/persistence/learnings.md` for accumulated team learnings and preferences.
-          Check `.software-teams/framework/learnings/` for categorised learnings (backend, frontend, testing, devops, general).
-          When you learn something from a review or feedback, update the appropriate learnings file.
+          Check `.software-teams/rules/` for categorised team rules (backend, frontend, testing, devops, general).
+          These rules layer ON TOP of the project's `.claude/CLAUDE.md` — they exist to add team conventions NOT already documented there.
+          When you learn something from a review or feedback, update the appropriate rules file. Before adding a rule, verify it is not already in `.claude/CLAUDE.md` (or `./CLAUDE.md`); if it is, do NOT duplicate it in `.software-teams/rules/`.
 
           ## Workflow Routing
 
           Based on the user's request, follow the appropriate workflow:
 
           - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.software-teams/framework/agents/software-teams-planner.md` and create a plan in `.software-teams/plans/`. Present a summary and ask for feedback.
-          - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, use `.software-teams/framework/components/meta/ComplexityRouter.md` to decide single-agent vs teams mode.
+          - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, then run `software-teams component get ComplexityRouter` to decide single-agent vs teams mode.
           - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
-          - **Review** ("review"): Review PR changes using `.software-teams/framework/components/quality/PRReview.md`.
-          - **PR feedback** ("feedback"): Address review comments using `.software-teams/framework/agents/software-teams-pr-feedback.md`. Extract learnings from reviewer preferences.
+          - **Review** ("review"): Run `software-teams component get PRReview` for the review checklist; review PR changes against it.
+          - **PR feedback** ("feedback"): Address review comments using `.software-teams/framework/agents/software-teams-pr-feedback.md`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
           - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
           ## Iterative Refinement

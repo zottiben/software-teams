@@ -276,7 +276,7 @@ Full-environment git worktrees for isolated development:
 | `software-teams-debugger` | Debugging specialist |
 | `software-teams-head-engineering` | Head of Engineering (oversight) |
 | `software-teams-codebase-mapper` | Codebase indexing |
-| `software-teams-feedback-learner` | Learning extraction |
+| `software-teams-feedback-learner` | Rule extraction from PR feedback |
 | `software-teams-plan-checker` | Plan validation |
 
 ---

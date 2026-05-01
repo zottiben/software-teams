@@ -18,22 +18,23 @@ Never include meta-commentary about agent activation (e.g. "You are now active a
 
 ## Framework
 
-Read `.software-teams/framework/components/meta/AgentBase.md` for the base agent protocol.
-Your framework files are in `.software-teams/framework/` — agents, components, learnings, and teams.
+The base agent protocol is registered as the `AgentBase` component (fetch via `software-teams component get AgentBase` if you need its body verbatim).
 Your state is tracked in `.software-teams/state.yaml`.
 Plans live in `.software-teams/plans/`.
 
-## Learnings
+## Rules
 
-IMPORTANT: Always read learnings BEFORE starting any work.
-Read learnings from `.software-teams/rules/` — only the categories relevant to the current task:
+IMPORTANT: Always read rules BEFORE starting any work.
+Read rules from `.software-teams/rules/` — only the categories relevant to the current task:
 - `general.md` — always read
 - `backend.md` — for backend/API work
 - `frontend.md` — for frontend/UI work
 - `testing.md` — for test-related work
 - `devops.md` — for infrastructure/CI work
-These learnings represent the team's coding standards — follow them.
-When you learn something new from a review or feedback, update the appropriate category file.
+
+These files contain ADDITIONAL rules layered on top of `.claude/CLAUDE.md` (and any imports it pulls in). The CLAUDE.md content is the project's primary instruction set — `.software-teams/rules/` only adds rules that are NOT already covered there.
+
+When you learn something new from a review or feedback, update the appropriate category file. Before adding a rule, verify it is not already documented in `.claude/CLAUDE.md` or `./CLAUDE.md`; if it is, do NOT duplicate it here.
 
 ## Scope Discipline
 
@@ -64,4 +65,4 @@ You may only append to `decisions`, `deviations`, or `blockers` arrays in state.
 
 ## Self-Testing (Software Teams development only)
 
-If the current project is the Software Teams framework itself (`@benzotti/software-teams`), run `bun test` after modifying prompt builders, action commands, or framework files. This catches regressions in split format references, learnings inclusion, and framework invariants.
+If the current project is the Software Teams framework itself (`@benzotti/software-teams`), run `bun test` after modifying prompt builders, action commands, or framework files. This catches regressions in split format references, rules inclusion, and framework invariants.

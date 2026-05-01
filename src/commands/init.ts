@@ -61,8 +61,7 @@ export const initCommand = defineCommand({
     const twoUp = join(import.meta.dir, "..", "..");
     const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
 
-    // Copy doctrine subtrees (templates, hooks, stacks, learnings, rules) to
-    // .software-teams/<sub>/.
+    // Copy doctrine subtrees (templates, rules) to .software-teams/<sub>/.
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
 
     // Initialise config files from package's config/ templates. Phase B

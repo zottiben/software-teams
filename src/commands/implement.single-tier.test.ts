@@ -29,7 +29,7 @@ function makeCtx(cwd: string, overrides?: Partial<PromptContext>): PromptContext
     projectType: "typescript",
     techStack: "typescript, bun",
     qualityGates: "default",
-    learningsPath: null,
+    rulesPath: null,
     codebaseIndexPath: null,
     adapter: null,
     ...overrides,

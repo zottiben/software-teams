@@ -110,7 +110,7 @@ status: {status}
 {List of decisions made during this session}
 
 ### Key Discoveries
-{Important findings or learnings}
+{Important findings or insights}
 
 ### Warnings/Concerns
 {Any issues to be aware of}

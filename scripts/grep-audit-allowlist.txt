@@ -49,13 +49,11 @@ api\.clickup\.com
 # These are identifiers in the codebase that reference the old product name
 # and are part of exported APIs; must be renamed separately
 JdiStorage
-JdiInvolvement
 Jdi
 
 # Internal function names with old identifier
 findJdiRoot
 makeJdiFixture
-checkJdiInvolvement
 
 # Variable names referencing old identifier in code
 jdiSegments

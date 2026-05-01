@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: "Software Teams: Review pull request with learnings-aware analysis"
+description: "Software Teams: Review pull request with rules-aware analysis"
 allowed-tools: Read, Bash, Task
 argument-hint: "<pr-number-or-url> [--no-comments]"
 context: |
@@ -9,7 +9,7 @@ context: |
 
 # /st:pr-review
 
-Review a pull request against the team's learnings and coding standards.
+Review a pull request against the team's rules and coding standards.
 
 **This skill follows `@ST:StrictnessProtocol`. Read that component before executing any step below.**
 
@@ -45,7 +45,7 @@ Spawn the reviewer natively by name. Claude Code loads the spec from `.claude/ag
 Agent(
   subagent_type="software-teams-quality",
   mode="acceptEdits",
-  prompt="Read learnings before reviewing — these represent the team's coding standards
+  prompt="Read rules before reviewing — these represent the team's coding standards
   and MUST be cross-referenced during review:
   - Always: .software-teams/rules/general.md
   - PHP/Laravel PRs: also .software-teams/rules/backend.md
@@ -53,7 +53,7 @@ Agent(
   - Test changes: also .software-teams/rules/testing.md
   - CI/Docker changes: also .software-teams/rules/devops.md
 
-  Apply learnings as additional review criteria — flag violations and praise adherence.
+  Apply rules as additional review criteria — flag violations and praise adherence.
 
   Read .software-teams/framework/components/quality/PRReview.md for review instructions.
   {If --no-comments: invoke as @ST:PRReview with post="false"}
@@ -76,9 +76,9 @@ Then **STOP**. Do NOT merge, approve, or take any follow-up action.
 |-----------|----------|
 | No PR reference in arguments | STOP at step 1. Ask for a number or URL. |
 | `gh pr view` fails (not logged in, wrong repo) | Report the error verbatim. Do NOT attempt a workaround. |
-| PR is already merged | Note it in the summary and review anyway — learnings may still apply. |
+| PR is already merged | Note it in the summary and review anyway — rules may still apply. |
 | PR is a draft | Review as normal; flag that the PR is draft in the summary. |
-| `.software-teams/rules/` missing | Reviewer falls back to base review criteria. Record the missing learnings in the summary. |
+| `.software-teams/rules/` missing | Reviewer falls back to base review criteria. Record the missing rules in the summary. |
 
 ---
 

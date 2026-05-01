@@ -5,7 +5,7 @@ import {
   buildQuickPrompt,
   buildReviewPrompt,
   buildRefinementPrompt,
-  buildLearningsBlock,
+  buildRulesBlock,
   type PromptContext,
 } from "./prompt-builder";
 
@@ -15,7 +15,7 @@ function makeCtx(overrides?: Partial<PromptContext>): PromptContext {
     projectType: "typescript",
     techStack: "typescript",
     qualityGates: "default",
-    learningsPath: null,
+    rulesPath: null,
     codebaseIndexPath: null,
     adapter: null,
     ...overrides,
@@ -43,10 +43,10 @@ describe("prompt-builder regression invariants", () => {
   });
 
   describe("buildImplementPrompt", () => {
-    test("includes learnings block", () => {
+    test("includes rules block", () => {
       const result = buildImplementPrompt(makeCtx(), "plan.md");
-      expect(result).toMatch(/learnings/i);
-      expect(result).toContain("## Learnings");
+      expect(result).toMatch(/rules/i);
+      expect(result).toContain("## Rules");
     });
 
     test("inlines complexity router and orchestration component bodies", () => {
@@ -70,10 +70,10 @@ describe("prompt-builder regression invariants", () => {
   });
 
   describe("buildQuickPrompt", () => {
-    test("includes learnings block", () => {
+    test("includes rules block", () => {
       const result = buildQuickPrompt(makeCtx(), "Fix the bug");
-      expect(result).toMatch(/learnings/i);
-      expect(result).toContain("## Learnings");
+      expect(result).toMatch(/rules/i);
+      expect(result).toContain("## Rules");
     });
 
     test("includes the task description", () => {
@@ -83,10 +83,10 @@ describe("prompt-builder regression invariants", () => {
   });
 
   describe("buildReviewPrompt", () => {
-    test("includes learnings block", () => {
+    test("includes rules block", () => {
       const result = buildReviewPrompt(makeCtx(), "42", "PR meta", "diff content");
-      expect(result).toMatch(/learnings/i);
-      expect(result).toContain("## Learnings");
+      expect(result).toMatch(/rules/i);
+      expect(result).toContain("## Rules");
     });
 
     test("includes PR number and diff", () => {
@@ -113,38 +113,37 @@ describe("prompt-builder regression invariants", () => {
     });
   });
 
-  describe("buildLearningsBlock", () => {
-    test("always includes general learnings", () => {
-      const result = buildLearningsBlock("").join("\n");
+  describe("buildRulesBlock", () => {
+    test("always includes general rules", () => {
+      const result = buildRulesBlock("").join("\n");
       expect(result).toContain("general.md");
     });
 
-    test("includes backend learnings for PHP stack", () => {
-      const result = buildLearningsBlock("php, laravel").join("\n");
+    test("includes backend rules for PHP stack", () => {
+      const result = buildRulesBlock("php, laravel").join("\n");
       expect(result).toContain("backend.md");
       expect(result).toContain("general.md");
     });
 
-    test("includes frontend learnings for React stack", () => {
-      const result = buildLearningsBlock("react, typescript").join("\n");
+    test("includes frontend rules for React stack", () => {
+      const result = buildRulesBlock("react, typescript").join("\n");
       expect(result).toContain("frontend.md");
       expect(result).toContain("general.md");
     });
 
-    test("includes testing learnings for test stack", () => {
-      const result = buildLearningsBlock("vitest, testing").join("\n");
+    test("includes testing rules for test stack", () => {
+      const result = buildRulesBlock("vitest, testing").join("\n");
       expect(result).toContain("testing.md");
     });
 
-    test("includes devops learnings for CI stack", () => {
-      const result = buildLearningsBlock("docker, ci").join("\n");
+    test("includes devops rules for CI stack", () => {
+      const result = buildRulesBlock("docker, ci").join("\n");
       expect(result).toContain("devops.md");
     });
 
     test("includes header with instructions", () => {
-      const result = buildLearningsBlock("typescript").join("\n");
-      expect(result).toContain("## Learnings");
-      // Phase D: copy is "rules override defaults" (learnings folded into rules/).
+      const result = buildRulesBlock("typescript").join("\n");
+      expect(result).toContain("## Rules");
       expect(result).toMatch(/rules override defaults/i);
     });
   });

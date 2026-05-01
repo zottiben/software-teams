@@ -12,7 +12,7 @@ export interface PromptContext {
   projectType: string;
   techStack: string;
   qualityGates: string;
-  learningsPath: string | null;
+  rulesPath: string | null;
   codebaseIndexPath: string | null;
   ticketContext?: string;
   conversationHistory?: string;
@@ -33,14 +33,14 @@ export async function gatherPromptContext(cwd: string): Promise<PromptContext> {
     : "default";
 
   const storage = await createStorage(cwd);
-  const { learningsPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
+  const { rulesPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
 
   return {
     cwd,
     projectType,
     techStack,
     qualityGates,
-    learningsPath,
+    rulesPath,
     codebaseIndexPath,
     adapter,
   };
@@ -58,8 +58,8 @@ export function buildProjectContext(ctx: PromptContext): string[] {
     `- Working directory: ${ctx.cwd}`,
   ];
 
-  if (ctx.learningsPath) {
-    lines.push(`- Learnings: ${ctx.learningsPath}`);
+  if (ctx.rulesPath) {
+    lines.push(`- Rules: ${ctx.rulesPath}`);
   }
   if (ctx.codebaseIndexPath) {
     lines.push(`- Codebase index: ${ctx.codebaseIndexPath}`);
@@ -87,15 +87,10 @@ export function buildAutoCommitBlock(commitType: "feat" | "fix" | "any"): string
 }
 
 /**
- * Build tech-stack-aware rules instructions.
- *
- * Phase D folded the legacy `.software-teams/framework/learnings/*.md`
- * tree into `.software-teams/rules/`. Always includes general.md; domain
- * files added based on stack. Heading kept as "Learnings" — the rules
- * directory still carries the same content, just in a single location
- * alongside commits.md / deviations.md.
+ * Build tech-stack-aware rules instructions. Always includes general.md;
+ * domain files added based on stack.
  */
-export function buildLearningsBlock(techStack: string): string[] {
+export function buildRulesBlock(techStack: string): string[] {
   const lower = techStack.toLowerCase();
   const base = ".software-teams/rules";
   const files = [`${base}/general.md`];
@@ -106,7 +101,7 @@ export function buildLearningsBlock(techStack: string): string[] {
   if (/docker|ci|deploy/.test(lower)) files.push(`${base}/devops.md`);
 
   return [
-    `## Learnings`,
+    `## Rules`,
     `Read these rules files and follow any conventions found (rules override defaults):`,
     ...files.map((f) => `- ${f}`),
   ];
@@ -213,7 +208,7 @@ export function buildImplementPrompt(ctx: PromptContext, planPath: string, overr
     ``,
     ...buildProjectContext(ctx),
     ``,
-    ...buildLearningsBlock(ctx.techStack),
+    ...buildRulesBlock(ctx.techStack),
     ``,
     `## Task`,
     `Execute implementation plan: ${resolve(ctx.cwd, planPath)}${overrideFlag ? `\nOverride: ${overrideFlag}` : ""}`,
@@ -249,7 +244,7 @@ export function buildQuickPrompt(ctx: PromptContext, description: string): strin
     `- Working directory: ${ctx.cwd}`,
     `- Project type: ${ctx.projectType}`,
     ``,
-    ...buildLearningsBlock(ctx.techStack),
+    ...buildRulesBlock(ctx.techStack),
     ``,
     `## Instructions`,
     `1. Make the minimal change needed to accomplish the task`,
@@ -270,8 +265,8 @@ export function buildReviewPrompt(ctx: PromptContext, prNum: string, meta: strin
     ``,
     meta,
     ``,
-    ...buildLearningsBlock(ctx.techStack),
-    `Cross-reference learnings against every change — flag violations and praise adherence.`,
+    ...buildRulesBlock(ctx.techStack),
+    `Cross-reference rules against every change — flag violations and praise adherence.`,
     ``,
     `## Diff`,
     "```diff",
@@ -290,7 +285,7 @@ export function buildReviewPrompt(ctx: PromptContext, prNum: string, meta: strin
     `- Does it follow the project's existing patterns?`,
     `- Are naming conventions consistent?`,
     `- Is the code well-organised?`,
-    `- Does it follow the team's documented learnings?`,
+    `- Does it follow the team's documented rules?`,
     ``,
     `### Security`,
     `- Any injection risks (SQL, XSS, command)?`,
@@ -350,7 +345,7 @@ export function buildPostImplFeedbackPrompt(ctx: PromptContext, feedback: string
     ``,
     ...buildProjectContext(ctx),
     ``,
-    ...buildLearningsBlock(ctx.techStack),
+    ...buildRulesBlock(ctx.techStack),
     ``,
     fenceUserInput("conversation-history", conversationHistory),
     ``,

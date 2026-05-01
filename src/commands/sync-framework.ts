@@ -24,7 +24,7 @@ const PRESERVED_STATE_FILES = [
  * `.software-teams/<sub>/` install (Phase B target — no `framework/`
  * wrapper). Kept in sync with COPIED_SUBDIRS in copy-framework.ts.
  */
-const COPIED_SUBDIRS = ["templates", "learnings", "rules"];
+const COPIED_SUBDIRS = ["templates", "rules"];
 
 /**
  * Enumerate package-side files that the consumer's `.software-teams/`
