@@ -17,8 +17,12 @@ export async function copyFrameworkFiles(
   frameworkDirOverride?: string,
 ): Promise<void> {
   const frameworkDir = frameworkDirOverride ?? join(import.meta.dir, "../framework");
+  // Plugin tree (agents/+commands/) lives at the package root, one level above
+  // `framework/`. Promoted to source of truth (was: framework/agents/+framework/commands/);
+  // see plan 5-01-promote-plugin-tree (or migration note).
+  const packageRoot = join(frameworkDir, "..");
 
-  // Copy framework files to .software-teams/framework/ (agents, components, teams, etc.)
+  // Copy framework files to .software-teams/framework/ (components, teams, etc.)
   const frameworkDest = join(cwd, ".software-teams", "framework");
   const glob = new Bun.Glob("**/*");
   for await (const file of glob.scan({ cwd: frameworkDir })) {
@@ -37,14 +41,33 @@ export async function copyFrameworkFiles(
     await Bun.write(dest, content);
   }
 
+  // Copy plugin agents/ → .software-teams/framework/agents/. Consumer-side
+  // path is unchanged so downstream readers (`convertAgents`,
+  // `prompt-builder.plannerSpec`, etc.) keep working without churn.
+  for (const subdir of ["agents", "commands"]) {
+    const srcDir = join(packageRoot, subdir);
+    if (!existsSync(srcDir)) continue;
+    const destDir = join(frameworkDest, subdir);
+    const subGlob = new Bun.Glob("*.md");
+    for await (const file of subGlob.scan({ cwd: srcDir })) {
+      const src = join(srcDir, file);
+      const dest = join(destDir, file);
+      if (!force && existsSync(dest)) continue;
+      const dir = dirname(dest);
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      const content = await Bun.file(src).text();
+      await Bun.write(dest, content);
+    }
+  }
+
   // Note: `.claude/agents/` is intentionally NOT copied here. Native subagent
-  // files are generated mechanically from `framework/agents/software-teams-*.md` by
+  // files are generated mechanically from `agents/software-teams-*.md` by
   // `convertAgents()` (invoked from `init` after this step, and standalone
   // via `software-teams sync-agents`). `framework/.claude/agents/` does not exist and
   // must not — `convertAgents()` is the single writer to that path.
 
-  // Copy command stubs to .claude/commands/st/
-  const commandsDir = join(frameworkDir, "commands");
+  // Copy command stubs to .claude/commands/st/ from the plugin commands/ tree.
+  const commandsDir = join(packageRoot, "commands");
   const commandsDest = join(cwd, ".claude", "commands", "st");
   if (existsSync(commandsDir)) {
     const commandGlob = new Bun.Glob("*.md");

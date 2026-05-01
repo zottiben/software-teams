@@ -60,17 +60,167 @@ function trim(s: string): string {
   return s.trim().replace(/\n\s*-{3,}\s*$/, "").trim();
 }
 
+// ─── Heading → identifier-key rename table (4-01-T1) ─────────────────────────
+//
+// Markdown source headings keep their human-readable display form.
+// TS modules were renamed in 4-01-T1 to PascalCase identifier keys so they are
+// addressable by the @ST:Name:Section parser regex ([A-Za-z][A-Za-z0-9-]*).
+//
+// This table maps the display-form heading text (after trailing-paren strip) to
+// the identifier key used in the TS module. The drift checker uses it so that
+// `## 1. Agent Discovery (at plan time)` in the markdown resolves to key
+// `Discovery` for comparison against the TS section body.
+//
+// Rename table (old display-form → new identifier key):
+//
+// Component             Old display heading                         New key
+// ──────────────────────────────────────────────────────────────────────────
+// AgentBase             "Budget Discipline"                         BudgetDiscipline
+// AgentBase             "Component Resolution"                      ComponentResolution
+// AgentBase             "Activation Protocol"                       ActivationProtocol
+// AgentBase             "Structured Returns"                        StructuredReturns
+// AgentRouter           "1. Agent Discovery"                        Discovery
+// AgentRouter           "2. Task-to-Agent Matching"                 Matching
+// AgentRouter           "3. Output Format"                          OutputFormat
+// AgentRouter           "4. Execution"                              Execution
+// AgentRouter           "5. Validation Rules"                       ValidationRules
+// AgentTeamsOrchestration "Core Pattern"                            CorePattern
+// AgentTeamsOrchestration "Task Routing Table"                      TaskRoutingTable
+// AgentTeamsOrchestration "Specialist Spawn Prompt Templates"       SpawnTemplates
+// AgentTeamsOrchestration "Post-Agent Operations"                   PostAgentOps
+// AgentTeamsOrchestration "Team Lifecycle"                          TeamLifecycle
+// ComplexityRouter      "Decision Matrix"                           DecisionMatrix
+// ComplexityRouter      "Single-Agent Mode"                         SingleAgentMode
+// ComplexityRouter      "Agent Teams Mode"                          AgentTeamsMode
+// InteractiveGate       "Question Sources"                          QuestionSources
+// InteractiveGate       "Merge and Prioritise"                      MergeAndPrioritise
+// InteractiveGate       "AskUserQuestion Format"                    AskUserQuestionFormat
+// InteractiveGate       "Output Format"                             OutputFormat
+// InteractiveGate       "Skip Condition"                            SkipCondition
+// SilentDiscovery       "What to Read"                              WhatToRead
+// SilentDiscovery       "What to Derive"                            WhatToDerive
+// SilentDiscovery       "Test Suite Detection Heuristic"            TestSuiteDetection
+// SilentDiscovery       "Discipline Rules"                          DisciplineRules
+// SilentDiscovery       "Pass-Through to Spawned Agents"            PassThrough
+// StateUpdate           "Record Decision"                           RecordDecision
+// StateUpdate           "Record Blocker"                            RecordBlocker
+// StateUpdate           "Record Deviation"                          RecordDeviation
+// StrictnessProtocol    "The Five Rules"                            FiveRules
+// StrictnessProtocol    "Inline Blocker Sentences"                  InlineBlockers
+// StrictnessProtocol    "Silent Discovery Discipline"               SilentDiscoveryDiscipline
+// StrictnessProtocol    "Deviation Handling"                        DeviationHandling
+// TeamRouter            "Routing Table"                             RoutingTable
+// TeamRouter            "Team Specs"                                TeamSpecs
+// TeamRouter            "Resolution Algorithm"                      ResolutionAlgorithm
+// CodebaseContext       "Cache-First Loading"                       CacheFirstLoading
+// CodebaseContext       "Context Files"                             ContextFiles
+// CodebaseContext       "Usage in Commands"                         UsageInCommands
+// Commit                "Default Behaviour"                         DefaultBehaviour
+// Commit                "Scope Reference"                           ScopeReference
+// Commit                "State Updates"                             StateUpdates
+// Verify                "Default Behaviour"                         DefaultBehaviour
+// Verify                "Advanced Verification"                     AdvancedVerification
+// Verify                "State Updates"                             StateUpdates
+// TaskBreakdown         "Default Behaviour"                         DefaultBehaviour
+// TaskBreakdown         "Task Format"                               TaskFormat
+// TaskBreakdown         "Dependency Analysis"                       DependencyAnalysis
+// TaskBreakdown         "From Requirements"                         FromRequirements
+// TaskBreakdown         "Priority Bands"                            PriorityBands
+// TaskBreakdown         "See Also: Three-Tier Output"               ThreeTierOutput
+// TaskBreakdown         "Test Task Rules"                           TestTaskRules
+// WaveComputation       "Cross-Phase Dependencies"                  CrossPhaseDeps
+// WaveComputation       "Error Handling"                            ErrorHandling
+// PRReview              "Default Behaviour"                         DefaultBehaviour
+//
+// Keys that were ALREADY addressable (not renamed) are omitted from this table.
+// The fallback in normaliseHeadingName handles them via pass-through.
+
+const HEADING_TO_KEY: Readonly<Record<string, string>> = {
+  // AgentBase
+  "Budget Discipline": "BudgetDiscipline",
+  "Component Resolution": "ComponentResolution",
+  "Activation Protocol": "ActivationProtocol",
+  "Structured Returns": "StructuredReturns",
+  // AgentRouter (numeric prefix stripped AFTER paren-strip, so strip prefix too)
+  "1. Agent Discovery": "Discovery",
+  "2. Task-to-Agent Matching": "Matching",
+  "3. Output Format": "OutputFormat",
+  "4. Execution": "Execution",
+  "5. Validation Rules": "ValidationRules",
+  // AgentTeamsOrchestration
+  "Core Pattern": "CorePattern",
+  "Task Routing Table": "TaskRoutingTable",
+  "Specialist Spawn Prompt Templates": "SpawnTemplates",
+  "Post-Agent Operations": "PostAgentOps",
+  "Team Lifecycle": "TeamLifecycle",
+  // ComplexityRouter
+  "Decision Matrix": "DecisionMatrix",
+  "Single-Agent Mode": "SingleAgentMode",
+  "Agent Teams Mode": "AgentTeamsMode",
+  // InteractiveGate
+  "Question Sources": "QuestionSources",
+  "Merge and Prioritise": "MergeAndPrioritise",
+  "AskUserQuestion Format": "AskUserQuestionFormat",
+  "Output Format": "OutputFormat",
+  "Skip Condition": "SkipCondition",
+  // SilentDiscovery
+  "What to Read": "WhatToRead",
+  "What to Derive": "WhatToDerive",
+  "Test Suite Detection Heuristic": "TestSuiteDetection",
+  "Discipline Rules": "DisciplineRules",
+  "Pass-Through to Spawned Agents": "PassThrough",
+  // StateUpdate
+  "Record Decision": "RecordDecision",
+  "Record Blocker": "RecordBlocker",
+  "Record Deviation": "RecordDeviation",
+  // StrictnessProtocol
+  "The Five Rules": "FiveRules",
+  "Inline Blocker Sentences": "InlineBlockers",
+  "Silent Discovery Discipline": "SilentDiscoveryDiscipline",
+  "Deviation Handling": "DeviationHandling",
+  // TeamRouter
+  "Routing Table": "RoutingTable",
+  "Team Specs": "TeamSpecs",
+  "Resolution Algorithm": "ResolutionAlgorithm",
+  // CodebaseContext
+  "Cache-First Loading": "CacheFirstLoading",
+  "Context Files": "ContextFiles",
+  "Usage in Commands": "UsageInCommands",
+  // Commit
+  "Default Behaviour": "DefaultBehaviour",
+  "Scope Reference": "ScopeReference",
+  "State Updates": "StateUpdates",
+  // Verify — shares DefaultBehaviour, AdvancedVerification, StateUpdates
+  "Advanced Verification": "AdvancedVerification",
+  // TaskBreakdown
+  "Task Format": "TaskFormat",
+  "Dependency Analysis": "DependencyAnalysis",
+  "From Requirements": "FromRequirements",
+  "Priority Bands": "PriorityBands",
+  "See Also: Three-Tier Output": "ThreeTierOutput",
+  "Test Task Rules": "TestTaskRules",
+  // WaveComputation
+  "Cross-Phase Dependencies": "CrossPhaseDeps",
+  "Error Handling": "ErrorHandling",
+  // PRReview — shares DefaultBehaviour
+};
+
 /**
- * Strip trailing `(...)` parameter hints from a `## Heading` section name.
+ * Strip trailing `(...)` parameter hints from a `## Heading` section name,
+ * then translate via the 4-01-T1 rename table to the addressable identifier key.
  *
- * Example: `## Task Verification (\`scope="task"\`)` → `"Task Verification"`
+ * Example (paren strip): `## Task Verification (\`scope="task"\`)` → `"Task Verification"`
+ * Example (rename): `## 1. Agent Discovery (at plan time)` → `"Discovery"`
  *
  * Normalisation rule documented in T4 §Implementation step 1:
  * "any trailing `(...)` parameter hints stripped — e.g. `## Task Verification
  * (`scope="task"`)` → section name `"Task Verification"`"
  *
  * We strip everything from the first `(` that is not preceded by a word
- * character at the END of the heading, trimming the result.
+ * character at the END of the heading, trimming the result. Then look up
+ * the result in HEADING_TO_KEY; if found, return the identifier key.
+ * If not found, return the stripped display name as-is (fallback for sections
+ * whose keys were already addressable and needed no rename).
  */
 function normaliseHeadingName(raw: string): string {
   // Strip every trailing `(...)` block per T4 §step 1: "with any trailing
@@ -78,7 +228,10 @@ function normaliseHeadingName(raw: string): string {
   // descriptive parens like `(6 Steps)` and parameter parens like
   // `(scope="task")` are both removed; sections must be addressable by a
   // canonical core name without parenthetical variation.
-  return raw.replace(/\s*\(.*\)\s*$/, "").trim();
+  const stripped = raw.replace(/\s*\(.*\)\s*$/, "").trim();
+  // Translate display-form heading to identifier key (4-01-T1 rename table).
+  // Falls back to the stripped display name for already-addressable sections.
+  return HEADING_TO_KEY[stripped] ?? stripped;
 }
 
 /**

@@ -3,7 +3,17 @@ import { readFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { parse as parseYaml } from "yaml";
 
-const frameworkRoot = join(import.meta.dir, "..", "framework");
+const repoRoot = join(import.meta.dir, "..");
+const frameworkRoot = join(repoRoot, "framework");
+
+// agents/ and commands/ are now plugin-tree source-of-truth at the repo root;
+// other framework artefacts (components, templates, etc.) still live under framework/.
+function resolveFrameworkPath(relativePath: string): string {
+  if (relativePath.startsWith("agents/") || relativePath.startsWith("commands/")) {
+    return join(repoRoot, relativePath);
+  }
+  return join(frameworkRoot, relativePath);
+}
 
 const TOOL_ALLOWLIST = new Set([
   "Read",
@@ -35,7 +45,7 @@ function parseAgentSpec(filePath: string): { fm: AgentFm; body: string } {
 }
 
 function listAgentFiles(): string[] {
-  const dir = join(frameworkRoot, "agents");
+  const dir = join(repoRoot, "agents");
   return readdirSync(dir)
     .filter((f) => /^software-teams-.+\.md$/.test(f))
     .map((f) => join(dir, f))
@@ -43,7 +53,7 @@ function listAgentFiles(): string[] {
 }
 
 function readFrameworkFile(relativePath: string): string {
-  const fullPath = join(frameworkRoot, relativePath);
+  const fullPath = resolveFrameworkPath(relativePath);
   if (!existsSync(fullPath)) {
     throw new Error(`Framework file not found: ${relativePath} (expected at ${fullPath})`);
   }
@@ -169,7 +179,7 @@ describe("framework file invariants", () => {
 });
 
 describe("agent frontmatter audit", () => {
-  test("every framework/agents/software-teams-*.md declares name, description, model, tools", () => {
+  test("every agents/software-teams-*.md declares name, description, model, tools", () => {
     const files = listAgentFiles();
     expect(files.length).toBeGreaterThanOrEqual(24);
 
@@ -206,6 +216,33 @@ describe("agent frontmatter audit", () => {
     }
   });
 
+  test("tools: sorted alphabetically (replaces the retired build-plugin sort transform)", () => {
+    for (const file of listAgentFiles()) {
+      const { fm } = parseAgentSpec(file);
+      const tools = ((fm.tools as unknown[]) ?? []) as string[];
+      const sorted = [...tools].sort((a, b) => a.localeCompare(b));
+      expect(
+        tools,
+        `${file}: tools must be alphabetically sorted (got [${tools.join(", ")}], expected [${sorted.join(", ")}]). The build-plugin generator used to sort these automatically; now author-side.`,
+      ).toEqual(sorted);
+    }
+  });
+
+  test("frontmatter only declares the plugin-spec allowlist (name/description/model/tools)", () => {
+    // Replaces the retired build-plugin generator's "drop unknown fields" transform.
+    // Anything outside the allowlist gets shipped to the Claude Code plugin layer
+    // and the spec is undefined for it — so reject at author time.
+    const ALLOWED_FIELDS = new Set(["name", "description", "model", "tools"]);
+    for (const file of listAgentFiles()) {
+      const { fm } = parseAgentSpec(file);
+      const extra = Object.keys(fm).filter((k) => !ALLOWED_FIELDS.has(k));
+      expect(
+        extra,
+        `${file}: frontmatter contains unsupported fields [${extra.join(", ")}]; allowed: name|description|model|tools`,
+      ).toEqual([]);
+    }
+  });
+
   test("specs whose body references Write or Edit (as a tool) must list them in tools", () => {
     // Tool-context patterns: "Write tool", "Edit tool", `Write`/`Edit` in
     // backticks, or appearing in a comma-separated tool list. Plain English
@@ -228,11 +265,10 @@ describe("agent frontmatter audit", () => {
 });
 
 describe("native-spawn migration (no legacy general-purpose injection)", () => {
-  // Walk these roots, but do NOT scan framework/agents/ (T1's domain — agent
+  // Walk these roots, but do NOT scan agents/ (T1's domain — agent
   // specs may legitimately describe the legacy pattern).
-  const repoRoot = join(import.meta.dir, "..");
   const SCAN_TARGETS: string[] = [
-    join(frameworkRoot, "commands"),
+    join(repoRoot, "commands"),
     join(frameworkRoot, "components"),
     join(frameworkRoot, "software-teams.md"),
     join(repoRoot, ".claude", "CLAUDE.md"),
@@ -307,11 +343,13 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
   );
 
   test(
-    "no skill/command/component injects \"You are software-teams-X. Read .../framework/agents/...\" outside lint-allowlisted blocks",
+    "no skill/command/component injects \"You are software-teams-X. Read .../agents/...\" outside lint-allowlisted blocks",
     () => {
       const offenders: string[] = [];
-      // Match: `You are software-teams-<role>. Read <anything>framework/agents/<anything>`
-      const injectionRe = /You are software-teams-[a-z-]+\.\s*Read[^\n]*framework\/agents\//;
+      // Match: `You are software-teams-<role>. Read <anything>(framework/)?agents/<anything>`
+      // The legacy path was `framework/agents/` (pre plugin-tree promotion);
+      // the current path is just `agents/`. Catch both shapes.
+      const injectionRe = /You are software-teams-[a-z-]+\.\s*Read[^\n]*(?:framework\/)?agents\//;
 
       for (const file of collectFiles()) {
         const raw = readFileSync(file, "utf-8");
@@ -328,7 +366,7 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
 
       expect(
         offenders,
-        `Legacy "You are software-teams-X. Read .../framework/agents/..." injection found outside <!-- lint-allow: legacy-injection --> blocks:\n${offenders.join("\n")}`,
+        `Legacy "You are software-teams-X. Read .../agents/..." injection found outside <!-- lint-allow: legacy-injection --> blocks:\n${offenders.join("\n")}`,
       ).toHaveLength(0);
     },
   );
@@ -502,7 +540,7 @@ describe("wave-2 per-command native subagent presence", () => {
 
     const missing: string[] = [];
     for (const fileName of MIGRATED_COMMANDS) {
-      const filePath = join(frameworkRoot, "commands", fileName);
+      const filePath = join(repoRoot, "commands", fileName);
       expect(existsSync(filePath), `missing migrated command file: ${filePath}`).toBe(true);
       const content = readFileSync(filePath, "utf-8");
 

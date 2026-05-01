@@ -15,8 +15,8 @@ const AgentTeamsOrchestration: Component = {
   category: "meta",
   description: "Agent Teams orchestration quick-reference",
   sections: {
-    "Core Pattern": {
-      name: "Core Pattern",
+    CorePattern: {
+      name: "CorePattern",
       description: "Six-step orchestration pattern for Agent Teams",
       body: `1. **Pre-flight** — Read command spec, \`<JDI:CodebaseContext />\`, read state.yaml, set status to "executing". Read each task file's \`agent:\` frontmatter field so you know which specialist to spawn per task (see \`.software-teams/framework/components/meta/AgentRouter.md\`).
 2. **Create Team** — \`TeamCreate(team_name: "{team-name}")\`
@@ -29,8 +29,8 @@ const AgentTeamsOrchestration: Component = {
 5. **Coordinate** — Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
 6. **Cleanup** — shutdown_request to all → TeamDelete → set status "complete" → report (include which specialist ran which task and any downgrade events)`,
     },
-    "Task Routing Table": {
-      name: "Task Routing Table",
+    TaskRoutingTable: {
+      name: "TaskRoutingTable",
       description: "Fallback routing table when tasks have no agent pin",
       body: `**Primary source of truth:** each task's \`agent:\` frontmatter field, assigned
 by \`software-teams-planner\` via \`AgentRouter\` at plan time. The table below is the
@@ -55,8 +55,8 @@ by \`software-teams-planner\` via \`AgentRouter\` at plan time. The table below 
 | \`agent: ue-gas-specialist\` | \`ue-gas-specialist\` |
 | \`agent: godot-gdscript-specialist\` | \`godot-gdscript-specialist\` |`,
     },
-    "Specialist Spawn Prompt Templates": {
-      name: "Specialist Spawn Prompt Templates",
+    SpawnTemplates: {
+      name: "SpawnTemplates",
       description: "Template for native and legacy agent spawn prompts",
       body: `### Native spawn (default — both \`source: software-teams\` and \`source: claude-code\`)
 
@@ -99,8 +99,8 @@ by name — do NOT inject \`"You are {task.agent}. Read framework/agents/..."\`
 preamble. Software Teams specialists land in \`.claude/agents/\` via \`software-teams sync-agents\`. See
 \`.software-teams/framework/components/meta/AgentRouter.md\` §4 for the legacy fallback.`,
     },
-    "Post-Agent Operations": {
-      name: "Post-Agent Operations",
+    PostAgentOps: {
+      name: "PostAgentOps",
       description: "Steps to perform after all specialist tasks complete",
       body: `After all specialist tasks complete:
 
@@ -109,8 +109,8 @@ preamble. Software Teams specialists land in \`.claude/agents/\` via \`software-
 3. **Record hashes** — Store real commit hashes in state.yaml
 4. **Verify** — Confirm all \`files_modified\` and \`files_created\` are present in working tree`,
     },
-    "Team Lifecycle": {
-      name: "Team Lifecycle",
+    TeamLifecycle: {
+      name: "TeamLifecycle",
       description: "Lifecycle stages for an Agent Team",
       body: `\`\`\`
 TeamCreate → Spawn agents → Monitor (auto message delivery) →
@@ -119,11 +119,11 @@ Collect results → Deferred ops → shutdown_request → TeamDelete
     },
   },
   defaultOrder: [
-    "Core Pattern",
-    "Task Routing Table",
-    "Specialist Spawn Prompt Templates",
-    "Post-Agent Operations",
-    "Team Lifecycle",
+    "CorePattern",
+    "TaskRoutingTable",
+    "SpawnTemplates",
+    "PostAgentOps",
+    "TeamLifecycle",
   ],
 };
 

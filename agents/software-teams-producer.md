@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -203,5 +201,3 @@ next_action: {single concrete next step}
 ---
 
 **Scope**: Coordinate plans, sprints, scope, and risk across JDI agents. Will NOT write code, make architecture decisions, or override domain experts — delegates to software-teams-programmer, software-teams-architect, software-teams-quality, software-teams-devops, software-teams-product-lead, and software-teams-ux-designer.
-
-Software Teams source: framework/agents/software-teams-producer.md

@@ -37,18 +37,20 @@ afterEach(() => {
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
 const REAL_FRAMEWORK = join(REPO_ROOT, "framework");
-const REAL_AGENTS = join(REAL_FRAMEWORK, "agents");
+// Plugin tree (agents/) is now at the repo root; templates/ still under framework/.
+const REAL_AGENTS = join(REPO_ROOT, "agents");
 const REAL_TEMPLATES = join(REAL_FRAMEWORK, "templates");
 
 /**
- * Build an isolated cwd that exposes the real `framework/` tree via symlinks
- * so the converter exercises real specs while writing to a temp `.claude/`.
+ * Build an isolated cwd that exposes the real plugin tree + framework/templates
+ * via symlinks so the converter exercises real specs while writing to a temp
+ * `.claude/`.
  */
 async function makeFixtureCwd(): Promise<string> {
   const cwd = makeTempDir();
+  await Bun.$`ln -s ${REAL_AGENTS} ${join(cwd, "agents")}`.quiet();
   const fwDir = join(cwd, "framework");
   mkdirSync(fwDir, { recursive: true });
-  await Bun.$`ln -s ${REAL_AGENTS} ${join(fwDir, "agents")}`.quiet();
   await Bun.$`ln -s ${REAL_TEMPLATES} ${join(fwDir, "templates")}`.quiet();
   return cwd;
 }

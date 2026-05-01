@@ -43,8 +43,8 @@ const Verify: Component = {
     },
   ],
   sections: {
-    "Default Behaviour": {
-      name: "Default Behaviour",
+    DefaultBehaviour: {
+      name: "DefaultBehaviour",
       description: "Steps executed when invoked as <JDI:Verify />",
       body: `When invoked as \`<JDI:Verify />\`:
 
@@ -104,8 +104,8 @@ const Verify: Component = {
    ### Ready for SUMMARY.md: YES | NO
    \`\`\``,
     },
-    "Advanced Verification": {
-      name: "Advanced Verification",
+    AdvancedVerification: {
+      name: "AdvancedVerification",
       description: "Delegation to VerifyAdvanced for phase and requirements scope",
       body: `For \`scope="phase"\` or \`scope="requirements"\`, load \`<JDI:VerifyAdvanced />\`.`,
       requires: ["VerifyAdvanced"],
@@ -139,8 +139,8 @@ const Verify: Component = {
 
 5. **Report**: For each stack (Backend/Frontend), include: ran (yes/no), command, result, counts, and any failed test details.`,
     },
-    "State Updates": {
-      name: "State Updates",
+    StateUpdates: {
+      name: "StateUpdates",
       description: "State changes to make after verification",
       body: `After verification, set \`position.status\` to \`verified\` or \`verification_failed\`. If gaps found, add to \`blockers\` array with \`type: verification_gap\`.
 
@@ -148,12 +148,12 @@ Gap severity: Critical (goal blocked → closure plan), High (requirement unmet 
     },
   },
   defaultOrder: [
-    "Default Behaviour",
+    "DefaultBehaviour",
     "Task",
     "Plan",
-    "Advanced Verification",
+    "AdvancedVerification",
     "TestRunner",
-    "State Updates",
+    "StateUpdates",
   ],
 };
 

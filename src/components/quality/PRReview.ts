@@ -50,8 +50,8 @@ const PRReview: Component = {
     },
   ],
   sections: {
-    "Default Behaviour": {
-      name: "Default Behaviour",
+    DefaultBehaviour: {
+      name: "DefaultBehaviour",
       description: "Steps executed when invoked as @ST:PRReview",
       body: `When invoked as \`<JDI:PRReview />\`, execute steps in order:
 
@@ -242,7 +242,7 @@ Then proceed to Step 11 (return to master).`,
     },
   },
   defaultOrder: [
-    "Default Behaviour",
+    "DefaultBehaviour",
     "Checklist",
     "SeverityGuide",
     "PostComments",

@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -107,5 +105,3 @@ files_changed: {count}
 commits: {count}
 next_action: {What should happen next}
 ```
-
-Software Teams source: framework/agents/software-teams-pr-generator.md

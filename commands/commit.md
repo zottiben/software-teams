@@ -8,8 +8,6 @@ context: |
   !git diff --cached --stat 2>/dev/null | head -10
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:commit
 
 Create a well-formatted conventional commit via the `software-teams-committer` specialist.
@@ -66,4 +64,4 @@ After the committer returns, print the commit hash and subject line. Then **STOP
 
 ## Collaborative Protocol
 
-@ST:StrictnessProtocol
+@ST:StrictnessProtocol:FiveRules

@@ -27,8 +27,8 @@ const AgentBase: Component = {
 - Batch file reads: issue all Read calls in a single turn rather than sequentially.
 - Batch git operations: combine related commands into a single Bash call where possible.`,
     },
-    "Budget Discipline": {
-      name: "Budget Discipline",
+    BudgetDiscipline: {
+      name: "BudgetDiscipline",
       description: "Rules for surviving finite per-invocation budgets",
       body: `You have a finite per-invocation budget (tokens, tool calls, wall time). Long runs can be terminated mid-task before you produce your final report. To survive:
 
@@ -41,8 +41,8 @@ const AgentBase: Component = {
 
 If your work exceeds one invocation, complete what you can, return a progress report naming exactly what remains, and let the orchestrator re-spawn you.`,
     },
-    "Component Resolution": {
-      name: "Component Resolution",
+    ComponentResolution: {
+      name: "ComponentResolution",
       description: "How to handle @ST: tags in specs",
       body: `When a spec contains \`@ST:\` tags:
 1. Read the file from \`.software-teams/framework/components/\` (execution/, planning/, quality/, meta/).
@@ -53,16 +53,16 @@ If your spec has a \`requires_components\` frontmatter field, read ALL listed co
 
 Do NOT skip component tags — they contain essential instructions.`,
     },
-    "Activation Protocol": {
-      name: "Activation Protocol",
+    ActivationProtocol: {
+      name: "ActivationProtocol",
       description: "Announcement pattern on agent activation",
       body: `On activation, announce and begin immediately:
 \`\`\`
 You are now active as {agent-name}. {Action verb} as requested.
 \`\`\``,
     },
-    "Structured Returns": {
-      name: "Structured Returns",
+    StructuredReturns: {
+      name: "StructuredReturns",
       description: "YAML return block format for all agents",
       body: `Return a YAML block with \`status\`, agent-specific fields, and \`next_action\` after all work is complete.`,
     },
@@ -134,10 +134,10 @@ When operating within an Agent Team (spawned by coordinator):
   },
   defaultOrder: [
     "Standards",
-    "Budget Discipline",
-    "Component Resolution",
-    "Activation Protocol",
-    "Structured Returns",
+    "BudgetDiscipline",
+    "ComponentResolution",
+    "ActivationProtocol",
+    "StructuredReturns",
     "Boundaries",
     "Sandbox",
     "TeamMode",

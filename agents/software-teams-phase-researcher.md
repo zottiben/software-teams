@@ -13,8 +13,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -68,5 +66,3 @@ confidence: high | medium | low
 open_questions:
   - {Any unresolved questions}
 ```
-
-Software Teams source: framework/agents/software-teams-phase-researcher.md

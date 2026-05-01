@@ -3,8 +3,6 @@ name: init
 description: "Software Teams: Initialise Software Teams commands in the current project"
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:init
 
 Initialise the Software Teams slash commands in the current project.

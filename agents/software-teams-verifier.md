@@ -11,8 +11,6 @@ tools:
   - WebSearch
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -87,5 +85,3 @@ levels:
   quality: { typecheck: pass|fail, lint: pass|fail, tests: pass|fail }
 recommendations: [...]
 ```
-
-Software Teams source: framework/agents/software-teams-verifier.md

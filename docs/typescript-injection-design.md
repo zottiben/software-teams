@@ -361,3 +361,17 @@ The soft-fail classification is applied mechanically per the assertion protocol;
 to head-engineering is recorded (R-06 closed per task-slice agreement that soft-fail with a
 favourable delta is not a blocker). Stability confirmed: two consecutive from-resolved runs
 produced identical totals (±0% drift).
+
+**Post-audit re-measurement: 2026-05-01 (4-01-section-targeted-tag-audit, T4)**
+**Benchmark:** `bun run src/benchmarks/component-cost.ts --from-resolved`
+
+Following 4-01-T2's section-targeted narrowing (AgentRouter whole-component → `:Discovery`/`:Matching` at 2 sites; StrictnessProtocol → `:FiveRules` at 5 sites; 5 `@ST:Commit` → `@ST:Commit:MessageFormat`; 45 additional callers audited and marked) and the sync-agents re-run, the from-resolved corpus was re-measured.
+
+| Mode | Tokens (plan total) | Tool calls | vs Ceiling (42,009) | Delta % |
+|---|---|---|---|---|
+| from-resolved (post-4-01-T2) | 40,936 | 19 | -1,073 | -2.55% |
+| Projected ceiling (3-01-T16) | 42,009 | 19 | 0 | 0% |
+
+**Stability:** two consecutive from-resolved runs produced identical totals (40,936 tokens / 19 tool calls; ±0% drift).
+
+**Assertion:** the delta remains **-2.55%** — unchanged from the 3-01-T16 reading. The section-targeted rewrites in T2 shrank the source-tree tag set materially, but the resolved `.claude/agents/` corpus is driven by the post-sync inlined file sizes, which were already small (the planner shrink from 16,093 t → 9,923 t reflects T2 narrowing AgentRouter to sections). The plan-total projection formula weights planner ×1, backend ×8, qa-tester ×10, so the planner saving is absorbed into those heavier multipliers and the aggregate is unchanged. Classification: **soft-fail** (|delta| = 2.55%, in the 2–5% band). The delta is favourable (below ceiling), not adverse. T5 (CI gate flip) should hold pending a second reduction cycle; the current measurement does not worsen and confirms the corpus is stable.

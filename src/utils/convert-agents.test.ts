@@ -5,6 +5,7 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { parse as parseYaml } from "yaml";
 import { convertAgents, validateAgentFrontmatter } from "./convert-agents";
+import { getComponent } from "../components/resolve";
 
 let tempDirs: string[] = [];
 
@@ -22,21 +23,21 @@ afterEach(() => {
 });
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
-const REAL_SOURCE = join(REPO_ROOT, "framework", "agents");
+const REAL_SOURCE = join(REPO_ROOT, "agents");
 const REAL_RULES_TEMPLATE = join(REPO_ROOT, "framework", "templates", "RULES.md");
 
 /**
- * Build a fixture cwd with a real `framework/agents` + `framework/templates`
- * tree by symlinking — keeps the converter exercising the real specs while
- * giving every test an isolated `.claude/` to write into.
+ * Build a fixture cwd with a real `agents/` + `framework/templates` tree by
+ * symlinking. agents/ is the plugin-tree source-of-truth at the repo root;
+ * templates/ still lives under framework/.
  */
 async function makeFixtureCwd(): Promise<string> {
   const cwd = makeTempDir();
-  // Use symlink to the real framework/ so the converter sees real specs.
+  // Symlink the real agents/ tree at the cwd root.
+  await Bun.$`ln -s ${REAL_SOURCE} ${join(cwd, "agents")}`.quiet();
+  // framework/templates lives under framework/, so we need the wrapper dir.
   const fwDir = join(cwd, "framework");
   mkdirSync(fwDir, { recursive: true });
-  // Symlink agents and templates separately.
-  await Bun.$`ln -s ${REAL_SOURCE} ${join(fwDir, "agents")}`.quiet();
   await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
   return cwd;
 }
@@ -151,7 +152,7 @@ describe("convertAgents — dryRun", () => {
 describe("validateAgentFrontmatter", () => {
   test("throws with file path and missing field on mangled fixture", async () => {
     const cwd = makeTempDir();
-    const sourceDir = join(cwd, "framework", "agents");
+    const sourceDir = join(cwd, "agents");
     mkdirSync(sourceDir, { recursive: true });
     // Missing `model:` field deliberately
     const mangledPath = join(sourceDir, "software-teams-broken.md");
@@ -289,7 +290,7 @@ describe("convertAgents — wave 4 round-trip (@ST: expansion)", () => {
    */
   test("synthetic happy path: @ST:Verify:Task expands and no literal tags remain", async () => {
     const cwd = makeTempDir();
-    const sourceDir = join(cwd, "framework", "agents");
+    const sourceDir = join(cwd, "agents");
     mkdirSync(sourceDir, { recursive: true });
 
     // Create a synthetic agent spec with an @ST: tag
@@ -312,6 +313,7 @@ More content here.
 
     // Also symlink templates to avoid errors
     const fwDir = join(cwd, "framework");
+    mkdirSync(fwDir, { recursive: true });
     await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
 
     const result = await convertAgents({ cwd });
@@ -334,7 +336,7 @@ More content here.
    */
   test("synthetic broken ref: @ST:DoesNotExist throws with clear error", async () => {
     const cwd = makeTempDir();
-    const sourceDir = join(cwd, "framework", "agents");
+    const sourceDir = join(cwd, "agents");
     mkdirSync(sourceDir, { recursive: true });
 
     const syntheticPath = join(sourceDir, "software-teams-broken-ref.md");
@@ -356,6 +358,7 @@ End.
 
     // Setup minimal framework
     const fwDir = join(cwd, "framework");
+    mkdirSync(fwDir, { recursive: true });
     await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
 
     const result = await convertAgents({ cwd });
@@ -408,7 +411,7 @@ End.
    */
   test("code-block preservation: inline backtick <JDI: survives unchanged", async () => {
     const cwd = makeTempDir();
-    const sourceDir = join(cwd, "framework", "agents");
+    const sourceDir = join(cwd, "agents");
     mkdirSync(sourceDir, { recursive: true });
 
     const syntheticPath = join(sourceDir, "software-teams-codeblock-test.md");
@@ -434,6 +437,7 @@ End.
     await writeFile(syntheticPath, syntheticContent);
 
     const fwDir = join(cwd, "framework");
+    mkdirSync(fwDir, { recursive: true });
     await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
 
     const result = await convertAgents({ cwd });
@@ -470,5 +474,109 @@ End.
 
     // Use Bun's built-in snapshot testing
     expect(content).toMatchSnapshot();
+  });
+});
+
+describe("Component tag audit — T1 + T2 regression guards", () => {
+  /**
+   * Test 2: Tag-resolution coverage.
+   * Walk framework/**\/*.md, extract every @ST: tag via the canonical regex,
+   * and assert getComponent(name, section) resolves cleanly for each.
+   * Skip tags inside backticks or fenced code blocks (matching T2's protection).
+   */
+  test("T2 regression guard: every @ST: tag in framework/ resolves via getComponent", async () => {
+    const globPattern = new Bun.Glob("**/*.md");
+    const frameworkDir = join(REPO_ROOT, "framework");
+
+    // Canonical @ST: regex (must match T2's protection logic)
+    const tagRegex = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
+
+    // Track all discovered tags for diagnostics
+    const discoveredTags: Array<{ component: string; section: string | null; file: string; line: number }> = [];
+
+    for await (const file of globPattern.scan(frameworkDir)) {
+      const fullPath = join(frameworkDir, file);
+      const content = await readFile(fullPath, "utf-8");
+
+      // Remove backtick-protected regions: inline backticks and fenced code blocks
+      let cleanContent = content;
+
+      // Remove inline backticks (e.g., `@ST:...`)
+      cleanContent = cleanContent.replace(/`[^`]*`/g, "");
+
+      // Remove fenced code blocks (e.g., ``` ... ```)
+      cleanContent = cleanContent.replace(/```[\s\S]*?```/g, "");
+      cleanContent = cleanContent.replace(/~~~[\s\S]*?~~~/g, "");
+
+      // Now extract and validate @ST: tags
+      const lines = cleanContent.split("\n");
+      let lineNum = 0;
+      for (const line of lines) {
+        lineNum++;
+        let match;
+        while ((match = tagRegex.exec(line)) !== null) {
+          const componentName = match[1];
+          const sectionName = match[2] || null;
+
+          discoveredTags.push({
+            component: componentName,
+            section: sectionName,
+            file,
+            line: lineNum,
+          });
+
+          // Attempt to resolve via getComponent
+          expect(() => {
+            if (sectionName) {
+              getComponent(componentName, sectionName);
+            } else {
+              getComponent(componentName);
+            }
+          }).not.toThrow(
+            `Failed to resolve @ST:${componentName}${sectionName ? `:${sectionName}` : ""} in ${file}:${lineNum}`,
+          );
+        }
+      }
+    }
+
+    // Sanity check: we should have found some tags
+    expect(discoveredTags.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Test 3: Whole-component tag budget.
+   * Count @ST:Name tags (no :Section) in framework/**\/*.md, excluding
+   * backtick/code-block protected regions. Assert the count is <= 25
+   * (a soft regression buffer above the T2 target of ~14).
+   */
+  test("T2 regression guard: whole-component @ST: tag count <= 25", async () => {
+    const globPattern = new Bun.Glob("**/*.md");
+    const frameworkDir = join(REPO_ROOT, "framework");
+
+    // Regex to match only whole-component tags (no :Section)
+    const wholeComponentTagRegex = /@ST:([A-Za-z][A-Za-z0-9-]*)(?!:[A-Za-z][A-Za-z0-9-]*)/g;
+
+    let wholeComponentCount = 0;
+
+    for await (const file of globPattern.scan(frameworkDir)) {
+      const fullPath = join(frameworkDir, file);
+      const content = await readFile(fullPath, "utf-8");
+
+      // Remove backtick-protected regions
+      let cleanContent = content;
+      cleanContent = cleanContent.replace(/`[^`]*`/g, "");
+      cleanContent = cleanContent.replace(/```[\s\S]*?```/g, "");
+      cleanContent = cleanContent.replace(/~~~[\s\S]*?~~~/g, "");
+
+      // Count whole-component matches
+      while (wholeComponentTagRegex.exec(cleanContent) !== null) {
+        wholeComponentCount++;
+      }
+    }
+
+    expect(
+      wholeComponentCount,
+      `Found ${wholeComponentCount} whole-component @ST: tags; T2's soft regression budget allows <= 25 (target ~14)`,
+    ).toBeLessThanOrEqual(25);
   });
 });

@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -204,7 +202,7 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 ### Step 0a: Agent Discovery (MANDATORY — read AgentRouter first)
 
-@ST:AgentRouter
+@ST:AgentRouter:Discovery
 
 Before breaking down tasks, you MUST enumerate every agent available to this
 session. Read each discovered `.md` file's YAML frontmatter for `name` and
@@ -253,6 +251,7 @@ If the user provides reference PRs, tickets, or example implementations:
 
 ### Step 1: Discovery
 
+<!-- whole-component: step runs the full breakdown — DefaultBehaviour + TaskFormat + Granularity + PriorityBands + TestTaskRules all apply -->
 @ST:TaskBreakdown
 
 Apply Priority Bands (see `TaskBreakdown.md`) — every task gets a `priority:` field in its frontmatter (`must`, `should`, or `nice`).
@@ -286,7 +285,7 @@ agent_rationale: {One sentence explaining why this specialist is the best fit}
 
 ### Step 3a: Agent Assignment (MANDATORY when available_agents is non-empty)
 
-@ST:AgentRouter
+@ST:AgentRouter:Matching
 
 For every task produced in Step 3, pick exactly one specialist from the
 `available_agents` catalogue discovered in Step 0a. Use the priority hierarchy
@@ -311,12 +310,13 @@ task to `narrative-director`); leaving `agent:` blank when specialists exist.
 
 ### Step 4: Dependency Analysis
 
-@ST:TaskBreakdown
+@ST:TaskBreakdown:DependencyAnalysis
 
 Map requires/provides for each task. Identify sequential vs parallel opportunities.
 
 ### Step 5: Wave Computation
 
+<!-- whole-component: planner needs Algorithm + Execution + CrossPhaseDeps + ErrorHandling to assign waves correctly -->
 @ST:WaveComputation
 
 Define dependency frontmatter with `requires`, `provides`, `affects`, `subsystem`, `tags`.
@@ -426,5 +426,3 @@ task_agents:
     agent: gameplay-programmer
     rationale: "Combat state machine work in Assets/Scripts/Combat"
 ```
-
-Software Teams source: framework/agents/software-teams-planner.md

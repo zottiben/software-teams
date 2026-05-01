@@ -8,8 +8,6 @@ context: |
   !git log --oneline main..HEAD 2>/dev/null | head -15
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:generate-pr
 
 Generate a PR description from the current branch's commits and create the pull request via the `software-teams-pr-generator` specialist.
@@ -83,7 +81,7 @@ On approval, run `gh pr create` with the confirmed title and body. Report the PR
 
 ## Collaborative Protocol
 
-@ST:StrictnessProtocol
+@ST:StrictnessProtocol:FiveRules
 
 ---
 

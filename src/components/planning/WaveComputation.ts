@@ -64,13 +64,13 @@ Assign waves based on dependency resolution. Plans in the same wave can execute 
 **Inline**: Update each plan's frontmatter \`wave\` field.
 **JSON**: Return wave structure for programmer with wave number, plan IDs, and parallelism flag.`,
     },
-    "Cross-Phase Dependencies": {
-      name: "Cross-Phase Dependencies",
+    CrossPhaseDeps: {
+      name: "CrossPhaseDeps",
       description: "How to handle dependencies from previous phases",
       body: `Dependencies from previous phases (\`requires.phase < current\`) are assumed satisfied if that phase is complete. Verify via \`.software-teams/phases/{required-phase}/VERIFICATION.md\`.`,
     },
-    "Error Handling": {
-      name: "Error Handling",
+    ErrorHandling: {
+      name: "ErrorHandling",
       description: "How to handle circular dependencies and missing provides",
       body: `- **Circular dependencies**: Report error with cycle path, suggest splitting a plan
 - **Missing provides**: Check if cross-phase; if not, report and suggest adding plan`,
@@ -79,8 +79,8 @@ Assign waves based on dependency resolution. Plans in the same wave can execute 
   defaultOrder: [
     "Algorithm",
     "Execution",
-    "Cross-Phase Dependencies",
-    "Error Handling",
+    "CrossPhaseDeps",
+    "ErrorHandling",
   ],
 };
 

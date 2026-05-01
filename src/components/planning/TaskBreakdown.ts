@@ -40,16 +40,16 @@ const TaskBreakdown: Component = {
     },
   ],
   sections: {
-    "Default Behaviour": {
-      name: "Default Behaviour",
+    DefaultBehaviour: {
+      name: "DefaultBehaviour",
       description: "Algorithm for breaking down work into tasks",
       body: `1. **Understand the input** — what is being built, acceptance criteria, constraints
 2. **Identify components** — subsystems involved, files to touch, dependencies
 3. **Create task list** — each task is atomic (one commit), verifiable, ordered by dependency
 4. **Output structured tasks** using the format below`,
     },
-    "Task Format": {
-      name: "Task Format",
+    TaskFormat: {
+      name: "TaskFormat",
       description: "Markdown format for each generated task",
       body: `\`\`\`markdown
 <task id="{N}" type="auto|checkpoint:*|test" tdd="true|false" wave="{W}" priority="must|should|nice">
@@ -78,8 +78,8 @@ const TaskBreakdown: Component = {
 
 Task types: \`auto\` (execute without stopping), \`checkpoint:human-verify\`, \`checkpoint:decision\`, \`checkpoint:human-action\`, \`test\` (auto-generated test task)`,
     },
-    "Dependency Analysis": {
-      name: "Dependency Analysis",
+    DependencyAnalysis: {
+      name: "DependencyAnalysis",
       description: "How to identify and model task dependencies",
       body: `For each task, identify:
 - **Hard dependencies**: Must complete in order (e.g., types needed by implementation)
@@ -90,8 +90,8 @@ Task types: \`auto\` (execute without stopping), \`checkpoint:human-verify\`, \`
 
 Tasks with no dependencies → Wave 1. Tasks depending on Wave N → Wave N+1.`,
     },
-    "From Requirements": {
-      name: "From Requirements",
+    FromRequirements: {
+      name: "FromRequirements",
       description: "How to break down from REQUIREMENTS.yaml",
       body: `When breaking down from REQUIREMENTS.yaml: map REQ-IDs to tasks, track which tasks satisfy which requirements, ensure every in-scope requirement has at least one task.`,
     },
@@ -102,8 +102,8 @@ Tasks with no dependencies → Wave 1. Tasks depending on Wave N → Wave N+1.`,
 - **standard**: 6-10 balanced tasks (default)
 - **deep**: 10-20 fine-grained tasks for complex/unfamiliar work`,
     },
-    "Priority Bands": {
-      name: "Priority Bands",
+    PriorityBands: {
+      name: "PriorityBands",
       description: "Required priority tagging for every task",
       body: `Every task MUST be tagged with one of three priority bands:
 
@@ -111,15 +111,15 @@ Tasks with no dependencies → Wave 1. Tasks depending on Wave N → Wave N+1.`,
 - **Should Have** (planned but droppable under pressure)
 - **Nice to Have** (delivered only with surplus capacity)`,
     },
-    "See Also: Three-Tier Output": {
-      name: "See Also: Three-Tier Output",
+    ThreeTierOutput: {
+      name: "ThreeTierOutput",
       description: "How TaskBreakdown applies in three-tier plan mode",
       body: `This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (\`PLAN.md\` + per-task) or three-tier (\`SPEC.md\` + \`ORCHESTRATION.md\` + per-agent slices) artefacts.
 
 When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`framework/templates/ORCHESTRATION.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`PLAN.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`framework/agents/software-teams-planner.md\` for the Tier Decision Rule.`,
     },
-    "Test Task Rules": {
-      name: "Test Task Rules",
+    TestTaskRules: {
+      name: "TestTaskRules",
       description: "Rules for auto-generating test tasks alongside implementation tasks",
       body: `When test context is provided (test_suite.detected or test_suite.forced), generate test tasks following these rules:
 
@@ -134,14 +134,14 @@ When the planner is in three-tier mode the resulting task graph and dependency a
     },
   },
   defaultOrder: [
-    "Default Behaviour",
-    "Task Format",
-    "Dependency Analysis",
-    "From Requirements",
+    "DefaultBehaviour",
+    "TaskFormat",
+    "DependencyAnalysis",
+    "FromRequirements",
     "Granularity",
-    "Priority Bands",
-    "See Also: Three-Tier Output",
-    "Test Task Rules",
+    "PriorityBands",
+    "ThreeTierOutput",
+    "TestTaskRules",
   ],
 };
 

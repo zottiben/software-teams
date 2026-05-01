@@ -134,4 +134,17 @@ describe("Component Registry", () => {
       }
     }
   });
+
+  test("T1 regression guard: every section key matches /^[A-Za-z][A-Za-z0-9-]*$/", () => {
+    const addressableKeyRegex = /^[A-Za-z][A-Za-z0-9-]*$/;
+
+    for (const [componentName, component] of Object.entries(registry)) {
+      for (const [sectionKey] of Object.entries(component.sections)) {
+        expect(
+          sectionKey,
+          `Component '${componentName}' has non-addressable section key: '${sectionKey}'`,
+        ).toMatch(addressableKeyRegex);
+      }
+    }
+  });
 });

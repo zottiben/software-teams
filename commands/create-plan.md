@@ -9,8 +9,6 @@ context: |
   !ls .software-teams/plans/*.plan.md 2>/dev/null | tail -5
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:create-plan
 
 Create an implementation plan using a single planner agent (includes research). Deterministic workflow — every invocation follows the same numbered steps, in order, without skipping.
@@ -253,6 +251,7 @@ Planning and implementation are separate human-gated phases. This gate exists be
 
 ## Collaborative Protocol
 
+<!-- whole-component: command also uses SilentDiscovery — SilentDiscoveryDiscipline section is required for composition -->
 @ST:StrictnessProtocol
 
 ---

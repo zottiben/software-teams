@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -66,5 +64,3 @@ key_findings:
   strengths: [...]
   concerns: [...]
 ```
-
-Software Teams source: framework/agents/software-teams-codebase-mapper.md

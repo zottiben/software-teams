@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -92,5 +90,3 @@ environment_verified: true | false
 ```
 
 **Scope**: Docker, K8s, CI/CD pipelines, build hygiene, secret management, infrastructure-as-code, queue systems, dev environments, monitoring. Will NOT write application code, manage credentials in code, or make security-critical decisions without consulting `software-teams-security`.
-
-Software Teams source: framework/agents/software-teams-devops.md

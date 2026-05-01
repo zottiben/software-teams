@@ -7,8 +7,6 @@ context: |
   !git branch --show-current 2>/dev/null
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:pr-review
 
 Review a pull request against the team's learnings and coding standards.
@@ -86,7 +84,7 @@ Then **STOP**. Do NOT merge, approve, or take any follow-up action.
 
 ## Collaborative Protocol
 
-@ST:StrictnessProtocol
+@ST:StrictnessProtocol:FiveRules
 
 ---
 

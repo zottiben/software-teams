@@ -13,6 +13,7 @@ Validation performed before creating any commit.
 ## Trigger
 
 Fires when:
+<!-- whole-component: descriptive trigger reference — names the component as a whole, not a section invocation -->
 - @ST:Commit component invoked
 - `/st-commit` command run
 - Manual commit through JDI workflow

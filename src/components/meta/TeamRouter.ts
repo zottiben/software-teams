@@ -25,8 +25,8 @@ const TeamRouter: Component = {
     },
   ],
   sections: {
-    "Routing Table": {
-      name: "Routing Table",
+    RoutingTable: {
+      name: "RoutingTable",
       description: "Maps commands to teams, patterns, and agent loop flags",
       body: `| Command | Primary Team | Supporting | Pattern | Agent Loop |
 |---------|-------------|------------|---------|------------|
@@ -40,8 +40,8 @@ const TeamRouter: Component = {
 | \`map-codebase\` | Product & Research | — | Sequential | Yes |
 | \`resume\` | (from state) | (from state) | Resumes previous | Yes |`,
     },
-    "Team Specs": {
-      name: "Team Specs",
+    TeamSpecs: {
+      name: "TeamSpecs",
       description: "Paths to team spec files",
       body: `| Team | Path |
 |------|------|
@@ -51,8 +51,8 @@ const TeamRouter: Component = {
 | DevOps | \`.software-teams/framework/teams/devops.md\` |
 | Micro-Management | \`.software-teams/framework/teams/micro-management.md\` |`,
     },
-    "Resolution Algorithm": {
-      name: "Resolution Algorithm",
+    ResolutionAlgorithm: {
+      name: "ResolutionAlgorithm",
       description: "Steps to resolve team and pattern for a given command",
       body: `1. Strip \`/st:\` prefix, normalise command
 2. Look up in routing table (skill names map to same command)
@@ -102,9 +102,9 @@ Activate members based on file types in the task:
     },
   },
   defaultOrder: [
-    "Routing Table",
-    "Team Specs",
-    "Resolution Algorithm",
+    "RoutingTable",
+    "TeamSpecs",
+    "ResolutionAlgorithm",
     "MemberActivation",
     "ResumeRouting",
     "CollaborationPatterns",

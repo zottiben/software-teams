@@ -143,16 +143,15 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
     }
   });
 
-  test("framework agents use software-teams- naming (not jdi-)", async () => {
-    const agentsDir = join(REAL_FRAMEWORK, "agents");
+  test("plugin agents use software-teams- naming (not jdi-)", async () => {
+    // agents/ moved from framework/agents/ to <repo-root>/agents/ when the
+    // plugin tree was promoted to source-of-truth.
+    const agentsDir = join(REPO_ROOT, "agents");
     const agentFiles = readdirSync(agentsDir).filter((f) => /^software-teams-/.test(f));
 
-    // Should find agent files with the new naming pattern
     expect(agentFiles.length).toBeGreaterThanOrEqual(1);
-    // All matched agents must use new naming
     expect(agentFiles.every((f) => f.startsWith("software-teams-"))).toBe(true);
 
-    // Regression: no old jdi- files should exist
     const jdiFiles = readdirSync(agentsDir).filter((f) => /^jdi-/.test(f));
     expect(jdiFiles.length).toBe(0);
   });

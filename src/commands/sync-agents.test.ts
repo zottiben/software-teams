@@ -28,9 +28,11 @@ const REPO_ROOT = join(import.meta.dir, "..", "..");
  */
 async function makeFixtureCwd(): Promise<string> {
   const cwd = makeTempDir();
+  // agents/ is now plugin-tree source-of-truth at repo root; templates/ still
+  // lives under framework/.
+  await Bun.$`ln -s ${join(REPO_ROOT, "agents")} ${join(cwd, "agents")}`.quiet();
   const fwDir = join(cwd, "framework");
   mkdirSync(fwDir, { recursive: true });
-  await Bun.$`ln -s ${join(REPO_ROOT, "framework", "agents")} ${join(fwDir, "agents")}`.quiet();
   await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
   return cwd;
 }

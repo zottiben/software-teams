@@ -17,8 +17,8 @@ const AgentRouter: Component = {
   description:
     "Enumerate Claude Code agents and route tasks to the best specialist",
   sections: {
-    "1. Agent Discovery": {
-      name: "1. Agent Discovery",
+    Discovery: {
+      name: "Discovery",
       description: "Enumerate available agents before task breakdown",
       body: `The planner MUST perform discovery before task breakdown. Software Teams specialists are
 authored under \`framework/agents/\` and converted into Claude Code's native
@@ -82,8 +82,8 @@ If discovery returns zero agents (no Software Teams install and no \`.claude/age
 the planner records \`available_agents: []\` and falls back to the domain default (\`software-teams-backend\` / \`software-teams-frontend\` / \`general-purpose\`) so
 the empty state is explicit rather than silent.`,
     },
-    "2. Task-to-Agent Matching": {
-      name: "2. Task-to-Agent Matching",
+    Matching: {
+      name: "Matching",
       description: "Select the best agent for each task in the plan",
       body: `For each task in the plan, the planner selects ONE primary agent using this
 signal hierarchy (highest to lowest):
@@ -172,8 +172,8 @@ Use these pins when the work being done is on the Software Teams framework itsel
 > **Note:** \`software-teams-qa-tester\` is automatically invoked by \`implement-plan\` after
 > every code-touching task — it does not need to be explicitly pinned per task.`,
     },
-    "3. Output Format": {
-      name: "3. Output Format",
+    OutputFormat: {
+      name: "OutputFormat",
       description: "Format for writing agent assignments into plan files",
       body: `### Plan index (\`{phase}-{plan}-{slug}.plan.md\`) frontmatter
 
@@ -198,8 +198,8 @@ agent_rationale: "Edits Canvas-based HUD — UI Toolkit expertise needed"
 \`agent_rationale\` is a short free-text note explaining WHY the planner picked
 this specialist. Reviewers can use it to challenge bad routings.`,
     },
-    "4. Execution": {
-      name: "4. Execution",
+    Execution: {
+      name: "Execution",
       description: "How implement-plan honours agent pins when spawning",
       body: `**Native subagents are the default.** \`convertAgents()\` (invoked by \`software-teams sync-agents\` and \`software-teams init\`) populates \`.claude/agents/\` with Claude Code-compatible specs converted from \`framework/agents/software-teams-*.md\`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under \`.claude/agents/\` and \`~/.claude/agents/\` are equally first-class.
 
@@ -285,8 +285,8 @@ Tasks with no \`agent:\` field fall back to the domain default (\`software-teams
 > The framework-lint test in \`src/framework-lint.test.ts\` allowlists this entire HTML-comment block via \`<!-- lint-allow: legacy-injection -->\` … \`<!-- /lint-allow -->\` and fails on any legacy pattern outside such blocks.
 <!-- /lint-allow -->`,
     },
-    "5. Validation Rules": {
-      name: "5. Validation Rules",
+    ValidationRules: {
+      name: "ValidationRules",
       description: "Rules the planner and implement-plan pass must follow",
       body: `The planner MUST NOT:
 
@@ -321,11 +321,11 @@ Referenced by:
     },
   },
   defaultOrder: [
-    "1. Agent Discovery",
-    "2. Task-to-Agent Matching",
-    "3. Output Format",
-    "4. Execution",
-    "5. Validation Rules",
+    "Discovery",
+    "Matching",
+    "OutputFormat",
+    "Execution",
+    "ValidationRules",
     "Usage",
   ],
 };

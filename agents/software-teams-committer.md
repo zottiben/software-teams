@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -90,5 +88,3 @@ type: {type}
 scope: {scope}
 files_committed: [...]
 ```
-
-Software Teams source: framework/agents/software-teams-committer.md

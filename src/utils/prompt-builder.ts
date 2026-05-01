@@ -141,7 +141,7 @@ export function buildPlanPrompt(ctx: PromptContext, description: string): string
  *
  * Returns `tier: "three-tier"` when an orchestration file is found, otherwise
  * `tier: "single-tier"`. Both branches preserve the original plan path so the
- * markdown skill (`framework/commands/implement-plan.md`) can run its own
+ * markdown skill (`commands/implement-plan.md`) can run its own
  * **Plan Tier Detection** step deterministically.
  */
 export function detectPlanTier(cwd: string, planPath: string): {

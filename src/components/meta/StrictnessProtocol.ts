@@ -15,8 +15,8 @@ const StrictnessProtocol: Component = {
   description:
     "The discipline every Software Teams skill follows — non-negotiable rules for deterministic, auditable behaviour",
   sections: {
-    "The Five Rules": {
-      name: "The Five Rules",
+    FiveRules: {
+      name: "FiveRules",
       description: "Non-negotiable rules that apply when this component is referenced",
       body: `1. **Ask before assuming.** Never infer user intent from silence. If the skill requires information not visible on disk or in frontmatter, stop and ask. A missing answer is not permission to guess.
 
@@ -28,8 +28,8 @@ const StrictnessProtocol: Component = {
 
 5. **Adapt when the template doesn't fit.** The numbered workflow in each skill is the default path, not a prison. If the user's situation doesn't match any option, listen and adjust — but do so explicitly ("this doesn't fit option A/B/C/D — let me adapt…"), not by quietly drifting off-script.`,
     },
-    "Inline Blocker Sentences": {
-      name: "Inline Blocker Sentences",
+    InlineBlockers: {
+      name: "InlineBlockers",
       description: "Hard gate sentences used in skills referencing this component",
       body: `Skills that reference this component will include explicit waiting sentences between steps, such as:
 
@@ -39,17 +39,17 @@ const StrictnessProtocol: Component = {
 
 These are hard gates. Treat them as you would a \`return\` statement in code: execution stops until the condition is met.`,
     },
-    "Silent Discovery Discipline": {
-      name: "Silent Discovery Discipline",
+    SilentDiscoveryDiscipline: {
+      name: "SilentDiscoveryDiscipline",
       description: "How StrictnessProtocol composes with SilentDiscovery",
       body: `Skills that also reference \`<JDI:SilentDiscovery />\` gather context from disk before asking questions. The two components compose:
 
 - \`SilentDiscovery\` defines **what** to read and how to store it
 - \`StrictnessProtocol\` defines **how** that discovered state shapes the conversation (never re-ask what's already on disk; surface findings only when relevant to the current step)`,
-      requires: [{ component: "SilentDiscovery", section: "Discipline Rules" }],
+      requires: [{ component: "SilentDiscovery", section: "DisciplineRules" }],
     },
-    "Deviation Handling": {
-      name: "Deviation Handling",
+    DeviationHandling: {
+      name: "DeviationHandling",
       description: "How to announce and handle deviations from the standard workflow",
       body: `If you need to deviate from a skill's numbered workflow — because the user's situation doesn't fit, because a required file is missing, or because an edge case isn't covered — announce the deviation explicitly:
 
@@ -68,10 +68,10 @@ Referenced in the footer of user-invocable commands (\`/st:build\`, \`/st:create
     },
   },
   defaultOrder: [
-    "The Five Rules",
-    "Inline Blocker Sentences",
-    "Silent Discovery Discipline",
-    "Deviation Handling",
+    "FiveRules",
+    "InlineBlockers",
+    "SilentDiscoveryDiscipline",
+    "DeviationHandling",
     "Usage",
   ],
 };

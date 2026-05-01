@@ -1,68 +1,67 @@
-import { describe, test, expect, afterEach, beforeEach } from "bun:test";
+import { describe, test, expect, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { copyFrameworkFiles } from "./copy-framework";
 
-let tempDir: string;
+// All fixtures live in tmpdir. We pass `frameworkDirOverride` to
+// copyFrameworkFiles so it never touches the real src/ tree (which would be
+// catastrophic — `import.meta.dir/../framework` resolves to src/framework
+// during tests, and the original test created sibling agents/+commands/ at
+// src/agents+src/commands, accidentally overlapping with real source dirs
+// after the plugin-tree promotion).
 
-// The framework source is resolved via import.meta.dir in copy-framework.ts
-// which points to src/utils/../framework = src/framework during tests.
-// Since the actual framework is at the project root, we need to create a
-// symlink or just test with the real project root structure.
-//
-// For isolated testing, we create a minimal framework source structure
-// that matches what import.meta.dir resolves to during test execution.
-const frameworkSourceDir = join(import.meta.dir, "../framework");
+let tempDirs: string[] = [];
 
 function makeTempDir(): string {
-  tempDir = mkdtempSync(join(tmpdir(), "st-test-"));
-  return tempDir;
+  const dir = mkdtempSync(join(tmpdir(), "st-cf-"));
+  tempDirs.push(dir);
+  return dir;
 }
-
-function setupFrameworkSource() {
-  // Create a minimal framework directory at the path copy-framework.ts expects
-  if (!existsSync(frameworkSourceDir)) {
-    mkdirSync(join(frameworkSourceDir, "agents"), { recursive: true });
-    mkdirSync(join(frameworkSourceDir, "components", "meta"), { recursive: true });
-    mkdirSync(join(frameworkSourceDir, "commands"), { recursive: true });
-    mkdirSync(join(frameworkSourceDir, "adapters"), { recursive: true });
-    mkdirSync(join(frameworkSourceDir, "teams"), { recursive: true });
-
-    writeFileSync(join(frameworkSourceDir, "software-teams.md"), "# Software Teams Framework");
-    writeFileSync(join(frameworkSourceDir, "agents", "software-teams-planner.md"), "# Planner");
-    writeFileSync(join(frameworkSourceDir, "components", "meta", "AgentBase.md"), "# AgentBase");
-    writeFileSync(join(frameworkSourceDir, "commands", "create-plan.md"), "# Create Plan");
-    writeFileSync(join(frameworkSourceDir, "teams", "engineering.md"), "# Engineering");
-    writeFileSync(join(frameworkSourceDir, "adapters", "generic.yaml"), "dependency_install: npm install");
-    writeFileSync(join(frameworkSourceDir, "adapters", "node.yaml"), "dependency_install: bun install");
-  }
-}
-
-let createdFrameworkSource = false;
-
-beforeEach(() => {
-  if (!existsSync(frameworkSourceDir)) {
-    setupFrameworkSource();
-    createdFrameworkSource = true;
-  }
-});
 
 afterEach(() => {
-  if (tempDir) {
-    rmSync(tempDir, { recursive: true, force: true });
+  for (const dir of tempDirs) {
+    rmSync(dir, { recursive: true, force: true });
   }
-  // Clean up the framework source if we created it
-  if (createdFrameworkSource && existsSync(frameworkSourceDir)) {
-    rmSync(frameworkSourceDir, { recursive: true, force: true });
-    createdFrameworkSource = false;
-  }
+  tempDirs = [];
 });
+
+/**
+ * Build a minimal package-shape fixture with both `framework/` (config-style
+ * files) and the plugin tree (`agents/` + `commands/`) at the package root.
+ * Returns the path to `framework/` so callers can pass it as
+ * `frameworkDirOverride`.
+ */
+function makePackageFixture(): { packageRoot: string; frameworkDir: string } {
+  const packageRoot = makeTempDir();
+  const frameworkDir = join(packageRoot, "framework");
+  mkdirSync(join(frameworkDir, "components", "meta"), { recursive: true });
+  mkdirSync(join(frameworkDir, "adapters"), { recursive: true });
+  mkdirSync(join(frameworkDir, "teams"), { recursive: true });
+  mkdirSync(join(frameworkDir, "templates"), { recursive: true });
+
+  writeFileSync(join(frameworkDir, "software-teams.md"), "# Software Teams Framework");
+  writeFileSync(join(frameworkDir, "components", "meta", "AgentBase.md"), "# AgentBase");
+  writeFileSync(join(frameworkDir, "teams", "engineering.md"), "# Engineering");
+  writeFileSync(join(frameworkDir, "adapters", "generic.yaml"), "dependency_install: npm install");
+  writeFileSync(join(frameworkDir, "adapters", "node.yaml"), "dependency_install: bun install");
+
+  // Plugin tree at the package root (sibling of framework/)
+  const agentsDir = join(packageRoot, "agents");
+  const commandsDir = join(packageRoot, "commands");
+  mkdirSync(agentsDir, { recursive: true });
+  mkdirSync(commandsDir, { recursive: true });
+  writeFileSync(join(agentsDir, "software-teams-planner.md"), "# Planner");
+  writeFileSync(join(commandsDir, "create-plan.md"), "# Create Plan");
+
+  return { packageRoot, frameworkDir };
+}
 
 describe("copyFrameworkFiles", () => {
   test("copies framework files to .software-teams/framework/", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     expect(existsSync(join(dir, ".software-teams", "framework", "agents"))).toBe(true);
     expect(existsSync(join(dir, ".software-teams", "framework", "components"))).toBe(true);
@@ -71,7 +70,8 @@ describe("copyFrameworkFiles", () => {
 
   test("copies command stubs to .claude/commands/st/", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     const commandsDir = join(dir, ".claude", "commands", "st");
     expect(existsSync(commandsDir)).toBe(true);
@@ -80,7 +80,8 @@ describe("copyFrameworkFiles", () => {
 
   test("creates CLAUDE.md with routing header when not present", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     const claudeMd = join(dir, ".claude", "CLAUDE.md");
     expect(existsSync(claudeMd)).toBe(true);
@@ -95,7 +96,8 @@ describe("copyFrameworkFiles", () => {
     const original = "# My Project\n\n## Agent-First Default\n\nCustom routing content";
     writeFileSync(join(claudeDir, "CLAUDE.md"), original);
 
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     const content = await Bun.file(join(claudeDir, "CLAUDE.md")).text();
     expect(content).toBe(original);
@@ -107,7 +109,8 @@ describe("copyFrameworkFiles", () => {
     mkdirSync(claudeDir, { recursive: true });
     writeFileSync(join(claudeDir, "CLAUDE.md"), "# My Project\n\nSome content.");
 
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     const content = await Bun.file(join(claudeDir, "CLAUDE.md")).text();
     expect(content).toContain("# My Project");
@@ -116,7 +119,8 @@ describe("copyFrameworkFiles", () => {
 
   test("applies adapter config for the detected project type", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "node", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "node", false, false, frameworkDir);
 
     const adapterPath = join(dir, ".software-teams", "config", "adapter.yaml");
     expect(existsSync(adapterPath)).toBe(true);
@@ -126,7 +130,8 @@ describe("copyFrameworkFiles", () => {
 
   test("copies command stubs to .software-teams/framework/commands/", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     const frameworkCommandsDir = join(dir, ".software-teams", "framework", "commands");
     expect(existsSync(frameworkCommandsDir)).toBe(true);
@@ -135,14 +140,13 @@ describe("copyFrameworkFiles", () => {
 
   test("skips existing files when force=false", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
-    // Overwrite a file with custom content
     const customPath = join(dir, ".software-teams", "framework", "software-teams.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
-    // Run again without force
-    await copyFrameworkFiles(dir, "generic", false);
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
     const content = await Bun.file(customPath).text();
     expect(content).toBe("CUSTOM CONTENT");
@@ -150,14 +154,13 @@ describe("copyFrameworkFiles", () => {
 
   test("overwrites existing files when force=true", async () => {
     const dir = makeTempDir();
-    await copyFrameworkFiles(dir, "generic", false);
+    const { frameworkDir } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, frameworkDir);
 
-    // Overwrite a file with custom content
     const customPath = join(dir, ".software-teams", "framework", "software-teams.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
-    // Run again with force
-    await copyFrameworkFiles(dir, "generic", true);
+    await copyFrameworkFiles(dir, "generic", true, false, frameworkDir);
 
     const content = await Bun.file(customPath).text();
     expect(content).not.toBe("CUSTOM CONTENT");

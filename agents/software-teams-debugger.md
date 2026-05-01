@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -80,5 +78,3 @@ Bug Report → Debug Investigation → Fix → Verification
 [Debugger] → Root Cause + Fix Proposal
 → [Executor] or @ST:Commit
 ```
-
-Software Teams source: framework/agents/software-teams-debugger.md

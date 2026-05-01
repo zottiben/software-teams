@@ -7,8 +7,6 @@ context: |
   !git status --short 2>/dev/null | head -20
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:quick
 
 Execute a small, focused change directly without full orchestration. For trivial or prototype work only — no planner, no agent spawn, no waves.
@@ -119,7 +117,7 @@ Once the edit is applied and gates have run, the skill is **DONE**.
 
 ## Collaborative Protocol
 
-@ST:StrictnessProtocol
+@ST:StrictnessProtocol:FiveRules
 
 ---
 

@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -100,5 +98,3 @@ persistence_updated: true
 ```
 
 **Scope**: Detect learning phrases, extract rules, categorise, update learnings files, persist consolidated learnings. Will NOT invent rules not in comments or override conflicting rules.
-
-Software Teams source: framework/agents/software-teams-feedback-learner.md

@@ -3,8 +3,6 @@ name: worktree-remove
 description: "Software Teams: Remove git worktree and clean up"
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:worktree-remove
 
 Remove a git worktree and clean up all associated resources.

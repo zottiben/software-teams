@@ -32,6 +32,18 @@ async function listFrameworkFiles(frameworkDir: string): Promise<string[]> {
     if (file.startsWith("adapters/")) continue;
     out.push(file);
   }
+  // Plugin tree (agents/+commands/) lives at the package root, not under
+  // framework/. Surface its contents under the same logical paths so
+  // detectFrameworkChanges and copyFrameworkFiles agree on what's canonical.
+  const packageRoot = join(frameworkDir, "..");
+  for (const sub of ["agents", "commands"]) {
+    const subDir = join(packageRoot, sub);
+    if (!existsSync(subDir)) continue;
+    const subGlob = new Bun.Glob("*.md");
+    for await (const file of subGlob.scan({ cwd: subDir })) {
+      out.push(`${sub}/${file}`);
+    }
+  }
   out.sort();
   return out;
 }
@@ -49,13 +61,20 @@ export async function detectFrameworkChanges(
   const missing: string[] = [];
   const changed: string[] = [];
   const files = await listFrameworkFiles(frameworkDir);
+  const packageRoot = join(frameworkDir, "..");
   for (const file of files) {
     const dest = join(cwd, ".software-teams", "framework", file);
     if (!existsSync(dest)) {
       missing.push(file);
       continue;
     }
-    const srcContent = await Bun.file(join(frameworkDir, file)).text();
+    // agents/* and commands/* sources live at the package root since the
+    // plugin-tree promotion; everything else still under frameworkDir.
+    const sourceRoot =
+      file.startsWith("agents/") || file.startsWith("commands/")
+        ? packageRoot
+        : frameworkDir;
+    const srcContent = await Bun.file(join(sourceRoot, file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent) changed.push(file);
   }

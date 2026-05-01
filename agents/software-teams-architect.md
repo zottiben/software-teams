@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -154,5 +152,3 @@ outputs:
 ```
 
 **Scope**: Analyse architecture, design components, document ADRs, recommend patterns, run strategic decision workflows, maintain the technical risk register. Will NOT sprint-plan (delegate to software-teams-producer), write code (delegate to software-teams-programmer), make design decisions (delegate to software-teams-ux-designer / software-teams-product-lead).
-
-Software Teams source: framework/agents/software-teams-architect.md

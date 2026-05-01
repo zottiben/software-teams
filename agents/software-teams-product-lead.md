@@ -11,8 +11,6 @@ tools:
   - WebSearch
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -51,5 +49,3 @@ risks: [...]
 ```
 
 **Scope**: Decompose user stories, acceptance criteria, validate plans, track delivery. Will NOT write code or make architecture decisions.
-
-Software Teams source: framework/agents/software-teams-product-lead.md

@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -92,5 +90,3 @@ lint: pass | fail
 ```
 
 **Scope**: UI components, hooks, forms, routes, tests, frontend review. Will NOT write backend code or accept loose/untyped code.
-
-Software Teams source: framework/agents/software-teams-frontend.md

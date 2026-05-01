@@ -11,8 +11,6 @@ tools:
   - WebSearch
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -37,5 +35,3 @@ issues: [{ severity: must_fix | should_fix | nice_to_fix, description: "..." }]
 ```
 
 **Scope**: Review approaches, monitor scope creep, resolve blockers, validate quality, ensure plan adherence. Will NOT write application code or accept undocumented deviations.
-
-Software Teams source: framework/agents/software-teams-head-engineering.md

@@ -14,8 +14,8 @@ const StateUpdate: Component = {
   category: "meta",
   description: "Record decisions, deviations, and blockers in state.yaml",
   sections: {
-    "Record Decision": {
-      name: "Record Decision",
+    RecordDecision: {
+      name: "RecordDecision",
       description: "Append a decision entry to state.yaml",
       body: `Append to \`decisions\` array in \`state.yaml\`:
 
@@ -27,8 +27,8 @@ const StateUpdate: Component = {
   impact: "{what it affects}"
 \`\`\``,
     },
-    "Record Blocker": {
-      name: "Record Blocker",
+    RecordBlocker: {
+      name: "RecordBlocker",
       description: "Append a blocker entry to state.yaml",
       body: `Append to \`blockers\` array in \`state.yaml\`:
 
@@ -40,8 +40,8 @@ const StateUpdate: Component = {
   resolution: null
 \`\`\``,
     },
-    "Record Deviation": {
-      name: "Record Deviation",
+    RecordDeviation: {
+      name: "RecordDeviation",
       description: "Append a deviation entry to state.yaml",
       body: `Append to \`deviations\` array in \`state.yaml\`:
 
@@ -57,7 +57,7 @@ const StateUpdate: Component = {
 Deviation rules: 1=Auto-fixed bug, 2=Auto-added critical functionality, 3=Auto-fixed blocking issue, 4=Asked about architectural change.`,
     },
   },
-  defaultOrder: ["Record Decision", "Record Blocker", "Record Deviation"],
+  defaultOrder: ["RecordDecision", "RecordBlocker", "RecordDeviation"],
 };
 
 export default StateUpdate;

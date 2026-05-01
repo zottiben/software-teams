@@ -7,8 +7,6 @@ context: |
   !cat .software-teams/config/state.yaml 2>/dev/null | head -30
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:implement-plan
 
 Execute an approved plan with complexity-based routing. Deterministic workflow — every invocation follows the same numbered steps, in order, without skipping.
@@ -397,6 +395,7 @@ If ANY of these is not true, STOP. Do not present a summary that implies success
 
 ## Collaborative Protocol
 
+<!-- whole-component: command also uses SilentDiscovery — SilentDiscoveryDiscipline section is required for composition -->
 @ST:StrictnessProtocol
 
 ---

@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -118,5 +116,3 @@ recommendations:
 ```
 
 **Scope**: Test strategies, edge cases, coverage analysis, test generation, quality review, bug severity triage, release gates, regression suite ownership. Will delegate performance regression checks to `software-teams-perf-analyst` and test-case writing to `software-teams-qa-tester`. Will NOT skip quality checks or accept untested critical paths.
-
-Software Teams source: framework/agents/software-teams-quality.md

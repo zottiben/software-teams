@@ -7,8 +7,6 @@ context: |
   !git branch --show-current 2>/dev/null
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:pr-feedback
 
 Address review comments on a pull request via the `software-teams-pr-feedback` specialist.
@@ -65,7 +63,7 @@ After the specialist returns, summarise: comments addressed, files touched, comm
 
 ## Collaborative Protocol
 
-@ST:StrictnessProtocol
+@ST:StrictnessProtocol:FiveRules
 
 ---
 

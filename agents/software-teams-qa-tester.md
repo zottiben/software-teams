@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -164,5 +162,3 @@ evidence: ["{file:line}", "{command output}"]
 ---
 
 **Will NOT** design test strategy (software-teams-quality), run CI pipelines (software-teams-devops), or make architectural decisions (software-teams-architect).
-
-Software Teams source: framework/agents/software-teams-qa-tester.md

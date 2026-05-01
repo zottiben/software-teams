@@ -22,8 +22,8 @@ const InteractiveGate: Component = {
 | \`pre-plan\` | Before planner spawn in \`create-plan\` | Surface-level analysis of feature description + \`RESEARCH_QUESTIONS\` from pre-plan research spawn |
 | \`blocker-resolution\` | During implementation when a task is blocked | Surface-level analysis of the blocker description + context from the blocking task |`,
     },
-    "Question Sources": {
-      name: "Question Sources",
+    QuestionSources: {
+      name: "QuestionSources",
       description: "The two channels that produce questions for the gate",
       body: `### Surface-Level (Ambiguity Detection)
 
@@ -49,8 +49,8 @@ Consume the \`RESEARCH_QUESTIONS\` YAML block produced by the pre-plan research 
 
 Research-driven questions arrive pre-formatted with \`id\`, \`question\`, \`header\`, \`options\`, and \`context\`.`,
     },
-    "Merge and Prioritise": {
-      name: "Merge and Prioritise",
+    MergeAndPrioritise: {
+      name: "MergeAndPrioritise",
       description: "How to combine and rank questions from both sources",
       body: `1. Collect surface-level questions (assign IDs \`SQ-01\`, \`SQ-02\`, ...)
 2. Collect research-driven questions (IDs \`RQ-01\`, \`RQ-02\`, ... from the researcher)
@@ -58,8 +58,8 @@ Research-driven questions arrive pre-formatted with \`id\`, \`question\`, \`head
 4. Sort: research-driven questions first (higher signal), then surface-level
 5. Cap at a reasonable total — if more than 8 questions survive, drop the lowest-priority surface-level questions`,
     },
-    "AskUserQuestion Format": {
-      name: "AskUserQuestion Format",
+    AskUserQuestionFormat: {
+      name: "AskUserQuestionFormat",
       description: "Structure each question must follow when presented to the user",
       body: `Each question presented via \`AskUserQuestion\` must follow this structure:
 
@@ -73,8 +73,8 @@ Research-driven questions arrive pre-formatted with \`id\`, \`question\`, \`head
 
 **Batching rule:** Maximum 4 questions per \`AskUserQuestion\` call (tool limit). If more than 4 questions survive merge, batch into multiple sequential calls. Present the highest-priority questions first.`,
     },
-    "Output Format": {
-      name: "Output Format",
+    OutputFormat: {
+      name: "OutputFormat",
       description: "How to store gate answers as PRE_ANSWERED_QUESTIONS",
       body: `Store all answers as \`PRE_ANSWERED_QUESTIONS\` in YAML:
 
@@ -99,8 +99,8 @@ Fields:
 - \`chosen\`: The selected option label (or "Other" if custom)
 - \`custom_text\`: User's free-text input if they chose "Other", otherwise \`null\``,
     },
-    "Skip Condition": {
-      name: "Skip Condition",
+    SkipCondition: {
+      name: "SkipCondition",
       description: "When to skip the gate entirely",
       body: `If BOTH sources yield zero questions after analysis, skip the gate entirely. Do NOT present an empty AskUserQuestion call. Proceed directly to the next step in the parent workflow.
 
@@ -142,11 +142,11 @@ Referenced within a skill's numbered workflow steps. Requires that question sour
   },
   defaultOrder: [
     "Modes",
-    "Question Sources",
-    "Merge and Prioritise",
-    "AskUserQuestion Format",
-    "Output Format",
-    "Skip Condition",
+    "QuestionSources",
+    "MergeAndPrioritise",
+    "AskUserQuestionFormat",
+    "OutputFormat",
+    "SkipCondition",
     "Fallback",
     "Usage",
   ],

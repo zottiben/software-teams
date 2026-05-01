@@ -3,12 +3,14 @@ import { readFileSync, readdirSync } from "fs";
 import { join } from "path";
 
 const REPO_ROOT = join(import.meta.dir, "..");
-const frameworkRoot = join(REPO_ROOT, "framework");
+// Plugin tree (agents/+commands/) was promoted to source-of-truth; the
+// post-rename specs now live at <repo-root>/agents/ rather than
+// <repo-root>/framework/agents/.
+const agentsDir = join(REPO_ROOT, "agents");
 
 describe("framework-lint — wave-1 rebrand regex verification", () => {
   test("listAgentFiles regex matches at least one software-teams-*.md file", () => {
-    const dir = join(frameworkRoot, "agents");
-    const files = readdirSync(dir).filter((f) => /^software-teams-.+\.md$/.test(f));
+    const files = readdirSync(agentsDir).filter((f) => /^software-teams-.+\.md$/.test(f));
 
     // The regex must match at least one file (otherwise it's broken/not running)
     expect(files.length).toBeGreaterThanOrEqual(1);
@@ -17,9 +19,8 @@ describe("framework-lint — wave-1 rebrand regex verification", () => {
     expect(files.some((f) => f === "software-teams-planner.md" || f.startsWith("software-teams-"))).toBe(true);
   });
 
-  test("regex does NOT match jdi-*.md (old pattern gone from framework)", () => {
-    const dir = join(frameworkRoot, "agents");
-    const jdiFiles = readdirSync(dir).filter((f) => /^jdi-.+\.md$/.test(f));
+  test("regex does NOT match jdi-*.md (old pattern gone)", () => {
+    const jdiFiles = readdirSync(agentsDir).filter((f) => /^jdi-.+\.md$/.test(f));
     expect(jdiFiles.length).toBe(0);
   });
 

@@ -22,7 +22,10 @@ jobs:
 
       - run: bun test
 
-  plugin-drift-check:
+  component-drift-check:
+    # Replaces the old plugin-drift-check job. Plugin tree (agents/+commands/)
+    # is now the source of truth — no generator, no drift to assert. Job retained
+    # to keep the @ST: component registry's MD↔TS drift + validate gates running.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,18 +38,8 @@ jobs:
 
       - run: bun run build
 
-      - run: bun run dist/index.js build-plugin
-
       - name: Check for component MD↔TS drift
         run: bun run dist/index.js component drift
-
-      - name: Check for plugin tree drift
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Plugin tree drifted from framework/. Run \`software-teams build-plugin\` locally and commit the result."
-            git diff
-            exit 1
-          fi
 
       - name: Component registry validation
         run: bun run dist/index.js component validate

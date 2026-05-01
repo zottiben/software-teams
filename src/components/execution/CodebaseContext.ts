@@ -14,8 +14,8 @@ const CodebaseContext: Component = {
   description:
     "Cache-first codebase context loading — reads existing analysis, never spawns mapper automatically",
   sections: {
-    "Cache-First Loading": {
-      name: "Cache-First Loading",
+    CacheFirstLoading: {
+      name: "CacheFirstLoading",
       description: "Rules for loading codebase context from cache",
       body: `1. If \`.software-teams/codebase/SUMMARY.md\` exists → **read it directly** (regardless of age)
 2. If \`.software-teams/codebase/CONVENTIONS.md\` exists → read it when writing code
@@ -25,8 +25,8 @@ const CodebaseContext: Component = {
 
 **Skip entirely if:** \`--skip-codebase\` flag is present in command arguments.`,
     },
-    "Context Files": {
-      name: "Context Files",
+    ContextFiles: {
+      name: "ContextFiles",
       description: "Which files to read and when",
       body: `| File | Purpose | When to Read |
 |------|---------|--------------|
@@ -35,8 +35,8 @@ const CodebaseContext: Component = {
 | \`.claude/rules/*.md\` | Auto-loaded patterns (no explicit read needed) | Automatic |
 | \`.software-teams/config/state.yaml\` | Current phase, plan, position | Always |`,
     },
-    "Usage in Commands": {
-      name: "Usage in Commands",
+    UsageInCommands: {
+      name: "UsageInCommands",
       description: "Tag usage",
       body: `\`\`\`
 <JDI:CodebaseContext />
@@ -45,7 +45,7 @@ const CodebaseContext: Component = {
 This component reads cached context files. If no codebase analysis exists, it proceeds without it — agents can still analyse relevant source files directly.`,
     },
   },
-  defaultOrder: ["Cache-First Loading", "Context Files", "Usage in Commands"],
+  defaultOrder: ["CacheFirstLoading", "ContextFiles", "UsageInCommands"],
 };
 
 export default CodebaseContext;

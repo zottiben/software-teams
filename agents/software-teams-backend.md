@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -92,5 +90,3 @@ quality_checks: { lint: pass, static_analysis: pass, tests: pass }
 ```
 
 **Scope**: API endpoints, service classes, DTOs, request validation, models, migrations, tests, backend review. Will NOT write frontend code or skip quality checks.
-
-Software Teams source: framework/agents/software-teams-backend.md

@@ -41,8 +41,8 @@ const Commit: Component = {
     },
   ],
   sections: {
-    "Default Behaviour": {
-      name: "Default Behaviour",
+    DefaultBehaviour: {
+      name: "DefaultBehaviour",
       description: "Steps executed when invoked as @ST:Commit",
       body: `When invoked as \`<JDI:Commit />\`:
 
@@ -116,8 +116,8 @@ const Commit: Component = {
 - **Description**: Imperative mood, no capital start, no period, max 72 chars.
 - **Body**: 3-5 bullet points of WHAT changed.`,
     },
-    "Scope Reference": {
-      name: "Scope Reference",
+    ScopeReference: {
+      name: "ScopeReference",
       description: "Message format per commit scope value",
       body: `| Scope | Message Format |
 |-------|----------------|
@@ -127,17 +127,17 @@ const Commit: Component = {
 | \`docs\` | \`docs: {description}\` |
 | \`fix\` | \`fix: {description}\` |`,
     },
-    "State Updates": {
-      name: "State Updates",
+    StateUpdates: {
+      name: "StateUpdates",
       description: "State changes to make after committing",
       body: `After commit: append to \`commits.session_commits\` in state.yaml, update \`last_commit_hash\`. Append to \`implementation.files_modified\` in variables.yaml.`,
     },
   },
   defaultOrder: [
-    "Default Behaviour",
+    "DefaultBehaviour",
     "MessageFormat",
-    "Scope Reference",
-    "State Updates",
+    "ScopeReference",
+    "StateUpdates",
   ],
 };
 

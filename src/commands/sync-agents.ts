@@ -30,7 +30,7 @@ async function readNativeSubagentsFlag(cwd: string): Promise<boolean> {
 export const syncAgentsCommand = defineCommand({
   meta: {
     name: "sync-agents",
-    description: "Regenerate .claude/agents/ from framework/agents/",
+    description: "Regenerate .claude/agents/ from agents/ (or .software-teams/framework/agents/ when installed in a consumer project)",
   },
   args: {
     "dry-run": {

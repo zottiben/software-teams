@@ -3,8 +3,6 @@ name: status
 description: "Software Teams: Show framework status"
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:status
 
 ## Direct Execution

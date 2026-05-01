@@ -3,8 +3,6 @@ name: worktree
 description: "Software Teams: Create git worktree with full environment"
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:worktree
 
 Create an isolated git worktree with full project environment from a ticket, task name, or description.

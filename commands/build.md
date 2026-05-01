@@ -8,8 +8,6 @@ context: |
   !ls .software-teams/plans/*.plan.md 2>/dev/null | tail -5
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 # /st:build
 
 State-aware entry point for new and returning users. Silently detects project state before asking anything, then routes to the right next step. Deterministic workflow — every invocation follows the same numbered steps in order, without skipping.
@@ -169,4 +167,5 @@ Planning, implementation, and every other phase are separate human-gated steps. 
 
 ## Collaborative Protocol
 
+<!-- whole-component: command also uses SilentDiscovery — SilentDiscoveryDiscipline section is required for composition -->
 @ST:StrictnessProtocol

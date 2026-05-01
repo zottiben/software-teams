@@ -14,8 +14,8 @@ const SilentDiscovery: Component = {
   description:
     "The mandatory state-reading preamble that runs before any user-facing prompt in a Software Teams skill",
   sections: {
-    "What to Read": {
-      name: "What to Read",
+    WhatToRead: {
+      name: "WhatToRead",
       description: "Files to read and how to handle missing ones",
       body: `Read these files if they exist. If a file is missing, record that in \`DISCOVERED_STATE\` as \`missing: true\` and continue — do not error.
 
@@ -39,8 +39,8 @@ Additionally, if the skill is worktree-aware, read:
 |------|---------|
 | \`.software-teams/config/state.yaml → worktree\` | Active worktree path and status |`,
     },
-    "What to Derive": {
-      name: "What to Derive",
+    WhatToDerive: {
+      name: "WhatToDerive",
       description: "Derived fields to compute and store in DISCOVERED_STATE",
       body: `From the raw reads above, compute and store these derived fields in \`DISCOVERED_STATE\`:
 
@@ -61,8 +61,8 @@ Additionally, if the skill is worktree-aware, read:
   - \`has_integration: boolean\` — true if \`__tests__/integration\` or similar directories exist
   - If no test files or config found, set \`detected: false\` and leave other fields empty.`,
     },
-    "Test Suite Detection Heuristic": {
-      name: "Test Suite Detection Heuristic",
+    TestSuiteDetection: {
+      name: "TestSuiteDetection",
       description: "Priority-order heuristic for detecting the test framework",
       body: `When deriving \`test_suite\`, apply detection in this priority order (first match wins for \`framework\`):
 
@@ -72,8 +72,8 @@ Additionally, if the skill is worktree-aware, read:
 
 If none of the above yields results, set \`detected: false\`.`,
     },
-    "Discipline Rules": {
-      name: "Discipline Rules",
+    DisciplineRules: {
+      name: "DisciplineRules",
       description: "Non-negotiable rules for SilentDiscovery usage",
       body: `These rules are non-negotiable when this component is referenced:
 
@@ -87,8 +87,8 @@ If none of the above yields results, set \`detected: false\`.`,
 
 5. **Refresh, don't stale.** If the skill has multiple passes (e.g. \`/st:build\` option D re-runs discovery after user input), re-read the files — do not rely on the first pass's findings for the second pass.`,
     },
-    "Pass-Through to Spawned Agents": {
-      name: "Pass-Through to Spawned Agents",
+    PassThrough: {
+      name: "PassThrough",
       description: "How to share discovered state with spawned subagents",
       body: `When a skill that uses SilentDiscovery spawns a subagent (e.g. \`create-plan\` spawns \`software-teams-planner\`), pass \`DISCOVERED_STATE\` into the spawn prompt as a named block:
 
@@ -110,11 +110,11 @@ Referenced at the top of a skill's numbered workflow, typically as step 1 or 2. 
     },
   },
   defaultOrder: [
-    "What to Read",
-    "What to Derive",
-    "Test Suite Detection Heuristic",
-    "Discipline Rules",
-    "Pass-Through to Spawned Agents",
+    "WhatToRead",
+    "WhatToDerive",
+    "TestSuiteDetection",
+    "DisciplineRules",
+    "PassThrough",
     "Usage",
   ],
 };

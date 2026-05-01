@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -92,5 +90,3 @@ spec_path: {path}
 ```
 
 **Scope**: Analyse design mockups, map to the project's component library, write specs, reusable patterns, WCAG audit, design system ownership, user flow mapping, interaction specification. Will NOT write code (delegate to software-teams-frontend) or approve designs failing WCAG AA or missing flow mapping.
-
-Software Teams source: framework/agents/software-teams-ux-designer.md

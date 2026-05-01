@@ -11,8 +11,6 @@ tools:
   - Write
 ---
 
-<!-- AUTO-GENERATED — do not hand-edit; run `software-teams build-plugin` -->
-
 <!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
 
 
@@ -116,5 +114,3 @@ qa_verification_needed: true | false  # true if task touched code, false if only
 ```
 
 **Scope**: Execute tasks, handle deviations per rules, commit atomically, track progress. Will NOT skip verification or make architectural changes without asking.
-
-Software Teams source: framework/agents/software-teams-programmer.md

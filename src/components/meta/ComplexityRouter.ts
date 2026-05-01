@@ -15,8 +15,8 @@ const ComplexityRouter: Component = {
   description:
     "Evaluates plan complexity and returns the routing decision for implement-plan",
   sections: {
-    "Decision Matrix": {
-      name: "Decision Matrix",
+    DecisionMatrix: {
+      name: "DecisionMatrix",
       description: "Signals used to determine single-agent vs agent-teams mode",
       body: `Read the plan index file (frontmatter + task manifest table) and extract these signals:
 
@@ -44,8 +44,8 @@ secondary_agents: []  # only populated in agent-teams mode
 reasoning: "{why this mode was chosen}"
 \`\`\``,
     },
-    "Single-Agent Mode": {
-      name: "Single-Agent Mode",
+    SingleAgentMode: {
+      name: "SingleAgentMode",
       description: "How to spawn a single specialist agent for simple plans",
       body: `Spawn one specialist agent directly via Task tool, **natively by name**.
 
@@ -113,8 +113,8 @@ software-teams-backend / software-teams-frontend spec inside the prompt as a las
 \`AgentRouter.md\` §4 for the documented fallback pattern (lint-allowlisted).
 <!-- /lint-allow -->`,
     },
-    "Agent Teams Mode": {
-      name: "Agent Teams Mode",
+    AgentTeamsMode: {
+      name: "AgentTeamsMode",
       description: "How to run full Agent Teams orchestration for complex plans",
       body: `Follow full orchestration from \`.software-teams/framework/components/meta/AgentTeamsOrchestration.md\`:
 TeamCreate → TaskCreate per plan task → spawn specialists per tech-stack routing → wave-based coordination → collect deferred ops → shutdown → TeamDelete.`,
@@ -130,10 +130,10 @@ Referenced by implement-plan command stub. Evaluates at orchestration time, befo
     },
   },
   defaultOrder: [
-    "Decision Matrix",
+    "DecisionMatrix",
     "Output",
-    "Single-Agent Mode",
-    "Agent Teams Mode",
+    "SingleAgentMode",
+    "AgentTeamsMode",
     "Usage",
   ],
 };
