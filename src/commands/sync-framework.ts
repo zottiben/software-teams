@@ -20,61 +20,65 @@ const PRESERVED_STATE_FILES = [
 ] as const;
 
 /**
- * Enumerate canonical `framework/` files (relative paths) excluding the
- * `adapters/` subtree, mirroring the filter applied by
- * `copyFrameworkFiles()`. Used for dry-run reporting and as the source list
- * for change detection.
+ * Subdirectories shipped from the package root into a consumer's
+ * `.software-teams/framework/<sub>/` install. Mirrors PACKAGE_SUBDIRS in
+ * copy-framework.ts; kept in sync by hand for now.
  */
-async function listFrameworkFiles(frameworkDir: string): Promise<string[]> {
+const PACKAGE_SUBDIRS = [
+  "templates",
+  "teams",
+  "hooks",
+  "stacks",
+  "learnings",
+  "rules",
+  "agents",
+  "commands",
+  "config",
+];
+
+/**
+ * Enumerate canonical package files (relative paths). The legacy `framework/`
+ * wrapper directory was retired in Phase A; each subtree now lives at the
+ * package root directly. Output paths are still keyed by subdir so the
+ * destination layout under `.software-teams/framework/` remains consistent
+ * (Phase B collapses that mirror).
+ */
+async function listFrameworkFiles(packageRoot: string): Promise<string[]> {
   const out: string[] = [];
-  const glob = new Bun.Glob("**/*");
-  for await (const file of glob.scan({ cwd: frameworkDir })) {
-    if (file.startsWith("adapters/")) continue;
-    out.push(file);
-  }
-  // Plugin tree (agents/+commands/) lives at the package root, not under
-  // framework/. Surface its contents under the same logical paths so
-  // detectFrameworkChanges and copyFrameworkFiles agree on what's canonical.
-  const packageRoot = join(frameworkDir, "..");
-  for (const sub of ["agents", "commands"]) {
+  for (const sub of PACKAGE_SUBDIRS) {
     const subDir = join(packageRoot, sub);
     if (!existsSync(subDir)) continue;
-    const subGlob = new Bun.Glob("*.md");
+    const subGlob = new Bun.Glob("**/*");
     for await (const file of subGlob.scan({ cwd: subDir })) {
       out.push(`${sub}/${file}`);
     }
+  }
+  // Top-level doctrine file lives at the package root.
+  if (existsSync(join(packageRoot, "software-teams.md"))) {
+    out.push("software-teams.md");
   }
   out.sort();
   return out;
 }
 
 /**
- * Compare canonical `framework/<file>` against `.software-teams/framework/<file>` and
- * return the relative paths that differ (missing destination, or differing
- * size/mtime). Used for both `--dry-run` reporting and for the orchestration
- * test surface.
+ * Compare canonical package-side content against `.software-teams/framework/<file>`
+ * and return the relative paths that differ.
  */
 export async function detectFrameworkChanges(
   cwd: string,
-  frameworkDir: string,
+  packageRoot: string,
 ): Promise<{ missing: string[]; changed: string[] }> {
   const missing: string[] = [];
   const changed: string[] = [];
-  const files = await listFrameworkFiles(frameworkDir);
-  const packageRoot = join(frameworkDir, "..");
+  const files = await listFrameworkFiles(packageRoot);
   for (const file of files) {
     const dest = join(cwd, ".software-teams", "framework", file);
     if (!existsSync(dest)) {
       missing.push(file);
       continue;
     }
-    // agents/* and commands/* sources live at the package root since the
-    // plugin-tree promotion; everything else still under frameworkDir.
-    const sourceRoot =
-      file.startsWith("agents/") || file.startsWith("commands/")
-        ? packageRoot
-        : frameworkDir;
-    const srcContent = await Bun.file(join(sourceRoot, file)).text();
+    const srcContent = await Bun.file(join(packageRoot, file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent) changed.push(file);
   }
@@ -104,21 +108,23 @@ export const syncFrameworkCommand = defineCommand({
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
 
-    // Resolve canonical framework directory the same way copyFrameworkFiles
-    // does (sibling of src/, i.e. the package root's `framework/`).
-    const frameworkDir = join(import.meta.dir, "..", "..", "framework");
-    if (!existsSync(frameworkDir)) {
+    // Resolve the package root the same way copyFrameworkFiles does (two
+    // levels above this file). The legacy `framework/` wrapper was retired in
+    // Phase A; subtrees (templates, hooks, etc.) now live directly at the
+    // package root.
+    const packageRoot = join(import.meta.dir, "..", "..");
+    if (!existsSync(join(packageRoot, "templates"))) {
       consola.error(
-        `Canonical framework directory not found: ${frameworkDir}. Are you running from inside the Software Teams package?`,
+        `Software Teams package layout not found at ${packageRoot}. Are you running from inside the Software Teams package?`,
       );
       process.exit(1);
     }
 
     consola.start(
-      `Refreshing .software-teams/framework/ from ${frameworkDir}${dryRun ? " (dry-run)" : ""}`,
+      `Refreshing .software-teams/framework/ from ${packageRoot}${dryRun ? " (dry-run)" : ""}`,
     );
 
-    const { missing, changed } = await detectFrameworkChanges(cwd, frameworkDir);
+    const { missing, changed } = await detectFrameworkChanges(cwd, packageRoot);
     const totalDelta = missing.length + changed.length;
 
     if (totalDelta === 0) {
@@ -152,7 +158,7 @@ export const syncFrameworkCommand = defineCommand({
     // ROADMAP.yaml, config/state.yaml) is preserved because
     // copyFrameworkFiles() never writes to those paths.
     const projectType = await detectProjectType(cwd);
-    await copyFrameworkFiles(cwd, projectType, true, false, frameworkDir);
+    await copyFrameworkFiles(cwd, projectType, true, false, packageRoot);
     consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
 
     // Verify state files were preserved (sanity log only — the writer cannot

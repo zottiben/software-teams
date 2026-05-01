@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
-const REAL_FRAMEWORK = join(REPO_ROOT, "framework");
+const PACKAGE_ROOT = REPO_ROOT;
 
 describe("init — scaffolding layout (wave 1 rebrand)", () => {
   test("init creates .software-teams/ directory structure (not .jdi/)", async () => {
@@ -76,7 +76,7 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
   test("framework copyFrameworkFiles writes to .software-teams/framework/ (not .jdi/framework/)", async () => {
     const cwd = makeTempDir();
     // Copy framework using the utility with the real framework source
-    await copyFrameworkFiles(cwd, "node", false, false, REAL_FRAMEWORK);
+    await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
     expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(true);
     expect(existsSync(join(cwd, ".software-teams", "framework", "agents"))).toBe(true);
@@ -89,7 +89,7 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
   test("init generates 24 .claude/agents/software-teams-*.md files (from renamed tree)", async () => {
     const cwd = makeTempDir();
     // Setup framework and then generate agents
-    await copyFrameworkFiles(cwd, "node", false, false, REAL_FRAMEWORK);
+    await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
     const result = await convertAgents({
       cwd,
@@ -116,7 +116,7 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
   test("init creates .claude/AGENTS.md and .claude/RULES.md", async () => {
     const cwd = makeTempDir();
     // Generate agents which creates AGENTS.md and RULES.md
-    await copyFrameworkFiles(cwd, "node", false, false, REAL_FRAMEWORK);
+    await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
     await convertAgents({
       cwd,
       sourceDir: ".software-teams/framework/agents",
@@ -130,10 +130,10 @@ describe("init — scaffolding layout (wave 1 rebrand)", () => {
   test(".claude/CLAUDE.md file references use /st: routing (not /jdi:)", async () => {
     const cwd = makeTempDir();
     // Copy the CLAUDE.md template from framework
-    await copyFrameworkFiles(cwd, "node", false, false, REAL_FRAMEWORK);
+    await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
     // The framework template should be in framework/templates/.claude/
-    const claudeMdPath = join(REAL_FRAMEWORK, "templates", ".claude", "CLAUDE.md");
+    const claudeMdPath = join(PACKAGE_ROOT, "templates", ".claude", "CLAUDE.md");
     if (existsSync(claudeMdPath)) {
       const claudeMdContent = await readFile(claudeMdPath, "utf-8");
       // The template should use /st: routing

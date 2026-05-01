@@ -2,53 +2,55 @@ import { join, dirname } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import type { ProjectType } from "./detect-project";
 
+/**
+ * Subdirectories shipped from the package root into a consumer's
+ * `.software-teams/framework/` install. The legacy `framework/` wrapper
+ * directory at the package root was retired in Phase A — each subtree now
+ * lives at the package root directly. The destination layout under
+ * `.software-teams/framework/` is unchanged in Phase A; Phase B collapses it.
+ */
+const PACKAGE_SUBDIRS = [
+  "templates",
+  "teams",
+  "hooks",
+  "stacks",
+  "learnings",
+  "rules",
+  "agents",
+  "commands",
+  "config",
+] as const;
+
 export async function copyFrameworkFiles(
   cwd: string,
   projectType: ProjectType,
   force: boolean,
   ci: boolean = false,
   /**
-   * Optional override for the canonical framework source directory. Defaults
-   * to `<package>/framework` (the layout shipped via npm). Pass an explicit
-   * path when running from source in repos where `import.meta.dir` does not
-   * line up with the published bundle layout (e.g. `jdi sync-framework` in
-   * this self-hosting repo).
+   * Optional override for the package root. Defaults to the directory two
+   * levels above this file (`<package>` when the bundled CLI is shipped via
+   * npm). Pass an explicit path in tests so fixtures don't touch real source
+   * dirs.
    */
-  frameworkDirOverride?: string,
+  packageRootOverride?: string,
 ): Promise<void> {
-  const frameworkDir = frameworkDirOverride ?? join(import.meta.dir, "../framework");
-  // Plugin tree (agents/+commands/) lives at the package root, one level above
-  // `framework/`. Promoted to source of truth (was: framework/agents/+framework/commands/);
-  // see plan 5-01-promote-plugin-tree (or migration note).
-  const packageRoot = join(frameworkDir, "..");
-
-  // Copy framework files to .software-teams/framework/ (components, teams, etc.)
+  // `import.meta.dir` resolves to `<package>/dist/` when running the bundled
+  // CLI and `<package>/src/utils/` when running uncompiled. The bundle is
+  // one level below the package root; the source file is two levels below.
+  // Detect by checking which candidate has package.json.
+  const oneUp = join(import.meta.dir, "..");
+  const twoUp = join(import.meta.dir, "..", "..");
+  const packageRoot =
+    packageRootOverride ??
+    (existsSync(join(oneUp, "package.json")) ? oneUp : twoUp);
   const frameworkDest = join(cwd, ".software-teams", "framework");
-  const glob = new Bun.Glob("**/*");
-  for await (const file of glob.scan({ cwd: frameworkDir })) {
-    // Skip adapters (handled separately)
-    if (file.startsWith("adapters/")) continue;
 
-    const src = join(frameworkDir, file);
-    const dest = join(frameworkDest, file);
-
-    if (!force && existsSync(dest)) continue;
-
-    const dir = dirname(dest);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-    const content = await Bun.file(src).text();
-    await Bun.write(dest, content);
-  }
-
-  // Copy plugin agents/ → .software-teams/framework/agents/. Consumer-side
-  // path is unchanged so downstream readers (`convertAgents`,
-  // `prompt-builder.plannerSpec`, etc.) keep working without churn.
-  for (const subdir of ["agents", "commands"]) {
-    const srcDir = join(packageRoot, subdir);
+  // Copy each per-subdir tree from the package into .software-teams/framework/<sub>.
+  for (const sub of PACKAGE_SUBDIRS) {
+    const srcDir = join(packageRoot, sub);
     if (!existsSync(srcDir)) continue;
-    const destDir = join(frameworkDest, subdir);
-    const subGlob = new Bun.Glob("*.md");
+    const destDir = join(frameworkDest, sub);
+    const subGlob = new Bun.Glob("**/*");
     for await (const file of subGlob.scan({ cwd: srcDir })) {
       const src = join(srcDir, file);
       const dest = join(destDir, file);
@@ -60,11 +62,20 @@ export async function copyFrameworkFiles(
     }
   }
 
+  // Copy the top-level doctrine file.
+  const doctrineSrc = join(packageRoot, "software-teams.md");
+  if (existsSync(doctrineSrc)) {
+    const doctrineDest = join(frameworkDest, "software-teams.md");
+    if (force || !existsSync(doctrineDest)) {
+      const content = await Bun.file(doctrineSrc).text();
+      await Bun.write(doctrineDest, content);
+    }
+  }
+
   // Note: `.claude/agents/` is intentionally NOT copied here. Native subagent
   // files are generated mechanically from `agents/software-teams-*.md` by
   // `convertAgents()` (invoked from `init` after this step, and standalone
-  // via `software-teams sync-agents`). `framework/.claude/agents/` does not exist and
-  // must not — `convertAgents()` is the single writer to that path.
+  // via `software-teams sync-agents`).
 
   // Copy command stubs to .claude/commands/st/ from the plugin commands/ tree.
   const commandsDir = join(packageRoot, "commands");
@@ -88,7 +99,7 @@ export async function copyFrameworkFiles(
   // Copy the declarative `.claude/settings.json` template into the project root.
   // This defines the scoped tool allowlist for spawned Claude sessions.
   // Do NOT clobber an existing settings.json unless --force was passed.
-  const settingsTemplate = join(frameworkDir, "templates", ".claude", "settings.json");
+  const settingsTemplate = join(packageRoot, "templates", ".claude", "settings.json");
   if (existsSync(settingsTemplate)) {
     const settingsDest = join(cwd, ".claude", "settings.json");
     const destDir = dirname(settingsDest);
@@ -99,8 +110,8 @@ export async function copyFrameworkFiles(
     }
   }
 
-  // Apply adapter config for the detected project type
-  const adapterPath = join(frameworkDir, "adapters", `${projectType}.yaml`);
+  // Apply adapter config for the detected project type.
+  const adapterPath = join(packageRoot, "adapters", `${projectType}.yaml`);
   if (existsSync(adapterPath)) {
     const dest = join(cwd, ".software-teams", "config", "adapter.yaml");
     const dir = dirname(dest);
@@ -115,13 +126,12 @@ export async function copyFrameworkFiles(
   if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });
 
   // Read the shared CLAUDE.md base template
-  const sharedTemplatePath = join(frameworkDir, "templates", "CLAUDE-SHARED.md");
+  const sharedTemplatePath = join(packageRoot, "templates", "CLAUDE-SHARED.md");
   const sharedBase = existsSync(sharedTemplatePath)
     ? await Bun.file(sharedTemplatePath).text()
     : "";
 
   if (ci) {
-    // CI mode: shared base + CI-specific sections
     const ciSections = `
 ## Codebase Index
 
@@ -167,8 +177,7 @@ Use the ticket name, description, and checklists as requirements.
     await Bun.write(claudeMdPath, sharedBase + "\n" + ciSections);
   } else {
     const routingHeader = '## Agent-First Default'
-    if (!existsSync(claudeMdPath)) {
-      await Bun.write(claudeMdPath, `${routingHeader}
+    const routingBlock = `${routingHeader}
 
 For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
 
@@ -213,56 +222,13 @@ Per-sub-plan flow (create-plan → implement → commit) from an orchestration p
 ## Iterative Refinement
 
 After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
-`);
+`;
+    if (!existsSync(claudeMdPath)) {
+      await Bun.write(claudeMdPath, routingBlock);
     } else {
       const existing = await Bun.file(claudeMdPath).text();
       if (!existing.includes(routingHeader)) {
-        await Bun.write(claudeMdPath, existing + "\n" + `${routingHeader}
-
-For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
-
-- Trivial edits (single file, single grep, single shell command).
-- Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.
-- Agent/framework orchestration itself (configuring, routing, triage, memory updates).
-
-Match specialists to domain: react → \`software-teams-frontend\` / \`software-teams-programmer\`; php → \`software-teams-backend\` / \`software-teams-programmer\`; research → \`software-teams-researcher\`; QA → \`software-teams-qa-tester\` / \`software-teams-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
-
-### Scope spawn prompts tightly
-
-Spawned agents can be truncated mid-task when briefings are too broad. To prevent it:
-
-- **One concern per invocation.** Bundle unrelated fixes? Run them as parallel agents instead.
-- **Split investigation from implementation** when the audit is wide. Agent A finds, agent B fixes with exact file:line targets.
-- **Give exact file paths and line numbers**, not open-ended "find all bugs in X" prompts.
-- **Cap exploration** — "read at most N files, then act."
-- **Ask for short reports (<400 words).** Long formal reports are where truncation bites.
-- If an agent is cut off, \`SendMessage({to: agentId})\` resumes them — their edits persist.
-
-## Software Teams Workflow Routing
-
-Recognise natural language Software Teams intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
-
-- Plan/ticket analysis → \`/st:create-plan\`
-- Implement/build/execute → \`/st:implement-plan\`
-- Review PR → \`/st:pr-review\`
-- Address PR feedback → \`/st:pr-feedback\`
-- Commit changes → \`/st:commit\`
-- Generate/create PR → \`/st:generate-pr\`
-- Quick/small fix → \`/st:quick\`
-
-Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
-
-## Planning and Implementation
-
-Per-sub-plan flow (create-plan → implement → commit) from an orchestration plan - full flow (orchestration plan -> implementation plan -> implementation -> commit); resume-cold checklist.
-
-- SDD plan implementation flow.
-- Planning and implementation are separate gates — NEVER auto-proceed to implementation after plan approval.
-
-## Iterative Refinement
-
-After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
-`);
+        await Bun.write(claudeMdPath, existing + "\n" + routingBlock);
       }
     }
   }

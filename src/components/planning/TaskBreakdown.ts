@@ -116,7 +116,7 @@ Tasks with no dependencies → Wave 1. Tasks depending on Wave N → Wave N+1.`,
       description: "How TaskBreakdown applies in three-tier plan mode",
       body: `This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (\`PLAN.md\` + per-task) or three-tier (\`SPEC.md\` + \`ORCHESTRATION.md\` + per-agent slices) artefacts.
 
-When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`framework/templates/ORCHESTRATION.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`PLAN.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`framework/agents/software-teams-planner.md\` for the Tier Decision Rule.`,
+When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`templates/ORCHESTRATION.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`PLAN.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`agents/software-teams-planner.md\` for the Tier Decision Rule.`,
     },
     TestTaskRules: {
       name: "TestTaskRules",

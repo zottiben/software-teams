@@ -24,21 +24,16 @@ afterEach(() => {
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
 const REAL_SOURCE = join(REPO_ROOT, "agents");
-const REAL_RULES_TEMPLATE = join(REPO_ROOT, "framework", "templates", "RULES.md");
+const REAL_RULES_TEMPLATE = join(REPO_ROOT, "templates", "RULES.md");
 
 /**
- * Build a fixture cwd with a real `agents/` + `framework/templates` tree by
- * symlinking. agents/ is the plugin-tree source-of-truth at the repo root;
- * templates/ still lives under framework/.
+ * Build a fixture cwd with a real `agents/` + `templates/` tree by symlinking.
+ * Both live at the repo root since Phase A retired the `framework/` wrapper.
  */
 async function makeFixtureCwd(): Promise<string> {
   const cwd = makeTempDir();
-  // Symlink the real agents/ tree at the cwd root.
   await Bun.$`ln -s ${REAL_SOURCE} ${join(cwd, "agents")}`.quiet();
-  // framework/templates lives under framework/, so we need the wrapper dir.
-  const fwDir = join(cwd, "framework");
-  mkdirSync(fwDir, { recursive: true });
-  await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
+  await Bun.$`ln -s ${join(REPO_ROOT, "templates")} ${join(cwd, "templates")}`.quiet();
   return cwd;
 }
 
@@ -311,10 +306,7 @@ More content here.
 `;
     await writeFile(syntheticPath, syntheticContent);
 
-    // Also symlink templates to avoid errors
-    const fwDir = join(cwd, "framework");
-    mkdirSync(fwDir, { recursive: true });
-    await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
+    await Bun.$`ln -s ${join(REPO_ROOT, "templates")} ${join(cwd, "templates")}`.quiet();
 
     const result = await convertAgents({ cwd });
     expect(result.errors).toEqual([]);
@@ -356,10 +348,7 @@ End.
 `;
     await writeFile(syntheticPath, syntheticContent);
 
-    // Setup minimal framework
-    const fwDir = join(cwd, "framework");
-    mkdirSync(fwDir, { recursive: true });
-    await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
+    await Bun.$`ln -s ${join(REPO_ROOT, "templates")} ${join(cwd, "templates")}`.quiet();
 
     const result = await convertAgents({ cwd });
     // Should have an error for the broken ref
@@ -436,9 +425,7 @@ End.
 `;
     await writeFile(syntheticPath, syntheticContent);
 
-    const fwDir = join(cwd, "framework");
-    mkdirSync(fwDir, { recursive: true });
-    await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
+    await Bun.$`ln -s ${join(REPO_ROOT, "templates")} ${join(cwd, "templates")}`.quiet();
 
     const result = await convertAgents({ cwd });
     expect(result.errors).toEqual([]);
@@ -484,9 +471,12 @@ describe("Component tag audit — T1 + T2 regression guards", () => {
    * and assert getComponent(name, section) resolves cleanly for each.
    * Skip tags inside backticks or fenced code blocks (matching T2's protection).
    */
-  test("T2 regression guard: every @ST: tag in framework/ resolves via getComponent", async () => {
+  test("T2 regression guard: every @ST: tag in the repo resolves via getComponent", async () => {
+    // Scan the directories that legitimately contain @ST: tags after the
+    // Phase A framework-flattening: agents/, commands/, templates/, plus the
+    // top-level doctrine file.
+    const SCAN_DIRS = ["agents", "commands", "templates"];
     const globPattern = new Bun.Glob("**/*.md");
-    const frameworkDir = join(REPO_ROOT, "framework");
 
     // Canonical @ST: regex (must match T2's protection logic)
     const tagRegex = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
@@ -494,8 +484,15 @@ describe("Component tag audit — T1 + T2 regression guards", () => {
     // Track all discovered tags for diagnostics
     const discoveredTags: Array<{ component: string; section: string | null; file: string; line: number }> = [];
 
-    for await (const file of globPattern.scan(frameworkDir)) {
-      const fullPath = join(frameworkDir, file);
+    const filesToScan: Array<{ rel: string; full: string }> = [];
+    for (const dir of SCAN_DIRS) {
+      const baseDir = join(REPO_ROOT, dir);
+      for await (const file of globPattern.scan(baseDir)) {
+        filesToScan.push({ rel: `${dir}/${file}`, full: join(baseDir, file) });
+      }
+    }
+
+    for (const { rel: file, full: fullPath } of filesToScan) {
       const content = await readFile(fullPath, "utf-8");
 
       // Remove backtick-protected regions: inline backticks and fenced code blocks
@@ -550,16 +547,23 @@ describe("Component tag audit — T1 + T2 regression guards", () => {
    * (a soft regression buffer above the T2 target of ~14).
    */
   test("T2 regression guard: whole-component @ST: tag count <= 25", async () => {
+    const SCAN_DIRS = ["agents", "commands", "templates"];
     const globPattern = new Bun.Glob("**/*.md");
-    const frameworkDir = join(REPO_ROOT, "framework");
 
     // Regex to match only whole-component tags (no :Section)
     const wholeComponentTagRegex = /@ST:([A-Za-z][A-Za-z0-9-]*)(?!:[A-Za-z][A-Za-z0-9-]*)/g;
 
     let wholeComponentCount = 0;
 
-    for await (const file of globPattern.scan(frameworkDir)) {
-      const fullPath = join(frameworkDir, file);
+    const filesToScan: string[] = [];
+    for (const dir of SCAN_DIRS) {
+      const baseDir = join(REPO_ROOT, dir);
+      for await (const file of globPattern.scan(baseDir)) {
+        filesToScan.push(join(baseDir, file));
+      }
+    }
+
+    for (const fullPath of filesToScan) {
       const content = await readFile(fullPath, "utf-8");
 
       // Remove backtick-protected regions

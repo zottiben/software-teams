@@ -1,5 +1,5 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, readdirSync } from "node:fs";
+import { mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -24,12 +24,10 @@ const REPO_ROOT = join(import.meta.dir, "..", "..");
 
 async function makeFixtureCwd(): Promise<string> {
   const cwd = makeTempDir();
-  // agents/ is now plugin-tree source-of-truth at repo root; templates/ still
-  // lives under framework/.
+  // agents/ + templates/ both live at the repo root after Phase A retired the
+  // `framework/` wrapper.
   await Bun.$`ln -s ${join(REPO_ROOT, "agents")} ${join(cwd, "agents")}`.quiet();
-  const fwDir = join(cwd, "framework");
-  mkdirSync(fwDir, { recursive: true });
-  await Bun.$`ln -s ${join(REPO_ROOT, "framework", "templates")} ${join(fwDir, "templates")}`.quiet();
+  await Bun.$`ln -s ${join(REPO_ROOT, "templates")} ${join(cwd, "templates")}`.quiet();
   return cwd;
 }
 

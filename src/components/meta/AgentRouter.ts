@@ -21,7 +21,7 @@ const AgentRouter: Component = {
       name: "Discovery",
       description: "Enumerate available agents before task breakdown",
       body: `The planner MUST perform discovery before task breakdown. Software Teams specialists are
-authored under \`framework/agents/\` and converted into Claude Code's native
+authored under \`agents/\` and converted into Claude Code's native
 subagent registry by \`software-teams sync-agents\` (see \`src/utils/convert-agents.ts\`),
 which writes Claude-compatible specs to \`.claude/agents/\`. Once that has run,
 both Software Teams specialists and user-added Claude Code subagents are spawned natively
@@ -33,7 +33,7 @@ collision):
 
 1. \`.software-teams/framework/agents/software-teams-*.md\` — Software Teams specialists installed in the project
    (primary source for any project using Software Teams). When working on the Software Teams repo
-   itself, fall back to \`framework/agents/software-teams-*.md\` in the repo root.
+   itself, fall back to \`agents/software-teams-*.md\` in the repo root.
 2. \`.claude/agents/*.md\` — project-local Claude Code subagents (user-added
    specialists, takes precedence over user-global)
 3. \`~/.claude/agents/*.md\` — user-global Claude Code subagents
@@ -53,13 +53,13 @@ subagents. Agents whose frontmatter is unreadable or missing \`name\` are skippe
 Discovery commands (reference — the planner uses \`Glob\` + \`Read\`):
 
 \`\`\`bash
-ls .software-teams/framework/agents/software-teams-*.md 2>/dev/null || ls framework/agents/software-teams-*.md 2>/dev/null
+ls .software-teams/framework/agents/software-teams-*.md 2>/dev/null || ls agents/software-teams-*.md 2>/dev/null
 ls .claude/agents/ 2>/dev/null
 ls ~/.claude/agents/ 2>/dev/null
 \`\`\`
 
 The resulting catalogue MUST be written into the plan index frontmatter as
-\`available_agents:\` (see \`framework/templates/PLAN.md\`) so reviewers and the
+\`available_agents:\` (see \`templates/PLAN.md\`) so reviewers and the
 implement-plan pass can see exactly which agents were visible at plan time.
 
 \`\`\`yaml
@@ -201,7 +201,7 @@ this specialist. Reviewers can use it to challenge bad routings.`,
     Execution: {
       name: "Execution",
       description: "How implement-plan honours agent pins when spawning",
-      body: `**Native subagents are the default.** \`convertAgents()\` (invoked by \`software-teams sync-agents\` and \`software-teams init\`) populates \`.claude/agents/\` with Claude Code-compatible specs converted from \`framework/agents/software-teams-*.md\`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under \`.claude/agents/\` and \`~/.claude/agents/\` are equally first-class.
+      body: `**Native subagents are the default.** \`convertAgents()\` (invoked by \`software-teams sync-agents\` and \`software-teams init\`) populates \`.claude/agents/\` with Claude Code-compatible specs converted from \`agents/software-teams-*.md\`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under \`.claude/agents/\` and \`~/.claude/agents/\` are equally first-class.
 
 \`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Task tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically — no identity preamble in the prompt body.
 
@@ -228,7 +228,7 @@ Agent(
 )
 \`\`\`
 
-The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/RULES.md\` / \`framework/templates/RULES.md\` for the orchestration doctrine.
+The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/RULES.md\` / \`templates/RULES.md\` for the orchestration doctrine.
 
 If \`plan.primary_agent\` is missing (legacy plan or empty \`available_agents\`), use the legacy fallback below.
 
@@ -301,7 +301,7 @@ The implement-plan pass MUST:
 2. Read the matching \`source:\` from the plan's \`available_agents\` catalogue to
    pick the correct spawn pattern (see §4).
 3. Surface any downgrade in the summary.
-4. Prefer \`.software-teams/framework/agents/\` (or \`framework/agents/\` in the Software Teams repo)
+4. Prefer \`.software-teams/framework/agents/\` (or \`agents/\` in the Software Teams repo)
    over \`.claude/agents/\` over \`~/.claude/agents/\` on name collision.`,
     },
     Usage: {
@@ -314,7 +314,7 @@ The implement-plan pass MUST:
 \`\`\`
 
 Referenced by:
-- \`framework/agents/software-teams-planner.md\` (discover + match)
+- \`agents/software-teams-planner.md\` (discover + match)
 - \`the ComplexityRouter component\` (spawn)
 - \`the AgentTeamsOrchestration component\` (spawn)
 - \`framework/commands/create-plan.md\` (discover)

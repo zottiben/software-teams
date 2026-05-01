@@ -208,7 +208,7 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 ### Step 0a: Agent Discovery (MANDATORY — read AgentRouter first)
 
 The planner MUST perform discovery before task breakdown. Software Teams specialists are
-authored under \`framework/agents/\` and converted into Claude Code's native
+authored under \`agents/\` and converted into Claude Code's native
 subagent registry by \`software-teams sync-agents\` (see \`src/utils/convert-agents.ts\`),
 which writes Claude-compatible specs to \`.claude/agents/\`. Once that has run,
 both Software Teams specialists and user-added Claude Code subagents are spawned natively
@@ -220,7 +220,7 @@ collision):
 
 1. \`.software-teams/framework/agents/software-teams-*.md\` — Software Teams specialists installed in the project
    (primary source for any project using Software Teams). When working on the Software Teams repo
-   itself, fall back to \`framework/agents/software-teams-*.md\` in the repo root.
+   itself, fall back to \`agents/software-teams-*.md\` in the repo root.
 2. \`.claude/agents/*.md\` — project-local Claude Code subagents (user-added
    specialists, takes precedence over user-global)
 3. \`~/.claude/agents/*.md\` — user-global Claude Code subagents
@@ -240,13 +240,13 @@ subagents. Agents whose frontmatter is unreadable or missing \`name\` are skippe
 Discovery commands (reference — the planner uses \`Glob\` + \`Read\`):
 
 \`\`\`bash
-ls .software-teams/framework/agents/software-teams-*.md 2>/dev/null || ls framework/agents/software-teams-*.md 2>/dev/null
+ls .software-teams/framework/agents/software-teams-*.md 2>/dev/null || ls agents/software-teams-*.md 2>/dev/null
 ls .claude/agents/ 2>/dev/null
 ls ~/.claude/agents/ 2>/dev/null
 \`\`\`
 
 The resulting catalogue MUST be written into the plan index frontmatter as
-\`available_agents:\` (see \`framework/templates/PLAN.md\`) so reviewers and the
+\`available_agents:\` (see \`templates/PLAN.md\`) so reviewers and the
 implement-plan pass can see exactly which agents were visible at plan time.
 
 \`\`\`yaml
@@ -372,7 +372,7 @@ Every task MUST be tagged with one of three priority bands:
 
 This component describes the **mode-agnostic algorithm** for breaking down work into tasks — it applies the same way whether the planner emits single-tier (\`PLAN.md\` + per-task) or three-tier (\`SPEC.md\` + \`ORCHESTRATION.md\` + per-agent slices) artefacts.
 
-When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`framework/templates/ORCHESTRATION.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`PLAN.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`framework/agents/software-teams-planner.md\` for the Tier Decision Rule.
+When the planner is in three-tier mode the resulting task graph and dependency analysis are written into \`templates/ORCHESTRATION.md\` (the manifest, sequencing rules, and quality gates) rather than the legacy \`PLAN.md\` index. The granularity rules, priority bands, and test task rules below are unchanged. See \`agents/software-teams-planner.md\` for the Tier Decision Rule.
 
 When test context is provided (test_suite.detected or test_suite.forced), generate test tasks following these rules:
 

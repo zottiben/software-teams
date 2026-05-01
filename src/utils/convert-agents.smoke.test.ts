@@ -13,7 +13,7 @@
  * Claude Code subagent registration depends on.
  */
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import { mkdtempSync, rmSync, readdirSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -36,22 +36,18 @@ afterEach(() => {
 });
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
-const REAL_FRAMEWORK = join(REPO_ROOT, "framework");
-// Plugin tree (agents/) is now at the repo root; templates/ still under framework/.
 const REAL_AGENTS = join(REPO_ROOT, "agents");
-const REAL_TEMPLATES = join(REAL_FRAMEWORK, "templates");
+const REAL_TEMPLATES = join(REPO_ROOT, "templates");
 
 /**
- * Build an isolated cwd that exposes the real plugin tree + framework/templates
- * via symlinks so the converter exercises real specs while writing to a temp
- * `.claude/`.
+ * Build an isolated cwd exposing the real plugin tree + templates via
+ * symlinks. Both live at the repo root after Phase A retired the `framework/`
+ * wrapper.
  */
 async function makeFixtureCwd(): Promise<string> {
   const cwd = makeTempDir();
   await Bun.$`ln -s ${REAL_AGENTS} ${join(cwd, "agents")}`.quiet();
-  const fwDir = join(cwd, "framework");
-  mkdirSync(fwDir, { recursive: true });
-  await Bun.$`ln -s ${REAL_TEMPLATES} ${join(fwDir, "templates")}`.quiet();
+  await Bun.$`ln -s ${REAL_TEMPLATES} ${join(cwd, "templates")}`.quiet();
   return cwd;
 }
 

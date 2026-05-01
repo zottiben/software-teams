@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 const REPO_ROOT = join(import.meta.dir, "..", "..");
-const FRAMEWORK_DIR = join(REPO_ROOT, "framework");
+const PACKAGE_ROOT = REPO_ROOT;
 
 /**
  * Build a fixture cwd that contains a partial `.software-teams/framework/` snapshot —
@@ -65,7 +65,7 @@ async function makeStaleFixture(): Promise<string> {
 describe("sync-framework — change detection", () => {
   test("detects missing and drifted files in stale snapshot", async () => {
     const cwd = await makeStaleFixture();
-    const { missing, changed } = await detectFrameworkChanges(cwd, FRAMEWORK_DIR);
+    const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
     // We seeded only two files into the stale snapshot, so most of the tree
     // is missing.
     expect(missing.length).toBeGreaterThan(20);
@@ -77,8 +77,8 @@ describe("sync-framework — change detection", () => {
   test("returns empty arrays when snapshot matches canonical", async () => {
     const cwd = makeTempDir();
     // Populate the snapshot from canonical first.
-    await copyFrameworkFiles(cwd, "node", true, false, FRAMEWORK_DIR);
-    const { missing, changed } = await detectFrameworkChanges(cwd, FRAMEWORK_DIR);
+    await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
+    const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
     expect(missing).toEqual([]);
     expect(changed).toEqual([]);
   });
@@ -97,7 +97,7 @@ describe("sync-framework — orchestration", () => {
 
     // Run the same orchestration the CLI command runs (force=true so it
     // overwrites the stale file).
-    await copyFrameworkFiles(cwd, "node", true, false, FRAMEWORK_DIR);
+    await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
     const conv = await convertAgents({ cwd });
 
     // Snapshot updated.
@@ -154,7 +154,7 @@ describe("sync-framework — orchestration", () => {
       "utf-8",
     );
 
-    await copyFrameworkFiles(cwd, "node", true, false, FRAMEWORK_DIR);
+    await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
     await convertAgents({ cwd });
 
     expect(await readFile(join(cwd, ".software-teams", "PROJECT.yaml"), "utf-8")).toBe(beforeProject);
@@ -167,10 +167,10 @@ describe("sync-framework — orchestration", () => {
 
   test("post-refresh: detectFrameworkChanges reports clean", async () => {
     const cwd = await makeStaleFixture();
-    await copyFrameworkFiles(cwd, "node", true, false, FRAMEWORK_DIR);
+    await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
     await convertAgents({ cwd });
 
-    const { missing, changed } = await detectFrameworkChanges(cwd, FRAMEWORK_DIR);
+    const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
     expect(missing).toEqual([]);
     expect(changed).toEqual([]);
   });

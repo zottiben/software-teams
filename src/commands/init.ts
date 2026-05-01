@@ -61,7 +61,8 @@ export const initCommand = defineCommand({
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
 
     // Initialise config files from framework templates
-    const configFiles = ["state.yaml", "variables.yaml", "software-teams-config.yaml"];
+    // variables.yaml retired in Phase A — agents use state.yaml for shared state.
+    const configFiles = ["state.yaml", "software-teams-config.yaml"];
     for (const file of configFiles) {
       const src = join(cwd, ".software-teams", "framework", "config", file);
       const dest = join(cwd, ".software-teams", "config", file);

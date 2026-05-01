@@ -5,15 +5,12 @@ import { parse as parseYaml } from "yaml";
 import { getComponent } from "./components/resolve";
 
 const repoRoot = join(import.meta.dir, "..");
-const frameworkRoot = join(repoRoot, "framework");
 
-// agents/ and commands/ are now plugin-tree source-of-truth at the repo root;
-// other framework artefacts (components, templates, etc.) still live under framework/.
+// All framework subtrees live at the repo root after Phase A retired the
+// `framework/` wrapper directory. Tests reference them by relative path;
+// `templates/...`, `agents/...`, `commands/...`, etc.
 function resolveFrameworkPath(relativePath: string): string {
-  if (relativePath.startsWith("agents/") || relativePath.startsWith("commands/")) {
-    return join(repoRoot, relativePath);
-  }
-  return join(frameworkRoot, relativePath);
+  return join(repoRoot, relativePath);
 }
 
 const TOOL_ALLOWLIST = new Set([
@@ -99,7 +96,7 @@ describe("framework file invariants", () => {
   });
 
   test("templates/PLAN-TASK.md exists and has task_id", () => {
-    const fullPath = join(frameworkRoot, "templates/PLAN-TASK.md");
+    const fullPath = join(repoRoot, "templates/PLAN-TASK.md");
     expect(existsSync(fullPath)).toBe(true);
 
     const content = readFrameworkFile("templates/PLAN-TASK.md");
@@ -270,8 +267,7 @@ describe("native-spawn migration (no legacy general-purpose injection)", () => {
   // specs may legitimately describe the legacy pattern).
   const SCAN_TARGETS: string[] = [
     join(repoRoot, "commands"),
-    join(frameworkRoot, "components"),
-    join(frameworkRoot, "software-teams.md"),
+    join(repoRoot, "software-teams.md"),
     join(repoRoot, ".claude", "CLAUDE.md"),
   ];
 
@@ -401,7 +397,7 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
     ).toBe(true);
   }
 
-  test("framework/templates/CLAUDE-SHARED.md imports @.claude/AGENTS.md and @.claude/RULES.md", () => {
+  test("templates/CLAUDE-SHARED.md imports @.claude/AGENTS.md and @.claude/RULES.md", () => {
     const content = readFrameworkFile("templates/CLAUDE-SHARED.md");
     assertImportLine(content, "@.claude/AGENTS.md", "CLAUDE-SHARED.md");
     assertImportLine(content, "@.claude/RULES.md", "CLAUDE-SHARED.md");
@@ -415,7 +411,7 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
     assertImportLine(content, "@.claude/RULES.md", ".claude/CLAUDE.md");
   });
 
-  test("framework/software-teams.md does NOT contain the phrase 'non-negotiable platform constraint'", () => {
+  test("software-teams.md does NOT contain the phrase 'non-negotiable platform constraint'", () => {
     const content = readFrameworkFile("software-teams.md");
     expect(content).not.toMatch(/non-negotiable platform constraint/i);
   });
@@ -466,9 +462,9 @@ describe("wave-3 three-tier templates", () => {
     return m[1] ?? "";
   }
 
-  test("each three-tier template file exists in framework/templates/", () => {
+  test("each three-tier template file exists in templates/", () => {
     for (const { file } of THREE_TIER_TEMPLATES) {
-      const fullPath = join(frameworkRoot, file);
+      const fullPath = join(repoRoot, file);
       expect(existsSync(fullPath), `expected ${file} to exist`).toBe(true);
     }
   });
