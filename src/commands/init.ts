@@ -112,7 +112,19 @@ export const initCommand = defineCommand({
           // Resolve agent specs from the package's `agents/` dir.
           sourceDir: join(packageRoot, "agents"),
           targetDir: ".claude/agents",
+          // Init must not clobber a user's existing AGENTS.md, RULES.md,
+          // or hand-crafted .claude/agents/<name>.md files. The
+          // `preserve-user-owned` mode overwrites only files that carry
+          // the AUTO-GENERATED banner (i.e. ones Software Teams owns).
+          // `--force` reverts to the previous behaviour for users who
+          // need a hard refresh.
+          onConflict: args.force ? "overwrite" : "preserve-user-owned",
         });
+        if (!args.ci && conv.skipped.length > 0) {
+          consola.info(
+            `Preserved ${conv.skipped.length} existing user-owned file(s) in .claude/ (use --force to overwrite).`,
+          );
+        }
         if (!args.ci) {
           consola.success(
             `Generated ${conv.written.length} native subagents in .claude/agents/`,

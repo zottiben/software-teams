@@ -29,10 +29,33 @@ export function isLearningFile(filename: string): boolean {
 }
 
 /**
- * Sparse-clone the `jdi/learnings/` directory from an external repo.
- * Returns true if the clone succeeded and the directory exists.
+ * The path inside the external learnings repo where Software Teams stores
+ * round-tripped learnings. Renamed from `jdi/learnings/` for brand
+ * consistency with the rest of the framework.
  */
-export function cloneLearningsRepo(repo: string, token: string, tmpDir: string): boolean {
+export const EXTERNAL_LEARNINGS_PATH = "software-teams/rules";
+
+/**
+ * Legacy path inside the external learnings repo. Read-supported as a
+ * back-compat fallback for repos that haven't migrated yet; writes always
+ * go to EXTERNAL_LEARNINGS_PATH.
+ */
+export const EXTERNAL_LEARNINGS_PATH_LEGACY = "jdi/learnings";
+
+/**
+ * Sparse-clone the external learnings repo's rules directory. Pulls both
+ * the new path (software-teams/rules/) and the legacy path
+ * (jdi/learnings/) so reads can fall back to legacy data while new writes
+ * land in the new path.
+ *
+ * Returns the resolved path inside the clone whose directory actually
+ * exists (preferring the new path), or null when neither is present.
+ */
+export function cloneLearningsRepo(
+  repo: string,
+  token: string,
+  tmpDir: string,
+): string | null {
   const cloneUrl = `https://x-access-token:${token}@github.com/${repo}.git`;
 
   const cloneResult = Bun.spawnSync(
@@ -42,17 +65,29 @@ export function cloneLearningsRepo(repo: string, token: string, tmpDir: string):
 
   if (cloneResult.exitCode !== 0) {
     consola.warn("Could not clone learnings repo — continuing without shared learnings");
-    return false;
+    return null;
   }
 
-  // Set sparse checkout to only fetch jdi/learnings/
-  Bun.spawnSync(["git", "sparse-checkout", "set", "jdi/learnings"], {
-    cwd: tmpDir,
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  // Sparse-checkout both new and legacy paths; whichever exists is what we read from.
+  Bun.spawnSync(
+    ["git", "sparse-checkout", "set", EXTERNAL_LEARNINGS_PATH, EXTERNAL_LEARNINGS_PATH_LEGACY],
+    {
+      cwd: tmpDir,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
 
-  return existsSync(join(tmpDir, "jdi/learnings"));
+  const newPath = join(tmpDir, EXTERNAL_LEARNINGS_PATH);
+  const legacyPath = join(tmpDir, EXTERNAL_LEARNINGS_PATH_LEGACY);
+  if (existsSync(newPath)) return newPath;
+  if (existsSync(legacyPath)) {
+    consola.info(
+      `Reading learnings from legacy path (${EXTERNAL_LEARNINGS_PATH_LEGACY}); next write will land at ${EXTERNAL_LEARNINGS_PATH}.`,
+    );
+    return legacyPath;
+  }
+  return null;
 }
 
 /**
@@ -150,12 +185,11 @@ export const fetchLearningsCommand = defineCommand({
     const tmpDir = mkdtempSync(join(tmpdir(), "st-learnings-"));
 
     try {
-      const cloned = cloneLearningsRepo(learningsRepo, token, tmpDir);
-      if (!cloned) {
+      const sourceDir = cloneLearningsRepo(learningsRepo, token, tmpDir);
+      if (!sourceDir) {
         return;
       }
 
-      const sourceDir = join(tmpDir, "jdi/learnings");
       const result = mergeLearnings(sourceDir, learningsDir);
       consola.success(`Learnings fetch complete (copied: ${result.copied}, merged: ${result.merged})`);
     } finally {

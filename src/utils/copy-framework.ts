@@ -115,6 +115,7 @@ export async function copyFrameworkFiles(
     : "";
 
   if (ci) {
+    const ciHeader = "## Codebase Index";
     const ciSections = `
 ## Codebase Index
 
@@ -157,7 +158,17 @@ curl -s -H "Authorization: $CLICKUP_API_TOKEN" "https://api.clickup.com/api/v2/t
 \`\`\`
 Use the ticket name, description, and checklists as requirements.
 `;
-    await Bun.write(claudeMdPath, sharedBase + "\n" + ciSections);
+    // Same non-destructive pattern as local mode: write fresh when no
+    // CLAUDE.md exists, append the CI sections when an existing CLAUDE.md
+    // doesn't already include them, and otherwise leave alone.
+    if (!existsSync(claudeMdPath)) {
+      await Bun.write(claudeMdPath, sharedBase + "\n" + ciSections);
+    } else {
+      const existing = await Bun.file(claudeMdPath).text();
+      if (!existing.includes(ciHeader)) {
+        await Bun.write(claudeMdPath, existing + "\n" + ciSections);
+      }
+    }
   } else {
     const routingHeader = '## Agent-First Default'
     const routingBlock = `${routingHeader}

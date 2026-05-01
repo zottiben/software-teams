@@ -4,7 +4,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, appendFileSyn
 import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { mergeLearnings, LEARNING_CATEGORIES, isLearningFile } from "./fetch-learnings";
+import {
+  mergeLearnings,
+  LEARNING_CATEGORIES,
+  isLearningFile,
+  EXTERNAL_LEARNINGS_PATH,
+  EXTERNAL_LEARNINGS_PATH_LEGACY,
+} from "./fetch-learnings";
 
 function writeGitHubOutput(key: string, value: string): void {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -21,10 +27,11 @@ export interface JdiInvolvement {
 }
 
 /**
- * Check if JDI was involved in the PR associated with a commit.
+ * Check if Software Teams was involved in the PR associated with a commit.
  * Looks for:
- * - Comments from github-actions[bot] mentioning jdi/JDI
- * - Commits authored by jdi[bot]
+ * - Comments from github-actions[bot] mentioning software-teams or the
+ *   legacy "jdi"/"JDI" branding (back-compat for older PRs).
+ * - Commits authored by software-teams[bot] (or legacy jdi[bot]).
  */
 export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
   // Find the PR associated with this commit
@@ -41,21 +48,21 @@ export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
 
   const prNumber = parseInt(prNumberStr, 10);
 
-  // Check for JDI comments
+  // Check for Software Teams comments (matches new branding plus legacy jdi/JDI).
   const commentsResult = Bun.spawnSync(
     [
       "gh", "api", `repos/${repo}/issues/${prNumber}/comments`, "--paginate",
-      "--jq", `[.[] | select(.user.login == "github-actions[bot]" and (.body | test("jdi|JDI")))] | length`,
+      "--jq", `[.[] | select(.user.login == "github-actions[bot]" and (.body | test("software.?teams|jdi|JDI"; "i")))] | length`,
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
   const jdiActivity = parseInt(commentsResult.stdout.toString().trim() || "0", 10);
 
-  // Check for jdi[bot] commits
+  // Check for software-teams[bot] commits (legacy: jdi[bot]).
   const commitsResult = Bun.spawnSync(
     [
       "gh", "api", `repos/${repo}/pulls/${prNumber}/commits`, "--paginate",
-      "--jq", `[.[] | select(.commit.author.name == "jdi[bot]")] | length`,
+      "--jq", `[.[] | select(.commit.author.name == "software-teams[bot]" or .commit.author.name == "jdi[bot]")] | length`,
     ],
     { stdout: "pipe", stderr: "pipe" },
   );
@@ -138,8 +145,8 @@ export function commitLearningsToSameRepo(learningsDir: string, prNumber?: numbe
   }
 
   const message = prNumber
-    ? `chore(jdi): update team learnings\n\nAuto-committed by JDI after PR #${prNumber} merged.\nThese learnings are accumulated from PR reviews and feedback.`
-    : `chore(jdi): update team learnings`;
+    ? `chore(software-teams): update team learnings\n\nAuto-committed by Software Teams after PR #${prNumber} merged.\nThese learnings are accumulated from PR reviews and feedback.`
+    : `chore(software-teams): update team learnings`;
 
   const commitResult = Bun.spawnSync(["git", "commit", "-m", message], {
     stdout: "pipe",
@@ -190,19 +197,29 @@ export function commitLearningsToExternalRepo(
       return false;
     }
 
-    const remoteSubdir = join(tmpDir, "jdi/learnings");
+    const remoteSubdir = join(tmpDir, EXTERNAL_LEARNINGS_PATH);
     mkdirSync(remoteSubdir, { recursive: true });
 
-    // Merge learnings from local into the external repo
+    // Carry forward any data that lives at the legacy `jdi/learnings/`
+    // path so we can phase it out without losing learnings. This merges
+    // legacy → new path inside the clone before pushing.
+    const legacySubdir = join(tmpDir, EXTERNAL_LEARNINGS_PATH_LEGACY);
+    if (existsSync(legacySubdir)) {
+      mergeLearnings(legacySubdir, remoteSubdir);
+    }
+
+    // Merge learnings from local into the external repo (new path).
     mergeLearnings(learningsDir, remoteSubdir);
 
     // Configure git in the cloned repo
-    Bun.spawnSync(["git", "config", "user.name", "jdi[bot]"], { cwd: tmpDir });
-    Bun.spawnSync(["git", "config", "user.email", "jdi[bot]@users.noreply.github.com"], { cwd: tmpDir });
+    Bun.spawnSync(["git", "config", "user.name", "software-teams[bot]"], { cwd: tmpDir });
+    Bun.spawnSync(["git", "config", "user.email", "software-teams[bot]@users.noreply.github.com"], { cwd: tmpDir });
 
     // Stage learning category files only (non-learning rules like
     // commits.md / deviations.md must NOT leak into the shared repo).
-    const stagePaths = LEARNING_CATEGORIES.map((c) => `jdi/learnings/${c}.md`);
+    const stagePaths = LEARNING_CATEGORIES.map(
+      (c) => `${EXTERNAL_LEARNINGS_PATH}/${c}.md`,
+    );
     Bun.spawnSync(["git", "add", ...stagePaths], {
       cwd: tmpDir,
       stdout: "pipe",
@@ -223,7 +240,7 @@ export function commitLearningsToExternalRepo(
 
     const source = sourceRepo || "unknown";
     const prRef = prNumber ? `PR #${prNumber}` : "merge";
-    const message = `chore(jdi): update learnings from ${source}\n\nSource: ${prRef} on ${source}\nLearnings accumulated from PR reviews and feedback.`;
+    const message = `chore(software-teams): update learnings from ${source}\n\nSource: ${prRef} on ${source}\nLearnings accumulated from PR reviews and feedback.`;
 
     const commitResult = Bun.spawnSync(["git", "commit", "-m", message], {
       cwd: tmpDir,
@@ -247,7 +264,7 @@ export function commitLearningsToExternalRepo(
       return false;
     }
 
-    consola.success(`Learnings committed to ${externalRepo}/jdi/learnings`);
+    consola.success(`Learnings committed to ${externalRepo}/${EXTERNAL_LEARNINGS_PATH}`);
     return true;
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
