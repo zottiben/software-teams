@@ -74,17 +74,21 @@ describe("software-teams component CLI", () => {
       expect(result.stdout).toContain("AgentBase");
     });
 
-    test("exits 0 with --json flag and parses as valid JSON with 16 entries", () => {
+    test("exits 0 with --json flag and parses as valid JSON (registry surface)", () => {
       const result = runCLI(["component", "list", "--json"]);
       expect(result.exitCode).toBe(0);
 
       const registry = JSON.parse(result.stdout);
       const keys = Object.keys(registry);
-      expect(keys.length).toBe(16);
+      // Phase C added hooks/ + stacks/ components on top of the 16-module
+      // 3-01 baseline, so the count is no longer fixed; assert at-least.
+      expect(keys.length).toBeGreaterThanOrEqual(16);
 
-      // Verify some known components exist.
+      // Verify some known components exist (3-01 + Phase C samples).
       expect(keys).toContain("Verify");
       expect(keys).toContain("AgentBase");
+      expect(keys).toContain("PreCommit");
+      expect(keys).toContain("PhpLaravel");
     });
   });
 

@@ -1,10 +1,19 @@
----
-name: checkpoint
-description: Handles checkpoint interactions
-trigger: checkpoint_reached
----
+/**
+ * Checkpoint hook component (Phase C migration).
+ * Source: hooks/checkpoint.md
+ */
 
-# Checkpoint Hook
+import type { Component } from "../types";
+
+const Checkpoint: Component = {
+  name: "Checkpoint",
+  category: "hooks",
+  description: "Handles checkpoint interactions",
+  sections: {
+    Default: {
+      name: "Default",
+      description: "Checkpoint default body",
+      body: `# Checkpoint Hook
 
 Handles pausing execution and managing user interaction at checkpoints.
 
@@ -13,9 +22,9 @@ Handles pausing execution and managing user interaction at checkpoints.
 ## Trigger
 
 Fires when:
-- Task type is `checkpoint:human-verify`
-- Task type is `checkpoint:decision`
-- Task type is `checkpoint:human-action`
+- Task type is \`checkpoint:human-verify\`
+- Task type is \`checkpoint:decision\`
+- Task type is \`checkpoint:human-action\`
 - Auth gate or credential requirement detected
 
 ---
@@ -32,7 +41,7 @@ User needs to test/verify something.
 3. Wait for "approved" or issues
 
 **Template:**
-```
+\`\`\`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Software Teams ► CHECKPOINT: Verification Required
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -56,7 +65,7 @@ User needs to test/verify something.
 ───────────────────────────────────────────────────────────────
 
 Reply "approved" to continue, or describe any issues found.
-```
+\`\`\`
 
 ### decision
 
@@ -68,7 +77,7 @@ User needs to make a choice.
 3. Record choice and rationale
 
 **Template:**
-```
+\`\`\`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Software Teams ► CHECKPOINT: Decision Required
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -94,7 +103,7 @@ User needs to make a choice.
 ───────────────────────────────────────────────────────────────
 
 Reply with your choice (A/B/C) and any additional context.
-```
+\`\`\`
 
 ### human-action
 
@@ -107,7 +116,7 @@ User needs to do something manually.
 4. Verify action worked
 
 **Template:**
-```
+\`\`\`
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  Software Teams ► CHECKPOINT: Manual Action Required
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -131,7 +140,7 @@ User needs to do something manually.
 ───────────────────────────────────────────────────────────────
 
 Reply "done" when complete.
-```
+\`\`\`
 
 ---
 
@@ -139,22 +148,22 @@ Reply "done" when complete.
 
 On checkpoint:
 
-```yaml
+\`\`\`yaml
 checkpoints:
   last_checkpoint: "{timestamp}"
   checkpoint_type: "{type}"
   checkpoint_task: "{task_id}"
   awaiting_response: true
-```
+\`\`\`
 
 On response:
 
-```yaml
+\`\`\`yaml
 checkpoints:
   awaiting_response: false
   last_response: "{user_response}"
   response_at: "{timestamp}"
-```
+\`\`\`
 
 ---
 
@@ -182,7 +191,7 @@ checkpoints:
 
 If checkpoint awaits response for extended time:
 - State preserved in state.yaml
-- Can resume with `/st-implement-plan --resume`
+- Can resume with \`/st-implement-plan --resume\`
 - Progress is not lost
 
 ---
@@ -193,4 +202,10 @@ If checkpoint awaits response for extended time:
 |--------|---------|
 | Checkpoint display | User interaction |
 | State update | Track checkpoint |
-| Decision record | Document choices |
+| Decision record | Document choices |`,
+    },
+  },
+  defaultOrder: ["Default"],
+};
+
+export default Checkpoint;

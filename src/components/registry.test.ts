@@ -15,8 +15,12 @@ import { getComponent } from "./resolve";
 import type { ComponentCategory } from "./types";
 
 describe("Component Registry", () => {
-  test("registry contains exactly 16 components", () => {
-    expect(Object.keys(registry).length).toBe(16);
+  // Phase C added hooks/ and stacks/ categories with 5+2 modules respectively;
+  // 16 (3-01) + 7 = 23.
+  const EXPECTED_COMPONENT_COUNT = 23;
+
+  test(`registry contains exactly ${EXPECTED_COMPONENT_COUNT} components`, () => {
+    expect(Object.keys(registry).length).toBe(EXPECTED_COMPONENT_COUNT);
   });
 
   test("all components have valid categories", () => {
@@ -25,6 +29,8 @@ describe("Component Registry", () => {
       "execution",
       "planning",
       "quality",
+      "hooks",
+      "stacks",
     ];
 
     for (const component of Object.values(registry)) {
@@ -92,11 +98,12 @@ describe("Component Registry", () => {
     expect(agentRouterOutput).toMatchSnapshot("AgentRouter");
   });
 
-  test("all 16 components are accessible via registry keys", () => {
+  test(`all ${EXPECTED_COMPONENT_COUNT} components are accessible via registry keys`, () => {
     const keys = getRegistryKeys();
-    expect(keys.length).toBe(16);
+    expect(keys.length).toBe(EXPECTED_COMPONENT_COUNT);
 
     const expectedNames = [
+      // 3-01 components
       "AgentBase",
       "AgentRouter",
       "AgentTeamsOrchestration",
@@ -113,7 +120,16 @@ describe("Component Registry", () => {
       "Verify",
       "VerifyAdvanced",
       "WaveComputation",
-    ];
+      // Phase C — hooks
+      "Checkpoint",
+      "LintFixFrontend",
+      "OnPause",
+      "PreCommit",
+      "SoftwareTeamsWorktreeCleanup",
+      // Phase C — stacks
+      "PhpLaravel",
+      "ReactTypescript",
+    ].sort();
 
     const actualNames = keys.sort();
     expect(actualNames).toEqual(expectedNames);

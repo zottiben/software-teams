@@ -6,16 +6,12 @@ import type { ProjectType } from "./detect-project";
  * Subdirectories shipped from the package root into a consumer's
  * `.software-teams/<sub>/` install. Phase B retired the
  * `.software-teams/framework/` mirror and dropped subtrees that have no
- * runtime consumer-side reader: `teams/` and `agents/`+`commands/` (the
- * latter resolved from .claude/agents/ + .claude/commands/st/ already).
+ * runtime consumer-side reader (`teams/`, `agents/`, `commands/`). Phase C
+ * additionally dropped `hooks/` and `stacks/` once those markdown sources
+ * were folded into the TS component registry — agents fetch them via
+ * `software-teams component get <Name>` instead of reading a copied .md.
  */
-const COPIED_SUBDIRS = [
-  "templates",
-  "hooks",
-  "stacks",
-  "learnings",
-  "rules",
-] as const;
+const COPIED_SUBDIRS = ["templates", "learnings", "rules"] as const;
 
 export async function copyFrameworkFiles(
   cwd: string,

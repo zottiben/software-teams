@@ -1,10 +1,19 @@
----
-name: pre-commit
-description: Validation before creating a commit
-trigger: commit_attempt
----
+/**
+ * PreCommit hook component (Phase C migration).
+ * Source: hooks/pre-commit.md
+ */
 
-# Pre-Commit Hook
+import type { Component } from "../types";
+
+const PreCommit: Component = {
+  name: "PreCommit",
+  category: "hooks",
+  description: "Validation before creating a commit",
+  sections: {
+    Default: {
+      name: "Default",
+      description: "PreCommit default body",
+      body: `# Pre-Commit Hook
 
 Validation performed before creating any commit.
 
@@ -15,7 +24,7 @@ Validation performed before creating any commit.
 Fires when:
 <!-- whole-component: descriptive trigger reference — names the component as a whole, not a section invocation -->
 - @ST:Commit component invoked
-- `/st-commit` command run
+- \`/st-commit\` command run
 - Manual commit through Software Teams workflow
 
 ---
@@ -24,9 +33,9 @@ Fires when:
 
 ### 1. Check Staged Files
 
-```bash
+\`\`\`bash
 git diff --cached --name-only
-```
+\`\`\`
 
 **Verify:**
 - At least one file staged
@@ -36,12 +45,12 @@ git diff --cached --name-only
 ### 1b. CRITICAL: Validate Excluded Directories
 
 **The following directories must NEVER be staged:**
-- `.worktrees/**` - Git worktrees are execution infrastructure
-- `.software-teams/**` - Software Teams runtime state and configuration
+- \`.worktrees/**\` - Git worktrees are execution infrastructure
+- \`.software-teams/**\` - Software Teams runtime state and configuration
 
-```bash
+\`\`\`bash
 # Check for excluded files in staging
-EXCLUDED=$(git diff --cached --name-only | grep -E "^(\.worktrees/|\.software-teams/)")
+EXCLUDED=$(git diff --cached --name-only | grep -E "^(\\.worktrees/|\\.software-teams/)")
 if [ -n "$EXCLUDED" ]; then
   echo "ERROR: Excluded directories found in staging:"
   echo "$EXCLUDED"
@@ -53,7 +62,7 @@ if [ -n "$EXCLUDED" ]; then
   echo "Unstage these files with: git reset HEAD <file>"
   exit 1
 fi
-```
+\`\`\`
 
 **If excluded files found:**
 - **BLOCK COMMIT** (no override allowed)
@@ -63,13 +72,13 @@ fi
 
 ### 2. Run Quality Checks
 
-```bash
+\`\`\`bash
 # TypeScript check (if applicable)
 bun run typecheck 2>&1 | head -20
 
 # Lint check (if applicable)
 bun run lint 2>&1 | head -20
-```
+\`\`\`
 
 **If errors:**
 - Block commit
@@ -78,10 +87,10 @@ bun run lint 2>&1 | head -20
 
 ### 3. Check for Secrets
 
-```bash
+\`\`\`bash
 # Common secret patterns
 grep -r -E "(API_KEY|SECRET|PASSWORD|TOKEN)=" --include="*.ts" --include="*.tsx" --include="*.env" .
-```
+\`\`\`
 
 **If found:**
 - Block commit
@@ -91,9 +100,9 @@ grep -r -E "(API_KEY|SECRET|PASSWORD|TOKEN)=" --include="*.ts" --include="*.tsx"
 ### 4. Validate Commit Message
 
 Check message format:
-```
+\`\`\`
 {type}({scope}): {description}
-```
+\`\`\`
 
 **Valid types:** feat, fix, refactor, docs, test, chore, perf, style
 
@@ -105,9 +114,9 @@ Check message format:
 
 ### 5. Check for Large Files
 
-```bash
-git diff --cached --stat | grep -E "\+[0-9]{4,}"
-```
+\`\`\`bash
+git diff --cached --stat | grep -E "\\+[0-9]{4,}"
+\`\`\`
 
 **If large additions:**
 - Warn about file size
@@ -118,7 +127,7 @@ git diff --cached --stat | grep -E "\+[0-9]{4,}"
 ## Blocking Conditions
 
 Commit is blocked if:
-- **Files in `.worktrees/` or `.software-teams/` are staged** (NO OVERRIDE ALLOWED)
+- **Files in \`.worktrees/\` or \`.software-teams/\` are staged** (NO OVERRIDE ALLOWED)
 - Type check fails
 - Lint errors exist (not warnings)
 - Secrets detected (without override)
@@ -130,7 +139,7 @@ Commit is blocked if:
 ## Override
 
 Allow override with:
-- `--no-verify` flag (use sparingly)
+- \`--no-verify\` flag (use sparingly)
 - Explicit confirmation for warnings
 
 ---
@@ -141,4 +150,10 @@ Allow override with:
 |--------|---------|
 | Pass/Fail | Gate decision |
 | Errors | What needs fixing |
-| Warnings | What to review |
+| Warnings | What to review |`,
+    },
+  },
+  defaultOrder: ["Default"],
+};
+
+export default PreCommit;

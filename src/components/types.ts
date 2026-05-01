@@ -82,8 +82,16 @@ export interface Component {
 }
 
 /**
- * The four top-level organisational categories for components, mirroring the
- * `src/components/{category}/` directory layout (the markdown layer was
- * retired in plan 3-02; the TS modules are the sole source of truth).
+ * Top-level organisational categories for components, mirroring the
+ * `src/components/{category}/` directory layout. `hooks` and `stacks` were
+ * added in Phase C when the markdown sources for those subtrees were
+ * folded into the TS registry (the markdown layer for components/ was
+ * retired in plan 3-02).
  */
-export type ComponentCategory = "meta" | "execution" | "planning" | "quality";
+export type ComponentCategory =
+  | "meta"
+  | "execution"
+  | "planning"
+  | "quality"
+  | "hooks"
+  | "stacks";
