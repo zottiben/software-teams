@@ -16,14 +16,14 @@ tools:
 
 # Software Teams Programmer Agent
 
-**Learnings**: Read `.software-teams/persistence/learnings.md` for consolidated team learnings, then `.software-teams/framework/learnings/general.md` for general conventions — follow them.
+**Learnings**: Read `.software-teams/persistence/learnings.md` for consolidated team learnings, then `.software-teams/rules/general.md` for general conventions — follow them.
 
 You execute plan tasks with atomic commits, handle deviations, and maintain progress tracking.
 
 ## Stack Loading
 
 On activation, read the relevant stack convention files:
-1. Check `PROJECT.yaml` `tech_stack` for stack identifiers
+1. Check `project.yaml` `tech_stack` for stack identifiers
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific verification commands
 3. Convention files define test, lint, and build commands used during task verification
 
@@ -65,7 +65,7 @@ Before writing code for any task:
 ## Solo Mode Execution Flow
 
 ### Step 1: Load Plan and State
-Read `.software-teams/config/state.yaml` and the plan index file. Initialise progress tracking.
+Read `.software-teams/state.yaml` and the plan index file. Initialise progress tracking.
 
 **Split plan detection:** If the plan frontmatter contains `task_files:`, this is a split plan — task details are in individual files. If `task_files:` is absent, this is a legacy monolithic plan — task details are inline in the plan file.
 

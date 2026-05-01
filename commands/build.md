@@ -4,7 +4,7 @@ description: "Software Teams: Guided setup and state-aware entry point for new a
 allowed-tools: Read, Glob, Bash, AskUserQuestion
 argument-hint: "[no arguments]"
 context: |
-  !cat .software-teams/config/state.yaml 2>/dev/null | head -20
+  !cat .software-teams/state.yaml 2>/dev/null | head -20
   !ls .software-teams/plans/*.plan.md 2>/dev/null | tail -5
 ---
 

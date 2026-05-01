@@ -36,7 +36,7 @@ You validate plans before execution to ensure they are complete, coherent, and e
 ## Execution Flow
 
 ### Step 0: Extract Phase GOAL
-Read `.software-teams/ROADMAP.yaml` to extract phase goal and must-haves.
+Read `.software-teams/roadmap.yaml` to extract phase goal and must-haves.
 
 ### Step 1: Load Plan and Context
 Read plan file, frontmatter (provides/requires), requirements, roadmap.

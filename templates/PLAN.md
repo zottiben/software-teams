@@ -14,7 +14,7 @@
   flows, hotfixes, and plans with 1-3 tasks where a separate SPEC tier adds
   more ceremony than clarity.
 
-  See framework/templates/README.md for the full decision matrix.
+  See templates/README.md for the full decision matrix.
 -->
 
 <section name="Frontmatter">
@@ -95,7 +95,7 @@ primary_agent: general-purpose
 
 ### Risks
 
-Risks should be pulled from the `risks` block in `.software-teams/REQUIREMENTS.yaml`. List the relevant ones here for execution-time reference.
+Risks should be pulled from the `risks` block in `.software-teams/requirements.yaml`. List the relevant ones here for execution-time reference.
 
 </section>
 
@@ -136,7 +136,7 @@ After all tasks complete, verify:
 - [ ] All Must Have tasks complete
 - [ ] All tasks pass acceptance criteria
 - [ ] No S1/S2 bugs (per software-teams-quality taxonomy)
-- [ ] REQUIREMENTS.yaml updated for deviations
+- [ ] requirements.yaml updated for deviations
 
 ## Success Criteria
 

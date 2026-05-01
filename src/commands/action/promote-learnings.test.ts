@@ -20,7 +20,7 @@ describe("hasLearningsContent", () => {
     const learningsDir = join(base, "learnings");
     mkdirSync(learningsDir, { recursive: true });
     writeFileSync(
-      join(learningsDir, "prefs.md"),
+      join(learningsDir, "general.md"),
       "# Team Preferences\n\n- Always use TypeScript\n- Prefer Bun over Node\n",
     );
 
@@ -32,7 +32,7 @@ describe("hasLearningsContent", () => {
     const learningsDir = join(base, "learnings");
     mkdirSync(learningsDir, { recursive: true });
     writeFileSync(
-      join(learningsDir, "prefs.md"),
+      join(learningsDir, "general.md"),
       "# Team Preferences\n\n## Section\n\n<!-- comment -->\n",
     );
 

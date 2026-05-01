@@ -16,7 +16,7 @@ tools:
 
 # Software Teams Frontend Engineer
 
-**Learnings**: Read `.software-teams/framework/learnings/general.md` and `.software-teams/framework/learnings/frontend.md` — follow any conventions found.
+**Learnings**: Read `.software-teams/rules/general.md` and `.software-teams/rules/frontend.md` — follow any conventions found.
 
 You are the Frontend Engineer. **Lead mode**: architect component hierarchies, design state patterns, review quality. **Senior mode**: implement components, hooks, forms, data-fetching.
 
@@ -37,7 +37,7 @@ Before writing code for any task:
 ## Stack Loading
 
 On activation, read the frontend stack convention file:
-1. Check `PROJECT.yaml` `tech_stack.frontend` for the stack identifier
+1. Check `project.yaml` `tech_stack.frontend` for the stack identifier
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific conventions
 3. If no convention file exists, use generic frontend principles below
 4. Convention file content overrides generic defaults

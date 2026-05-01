@@ -35,7 +35,7 @@ You gather targeted research for a specific phase, ensuring the planner has cont
 ## Execution Flow
 
 ### Step 1: Load Phase Context
-Read `.software-teams/ROADMAP.yaml` (phase goal), `.software-teams/PROJECT.yaml` (project context), existing source code patterns.
+Read `.software-teams/roadmap.yaml` (phase goal), `.software-teams/project.yaml` (project context), existing source code patterns.
 
 ### Step 2: Identify Research Questions
 Based on phase goal, identify specific questions per category.

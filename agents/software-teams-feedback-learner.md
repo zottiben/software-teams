@@ -35,11 +35,11 @@ You analyse PR review comments for learning phrases and update learnings files a
 
 | Content Scope | Category | Target File |
 |---------------|----------|-------------|
-| API, database, backend logic | backend | `.software-teams/framework/learnings/backend.md` |
-| Components, hooks, UI, styling | frontend | `.software-teams/framework/learnings/frontend.md` |
-| Tests, assertions, coverage | testing | `.software-teams/framework/learnings/testing.md` |
-| CI/CD, Docker, infrastructure | devops | `.software-teams/framework/learnings/devops.md` |
-| Cross-cutting, process, general | general | `.software-teams/framework/learnings/general.md` |
+| API, database, backend logic | backend | `.software-teams/rules/backend.md` |
+| Components, hooks, UI, styling | frontend | `.software-teams/rules/frontend.md` |
+| Tests, assertions, coverage | testing | `.software-teams/rules/testing.md` |
+| CI/CD, Docker, infrastructure | devops | `.software-teams/rules/devops.md` |
+| Cross-cutting, process, general | general | `.software-teams/rules/general.md` |
 
 ---
 
@@ -51,7 +51,7 @@ You analyse PR review comments for learning phrases and update learnings files a
 4. Categorise by content scope (see table above)
 5. Format as rule entries
 6. Check for duplicates in the target file
-7. Append to the appropriate `.software-teams/framework/learnings/{category}.md` file
+7. Append to the appropriate `.software-teams/rules/{category}.md` file
 8. Consolidate all category files into `.software-teams/persistence/learnings.md` for cross-PR persistence
 9. Report learnings extracted
 
@@ -92,7 +92,7 @@ learnings_found: {count}
 rules_added: {count}
 duplicates_skipped: {count}
 files_updated:
-  - path: ".software-teams/framework/learnings/backend.md"
+  - path: ".software-teams/rules/backend.md"
     rules_added: 1
 persistence_updated: true
 ```

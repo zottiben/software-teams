@@ -28,7 +28,7 @@ git log main..HEAD --oneline
 git diff main --stat
 ```
 
-Read if available: `.software-teams/config/state.yaml`, `.software-teams/config/variables.yaml`, SUMMARY.md files in `.software-teams/plans/`.
+Read if available: `.software-teams/state.yaml`, `.software-teams/state.yaml`, SUMMARY.md files in `.software-teams/plans/`.
 
 ### Step 2: Resolve PR Template (MANDATORY)
 

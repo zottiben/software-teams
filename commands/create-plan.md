@@ -4,7 +4,7 @@ description: "Software Teams: Create implementation plan"
 allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
 argument-hint: "<feature to plan> [--worktree | --worktree-lightweight | --status | --single-tier]"
 context: |
-  !cat .software-teams/config/state.yaml 2>/dev/null | head -25
+  !cat .software-teams/state.yaml 2>/dev/null | head -25
   !ls .software-teams/plans/*.orchestration.md 2>/dev/null | tail -5
   !ls .software-teams/plans/*.plan.md 2>/dev/null | tail -5
 ---
@@ -21,7 +21,7 @@ Create an implementation plan using a single planner agent (includes research). 
 
 - `--worktree` — Create git worktree with full environment before planning (follow `.claude/commands/st/worktree.md` steps)
 - `--worktree-lightweight` — Same but skip databases/web server (deps + migrate only)
-- `--status` — Status mode: generate a plan progress report using `.software-teams/config/state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
+- `--status` — Status mode: generate a plan progress report using `.software-teams/state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
 - `--with-tests` — Force test plan generation regardless of test suite detection. When set, the planner generates test tasks even if no existing test suite is found.
 - `--without-tests` — Suppress test plan generation even when a test suite is detected. Useful for plans that only touch documentation, config, or framework files where test generation would be noise.
 - `--single-tier` — Force the legacy single-tier output (`{slug}.plan.md` + per-task `{slug}.T{n}.md`). By default this skill drives the planner toward three-tier output (SPEC + ORCHESTRATION + per-agent slices) when the plan is non-trivial — `--single-tier` opts out of that and forces the legacy shape. Useful for hotfixes, tiny plans, or when something downstream still expects the legacy index.
@@ -36,7 +36,7 @@ When `--status` is passed, run this workflow instead of the planning workflow. A
 
 ### 1. Read State
 
-Read `.software-teams/config/state.yaml` and the current plan's index file. The index source depends on the plan's tier:
+Read `.software-teams/state.yaml` and the current plan's index file. The index source depends on the plan's tier:
 
 - **Three-tier (preferred):** read `{slug}.orchestration.md` — the Tasks manifest table is canonical here.
 - **Single-tier (legacy fallback):** read `{slug}.plan.md` — the Tasks manifest is in its `<section name="TaskManifest">` block.
@@ -70,7 +70,7 @@ If no worktree flag is present, skip this step entirely — do not mention it to
 Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that component and store the result internally as `PRE_DISCOVERED_CONTEXT`. Do NOT print the discovery output to the user.
 
 **Additional reads for this skill:**
-- `.software-teams/REQUIREMENTS.yaml` → `risks:` block (for the planner's Risks section)
+- `.software-teams/requirements.yaml` → `risks:` block (for the planner's Risks section)
 - Prior plan's `SUMMARY.md` if it exists (for carryover candidates)
 - `.software-teams/codebase/SUMMARY.md` if it exists (for codebase context)
 
@@ -84,7 +84,7 @@ Append these to `PRE_DISCOVERED_CONTEXT`.
 
 Enumerate available agents in this order (earlier roots override later ones on name collision). For each discovered `.md` file, read the frontmatter `name:` and `description:` and record a `source:` field so `implement-plan` picks the correct spawn pattern.
 
-1. **Software Teams framework specialists (primary — `source: software-teams`)** — list `.software-teams/framework/agents/software-teams-*.md` (installed projects). If that directory does not exist, fall back to `framework/agents/software-teams-*.md` (self-hosting Software Teams repo).
+1. **Software Teams framework specialists (primary — `source: software-teams`)** — list `.claude/agents/software-teams-*.md` (installed projects). If that directory does not exist, fall back to `framework/agents/software-teams-*.md` (self-hosting Software Teams repo).
 2. **Project-local Claude Code subagents (`source: claude-code`)** — list `.claude/agents/*.md`.
 3. **User-global Claude Code subagents (`source: claude-code`)** — list `~/.claude/agents/*.md`.
 
@@ -179,7 +179,7 @@ The planner creates files directly (spawned under `acceptEdits` with a scoped `a
 
 ### 8. Update State
 
-Run the state CLI — do NOT manually edit `.software-teams/config/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
+Run the state CLI — do NOT manually edit `.software-teams/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
 
 - **Three-tier:** pass the orchestration file path (`{slug}.orchestration.md`) — that is the canonical manifest in three-tier mode.
 - **Single-tier:** pass the index file path (`{slug}.plan.md`) — legacy behaviour.
@@ -218,7 +218,7 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 
 | Situation | Response |
 |-----------|----------|
-| Scaffolding files missing (`.software-teams/PROJECT.yaml` etc.) | Planner creates them from `framework/templates/` in step 5. Do NOT ask the user for values the template's defaults cover. |
+| Scaffolding files missing (`.software-teams/project.yaml` etc.) | Planner creates them from `templates/` in step 5. Do NOT ask the user for values the template's defaults cover. |
 | `.claude/agents/` empty on both levels | Set `AVAILABLE_AGENTS = []`, note in summary, and proceed. The planner falls back to tech-stack defaults. |
 | Feature description is vague ("improve X") | Steps 4a + 4b handle this: the researcher discovers codebase decision points, and the InteractiveGate surfaces ambiguity questions via AskUserQuestion. Do not waste a planner invocation on an underspecified prompt. |
 | Pre-plan researcher returns zero questions | Skip step 4b if surface-level analysis also yields zero questions. Proceed directly to step 5. This is expected for clear features. |
@@ -256,6 +256,6 @@ Planning and implementation are separate human-gated phases. This gate exists be
 
 ---
 
-**References:** Agent base (read FIRST for cache): `.software-teams/framework/components/meta/AgentBase.md` | Agent spec: `.software-teams/framework/agents/software-teams-planner.md` | Agent routing: `.software-teams/framework/components/meta/AgentRouter.md`
+**References:** Agent base (read FIRST for cache): `.software-teams/framework/components/meta/AgentBase.md` | Agent spec: `.claude/agents/software-teams-planner.md` | Agent routing: `.software-teams/framework/components/meta/AgentRouter.md`
 
 **Feature to plan:** $ARGUMENTS

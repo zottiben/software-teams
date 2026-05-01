@@ -47,11 +47,11 @@ Agent(
   mode="acceptEdits",
   prompt="Read learnings before reviewing — these represent the team's coding standards
   and MUST be cross-referenced during review:
-  - Always: .software-teams/framework/learnings/general.md
-  - PHP/Laravel PRs: also .software-teams/framework/learnings/backend.md
-  - React/TypeScript PRs: also .software-teams/framework/learnings/frontend.md
-  - Test changes: also .software-teams/framework/learnings/testing.md
-  - CI/Docker changes: also .software-teams/framework/learnings/devops.md
+  - Always: .software-teams/rules/general.md
+  - PHP/Laravel PRs: also .software-teams/rules/backend.md
+  - React/TypeScript PRs: also .software-teams/rules/frontend.md
+  - Test changes: also .software-teams/rules/testing.md
+  - CI/Docker changes: also .software-teams/rules/devops.md
 
   Apply learnings as additional review criteria — flag violations and praise adherence.
 
@@ -78,7 +78,7 @@ Then **STOP**. Do NOT merge, approve, or take any follow-up action.
 | `gh pr view` fails (not logged in, wrong repo) | Report the error verbatim. Do NOT attempt a workaround. |
 | PR is already merged | Note it in the summary and review anyway — learnings may still apply. |
 | PR is a draft | Review as normal; flag that the PR is draft in the summary. |
-| `.software-teams/framework/learnings/` missing | Reviewer falls back to base review criteria. Record the missing learnings in the summary. |
+| `.software-teams/rules/` missing | Reviewer falls back to base review criteria. Record the missing learnings in the summary. |
 
 ---
 

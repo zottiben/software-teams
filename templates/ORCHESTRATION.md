@@ -81,7 +81,7 @@ judgement.
 
 ## Risks
 
-Pull from the `risks` block in `.software-teams/REQUIREMENTS.yaml`. List the entries
+Pull from the `risks` block in `.software-teams/requirements.yaml`. List the entries
 relevant to this plan so the orchestrator can re-check them at each gate.
 
 | ID | Risk | Likelihood | Impact | Mitigation |

@@ -83,21 +83,21 @@ Detect the project's technology stack by scanning for signature files in the pro
 **Procedure:**
 1. Run detection heuristics above against the project root
 2. If detection is ambiguous or finds nothing, ask the user: "What backend stack does this project use?" and "What frontend stack?"
-3. Write detected/chosen values into PROJECT.yaml `tech_stack` field
+3. Write detected/chosen values into project.yaml `tech_stack` field
 4. Verify matching convention files exist in `.software-teams/framework/stacks/`. If a convention file exists for the detected stack, log it. If not, log: "No convention file found for {stack} — agents will use generic domain principles. You can create one at `.software-teams/framework/stacks/{stack}.md` using `_template.md` as a guide."
 
 ### Step 6: Initialise Config Files
 
 ```bash
-cp .software-teams/framework/config/state.yaml .software-teams/config/state.yaml
-cp .software-teams/framework/config/variables.yaml .software-teams/config/variables.yaml
+cp .software-teams/framework/config/state.yaml .software-teams/state.yaml
+cp .software-teams/framework/config/variables.yaml .software-teams/state.yaml
 cp .software-teams/framework/config/software-teams-config.yaml .software-teams/config/software-teams-config.yaml
 ```
 
 ### Step 7: Generate Markdown Scaffolding
 
-Read templates from `.software-teams/framework/templates/` and write to `.software-teams/` (only if missing):
-- PROJECT.yaml, REQUIREMENTS.yaml, ROADMAP.yaml
+Read templates from `.software-teams/templates/` and write to `.software-teams/` (only if missing):
+- project.yaml, requirements.yaml, roadmap.yaml
 
 ### Step 8: Display Completion
 

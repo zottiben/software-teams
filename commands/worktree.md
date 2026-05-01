@@ -44,7 +44,7 @@ Create an isolated git worktree with full project environment from a ticket, tas
    - Run migration commands per adapter config
    - Run seed commands per adapter config (in dependency order)
    - Run post-setup commands per adapter config
-8. **Update state**: set `worktree.active: true`, `worktree.path`, `worktree.branch`, `worktree.created_at`, `worktree.type` in `.software-teams/config/state.yaml`
+8. **Update state**: set `worktree.active: true`, `worktree.path`, `worktree.branch`, `worktree.created_at`, `worktree.type` in `.software-teams/state.yaml`
 9. **Report**: worktree path, branch, setup summary
 
 **On error**: clean up (reverse database creation, remove worktree, reverse web server setup).

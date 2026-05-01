@@ -19,7 +19,7 @@ tools:
 ## Stack Loading
 
 On activation, read the frontend stack convention file:
-1. Check `PROJECT.yaml` `tech_stack.frontend` for the stack identifier
+1. Check `project.yaml` `tech_stack.frontend` for the stack identifier
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for UI framework mapping
 3. Convention file identifies the project's component library and design system tooling
 

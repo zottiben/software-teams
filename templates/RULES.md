@@ -76,7 +76,7 @@ Common picks:
 ## Reporting & State
 
 Specialists return YAML with `status`, `files_modified`, `files_created`, `commits_pending`, and any agent-specific fields. The orchestrator:
-- Records outputs in `.software-teams/config/state.yaml` if running under a Software Teams plan.
+- Records outputs in `.software-teams/state.yaml` if running under a Software Teams plan.
 - Executes `commits_pending` after the task fully completes (specialists do NOT commit).
 - Surfaces deviations and blockers to the user — do not silently absorb them.
 

@@ -6,6 +6,29 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 /**
+ * Phase D: `.software-teams/rules/` holds BOTH learnings (which round-trip
+ * through the external GitHub learnings repo) and non-learning rules
+ * (`commits.md`, `deviations.md`) that stay local. Operations that move
+ * data between the consumer and the external repo MUST filter to this
+ * allowlist so the rules-rules never leak into the shared learnings repo.
+ */
+export const LEARNING_CATEGORIES = [
+  "general",
+  "backend",
+  "frontend",
+  "testing",
+  "devops",
+] as const;
+
+const LEARNING_FILE_SET = new Set(
+  LEARNING_CATEGORIES.map((c) => `${c}.md`),
+);
+
+export function isLearningFile(filename: string): boolean {
+  return LEARNING_FILE_SET.has(filename);
+}
+
+/**
  * Sparse-clone the `jdi/learnings/` directory from an external repo.
  * Returns true if the clone succeeded and the directory exists.
  */
@@ -37,6 +60,10 @@ export function cloneLearningsRepo(repo: string, token: string, tmpDir: string):
  * - New files are copied directly.
  * - Existing files get non-duplicate lines appended.
  * Returns counts of copied and merged files.
+ *
+ * Phase D: only files matching LEARNING_CATEGORIES are considered.
+ * `.software-teams/rules/{commits,deviations}.md` (non-learning rules) are
+ * kept local and must never round-trip through the shared learnings repo.
  */
 export function mergeLearnings(
   sourceDir: string,
@@ -50,7 +77,7 @@ export function mergeLearnings(
 
   mkdirSync(targetDir, { recursive: true });
 
-  const files = readdirSync(sourceDir).filter((f) => f.endsWith(".md"));
+  const files = readdirSync(sourceDir).filter((f) => isLearningFile(f));
   for (const file of files) {
     const sourcePath = join(sourceDir, file);
     const targetPath = join(targetDir, file);

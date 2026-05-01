@@ -15,6 +15,10 @@ afterEach(() => {
 });
 
 describe("mergeLearnings", () => {
+  // Phase D: only LEARNING_CATEGORIES filenames round-trip — `frontend.md`
+  // / `backend.md` etc. Anything else (e.g. `team-prefs.md`) is ignored to
+  // keep non-learning rules from leaking into the shared learnings repo.
+
   test("copies new files from source to target", () => {
     const base = makeTempDir();
     const sourceDir = join(base, "source");
@@ -22,14 +26,14 @@ describe("mergeLearnings", () => {
     mkdirSync(sourceDir, { recursive: true });
     mkdirSync(targetDir, { recursive: true });
 
-    writeFileSync(join(sourceDir, "team-prefs.md"), "# Team Prefs\n- Use TypeScript\n- Prefer Bun\n");
+    writeFileSync(join(sourceDir, "frontend.md"), "# Frontend\n- Use TypeScript\n- Prefer Bun\n");
 
     const result = mergeLearnings(sourceDir, targetDir);
 
     expect(result.copied).toBe(1);
     expect(result.merged).toBe(0);
-    expect(existsSync(join(targetDir, "team-prefs.md"))).toBe(true);
-    const content = readFileSync(join(targetDir, "team-prefs.md"), "utf-8");
+    expect(existsSync(join(targetDir, "frontend.md"))).toBe(true);
+    const content = readFileSync(join(targetDir, "frontend.md"), "utf-8");
     expect(content).toContain("Use TypeScript");
   });
 
@@ -40,17 +44,37 @@ describe("mergeLearnings", () => {
     mkdirSync(sourceDir, { recursive: true });
     mkdirSync(targetDir, { recursive: true });
 
-    writeFileSync(join(targetDir, "prefs.md"), "# Prefs\n- Use TypeScript\n- Prefer Bun\n");
-    writeFileSync(join(sourceDir, "prefs.md"), "# Prefs\n- Use TypeScript\n- Always test\n");
+    writeFileSync(join(targetDir, "general.md"), "# General\n- Use TypeScript\n- Prefer Bun\n");
+    writeFileSync(join(sourceDir, "general.md"), "# General\n- Use TypeScript\n- Always test\n");
 
     const result = mergeLearnings(sourceDir, targetDir);
 
     expect(result.copied).toBe(0);
     expect(result.merged).toBe(1);
-    const content = readFileSync(join(targetDir, "prefs.md"), "utf-8");
+    const content = readFileSync(join(targetDir, "general.md"), "utf-8");
     expect(content).toContain("Use TypeScript");
     expect(content).toContain("Prefer Bun");
     expect(content).toContain("Always test");
+  });
+
+  test("ignores non-learning .md files (e.g. commits.md / deviations.md)", () => {
+    const base = makeTempDir();
+    const sourceDir = join(base, "source");
+    const targetDir = join(base, "target");
+    mkdirSync(sourceDir, { recursive: true });
+    mkdirSync(targetDir, { recursive: true });
+
+    writeFileSync(join(sourceDir, "commits.md"), "# Commits rules — should NOT travel\n");
+    writeFileSync(join(sourceDir, "deviations.md"), "# Deviations rules — should NOT travel\n");
+    writeFileSync(join(sourceDir, "general.md"), "# General learning content\n");
+
+    const result = mergeLearnings(sourceDir, targetDir);
+
+    expect(result.copied).toBe(1);
+    expect(result.merged).toBe(0);
+    expect(existsSync(join(targetDir, "general.md"))).toBe(true);
+    expect(existsSync(join(targetDir, "commits.md"))).toBe(false);
+    expect(existsSync(join(targetDir, "deviations.md"))).toBe(false);
   });
 
   test("returns zeros with empty source directory", () => {

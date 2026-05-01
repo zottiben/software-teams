@@ -73,7 +73,7 @@ For each learning found:
 4. Check for duplicates
 5. Append with `- Source: PR #{number} review ({reviewer_name})`
 
-**Learnings file mapping** (`.software-teams/framework/learnings/`):
+**Learnings file mapping** (`.software-teams/rules/`):
 
 | File | Scope | Read by |
 |------|-------|---------|

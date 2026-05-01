@@ -44,9 +44,9 @@ tasks where the three-tier ceremony exceeds the work.
 
 | Template | Purpose |
 |----------|---------|
-| `PROJECT.yaml` | Project identity: name, summary, core value, tech stack, constraints |
-| `REQUIREMENTS.yaml` | Capabilities, risks, constraints — long-lived |
-| `ROADMAP.yaml` | Phase / plan ordering and milestones |
+| `project.yaml` | Project identity: name, summary, core value, tech stack, constraints |
+| `requirements.yaml` | Capabilities, risks, constraints — long-lived |
+| `roadmap.yaml` | Phase / plan ordering and milestones |
 | `SUMMARY.md` | Per-plan outcome record (written by software-teams-programmer post-execution) |
 | `CLAUDE-SHARED.md` | Shared context imported into the project's `CLAUDE.md` |
 | `RULES.md` | Per-project rule notes |

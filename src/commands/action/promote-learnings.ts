@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, appendFileSyn
 import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { mergeLearnings } from "./fetch-learnings";
+import { mergeLearnings, LEARNING_CATEGORIES, isLearningFile } from "./fetch-learnings";
 
 function writeGitHubOutput(key: string, value: string): void {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -80,15 +80,20 @@ export function checkJdiInvolvement(repo: string, sha: string): JdiInvolvement {
 }
 
 /**
- * Check if any .md files in the learnings directory have non-header content.
- * Returns false if directory doesn't exist or files only contain headers/comments/blank lines.
+ * Check if any LEARNING category files in the rules directory have
+ * non-header content. Returns false if directory doesn't exist or the
+ * learning category files only contain headers/comments/blank lines.
+ *
+ * Phase D: only LEARNING_CATEGORIES files are considered. Non-learning
+ * rules files (commits.md, deviations.md) sit alongside but are NOT
+ * inputs to the learnings promotion flow.
  */
 export function hasLearningsContent(learningsDir: string): boolean {
   if (!existsSync(learningsDir)) {
     return false;
   }
 
-  const files = readdirSync(learningsDir).filter((f) => f.endsWith(".md"));
+  const files = readdirSync(learningsDir).filter((f) => isLearningFile(f));
   for (const file of files) {
     const content = readFileSync(join(learningsDir, file), "utf-8");
     const lines = content.split("\n");
@@ -107,20 +112,19 @@ export function hasLearningsContent(learningsDir: string): boolean {
 
 /**
  * Commit learnings to the same repository on the current branch.
+ * Only stages LEARNING_CATEGORIES files — `commits.md` / `deviations.md`
+ * (non-learning rules) are kept out of the auto-commit.
  */
 export function commitLearningsToSameRepo(learningsDir: string, prNumber?: number): boolean {
-  // Stage learnings files
-  const addResult = Bun.spawnSync(["git", "add", `${learningsDir}/*.md`], {
+  const learningPaths = LEARNING_CATEGORIES.map((c) => join(learningsDir, `${c}.md`)).filter((p) => existsSync(p));
+  if (learningPaths.length === 0) {
+    consola.info("No learning category files present — nothing to commit");
+    return false;
+  }
+  Bun.spawnSync(["git", "add", ...learningPaths], {
     stdout: "pipe",
     stderr: "pipe",
   });
-  if (addResult.exitCode !== 0) {
-    // Try with glob expansion via shell
-    Bun.spawnSync(["bash", "-c", `git add "${learningsDir}"/*.md`], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-  }
 
   // Check if there are staged changes
   const diffResult = Bun.spawnSync(["git", "diff", "--cached", "--quiet"], {
@@ -196,8 +200,10 @@ export function commitLearningsToExternalRepo(
     Bun.spawnSync(["git", "config", "user.name", "jdi[bot]"], { cwd: tmpDir });
     Bun.spawnSync(["git", "config", "user.email", "jdi[bot]@users.noreply.github.com"], { cwd: tmpDir });
 
-    // Stage changes
-    Bun.spawnSync(["bash", "-c", `git add "jdi/learnings"/*.md`], {
+    // Stage learning category files only (non-learning rules like
+    // commits.md / deviations.md must NOT leak into the shared repo).
+    const stagePaths = LEARNING_CATEGORIES.map((c) => `jdi/learnings/${c}.md`);
+    Bun.spawnSync(["git", "add", ...stagePaths], {
       cwd: tmpDir,
       stdout: "pipe",
       stderr: "pipe",

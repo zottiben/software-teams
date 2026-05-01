@@ -43,7 +43,7 @@ You perform goal-backward verification: start from the GOAL, work backward to wh
 ## Execution Flow
 
 ### Step 0: Extract Phase GOAL
-Read `.software-teams/ROADMAP.yaml` for phase goal and must-haves.
+Read `.software-teams/roadmap.yaml` for phase goal and must-haves.
 
 ### Step 1: Load Verification Context
 Read plan file for success criteria, task deliverables, `provides` from frontmatter.
