@@ -403,9 +403,16 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
     assertImportLine(content, "@.claude/RULES.md", "CLAUDE-SHARED.md");
   });
 
+  // `.claude/CLAUDE.md` is gitignored — generated locally by `init` /
+  // hand-curated by the developer for self-hosting. Skip when absent
+  // (e.g. fresh CI checkouts) so this test is a soft regression guard for
+  // developers, not a blocker for CI.
   test(".claude/CLAUDE.md (repo) imports @.claude/AGENTS.md and @.claude/RULES.md", () => {
     const fullPath = join(repoRoot, ".claude", "CLAUDE.md");
-    expect(existsSync(fullPath), `expected repo CLAUDE.md at ${fullPath}`).toBe(true);
+    if (!existsSync(fullPath)) {
+      // No developer setup in this checkout — skip.
+      return;
+    }
     const content = readFileSync(fullPath, "utf-8");
     assertImportLine(content, "@.claude/AGENTS.md", ".claude/CLAUDE.md");
     assertImportLine(content, "@.claude/RULES.md", ".claude/CLAUDE.md");

@@ -1,9 +1,15 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const REPO_ROOT = process.cwd();
 const BENCH_JSONL_PATH = join(REPO_ROOT, ".software-teams", "persistence", "component-bench.jsonl");
+
+// The JSONL is produced by `bun run src/benchmarks/component-cost.ts` and
+// gitignored. It only exists for developers who have run the benchmark
+// locally. CI starts from a fresh checkout so the file is absent — these
+// tests skip cleanly in that case.
+const BENCH_AVAILABLE = existsSync(BENCH_JSONL_PATH);
 
 interface BenchEntry {
   ranAt: string;
@@ -22,7 +28,9 @@ interface BenchEntry {
 }
 
 describe("Component benchmark JSONL", () => {
-  test("JSONL file parses cleanly", () => {
+  const maybeTest = BENCH_AVAILABLE ? test : test.skip;
+
+  maybeTest("JSONL file parses cleanly", () => {
     const jsonlText = readFileSync(BENCH_JSONL_PATH, "utf-8");
     const lines = jsonlText.split("\n").filter((line) => line.trim());
 
@@ -37,7 +45,7 @@ describe("Component benchmark JSONL", () => {
     }
   });
 
-  test("At least one 'from-resolved' entry exists", () => {
+  maybeTest("At least one 'from-resolved' entry exists", () => {
     const jsonlText = readFileSync(BENCH_JSONL_PATH, "utf-8");
     const lines = jsonlText.split("\n").filter((line) => line.trim());
 
@@ -68,7 +76,7 @@ describe("Component benchmark JSONL", () => {
   // A future tightening pass can pull the band tighter once additional
   // narrowing lands on the higher-multiplier scenarios.
   const ASSERTION_THRESHOLD_PERCENT = 5;
-  const benchAssertOn = process.env.BENCH_ASSERT === "1";
+  const benchAssertOn = BENCH_AVAILABLE && process.env.BENCH_ASSERT === "1";
   (benchAssertOn ? test : test.skip)(
     `Most recent 'from-resolved' entry is within ±${ASSERTION_THRESHOLD_PERCENT}% of projected ceiling`,
     () => {
