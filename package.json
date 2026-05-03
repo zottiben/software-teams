@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/software-teams",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Software Teams -  Skills and Agents to help with Software Development",
   "type": "module",
   "bin": {
@@ -11,7 +11,7 @@
     "./storage": "./src/storage/index.ts"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target bun --external node:fs --external node:fs/promises --external node:path --external node:os",
+    "build": "bun build src/index.ts --outdir dist --target bun",
     "dev": "bun run src/index.ts",
     "test": "bun test"
   },
