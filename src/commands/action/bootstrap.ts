@@ -5,14 +5,14 @@ import { join } from "node:path";
 
 /**
  * Ensure the Software Teams framework is initialized.
- * If `.software-teams/framework` is missing, run `bunx @benzotti/software-teams@latest init --ci`.
+ * If `.software-teams/framework` is missing, run `bunx @websitelabs/software-teams@latest init --ci`.
  * Also ensures `.software-teams/persistence/` exists.
  */
 export function ensureFramework(cwd: string): void {
   const frameworkDir = join(cwd, ".software-teams/framework");
   if (!existsSync(frameworkDir)) {
     consola.info("Framework not found — initializing...");
-    const result = Bun.spawnSync(["bunx", "@benzotti/software-teams@latest", "init", "--ci"], {
+    const result = Bun.spawnSync(["bunx", "@websitelabs/software-teams@latest", "init", "--ci"], {
       cwd,
       stdout: "inherit",
       stderr: "inherit",

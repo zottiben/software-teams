@@ -1,4 +1,4 @@
-# Software Teams AI Developer — GitHub Actions Workflow
+# Software Teams — GitHub Actions Workflow
 # Copy this file to .github/workflows/software-teams.yml in your repository
 #
 # Prerequisites:
@@ -7,10 +7,10 @@
 #
 # Optional:
 #   - Set CLICKUP_API_TOKEN secret for ClickUp ticket integration
-#   - Set SOFTWARE_TEAMS_COMMIT_LEARNINGS=true repo variable to persist learnings in git
-#   - Set SOFTWARE_TEAMS_LEARNINGS_REPO variable to push learnings to a central repo (e.g. org/software-teams-learnings)
-#   - Set SOFTWARE_TEAMS_LEARNINGS_TOKEN secret (PAT with Contents read/write on the learnings repo)
-#   - Run `bunx @benzotti/software-teams init` locally to customise framework files
+#   - Set SOFTWARE_TEAMS_COMMIT_RULES=true repo variable to persist rules in git
+#   - Set SOFTWARE_TEAMS_RULES_REPO variable to push rules to a central repo (e.g. org/software-teams-rules)
+#   - Set SOFTWARE_TEAMS_RULES_TOKEN secret (PAT with Contents read/write on the rules repo)
+#   - Run `bunx @websitelabs/software-teams init` locally to customise framework files
 #
 # Usage: Comment on any issue or PR with "Hey software-teams" followed by a command:
 #   Hey software-teams plan <description>        — Create an implementation plan
@@ -23,9 +23,11 @@
 # Conversation: Software Teams supports back-and-forth iteration. After Software Teams responds,
 # reply with feedback to refine, or say "approved" to finalise.
 #
-# Learnings: Software Teams accumulates team preferences across PRs automatically.
-# By default learnings live in the GitHub Actions cache. Set SOFTWARE_TEAMS_COMMIT_LEARNINGS=true
-# to persist them in git (recommended — cache entries expire after 7 days of inactivity).
+# Rules: Software Teams accumulates team rules across PRs automatically. New rules are
+# appended to .software-teams/rules/ only when the same guidance is NOT already in the
+# project's .claude/CLAUDE.md (or ./CLAUDE.md). By default rules live in the GitHub
+# Actions cache. Set SOFTWARE_TEAMS_COMMIT_RULES=true to persist them in git
+# (recommended — cache entries expire after 7 days of inactivity).
 
 name: Software Teams
 
@@ -65,7 +67,7 @@ jobs:
       - name: Resolve PR branch
         id: pr
         run: |
-          bunx @benzotti/software-teams@latest action resolve-branch \
+          bunx @websitelabs/software-teams@latest action resolve-branch \
             --repo "$REPO" \
             ${PR_HEAD_REF:+--pr-head-ref "$PR_HEAD_REF"} \
             ${PR_NUMBER:+--pr-number "$PR_NUMBER"}
@@ -79,16 +81,16 @@ jobs:
         with:
           ref: ${{ steps.pr.outputs.branch || github.head_ref || github.ref }}
 
-      # Restore persisted Software Teams state (learnings + codebase-index)
+      # Restore persisted Software Teams state (rules + codebase-index)
       # 1. Exact match for this branch
-      # 2. Fall back to main baseline (learnings only — plans are cleared below)
+      # 2. Fall back to main baseline (rules only — plans are cleared below)
       - name: Restore Software Teams state
         id: cache
         uses: actions/cache@v4
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/framework/
+            .software-teams/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -99,17 +101,18 @@ jobs:
       # Bootstrap Software Teams framework if not present (first run or cache miss)
       - name: Bootstrap Software Teams
         run: |
-          bunx @benzotti/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+          bunx @websitelabs/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
 
-      # Fetch shared learnings from an external repo if configured.
-      # This merges cross-project learnings into the local framework before agents run.
-      - name: Fetch shared learnings
-        if: vars.SOFTWARE_TEAMS_LEARNINGS_REPO != ''
+      # Fetch shared rules from an external repo if configured.
+      # This merges cross-project rules into the local .software-teams/rules/ before agents run.
+      # Lines that already appear in the project's CLAUDE.md are filtered out automatically.
+      - name: Fetch shared rules
+        if: vars.SOFTWARE_TEAMS_RULES_REPO != ''
         run: |
-          bunx @benzotti/software-teams@latest action fetch-learnings --learnings-repo "$LEARNINGS_REPO"
+          bunx @websitelabs/software-teams@latest action fetch-rules --rules-repo "$RULES_REPO"
         env:
-          LEARNINGS_REPO: ${{ vars.SOFTWARE_TEAMS_LEARNINGS_REPO }}
-          LEARNINGS_TOKEN: ${{ secrets.SOFTWARE_TEAMS_LEARNINGS_TOKEN || github.token }}
+          RULES_REPO: ${{ vars.SOFTWARE_TEAMS_RULES_REPO }}
+          RULES_TOKEN: ${{ secrets.SOFTWARE_TEAMS_RULES_TOKEN || github.token }}
 
       # Configure git for Software Teams commits (used when implementing changes on PR branches)
       - name: Configure git
@@ -126,11 +129,11 @@ jobs:
       # All arguments are individually quoted to prevent shell expansion.
       #
       # Auth gate (opt-in):
-      #   Set repo variable SOFTWARE_TEAMS_AUTH_ENABLED=true to restrict to write collaborators.
+      #   Set repo variable SOFTWARE_TEAMS_AUTH_ENABLED=true to restrict Software Teams to write collaborators.
       #   Set SOFTWARE_TEAMS_ALLOWED_USERS to a comma-separated list for explicit allow-listing.
       - name: Run Software Teams
         run: |
-          bunx @benzotti/software-teams@latest action run "$COMMENT_BODY" \
+          bunx @websitelabs/software-teams@latest action run "$COMMENT_BODY" \
             --repo "$REPO" \
             ${COMMENT_ID:+--comment-id "$COMMENT_ID"} \
             ${PR_NUMBER:+--pr-number "$PR_NUMBER"} \
@@ -151,22 +154,22 @@ jobs:
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
 
-      # Save Software Teams state — framework, config, persistence all cached together
+      # Save Software Teams state — rules, config, persistence all cached together
       - name: Save Software Teams state
         if: always()
         uses: actions/cache/save@v4
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/framework/
+            .software-teams/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
           key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
 
-  # ── Promote learnings to main baseline when PRs merge ──
+  # ── Promote rules to main baseline when PRs merge ──
   # Only runs when Software Teams was actually used on the merged PR
-  promote-learnings:
+  promote-rules:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -177,7 +180,7 @@ jobs:
       - name: Check if Software Teams was involved
         id: check
         run: |
-          bunx @benzotti/software-teams@latest action promote-learnings \
+          bunx @websitelabs/software-teams@latest action promote-rules \
             --check-only \
             --repo "$REPO" \
             --sha "${{ github.sha }}"
@@ -195,7 +198,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/framework/
+            .software-teams/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -209,34 +212,34 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/framework/
+            .software-teams/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
           key: software-teams-state-${{ github.repository }}-main-${{ github.sha }}
 
-      # Opt-in: commit learnings so they survive cache eviction.
-      # Set repo variable SOFTWARE_TEAMS_COMMIT_LEARNINGS=true to enable.
+      # Opt-in: commit rules so they survive cache eviction.
+      # Set repo variable SOFTWARE_TEAMS_COMMIT_RULES=true to enable.
       #
-      # Where learnings are committed:
-      #   - Same repo (default): .software-teams/framework/learnings/ on main
-      #   - External repo: set SOFTWARE_TEAMS_LEARNINGS_REPO (e.g. org/software-teams-learnings)
-      #     and SOFTWARE_TEAMS_LEARNINGS_TOKEN secret. Learnings are stored under
-      #     software-teams/learnings/ in the external repo and merged (not replaced).
-      - name: Commit learnings to repo
+      # Where rules are committed:
+      #   - Same repo (default): .software-teams/rules/ on main
+      #   - External repo: set SOFTWARE_TEAMS_RULES_REPO (e.g. org/software-teams-rules)
+      #     and SOFTWARE_TEAMS_RULES_TOKEN secret. Rules are stored under
+      #     software-teams/rules/ in the external repo and merged (not replaced).
+      - name: Commit rules to repo
         if: >-
           steps.check.outputs.skip != 'true'
           && steps.restore.outputs.cache-hit != ''
-          && vars.SOFTWARE_TEAMS_COMMIT_LEARNINGS == 'true'
+          && vars.SOFTWARE_TEAMS_COMMIT_RULES == 'true'
         run: |
           git config user.name "software-teams[bot]"
           git config user.email "software-teams[bot]@users.noreply.github.com"
-          bunx @benzotti/software-teams@latest action promote-learnings \
+          bunx @websitelabs/software-teams@latest action promote-rules \
             --repo "$REPO" \
             --sha "${{ github.sha }}" \
             --pr-number "${{ steps.check.outputs.pr_number }}" \
             --branch "${{ steps.check.outputs.branch }}" \
-            ${LEARNINGS_REPO:+--learnings-repo "$LEARNINGS_REPO"}
+            ${RULES_REPO:+--rules-repo "$RULES_REPO"}
         env:
-          LEARNINGS_REPO: ${{ vars.SOFTWARE_TEAMS_LEARNINGS_REPO || '' }}
-          LEARNINGS_TOKEN: ${{ secrets.SOFTWARE_TEAMS_LEARNINGS_TOKEN || github.token }}
+          RULES_REPO: ${{ vars.SOFTWARE_TEAMS_RULES_REPO || '' }}
+          RULES_TOKEN: ${{ secrets.SOFTWARE_TEAMS_RULES_TOKEN || github.token }}

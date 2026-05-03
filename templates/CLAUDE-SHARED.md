@@ -65,4 +65,4 @@ You may only append to `decisions`, `deviations`, or `blockers` arrays in state.
 
 ## Self-Testing (Software Teams development only)
 
-If the current project is the Software Teams framework itself (`@benzotti/software-teams`), run `bun test` after modifying prompt builders, action commands, or framework files. This catches regressions in split format references, rules inclusion, and framework invariants.
+If the current project is the Software Teams framework itself (`@websitelabs/software-teams`), run `bun test` after modifying prompt builders, action commands, or framework files. This catches regressions in split format references, rules inclusion, and framework invariants.

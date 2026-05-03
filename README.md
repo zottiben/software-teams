@@ -2,7 +2,7 @@
 
 **A team of specialist AI agents that plan, build, review, and ship features end-to-end.**
 
-[![npm version](https://img.shields.io/npm/v/@benzotti/software-teams)](https://www.npmjs.com/package/@benzotti/software-teams) [![CI](https://img.shields.io/github/actions/workflow/status/zottiben/software-teams/ci.yml?branch=main&label=ci)](https://github.com/zottiben/software-teams/actions) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/@websitelabs/software-teams)](https://www.npmjs.com/package/@websitelabs/software-teams) [![CI](https://img.shields.io/github/actions/workflow/status/zottiben/software-teams/ci.yml?branch=main&label=ci)](https://github.com/zottiben/software-teams/actions) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ```
 You:   /st:create-plan "Add password reset flow"
@@ -43,8 +43,8 @@ The differentiators:
 
 ```bash
 # Install globally
-bun install -g @benzotti/software-teams
-# (or: npm install -g @benzotti/software-teams)
+bun install -g @websitelabs/software-teams
+# (or: npm install -g @websitelabs/software-teams)
 
 # Initialise in your project
 cd ~/code/your-project

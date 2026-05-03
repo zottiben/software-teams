@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "@benzotti/software-teams",
+      "name": "@websitelabs/software-teams",
       "dependencies": {
         "citty": "^0.1.6",
         "consola": "^3.4.0",

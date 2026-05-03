@@ -13,7 +13,7 @@ tree is the artefact, not the source.
 Software Teams ships through **two distribution channels** that target the same
 underlying content, and each channel has its own slash-command namespace:
 
-- **`/st:*`** — the **CLI** layer. Installed via `bunx @benzotti/software-teams init`
+- **`/st:*`** — the **CLI** layer. Installed via `bunx @websitelabs/software-teams init`
   (or a global npm install). Slash commands live in `.claude/commands/st/` inside the
   consuming repo and are wired up by `software-teams sync-agents`. Use this when you
   want the framework checked into your project's repo and version-controlled with it.

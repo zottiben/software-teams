@@ -10,7 +10,7 @@
 #   - Set SOFTWARE_TEAMS_COMMIT_RULES=true repo variable to persist rules in git
 #   - Set SOFTWARE_TEAMS_RULES_REPO variable to push rules to a central repo (e.g. org/software-teams-rules)
 #   - Set SOFTWARE_TEAMS_RULES_TOKEN secret (PAT with Contents read/write on the rules repo)
-#   - Run `bunx @benzotti/software-teams init` locally to customise framework files
+#   - Run `bunx @websitelabs/software-teams init` locally to customise framework files
 #
 # Usage: Comment on any issue or PR with "Hey software-teams" followed by a command:
 #   Hey software-teams plan <description>        — Create an implementation plan
@@ -67,7 +67,7 @@ jobs:
       - name: Resolve PR branch
         id: pr
         run: |
-          bunx @benzotti/software-teams@latest action resolve-branch \
+          bunx @websitelabs/software-teams@latest action resolve-branch \
             --repo "$REPO" \
             ${PR_HEAD_REF:+--pr-head-ref "$PR_HEAD_REF"} \
             ${PR_NUMBER:+--pr-number "$PR_NUMBER"}
@@ -101,7 +101,7 @@ jobs:
       # Bootstrap Software Teams framework if not present (first run or cache miss)
       - name: Bootstrap Software Teams
         run: |
-          bunx @benzotti/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+          bunx @websitelabs/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
 
       # Fetch shared rules from an external repo if configured.
       # This merges cross-project rules into the local .software-teams/rules/ before agents run.
@@ -109,7 +109,7 @@ jobs:
       - name: Fetch shared rules
         if: vars.SOFTWARE_TEAMS_RULES_REPO != ''
         run: |
-          bunx @benzotti/software-teams@latest action fetch-rules --rules-repo "$RULES_REPO"
+          bunx @websitelabs/software-teams@latest action fetch-rules --rules-repo "$RULES_REPO"
         env:
           RULES_REPO: ${{ vars.SOFTWARE_TEAMS_RULES_REPO }}
           RULES_TOKEN: ${{ secrets.SOFTWARE_TEAMS_RULES_TOKEN || github.token }}
@@ -133,7 +133,7 @@ jobs:
       #   Set SOFTWARE_TEAMS_ALLOWED_USERS to a comma-separated list for explicit allow-listing.
       - name: Run Software Teams
         run: |
-          bunx @benzotti/software-teams@latest action run "$COMMENT_BODY" \
+          bunx @websitelabs/software-teams@latest action run "$COMMENT_BODY" \
             --repo "$REPO" \
             ${COMMENT_ID:+--comment-id "$COMMENT_ID"} \
             ${PR_NUMBER:+--pr-number "$PR_NUMBER"} \
@@ -180,7 +180,7 @@ jobs:
       - name: Check if Software Teams was involved
         id: check
         run: |
-          bunx @benzotti/software-teams@latest action promote-rules \
+          bunx @websitelabs/software-teams@latest action promote-rules \
             --check-only \
             --repo "$REPO" \
             --sha "${{ github.sha }}"
@@ -234,7 +234,7 @@ jobs:
         run: |
           git config user.name "software-teams[bot]"
           git config user.email "software-teams[bot]@users.noreply.github.com"
-          bunx @benzotti/software-teams@latest action promote-rules \
+          bunx @websitelabs/software-teams@latest action promote-rules \
             --repo "$REPO" \
             --sha "${{ github.sha }}" \
             --pr-number "${{ steps.check.outputs.pr_number }}" \

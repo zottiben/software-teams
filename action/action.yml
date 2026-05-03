@@ -19,7 +19,7 @@ inputs:
     required: false
     default: 'Hey software-teams'
   software_teams_version:
-    description: 'Version of @benzotti/software-teams to install for init'
+    description: 'Version of @websitelabs/software-teams to install for init'
     required: false
     default: 'latest'
   claude_code_action_version:
@@ -50,7 +50,7 @@ runs:
       run: |
         if [ ! -d ".software-teams/framework" ]; then
           echo "Software Teams framework not found — initialising..."
-          bunx @benzotti/software-teams@${{ inputs.software_teams_version }} init --ci
+          bunx @websitelabs/software-teams@${{ inputs.software_teams_version }} init --ci
         fi
 
         # Ensure persistence directory exists

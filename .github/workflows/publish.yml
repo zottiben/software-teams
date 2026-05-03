@@ -1,4 +1,4 @@
-name: Publish @benzotti/software-teams to npm
+name: Publish @websitelabs/software-teams to npm
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
-      - name: Dry-run publish (@benzotti/software-teams)
+      - name: Dry-run publish (@websitelabs/software-teams)
         run: npm publish --dry-run
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

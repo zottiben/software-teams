@@ -23,7 +23,7 @@ export interface StorageConfig {
  *   The file must export a class that implements SoftwareTeamsStorage as default export:
  *
  *   ```ts
- *   import type { SoftwareTeamsStorage } from "@benzotti/software-teams/storage";
+ *   import type { SoftwareTeamsStorage } from "@websitelabs/software-teams/storage";
  *
  *   export default class S3Storage implements SoftwareTeamsStorage {
  *     async load(key: string) { ... }

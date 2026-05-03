@@ -21,7 +21,7 @@ export const setupActionCommand = defineCommand({
       // import.meta.dir resolves to dist/ after bundling, so go up one level
       const templatePath = join(import.meta.dir, "../action/workflow-template.yml");
       if (!existsSync(templatePath)) {
-        consola.error("Workflow template not found. Ensure @benzotti/software-teams is properly installed.");
+        consola.error("Workflow template not found. Ensure @websitelabs/software-teams is properly installed.");
         process.exit(1);
       }
 

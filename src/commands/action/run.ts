@@ -275,7 +275,7 @@ export const runCommand = defineCommand({
 
       let version = "unknown";
       try {
-        const pkgPath = join(cwd, "node_modules/@benzotti/software-teams/package.json");
+        const pkgPath = join(cwd, "node_modules/@websitelabs/software-teams/package.json");
         if (existsSync(pkgPath)) {
           const pkg = JSON.parse(await Bun.file(pkgPath).text());
           version = pkg.version;
