@@ -7,3 +7,4 @@ bun.lockb
 # Software Teams framework — remove these lines to version control Software Teams artefacts
 .software-teams/
 .claude/commands/st/
+dist-test/

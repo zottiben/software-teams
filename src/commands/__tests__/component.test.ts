@@ -12,14 +12,22 @@ import { join } from "node:path";
 
 // Paths
 const REPO_ROOT = join(import.meta.dir, "../../..");
-const DIST_INDEX = join(REPO_ROOT, "dist/index.js");
+const DIST_INDEX = join(REPO_ROOT, "dist-test/index.js");
 
 /**
  * Helper: spawn the CLI synchronously and return the result.
+ *
+ * NODE_ENV is scrubbed because the test-only bundle was built while
+ * `NODE_ENV=test` was in the parent's env (bun test sets that). Bun's
+ * bundler inlines `process.env` truthy checks at build time, so the bundled
+ * consola binding goes silent under NODE_ENV=test, swallowing the CLI's
+ * table output and any errors. Force it back to a non-test value at spawn.
  */
 function runCLI(args: string[]) {
+  const env = { ...process.env, NODE_ENV: "production" } as Record<string, string>;
   const result = spawnSync(["bun", "run", DIST_INDEX, ...args], {
     cwd: REPO_ROOT,
+    env,
   });
 
   const stdout = result.stdout ? Buffer.from(result.stdout).toString("utf-8") : "";
@@ -36,13 +44,29 @@ function runCLI(args: string[]) {
 
 describe("software-teams component CLI", () => {
   /**
-   * Build the dist/ before running any CLI tests.
+   * Build a test-only bundle before running any CLI tests.
+   *
+   * IMPORTANT: outdir is `dist-test/`, NOT `dist/`. The canonical `dist/` is
+   * produced by `bun run build` (with the package's pinned `--target=node`)
+   * and is what `npm publish` ships. Overwriting it here would replace the
+   * publish artefact with a default-target build whose Bun.build() inherits
+   * a different __require shim on Linux CI — that's how 0.2.0–0.2.3 shipped
+   * broken bundles despite passing the publish-time smoke tests.
    */
   beforeAll(async () => {
+    // Bun bakes `process.env.NODE_ENV` into the bundle at build time. Inside
+    // `bun test` the parent's NODE_ENV is "test", which (via consola's level
+    // detection) silences all CLI output and breaks every assertion below.
+    // Pin to "production" via `define` so the bundled consola behaves the
+    // same as it does in a normal user install.
     const buildResult = await Bun.build({
       entrypoints: [join(REPO_ROOT, "src", "index.ts")],
-      outdir: join(REPO_ROOT, "dist"),
+      outdir: join(REPO_ROOT, "dist-test"),
       format: "esm",
+      target: "node",
+      define: {
+        "process.env.NODE_ENV": JSON.stringify("production"),
+      },
     });
 
     if (!buildResult.success) {
@@ -150,23 +174,14 @@ describe("software-teams component CLI", () => {
   });
 
   describe("component validate", () => {
-    test("exits non-zero when registry validation finds broken refs", () => {
+    test("exits 0 on a clean corpus and reports the registry section", () => {
       const result = runCLI(["component", "validate"]);
 
-      // The validator scans @ST: tags across the corpus. Any broken ref
-      // (unknown component, unknown section) makes it exit non-zero.
-      expect(result.exitCode).not.toBe(0);
-
-      // Verify that either Registry validation or an error is mentioned.
-      const output = result.combined.toLowerCase();
-      expect(output).toMatch(/registry|error/i);
-    });
-
-    test("attempts to run Registry validation (outputs section header)", () => {
-      const result = runCLI(["component", "validate"]);
-
-      // Verify the Registry validation section was invoked (present in output).
-      // This confirms the command structure is correct even if validation fails.
+      // The validator scans @ST: tags across the corpus. The current corpus
+      // has no broken refs, so the command exits 0 with a "validated cleanly"
+      // message. (This test was originally written when the corpus had
+      // intentional broken refs; updated after those were resolved.)
+      expect(result.exitCode).toBe(0);
       expect(result.combined).toMatch(/[Rr]egistry/i);
     });
   });
