@@ -98,13 +98,22 @@ jobs:
             exit 1
           fi
 
-      - name: Bundle smoke test (init runs end-to-end)
+      - name: Bundle smoke test (init runs end-to-end + UTF-8 sanity)
         if: steps.version.outputs.changed == 'true'
         run: |
           set -e
           tmp=$(mktemp -d)
           cd "$tmp"
           bun "$GITHUB_WORKSPACE/dist/index.js" init --ci
+          # UTF-8 mojibake guard: Bun has shipped builds that mis-decode
+          # multi-byte string literals at runtime (UTF-8 → Latin-1 → UTF-8),
+          # producing files with `c3 a2 c2 86 c2 92` where they should have
+          # `e2 86 92`. Catch any such double-encoded sequences in the
+          # generated CLAUDE.md / agents / templates.
+          if find . -name '*.md' -exec sh -c 'xxd "$1" | grep -q "c3a2 c286"' _ {} \; -print | grep .; then
+            echo "::error::Generated files contain UTF-8 mojibake (double-encoded characters)."
+            exit 1
+          fi
 
       - run: bun run test
         if: steps.version.outputs.changed == 'true'

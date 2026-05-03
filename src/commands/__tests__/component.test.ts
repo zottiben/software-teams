@@ -63,7 +63,7 @@ describe("software-teams component CLI", () => {
       entrypoints: [join(REPO_ROOT, "src", "index.ts")],
       outdir: join(REPO_ROOT, "dist-test"),
       format: "esm",
-      target: "node",
+      target: "bun",
       define: {
         "process.env.NODE_ENV": JSON.stringify("production"),
       },

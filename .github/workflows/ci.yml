@@ -39,7 +39,7 @@ jobs:
             exit 1
           fi
 
-      - name: Bundle smoke test (init runs end-to-end)
+      - name: Bundle smoke test (init runs end-to-end + UTF-8 sanity)
         # Tests pass against source. The bundle is a separate artifact and
         # has shipped broken before. This step exercises the actual published
         # entrypoint so we catch bundle-only regressions before publish.
@@ -48,6 +48,10 @@ jobs:
           tmp=$(mktemp -d)
           cd "$tmp"
           bun "$GITHUB_WORKSPACE/dist/index.js" init --ci
+          if find . -name '*.md' -exec sh -c 'xxd "$1" | grep -q "c3a2 c286"' _ {} \; -print | grep .; then
+            echo "::error::Generated files contain UTF-8 mojibake (double-encoded characters)."
+            exit 1
+          fi
 
       - run: bun test
 
