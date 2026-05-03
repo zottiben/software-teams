@@ -21,11 +21,33 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.7"
 
       - run: bun install
 
       - run: bun run build
+
+      - name: Bundle stub-detector
+        # Bun's `--target bun` bundler has historically (1.3.13) emitted empty
+        # `var {existsSync} = (() => ({}))` stubs when it loses track of
+        # node:* imports. The stubs typecheck fine and tests pass, but every
+        # CLI command crashes at runtime. Fail CI loudly if any stub appears.
+        run: |
+          if grep -qE '= \(\(\) => \(\{\}\)\)' dist/index.js; then
+            echo "::error::Bundle contains empty-object stubs from a bundler regression."
+            grep -n '= (() => ({}))' dist/index.js | head -10
+            exit 1
+          fi
+
+      - name: Bundle smoke test (init runs end-to-end)
+        # Tests pass against source. The bundle is a separate artifact and
+        # has shipped broken before. This step exercises the actual published
+        # entrypoint so we catch bundle-only regressions before publish.
+        run: |
+          set -e
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          bun "$GITHUB_WORKSPACE/dist/index.js" init --ci
 
       - run: bun test
 
@@ -40,7 +62,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.7"
 
       - run: bun install
 

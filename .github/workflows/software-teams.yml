@@ -59,7 +59,7 @@ jobs:
       # Bun is required to run the Software Teams CLI
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.7"
 
       # Resolve the PR head branch
       # - issue_comment: github.head_ref is empty, resolve via API
@@ -175,7 +175,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.7"
 
       - name: Check if Software Teams was involved
         id: check
