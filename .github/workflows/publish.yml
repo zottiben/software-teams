@@ -85,6 +85,27 @@ jobs:
       - run: bun run build
         if: steps.version.outputs.changed == 'true'
 
+      - name: Bundle stub-detector (block broken bundle from publish)
+        if: steps.version.outputs.changed == 'true'
+        # Bun's bundler has shipped builds that emit empty `var {existsSync} =
+        # (() => ({}))` stubs. Tests pass against source, so these slip through
+        # without an explicit bundle check. Fail the publish loudly if any are
+        # present.
+        run: |
+          if grep -qE '= \(\(\) => \(\{\}\)\)' dist/index.js; then
+            echo "::error::Bundle contains empty-object stubs — refusing to publish."
+            grep -n '= (() => ({}))' dist/index.js | head -10
+            exit 1
+          fi
+
+      - name: Bundle smoke test (init runs end-to-end)
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          set -e
+          tmp=$(mktemp -d)
+          cd "$tmp"
+          bun "$GITHUB_WORKSPACE/dist/index.js" init --ci
+
       - run: bun run test
         if: steps.version.outputs.changed == 'true'
 
