@@ -199,7 +199,12 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 > **Trust skill pre-discovery:** If the spawning skill passed \`PRE_DISCOVERED_CONTEXT\`, trust it — do not re-read scaffolding (saves tokens). If not passed, fall back to reading scaffolding directly as usual.
 
-1. Read \`.software-teams/project.yaml\`, \`.software-teams/roadmap.yaml\`, \`.software-teams/requirements.yaml\`
+1. Read scaffolding via the targeted CLIs (preferred — returns slices, not whole files):
+   - \`software-teams project tech-stack\` (tech_stack block from project.yaml)
+   - \`software-teams roadmap current-phase\` (active phase from roadmap.yaml)
+   - \`software-teams requirements list\` (requirement ids + descriptions). Use \`software-teams requirements get <REQ-ID>\` for individual entries you need to expand.
+
+   Fall back to \`Read .software-teams/{project,roadmap,requirements}.yaml\` only if you need fields the slice CLIs don't expose (e.g. archived phases, custom top-level keys).
 2. Read codebase analysis (\`.software-teams/codebase/summary.md\`, \`CONVENTIONS.md\`) if available
 3. Analyse codebase — identify affected files, existing patterns, conventions
 4. Research: standard stack, architecture patterns, common pitfalls

@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { loadYaml, saveYaml, softwareTeamsPath, type YamlObject } from "../utils/yaml-edit";
+import { loadYaml, saveYaml, softwareTeamsPath, printValue, type YamlObject } from "../utils/yaml-edit";
 
 function parseWaves(input: string | undefined): number[] {
   if (input == null || input.trim() === "") return [1];
@@ -171,13 +171,141 @@ const setStatusCommand = defineCommand({
   },
 });
 
+// ─────────────────────────────────────────────────────────────────────
+// Read-only queries — return slices of roadmap.yaml so agents avoid
+// reading the full file just to find one phase or one plan entry.
+// ─────────────────────────────────────────────────────────────────────
+
+async function loadRoadmap(): Promise<YamlObject> {
+  return loadYaml(softwareTeamsPath("roadmap.yaml"));
+}
+
+function activePhaseId(data: YamlObject): string | null {
+  const overview = data.overview as YamlObject | undefined;
+  if (overview && Array.isArray(overview.active) && overview.active.length > 0) {
+    return String(overview.active[0]);
+  }
+  // Fall back to the first numeric key under `phases:` whose status is not
+  // "complete". Roadmap files written by older versions of Software Teams
+  // may not have an `overview:` block.
+  const phases = (data.phases ?? {}) as YamlObject;
+  for (const k of Object.keys(phases).sort()) {
+    const phase = phases[k] as YamlObject | undefined;
+    if (phase && phase.status !== "complete") return k;
+  }
+  return null;
+}
+
+const currentPhaseCommand = defineCommand({
+  meta: {
+    name: "current-phase",
+    description: "Print the active phase entry (id, name, goal, plans)",
+  },
+  args: { json: { type: "boolean", description: "JSON output", default: false } },
+  async run({ args }) {
+    const data = await loadRoadmap();
+    const id = activePhaseId(data);
+    if (id == null) process.exit(1);
+    const phases = (data.phases ?? {}) as YamlObject;
+    const phase = phases[id];
+    if (phase == null) process.exit(1);
+    await printValue({ id, ...(phase as YamlObject) }, { json: args.json });
+  },
+});
+
+const getPlanCommand = defineCommand({
+  meta: {
+    name: "get-plan",
+    description: "Print a single plan entry from roadmap.yaml",
+  },
+  args: {
+    phase: { type: "string", description: "Phase id", required: true },
+    plan: { type: "string", description: "Plan id", required: true },
+    json: { type: "boolean", description: "JSON output", default: false },
+  },
+  async run({ args }) {
+    const data = await loadRoadmap();
+    const phases = (data.phases ?? {}) as YamlObject;
+    const phase = phases[args.phase] as YamlObject | undefined;
+    const plan = phase?.plans ? (phase.plans as YamlObject)[args.plan] : undefined;
+    if (plan == null) process.exit(1);
+    await printValue(plan, { json: args.json });
+  },
+});
+
+const listPlansCommand = defineCommand({
+  meta: {
+    name: "list-plans",
+    description: "List plan entries (id, name, status). Defaults to all phases.",
+  },
+  args: {
+    phase: { type: "string", description: "Filter to one phase id" },
+    json: { type: "boolean", description: "JSON output", default: false },
+  },
+  async run({ args }) {
+    const data = await loadRoadmap();
+    const phases = (data.phases ?? {}) as YamlObject;
+    const out: Array<{ phase: string; plan: string; name: string; status: string }> = [];
+    for (const phaseId of Object.keys(phases).sort()) {
+      if (args.phase && phaseId !== args.phase) continue;
+      const phase = phases[phaseId] as YamlObject | undefined;
+      const plans = (phase?.plans ?? {}) as YamlObject;
+      for (const planId of Object.keys(plans).sort()) {
+        const plan = plans[planId] as YamlObject | undefined;
+        out.push({
+          phase: phaseId,
+          plan: planId,
+          name: String(plan?.name ?? ""),
+          status: String(plan?.status ?? ""),
+        });
+      }
+    }
+    if (args.json) {
+      await printValue(out, { json: true });
+      return;
+    }
+    for (const row of out) {
+      process.stdout.write(`${row.phase}\t${row.plan}\t${row.status}\t${row.name}\n`);
+    }
+  },
+});
+
+const nextPlanCommand = defineCommand({
+  meta: {
+    name: "next-plan",
+    description: "Print the first pending plan in the active phase",
+  },
+  args: { json: { type: "boolean", description: "JSON output", default: false } },
+  async run({ args }) {
+    const data = await loadRoadmap();
+    const phaseId = activePhaseId(data);
+    if (phaseId == null) process.exit(1);
+    const phases = (data.phases ?? {}) as YamlObject;
+    const phase = phases[phaseId] as YamlObject | undefined;
+    const plans = (phase?.plans ?? {}) as YamlObject;
+    for (const planId of Object.keys(plans).sort()) {
+      const plan = plans[planId] as YamlObject | undefined;
+      if (plan?.status !== "complete") {
+        await printValue({ phase: phaseId, plan: planId, ...(plan ?? {}) }, { json: args.json });
+        return;
+      }
+    }
+    // No pending plan in the active phase.
+    process.exit(1);
+  },
+});
+
 export const roadmapCommand = defineCommand({
   meta: {
     name: "roadmap",
-    description: "Manage .software-teams/roadmap.yaml entries (CLI replaces tool-call edits)",
+    description: "Manage and inspect .software-teams/roadmap.yaml",
   },
   subCommands: {
     "add-plan": addPlanCommand,
     "set-status": setStatusCommand,
+    "current-phase": currentPhaseCommand,
+    "get-plan": getPlanCommand,
+    "list-plans": listPlansCommand,
+    "next-plan": nextPlanCommand,
   },
 });

@@ -1,6 +1,13 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { loadYaml, saveYaml, softwareTeamsPath, type YamlObject } from "../utils/yaml-edit";
+import {
+  loadYaml,
+  saveYaml,
+  softwareTeamsPath,
+  printValue,
+  dottedGet,
+  type YamlObject,
+} from "../utils/yaml-edit";
 
 function ensureMapping(parent: YamlObject, key: string): YamlObject {
   const existing = parent[key];
@@ -97,13 +104,56 @@ const setMetaCommand = defineCommand({
   },
 });
 
+// ─────────────────────────────────────────────────────────────────────
+// Read-only queries — return slices of project.yaml so backend / frontend
+// / devops specialists avoid Read-ing the whole file just to extract
+// `tech_stack`.
+// ─────────────────────────────────────────────────────────────────────
+
+async function loadProject(): Promise<YamlObject> {
+  return loadYaml(softwareTeamsPath("project.yaml"));
+}
+
+const techStackCommand = defineCommand({
+  meta: {
+    name: "tech-stack",
+    description: "Print just the tech_stack block",
+  },
+  args: { json: { type: "boolean", description: "JSON output", default: false } },
+  async run({ args }) {
+    const data = await loadProject();
+    await printValue(data.tech_stack ?? null, { json: args.json });
+  },
+});
+
+const getFieldCommand = defineCommand({
+  meta: {
+    name: "get",
+    description: "Print one field from project.yaml by dotted path",
+  },
+  args: {
+    field: {
+      type: "positional",
+      description: 'Dotted path (e.g. "tech_stack.backend", "name", "constraints")',
+      required: true,
+    },
+    json: { type: "boolean", description: "JSON output", default: false },
+  },
+  async run({ args }) {
+    const data = await loadProject();
+    await printValue(dottedGet(data, args.field), { json: args.json });
+  },
+});
+
 export const projectCommand = defineCommand({
   meta: {
     name: "project",
-    description: "Manage .software-teams/project.yaml entries (CLI replaces tool-call edits)",
+    description: "Manage and inspect .software-teams/project.yaml",
   },
   subCommands: {
     "set-tech-stack": setTechStackCommand,
     "set-meta": setMetaCommand,
+    "tech-stack": techStackCommand,
+    get: getFieldCommand,
   },
 });

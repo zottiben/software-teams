@@ -57,6 +57,43 @@ the listed components via the same CLI before starting execution.
 
 Do NOT skip component tags — they contain essential instructions.`,
     },
+    TargetedReads: {
+      name: "TargetedReads",
+      description: "Prefer targeted CLIs over Read+grep on whole files",
+      body: `Whenever you need a slice of a Software Teams state file, prefer the
+\`software-teams\` query CLIs over a \`Read\` tool call. The CLIs return only
+the slice you ask for — usually 5-20 lines instead of the whole file —
+which is faster and saves the per-spawn token budget. Use \`Read\` only when
+you genuinely need the full file content.
+
+| When you need... | Use this instead of Read |
+|---|---|
+| Active task id / name / path | \`software-teams state current-task [--json]\` |
+| Next pending task path | \`software-teams state next-task [--json]\` |
+| One field from state.yaml | \`software-teams state get <dotted.path>\` |
+| Progress counters | \`software-teams state progress\` |
+| List of tasks in current plan | \`software-teams state plan-tasks\` |
+| Active phase entry | \`software-teams roadmap current-phase\` |
+| One plan from roadmap | \`software-teams roadmap get-plan --phase X --plan YY\` |
+| All plans (id + name + status) | \`software-teams roadmap list-plans [--phase X]\` |
+| Next pending plan | \`software-teams roadmap next-plan\` |
+| One requirement | \`software-teams requirements get <REQ-ID>\` |
+| Requirements covering a task | \`software-teams requirements for-task <T-ID>\` |
+| Risks list | \`software-teams requirements risks\` |
+| All requirements (id + desc) | \`software-teams requirements list [--phase X]\` |
+| Tech stack identifiers | \`software-teams project tech-stack\` |
+| One project field | \`software-teams project get <dotted.path>\` |
+| One per-task slice body | \`software-teams plan get-task <T-ID>\` |
+| One section of a spec | \`software-teams plan get-spec --section <slug>\` |
+| One section of orchestration | \`software-teams plan get-orchestration --section <slug>\` |
+| Task dependency frontmatter | \`software-teams plan task-deps <T-ID>\` |
+| List task slice paths | \`software-teams plan list-tasks\` |
+| One component / section body | \`software-teams component get <Name> [Section]\` |
+
+All query CLIs accept \`--json\` for structured output and exit non-zero
+when the requested slice is missing — pipe-friendly for scripting and
+agent decision branches.`,
+    },
     ActivationProtocol: {
       name: "ActivationProtocol",
       description: "Announcement pattern on agent activation",
@@ -140,6 +177,7 @@ When operating within an Agent Team (spawned by coordinator):
     "Standards",
     "BudgetDiscipline",
     "ComponentResolution",
+    "TargetedReads",
     "ActivationProtocol",
     "StructuredReturns",
     "Boundaries",

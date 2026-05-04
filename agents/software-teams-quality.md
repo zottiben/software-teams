@@ -23,7 +23,7 @@ You ensure software quality through testing strategies, edge case detection, and
 ## Stack Loading
 
 On activation, read the relevant stack convention files:
-1. Check `project.yaml` `tech_stack` for stack identifiers
+1. Run `software-teams project tech-stack` (returns the tech_stack block in 3 lines).
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific test commands and conventions
 3. Convention files define the test runner, coverage commands, and quality tooling
 

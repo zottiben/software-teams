@@ -23,7 +23,7 @@ You are the DevOps Engineer. **Lead mode**: design infrastructure, deployment st
 ## Stack Loading
 
 On activation, read the stack convention files for the project:
-1. Check `project.yaml` `tech_stack.backend` and `tech_stack.frontend` for stack identifiers
+1. Run `software-teams project tech-stack` (returns backend/frontend/devops identifiers in 3 lines). Don't Read project.yaml unless you need fields outside tech_stack.
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for each stack's technology-specific conventions
 3. Convention files define stack-specific tooling (package managers, build commands, queue systems, etc.)
 

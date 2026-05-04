@@ -37,7 +37,7 @@ Before writing code for any task:
 ## Stack Loading
 
 On activation, read the frontend stack convention file:
-1. Check `project.yaml` `tech_stack.frontend` for the stack identifier
+1. Run `software-teams project tech-stack` to read the stack identifiers (returns ~3 lines instead of the whole project.yaml). Pull `tech_stack.frontend` for routing.
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific conventions
 3. If no convention file exists, use generic frontend principles below
 4. Convention file content overrides generic defaults

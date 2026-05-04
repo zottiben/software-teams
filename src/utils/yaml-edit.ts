@@ -51,3 +51,68 @@ export function projectRoot(): string {
 export function softwareTeamsPath(...parts: string[]): string {
   return join(projectRoot(), ".software-teams", ...parts);
 }
+
+/**
+ * Walk a dotted path (e.g. `"position.plan"`, `"phases.1.name"`) into a
+ * parsed YAML object. Returns `undefined` when any segment is missing.
+ * Numeric-looking segments hit the same key as their string form — YAML
+ * `phases: { 1: { ... } }` round-trips with `1` as a number after parse,
+ * so we coerce both sides to strings during lookup.
+ */
+export function dottedGet(obj: YamlValue, path: string): YamlValue {
+  const segments = path.split(".").filter((s) => s.length > 0);
+  let cursor: YamlValue = obj;
+  for (const seg of segments) {
+    if (cursor == null || typeof cursor !== "object") return undefined;
+    if (Array.isArray(cursor)) {
+      const idx = Number(seg);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= cursor.length) return undefined;
+      cursor = cursor[idx];
+      continue;
+    }
+    const map = cursor as Record<string, YamlValue>;
+    if (seg in map) {
+      cursor = map[seg];
+    } else {
+      // Try numeric key form (YAML parses `phases: { 1: ... }` as a numeric
+      // key; lookups by `"1"` then need to land on the same slot).
+      const numericKey = String(Number(seg));
+      if (numericKey === seg && numericKey in map) {
+        cursor = map[numericKey];
+      } else {
+        return undefined;
+      }
+    }
+  }
+  return cursor;
+}
+
+/**
+ * Print a value to stdout for CLI consumption. Strings come out raw
+ * (pipe-friendly); objects/arrays come out as YAML by default and JSON
+ * when `json` is true. `undefined` exits with code 1 to signal "not
+ * found" without writing anything to stdout.
+ */
+export async function printValue(
+  value: YamlValue,
+  opts: { json?: boolean } = {},
+): Promise<void> {
+  if (value === undefined) {
+    process.exit(1);
+  }
+  if (opts.json) {
+    process.stdout.write(JSON.stringify(value, null, 2) + "\n");
+    return;
+  }
+  if (typeof value === "string") {
+    process.stdout.write(value + "\n");
+    return;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    process.stdout.write(String(value) + "\n");
+    return;
+  }
+  // Lazy-load yaml to keep this helper cheap when callers stream strings.
+  const { stringify } = await import("yaml");
+  process.stdout.write(stringify(value));
+}

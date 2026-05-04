@@ -21,7 +21,7 @@ Writes test cases and regression checklists for specific tasks. Called by softwa
 ## Stack Loading
 
 On activation, read the relevant stack convention files:
-1. Check `project.yaml` `tech_stack` for stack identifiers
+1. Run `software-teams project tech-stack` (returns the tech_stack block — backend/frontend/devops identifiers).
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific test frameworks and conventions
 3. Convention files define test syntax, file naming patterns, and test commands
 
