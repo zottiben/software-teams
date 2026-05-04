@@ -5,6 +5,20 @@ import type { SoftwareTeamsStorage } from "../storage";
 const RULE_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
 
 /**
+ * Write `content` to `path` only when the existing file's bytes differ.
+ * Avoids stamping a fresh mtime on every `gatherPromptContext` call when
+ * persisted state hasn't changed — keeps file-content caches valid and
+ * keeps the prompt prefix byte-identical run-to-run.
+ */
+async function writeIfChanged(path: string, content: string): Promise<void> {
+  if (existsSync(path)) {
+    const existing = await Bun.file(path).text();
+    if (existing === content) return;
+  }
+  await Bun.write(path, content);
+}
+
+/**
  * Load persisted state (rules + codebase-index) from storage and write
  * to local files that agents can read.
  */
@@ -26,7 +40,7 @@ export async function loadPersistedState(
       (await storage.load(`learnings-${category}`));
     if (content) {
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-      await Bun.write(join(dir, `${category}.md`), content);
+      await writeIfChanged(join(dir, `${category}.md`), content);
       anyLoaded = true;
     }
   }
@@ -48,7 +62,7 @@ export async function loadPersistedState(
     const cbDir = join(cwd, ".software-teams", "codebase");
     if (!existsSync(cbDir)) mkdirSync(cbDir, { recursive: true });
     codebaseIndexPath = join(cbDir, "INDEX.md");
-    await Bun.write(codebaseIndexPath, codebaseIndex);
+    await writeIfChanged(codebaseIndexPath, codebaseIndex);
   }
 
   return { rulesPath, codebaseIndexPath };

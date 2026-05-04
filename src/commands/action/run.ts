@@ -11,7 +11,7 @@ import { checkAuthorization } from "../../utils/auth";
 import { getComponent } from "../../components/resolve";
 import { sanitizeUserInput, fenceUserInput } from "../../utils/sanitize";
 import { readState, writeState } from "../../utils/state";
-import { applyDryRunMode, buildRulesBlock } from "../../utils/prompt-builder";
+import { applyDryRunMode, buildRulesBlock, readAgentSpecBody } from "../../utils/prompt-builder";
 import { runQualityGates } from "../../utils/verify";
 import { formatVerificationResults } from "../../utils/github";
 import {
@@ -339,28 +339,60 @@ export const runCommand = defineCommand({
       ? Object.entries(adapter.tech_stack).map(([k, v]) => `${k}: ${v}`).join(", ")
       : projectType;
 
-    const contextLines = [
+    // Project-identity block. Byte-stable for a given project — placeholders
+    // fill in for absent fields so the same prefix appears on every action
+    // invocation. Runtime-varying bits (cwd, ticket context, conversation
+    // history) live in `workspaceLines` and `historyBlock` below and are
+    // emitted strictly AFTER the cacheable header.
+    const projectLines = [
       `## Project Context`,
       `- Type: ${projectType}`,
       `- Tech stack: ${techStack}`,
-      `- Working directory: ${cwd}`,
+      `- Rules: ${rulesPath ?? "(none)"}`,
+      `- Codebase index: ${codebaseIndexPath ?? "(none)"}`,
     ];
 
-    if (rulesPath) {
-      contextLines.push(`- Rules: ${rulesPath}`);
-    }
-    if (codebaseIndexPath) {
-      contextLines.push(`- Codebase index: ${codebaseIndexPath}`);
-    }
+    const workspaceLines = [
+      `## Workspace`,
+      `- Working directory: ${cwd}`,
+    ];
     if (ticketContext) {
-      contextLines.push(``, ticketContext);
+      workspaceLines.push(``, ticketContext);
     }
 
     // Inline component bodies from the TS registry — no markdown files to read.
     const baseProtocolBody = getComponent("AgentBase");
     const complexityRouterBody = getComponent("ComplexityRouter");
     const orchestrationBody = getComponent("AgentTeamsOrchestration");
-    const baseProtocolBlock = ["## Agent Base Protocol", baseProtocolBody, ""];
+
+    // Shared header used by every variant. Identical bytes regardless of
+    // subcommand (plan/implement/quick/review/feedback) so the API-cache
+    // prefix is shared across the whole action family. ComplexityRouter and
+    // AgentTeamsOrchestration are always inlined — small token cost, big
+    // cache win when the user runs plan→implement back-to-back.
+    const headerBlock = [
+      `## Agent Base Protocol`,
+      baseProtocolBody,
+      ``,
+      `## Complexity Routing`,
+      complexityRouterBody,
+      ``,
+      `## Agent Teams Orchestration (if needed)`,
+      orchestrationBody,
+      ``,
+      ...projectLines,
+      ``,
+      ...buildRulesBlock(techStack),
+      ``,
+    ];
+
+    // Fixed-shape conversation history block. Always emitted (with a "(none)"
+    // placeholder when empty) and placed strictly after the shared header so
+    // the prefix above stays byte-identical between the first invocation and
+    // every subsequent feedback round.
+    const historyBlock = conversationHistory
+      ? fenceUserInput("conversation-history", conversationHistory)
+      : `<conversation-history>\n(none)\n</conversation-history>`;
 
     // Build prompt based on whether this is feedback or a new command
     let prompt: string;
@@ -368,17 +400,7 @@ export const runCommand = defineCommand({
     if (intent.isFeedback && isPostImplementation) {
       // ── Post-implementation iteration — allow code changes, commit, push ──
       prompt = [
-        ...baseProtocolBlock,
-        ``,
-        ...contextLines,
-        ``,
-        ...buildRulesBlock(techStack),
-        ``,
-        fenceUserInput("conversation-history", conversationHistory),
-        ``,
-        `## Feedback on Implementation`,
-        fenceUserInput("user-request", intent.description),
-        ``,
+        ...headerBlock,
         `## Instructions`,
         `The user is iterating on code that Software Teams already implemented. Review the conversation above to understand what was built.`,
         `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
@@ -395,25 +417,21 @@ export const runCommand = defineCommand({
     } else if (intent.isFeedback) {
       // ── Refinement — update the plan only, NEVER implement ──
       const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
+      const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
+      const plannerSpecBlock = plannerSpecBody
+        ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
+        : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
 
       prompt = [
-        ...baseProtocolBlock,
-        `You are software-teams-planner. Read ${agentSpec} for your full specification.`,
-        ``,
-        ...contextLines,
-        ``,
-        fenceUserInput("conversation-history", conversationHistory),
-        ``,
-        `## Refinement Feedback`,
-        fenceUserInput("user-request", intent.description),
-        ``,
+        ...headerBlock,
+        ...plannerSpecBlock,
         `## HARD CONSTRAINTS — PLAN REFINEMENT MODE`,
         `- ONLY modify files under \`.software-teams/plans/\` and \`.software-teams/config/\` — NEVER create, edit, or delete source code files`,
         `- NEVER run \`git commit\`, \`git push\`, or any git write operations`,
         `- Planning and implementation are SEPARATE gates — user must explicitly approve before implementation`,
         ``,
         `## Instructions`,
-        `Read state.yaml and existing plan files. Apply feedback incrementally — do not restart from scratch.`,
+        `You are software-teams-planner. Read state.yaml and existing plan files. Apply feedback incrementally — do not restart from scratch.`,
         `If the feedback is a question, answer it conversationally. If it implies a plan change, update the plan.`,
         `Maintain the SPLIT plan format: update the index file and individual task files (.T{n}.md) separately.`,
         ``,
@@ -422,39 +440,31 @@ export const runCommand = defineCommand({
         `\`<details><summary>View full plan</summary> ... </details>\``,
         `Show the tasks manifest table and brief summaries — full task details are in the task files.`,
         `End with: "Any changes before implementation?"`,
+        ``,
+        ...workspaceLines,
+        ``,
+        historyBlock,
+        ``,
+        `## Refinement Feedback`,
+        fenceUserInput("user-request", intent.description),
       ].join("\n");
     } else {
       // ── New command ──
       const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
-
-      // Include conversation history as context even for new commands,
-      // so the agent is aware of any prior work on this issue
-      const historyBlock = conversationHistory
-        ? `\n${fenceUserInput("conversation-history", conversationHistory)}\n\nThe above is prior conversation on this issue for context.\n`
-        : "";
+      const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
+      const plannerSpecBlock = plannerSpecBody
+        ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
+        : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
 
       switch (intent.command) {
         case "plan":
           prompt = [
-            ...baseProtocolBlock,
-            `You are software-teams-planner. Read ${agentSpec} for your full specification.`,
-            ``,
-            ...contextLines,
-            historyBlock,
-            `## Task`,
-            `Create an implementation plan for:`,
-            fenceUserInput("user-request", intent.description),
-            ticketContext
-              ? `\nUse the ClickUp ticket above as the primary requirements source.`
-              : ``,
-            ``,
+            ...headerBlock,
+            ...plannerSpecBlock,
             `## Scope Rules`,
             `IMPORTANT: Only plan what was explicitly requested. Do NOT add extras like testing, linting, formatting, CI, or tooling unless the user asked for them.`,
             `If something is ambiguous, ask — do not guess.`,
             `NEVER use time estimates (minutes, hours, etc). Use t-shirt sizes: S, M, L. This is mandatory.`,
-            ``,
-            `## Rules`,
-            `Before planning, read .software-teams/rules/ if it exists. Apply any team preferences found.`,
             ``,
             `## Plan File Format`,
             `CRITICAL: You MUST write plan files in SPLIT format as defined in your spec (Step 7a):`,
@@ -493,23 +503,23 @@ export const runCommand = defineCommand({
             `2. {suggestion}`,
             ``,
             `Any changes before implementation?`,
+            ``,
+            ...workspaceLines,
+            ``,
+            historyBlock,
+            ``,
+            `## Task`,
+            `You are software-teams-planner. Create an implementation plan for:`,
+            fenceUserInput("user-request", intent.description),
+            ticketContext
+              ? `\nUse the ClickUp ticket above as the primary requirements source.`
+              : ``,
           ].join("\n");
           break;
 
         case "implement":
           prompt = [
-            ...baseProtocolBlock,
-            `## Complexity Routing`, complexityRouterBody, "",
-            `## Agent Teams Orchestration (if needed)`, orchestrationBody, "",
-            ``,
-            ...contextLines,
-            ``,
-            ...buildRulesBlock(techStack),
-            historyBlock,
-            `## Task`,
-            `Execute the current implementation plan. Read state.yaml for the active plan path.`,
-            `Follow the implement-plan orchestration.`,
-            ``,
+            ...headerBlock,
             `## Auto-Commit`,
             `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
             `After implementing all changes:`,
@@ -517,22 +527,20 @@ export const runCommand = defineCommand({
             `2. \`git commit -m "feat: ..."\` with a conventional commit message`,
             `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
             `Present a summary of what was implemented and committed.`,
+            ``,
+            ...workspaceLines,
+            ``,
+            historyBlock,
+            ``,
+            `## Task`,
+            `Execute the current implementation plan. Read state.yaml for the active plan path.`,
+            `Follow the implement-plan orchestration.`,
           ].join("\n");
           break;
 
         case "quick":
           prompt = [
-            ...baseProtocolBlock,
-            ``,
-            ...contextLines,
-            ``,
-            ...buildRulesBlock(techStack),
-            historyBlock,
-            `## Task`,
-            `Make this quick change:`,
-            fenceUserInput("user-request", intent.description),
-            `Keep changes minimal and focused.`,
-            ``,
+            ...headerBlock,
             `## Auto-Commit`,
             `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
             `After making changes:`,
@@ -540,15 +548,25 @@ export const runCommand = defineCommand({
             `2. \`git commit -m "..."\` with a conventional commit message`,
             `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
             `Present what you changed.`,
+            ``,
+            ...workspaceLines,
+            ``,
+            historyBlock,
+            ``,
+            `## Task`,
+            `Make this quick change:`,
+            fenceUserInput("user-request", intent.description),
+            `Keep changes minimal and focused.`,
           ].join("\n");
           break;
 
         case "review":
           prompt = [
-            ...baseProtocolBlock,
+            ...headerBlock,
+            ...workspaceLines,
             ``,
-            ...contextLines,
             historyBlock,
+            ``,
             `## Task`,
             `Review the current PR. Post line-level review comments via gh api.`,
           ].join("\n");
@@ -556,10 +574,11 @@ export const runCommand = defineCommand({
 
         case "feedback":
           prompt = [
-            ...baseProtocolBlock,
+            ...headerBlock,
+            ...workspaceLines,
             ``,
-            ...contextLines,
             historyBlock,
+            ``,
             `## Task`,
             `Address PR feedback comments. Read comments via gh api, make changes, reply to each.`,
           ].join("\n");
@@ -567,10 +586,11 @@ export const runCommand = defineCommand({
 
         default:
           prompt = [
-            ...baseProtocolBlock,
+            ...headerBlock,
+            ...workspaceLines,
             ``,
-            ...contextLines,
             historyBlock,
+            ``,
             `## Task`,
             intent.description,
           ].join("\n");
@@ -601,18 +621,7 @@ export const runCommand = defineCommand({
       if (intent.fullFlow && success) {
         consola.info("Full flow: now running implement...");
         const implementPrompt = [
-          ...baseProtocolBlock,
-          `## Complexity Routing`, complexityRouterBody, "",
-          `## Agent Teams Orchestration (if needed)`, orchestrationBody, "",
-          ``,
-          ...contextLines,
-          ``,
-          ...buildRulesBlock(techStack),
-          ``,
-          `## Task`,
-          `Execute the most recently created implementation plan in .software-teams/plans/.`,
-          `Follow the implement-plan orchestration.`,
-          ``,
+          ...headerBlock,
           `## Auto-Commit`,
           `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
           `After implementing all changes:`,
@@ -620,6 +629,14 @@ export const runCommand = defineCommand({
           `2. \`git commit -m "feat: ..."\` with a conventional commit message`,
           `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
           `Present a summary of what was implemented and committed.`,
+          ``,
+          ...workspaceLines,
+          ``,
+          historyBlock,
+          ``,
+          `## Task`,
+          `Execute the most recently created implementation plan in .software-teams/plans/.`,
+          `Follow the implement-plan orchestration.`,
         ].join("\n");
 
         const implResult = await spawnClaude(implementPrompt, {

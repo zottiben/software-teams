@@ -69,8 +69,11 @@ export const syncAgentsCommand = defineCommand({
     const verb = args["dry-run"] ? "Would write" : "Wrote";
     consola.info(`${verb} ${result.written.length} agent(s) to .claude/agents/`);
 
+    if (result.unchanged.length > 0) {
+      consola.info(`Skipped ${result.unchanged.length} unchanged file(s) — content already up to date`);
+    }
     if (result.skipped.length > 0) {
-      consola.info(`Skipped ${result.skipped.length} existing file(s)`);
+      consola.info(`Skipped ${result.skipped.length} existing user-owned file(s)`);
     }
 
     if (result.errors.length > 0) {

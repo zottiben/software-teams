@@ -102,8 +102,34 @@ export interface ConvertAgentsOptions {
 
 export interface ConvertAgentsResult {
   written: string[];
+  /**
+   * Files where the rendered output equalled what was already on disk, so
+   * the writer skipped the `Bun.write`. Counted separately from
+   * `skipped` (which records conflict-mode skips for user-owned files) and
+   * from `written` (which records actual disk mutations).
+   */
+  unchanged: string[];
   skipped: string[];
   errors: { file: string; reason: string }[];
+}
+
+/**
+ * Write `rendered` to `outPath` only when the existing file's bytes differ.
+ * Returns `true` when the write actually happened, `false` when it was
+ * skipped because the file was already up-to-date. The caller decides
+ * which result list to push the path onto.
+ *
+ * Why: preventing no-op writes keeps mtimes stable so file-content caches
+ * (Claude Code's session cache, IDE watchers, ripgrep) don't invalidate
+ * unnecessarily on every `software-teams sync-agents` run.
+ */
+async function writeIfChanged(outPath: string, rendered: string): Promise<boolean> {
+  if (existsSync(outPath)) {
+    const existing = await Bun.file(outPath).text();
+    if (existing === rendered) return false;
+  }
+  await Bun.write(outPath, rendered);
+  return true;
 }
 
 export interface AgentFrontmatter {
@@ -370,9 +396,14 @@ async function writeCatalogue(
 
   if (!dryRun) {
     if (!existsSync(targetRoot)) mkdirSync(targetRoot, { recursive: true });
-    await Bun.write(outPath, rendered);
+    if (await writeIfChanged(outPath, rendered)) {
+      result.written.push(outPath);
+    } else {
+      result.unchanged.push(outPath);
+    }
+  } else {
+    result.written.push(outPath);
   }
-  result.written.push(outPath);
 }
 
 /**
@@ -404,9 +435,14 @@ async function writeRules(
 
   if (!dryRun) {
     if (!existsSync(targetRoot)) mkdirSync(targetRoot, { recursive: true });
-    await Bun.write(outPath, rendered);
+    if (await writeIfChanged(outPath, rendered)) {
+      result.written.push(outPath);
+    } else {
+      result.unchanged.push(outPath);
+    }
+  } else {
+    result.written.push(outPath);
   }
-  result.written.push(outPath);
 }
 
 /**
@@ -425,7 +461,7 @@ export async function convertAgents(
   const onConflict: ConflictMode = opts.onConflict ?? "overwrite";
   const dryRun = opts.dryRun === true;
 
-  const result: ConvertAgentsResult = { written: [], skipped: [], errors: [] };
+  const result: ConvertAgentsResult = { written: [], unchanged: [], skipped: [], errors: [] };
 
   if (!existsSync(sourceDir)) {
     result.errors.push({
@@ -479,9 +515,14 @@ export async function convertAgents(
       if (!dryRun) {
         const dir = dirname(outPath);
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-        await Bun.write(outPath, rendered);
+        if (await writeIfChanged(outPath, rendered)) {
+          result.written.push(outPath);
+        } else {
+          result.unchanged.push(outPath);
+        }
+      } else {
+        result.written.push(outPath);
       }
-      result.written.push(outPath);
       catalogueEntries.push({
         name: fm.name,
         model: fm.model,

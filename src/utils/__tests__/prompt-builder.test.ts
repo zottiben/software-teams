@@ -27,7 +27,12 @@ describe("prompt-builder regression invariants", () => {
     test("references the planner spec", () => {
       const result = buildPlanPrompt(makeCtx(), "Add a feature");
       expect(result).toContain("software-teams-planner");
-      expect(result).toContain("software-teams-planner.md");
+      // Post-Gap-1: the spec body is inlined into the prompt under an
+      // "Agent Spec — software-teams-planner" header so spawned planners
+      // don't have to issue a Read tool call. When the spec file cannot
+      // be located the builder falls back to a path reference, so the
+      // invariant is that one or the other appears.
+      expect(result).toMatch(/Agent Spec — software-teams-planner|software-teams-planner\.md/);
     });
 
     test("includes project context", () => {
@@ -109,7 +114,8 @@ describe("prompt-builder regression invariants", () => {
 
     test("includes the planner spec reference", () => {
       const result = buildRefinementPrompt(makeCtx(), "feedback", "history");
-      expect(result).toContain("software-teams-planner.md");
+      // Post-Gap-1: same dual-shape invariant as buildPlanPrompt.
+      expect(result).toMatch(/Agent Spec — software-teams-planner|software-teams-planner\.md/);
     });
   });
 
