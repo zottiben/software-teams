@@ -83,7 +83,14 @@ Detect the project's technology stack by scanning for signature files in the pro
 **Procedure:**
 1. Run detection heuristics above against the project root
 2. If detection is ambiguous or finds nothing, ask the user: "What backend stack does this project use?" and "What frontend stack?"
-3. Write detected/chosen values into project.yaml `tech_stack` field
+3. Persist detected/chosen values via the CLI — **do NOT edit `project.yaml` with Edit/Write**:
+   ```bash
+   software-teams project set-tech-stack \
+     --backend {backend_id} \
+     --frontend {frontend_id} \
+     --devops {devops_id}
+   ```
+   Pass `--backend none` (or omit the flag) when a tier doesn't apply. The CLI only touches the fields you pass.
 4. Verify matching convention files exist in `.software-teams/framework/stacks/`. If a convention file exists for the detected stack, log it. If not, log: "No convention file found for {stack} — agents will use generic domain principles. You can create one at `.software-teams/framework/stacks/{stack}.md` using `_template.md` as a guide."
 
 ### Step 6: Initialise Config Files
@@ -96,8 +103,12 @@ cp .software-teams/framework/config/software-teams-config.yaml .software-teams/c
 
 ### Step 7: Generate Markdown Scaffolding
 
-Read templates from `.software-teams/templates/` and write to `.software-teams/` (only if missing):
-- project.yaml, requirements.yaml, roadmap.yaml
+Scaffold project metadata files into `.software-teams/` (only if missing). The `software-teams init` CLI handles this directly — it reads the YAML templates from the installed package's `templates/` directory at the package root and writes:
+- `.software-teams/project.yaml`
+- `.software-teams/requirements.yaml`
+- `.software-teams/roadmap.yaml`
+
+Templates are NOT copied into `.software-teams/templates/` — they are package-internal structural references and are not needed by any runtime agent.
 
 ### Step 8: Display Completion
 

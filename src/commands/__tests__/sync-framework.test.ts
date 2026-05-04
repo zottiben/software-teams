@@ -33,15 +33,11 @@ const PACKAGE_ROOT = REPO_ROOT;
  */
 async function makeStaleFixture(): Promise<string> {
   const cwd = makeTempDir();
-  mkdirSync(join(cwd, ".software-teams", "templates"), { recursive: true });
   mkdirSync(join(cwd, ".software-teams", "rules"), { recursive: true });
 
-  // A stale template file that differs from canonical.
-  await writeFile(
-    join(cwd, ".software-teams", "templates", "plan.md"),
-    "STALE — older snapshot content\n",
-  );
   // A stale rules file (commits.md exists in the package's rules/ post-Phase D).
+  // Phase D removed `templates/` from the copy list, so the drift fixture only
+  // seeds a stale rules file now.
   await writeFile(
     join(cwd, ".software-teams", "rules", "commits.md"),
     "STALE commit rules — pre-refresh snapshot\n",
@@ -63,11 +59,10 @@ describe("sync-framework — change detection", () => {
   test("detects missing and drifted files in stale snapshot", async () => {
     const cwd = await makeStaleFixture();
     const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
-    // We seeded only two files into the stale snapshot, so most of the
-    // doctrine tree is missing.
-    expect(missing.length).toBeGreaterThan(5);
-    // The seeded files differ from canonical.
-    expect(changed).toContain("templates/plan.md");
+    // We seeded only one rules file into the stale snapshot, so most of the
+    // rules/ tree is missing.
+    expect(missing.length).toBeGreaterThan(0);
+    // The seeded file differs from canonical.
     expect(changed).toContain("rules/commits.md");
   });
 
@@ -87,7 +82,7 @@ describe("sync-framework — orchestration", () => {
 
     // Confirm pre-state: stale content present.
     const staleBefore = await readFile(
-      join(cwd, ".software-teams", "templates", "plan.md"),
+      join(cwd, ".software-teams", "rules", "commits.md"),
       "utf-8",
     );
     expect(staleBefore).toContain("STALE");
@@ -99,18 +94,14 @@ describe("sync-framework — orchestration", () => {
 
     // Snapshot updated.
     const refreshed = await readFile(
-      join(cwd, ".software-teams", "templates", "plan.md"),
+      join(cwd, ".software-teams", "rules", "commits.md"),
       "utf-8",
     );
     expect(refreshed).not.toContain("STALE");
 
-    // Three-tier templates exist post-refresh.
-    for (const t of ["spec.md", "orchestration.md", "plan-task-agent.md", "RULES.md"]) {
-      expect(
-        existsSync(join(cwd, ".software-teams", "templates", t)),
-        `expected template ${t} to be present after refresh`,
-      ).toBe(true);
-    }
+    // Phase D: templates/ is no longer copied into `.software-teams/` —
+    // verify the directory is absent post-refresh.
+    expect(existsSync(join(cwd, ".software-teams", "templates"))).toBe(false);
 
     // convertAgents wrote the native subagent layer.
     expect(conv.errors).toEqual([]);

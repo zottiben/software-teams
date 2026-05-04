@@ -23,8 +23,11 @@ const PRESERVED_STATE_FILES = [
  * Subdirectories that copy-framework.ts writes into a consumer's
  * `.software-teams/<sub>/` install (Phase B target — no `framework/`
  * wrapper). Kept in sync with COPIED_SUBDIRS in copy-framework.ts.
+ * Phase D: `templates/` was removed from the copy list because no runtime
+ * agent reads from it; this list shrinks accordingly so the drift detector
+ * stops chasing files that should not exist on the consumer side.
  */
-const COPIED_SUBDIRS = ["templates", "rules"];
+const COPIED_SUBDIRS = ["rules"];
 
 /**
  * Enumerate package-side files that the consumer's `.software-teams/`
@@ -98,7 +101,7 @@ export const syncFrameworkCommand = defineCommand({
     // Phase A; subtrees (templates, hooks, etc.) now live directly at the
     // package root.
     const packageRoot = join(import.meta.dir, "..", "..");
-    if (!existsSync(join(packageRoot, "templates"))) {
+    if (!existsSync(join(packageRoot, "rules"))) {
       consola.error(
         `Software Teams package layout not found at ${packageRoot}. Are you running from inside the Software Teams package?`,
       );

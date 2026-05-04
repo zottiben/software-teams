@@ -158,7 +158,7 @@ After the planner returns, read the structured return's `tier:` field and verify
 - SPEC file `{slug}.spec.md` exists at `spec_path`
 - ORCHESTRATION file `{slug}.orchestration.md` exists at `orchestration_path`
 - Every per-agent slice listed in `task_files:` exists on disk
-- ORCHESTRATION frontmatter contains `available_agents:` matching what you passed in, and `primary_agent:`
+- ORCHESTRATION frontmatter contains `available_agents:` matching what you passed in, `primary_agent:`, AND `task_files:` (every per-agent slice path). If `task_files:` is missing or empty, STOP — `software-teams state plan-ready` reads this list to populate `current_plan.tasks`, so an absent list will leave the state machine with an empty tasks array.
 - Every per-agent slice's frontmatter contains `agent:`, `tier: per-agent`, `spec_link:`, `orchestration_link:` (unless `AVAILABLE_AGENTS` was empty — then `agent:` may be `general-purpose`)
 - Every per-agent slice's body opens with `**Why this slice:**` and `**Read first:**` headers (token-efficiency contract)
 - Legacy `{slug}.plan.md` is OPTIONAL — do not error if it is absent.
@@ -218,7 +218,7 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 
 | Situation | Response |
 |-----------|----------|
-| Scaffolding files missing (`.software-teams/project.yaml` etc.) | Planner creates them from `templates/` in step 5. Do NOT ask the user for values the template's defaults cover. |
+| Scaffolding files missing (`.software-teams/project.yaml` etc.) | Run `software-teams init` (or, if you only need a single scaffold, copy the YAML template from the package root). The planner does NOT read from `.software-teams/templates/` — that path no longer exists post-Phase D. Do NOT ask the user for values the template's defaults cover. |
 | `.claude/agents/` empty on both levels | Set `AVAILABLE_AGENTS = []`, note in summary, and proceed. The planner falls back to tech-stack defaults. |
 | Feature description is vague ("improve X") | Steps 4a + 4b handle this: the researcher discovers codebase decision points, and the InteractiveGate surfaces ambiguity questions via AskUserQuestion. Do not waste a planner invocation on an underspecified prompt. |
 | Pre-plan researcher returns zero questions | Skip step 4b if surface-level analysis also yields zero questions. Proceed directly to step 5. This is expected for clear features. |

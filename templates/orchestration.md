@@ -5,6 +5,13 @@ tier: orchestration
 spec_link: {slug}.spec.md
 available_agents: []
 primary_agent: general-purpose
+
+# Per-task slice files (mirrors single-tier `templates/plan.md` so
+# `software-teams state plan-ready` can populate `current_plan.tasks` from
+# either tier without special-casing).
+task_files:
+  - .software-teams/plans/{phase}-{plan}-{plan-slug}.T1.md
+  - .software-teams/plans/{phase}-{plan}-{plan-slug}.T2.md
 ---
 
 # {Feature Name} — Orchestration

@@ -37,7 +37,7 @@ function makePackageFixture(): { packageRoot: string } {
 
   mkdirSync(join(packageRoot, "adapters"), { recursive: true });
   mkdirSync(join(packageRoot, "teams"), { recursive: true });
-  mkdirSync(join(packageRoot, "templates"), { recursive: true });
+  mkdirSync(join(packageRoot, "rules"), { recursive: true });
   mkdirSync(join(packageRoot, "agents"), { recursive: true });
   mkdirSync(join(packageRoot, "commands"), { recursive: true });
 
@@ -45,6 +45,7 @@ function makePackageFixture(): { packageRoot: string } {
   writeFileSync(join(packageRoot, "teams", "engineering.md"), "# Engineering");
   writeFileSync(join(packageRoot, "adapters", "generic.yaml"), "dependency_install: npm install");
   writeFileSync(join(packageRoot, "adapters", "node.yaml"), "dependency_install: bun install");
+  writeFileSync(join(packageRoot, "rules", "general.md"), "# General Rules");
   writeFileSync(join(packageRoot, "agents", "software-teams-planner.md"), "# Planner");
   writeFileSync(join(packageRoot, "commands", "create-plan.md"), "# Create Plan");
 
@@ -55,17 +56,18 @@ describe("copyFrameworkFiles", () => {
   test("copies doctrine subtrees to .software-teams/<sub>/", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
-    // Add a stack file so the assertion has something to find.
-    mkdirSync(join(packageRoot, "templates"), { recursive: true });
-    writeFileSync(join(packageRoot, "templates", "plan.md"), "# Plan template");
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
     // Phase B target: doctrine subtrees go to `.software-teams/<sub>/`,
     // NOT `.software-teams/framework/<sub>/`. agents/ and commands/ are NOT
     // copied to .software-teams/ — the runtime resolves them from the
     // package directly (or via .claude/agents/+.claude/commands/st/).
-    expect(existsSync(join(dir, ".software-teams", "templates"))).toBe(true);
-    expect(existsSync(join(dir, ".software-teams", "templates", "plan.md"))).toBe(true);
+    // Phase D removed `templates/` from the copy list — agents do not read
+    // templates at runtime, so a duplicate copy under `.software-teams/`
+    // was dead weight.
+    expect(existsSync(join(dir, ".software-teams", "rules"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "rules", "general.md"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "templates"))).toBe(false);
     expect(existsSync(join(dir, ".software-teams", "framework"))).toBe(false);
   });
 
@@ -142,12 +144,9 @@ describe("copyFrameworkFiles", () => {
   test("skips existing files when force=false", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
-    // Add a templates/plan.md so Phase B's COPIED_SUBDIRS pass copies it.
-    mkdirSync(join(packageRoot, "templates"), { recursive: true });
-    writeFileSync(join(packageRoot, "templates", "plan.md"), "# Plan");
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const customPath = join(dir, ".software-teams", "templates", "plan.md");
+    const customPath = join(dir, ".software-teams", "rules", "general.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
@@ -159,11 +158,9 @@ describe("copyFrameworkFiles", () => {
   test("overwrites existing files when force=true", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
-    mkdirSync(join(packageRoot, "templates"), { recursive: true });
-    writeFileSync(join(packageRoot, "templates", "plan.md"), "# Plan");
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const customPath = join(dir, ".software-teams", "templates", "plan.md");
+    const customPath = join(dir, ".software-teams", "rules", "general.md");
     await Bun.write(customPath, "CUSTOM CONTENT");
 
     await copyFrameworkFiles(dir, "generic", true, false, packageRoot);

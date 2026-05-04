@@ -20,6 +20,9 @@ import { stateCommand } from "./commands/state";
 import { syncAgentsCommand } from "./commands/sync-agents";
 import { syncFrameworkCommand } from "./commands/sync-framework";
 import { spawnLogCommand } from "./commands/spawn-log";
+import { roadmapCommand } from "./commands/roadmap";
+import { requirementsCommand } from "./commands/requirements";
+import { projectCommand } from "./commands/project";
 import pkg from "../package.json";
 
 const main = defineCommand({
@@ -49,6 +52,9 @@ const main = defineCommand({
     "sync-agents": syncAgentsCommand,
     "sync-framework": syncFrameworkCommand,
     "spawn-log": spawnLogCommand,
+    roadmap: roadmapCommand,
+    requirements: requirementsCommand,
+    project: projectCommand,
   },
 });
 

@@ -69,7 +69,11 @@ describe("init — scaffolding layout", () => {
     const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
-    expect(existsSync(join(cwd, ".software-teams", "templates"))).toBe(true);
+    // Phase D: only `rules/` is copied into `.software-teams/`. `templates/`
+    // was removed because no runtime agent reads from it; init.ts writes
+    // YAML scaffolds straight from the package root instead.
+    expect(existsSync(join(cwd, ".software-teams", "rules"))).toBe(true);
+    expect(existsSync(join(cwd, ".software-teams", "templates"))).toBe(false);
     expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(false);
   });
 

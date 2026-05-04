@@ -10,8 +10,19 @@ import type { ProjectType } from "./detect-project";
  * additionally dropped `hooks/` and `stacks/` once those markdown sources
  * were folded into the TS component registry — agents fetch them via
  * `software-teams component get <Name>` instead of reading a copied .md.
+ *
+ * `templates/` was removed in Phase D: the markdown plan templates
+ * (`spec.md`, `orchestration.md`, `plan.md`, `plan-task*.md`, `summary.md`)
+ * are structural references cited by the planner spec — the planner does
+ * not Read them at runtime. The YAML scaffolds (`project.yaml`,
+ * `requirements.yaml`, `roadmap.yaml`, `state.yaml`) ARE used at init time
+ * but are written directly to `.software-teams/` from the package root by
+ * `init.ts`, not via this copy step. Keeping a duplicate copy under
+ * `.software-teams/templates/` was dead weight at runtime and grew with
+ * every install. `RULES.md` and `CLAUDE-SHARED.md` likewise live at the
+ * package root; sync-agents and copy-framework read them there.
  */
-const COPIED_SUBDIRS = ["templates", "rules"] as const;
+const COPIED_SUBDIRS = ["rules"] as const;
 
 export async function copyFrameworkFiles(
   cwd: string,
