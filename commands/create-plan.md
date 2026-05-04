@@ -190,16 +190,24 @@ software-teams state plan-ready --plan-path ".software-teams/plans/{canonical-in
 
 ### 9. Present Summary
 
-Present the plan summary to the user:
+Present the plan summary using the **fixed shape** below. Do NOT free-form. Do NOT add explainer sections. Past sessions have hung mid-stream on long prose summaries with unfenced punctuation; the structure exists to prevent that.
 
-- Plan name, objective, and sprint goal (from spec.md in three-tier; from plan.md in single-tier)
-- Task manifest table: `ID | Task | Agent | Priority | Requires` (from orchestration.md in three-tier; from plan.md in single-tier)
-- Any open questions the planner surfaced
-- File list — show the chosen tier and the artefacts produced:
-  - Three-tier: `{slug}.spec.md`, `{slug}.orchestration.md`, and every `{slug}.T{n}.md`
-  - Single-tier: `{slug}.plan.md` and every `{slug}.T{n}.md`
+**Required shape (in this exact order):**
 
-End with the exact prompt: _"Provide feedback to refine, or say **approved** to finalise."_
+1. **One-line objective** — pulled from spec.md (three-tier) or plan.md (single-tier). One sentence.
+2. **Task manifest table** — `ID | Task | Agent | Priority | Requires`. Nothing else.
+3. **Open questions** — bulleted list of questions the planner surfaced, or the literal word `none`.
+4. **Files written** — bulleted paths grouped by tier (SPEC / ORCHESTRATION / per-agent slices, or single-tier index + slices).
+
+**Hard caps:**
+
+- ≤ 40 lines of output total. If you cannot fit the report in 40 lines, drop detail — never split into multiple messages and never extend the structure.
+- No marketing copy, no "what this unlocks", no risk monologues. Risks already live in `requirements.yaml`; the orchestration file is the canonical reference.
+- Always wrap option lists, slash-separated alternatives, and commands in backticks (e.g. `` `approved` / `lgtm` / `looks good` ``). Free-floating `/` characters in user-visible Markdown are a streaming-renderer hazard — fence them.
+
+End with the EXACT prompt and STOP:
+
+> _"Provide feedback to refine, or say **approved** to finalise."_
 
 **Wait for the user's answer. Do not advance state. Do not invoke any other skill. Do not begin implementation.**
 

@@ -339,17 +339,26 @@ Run `software-teams state complete`. Do NOT manually edit `.software-teams/state
 
 ### 14. Present Summary
 
-Present the implementation summary to the user:
+Present the implementation summary using the **fixed shape** below. Do NOT free-form. Do NOT add explainer sections. Past sessions have hung mid-stream on long prose summaries with unfenced punctuation; the structure exists to prevent that.
 
-- Tasks completed (with per-task agent and verification result)
-- Files changed (grouped by task)
-- Quality gate results
-- Any `agent_downgrade:` events
-- Deviations from the spec
+**Required shape (in this exact order):**
 
-End with the exact prompt: _"Provide feedback to adjust, or say **approved** to finalise."_
+1. **Task table** — one row per task: `ID | Name | Agent | Verify`. Nothing else.
+2. **Files changed** — bulleted list of paths grouped under "Modified:" / "Created:". No prose.
+3. **Quality gates** — one line per gate with the metric (e.g. `bun test: 390 pass / 0 fail`).
+4. **Deviations / downgrades** — bulleted list, or the literal word `none`.
 
-**Wait for the user's answer. Do NOT suggest commits or PRs yet.**
+**Hard caps:**
+
+- ≤ 40 lines of output total. If you cannot fit the report in 40 lines, drop detail — never split into multiple messages and never extend the structure.
+- No "how it now works", "downstream view", "what this enables", marketing copy, or other explainer prose. That belongs in the PR description, not here.
+- Always wrap option lists, slash-separated alternatives, and commands in backticks (e.g. `` `approved` / `lgtm` / `looks good` ``). Free-floating `/` characters in user-visible Markdown are a streaming-renderer hazard — fence them.
+
+End with the EXACT prompt and STOP:
+
+> _"Provide feedback to adjust, or say **approved** to finalise."_
+
+**Wait for the user's answer. Do NOT suggest commits, PRs, follow-up commands, or next steps in this message.**
 
 ### 15. Review Loop
 
