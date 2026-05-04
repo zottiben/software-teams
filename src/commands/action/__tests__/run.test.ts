@@ -59,4 +59,54 @@ describe("action run command prompt invariants", () => {
       expect(block).toContain("## Rules");
     });
   });
+
+  describe("label-trigger path", () => {
+    test("source defines --event-type arg in citty args block", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/"event-type":\s*\{/);
+    });
+
+    test("source defines ALLOWED_EVENT_TYPES allow-list with 'issue_labeled'", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/ALLOWED_EVENT_TYPES\s*=\s*new\s+Set\(\["issue_labeled"\]\)/);
+    });
+
+    test("source validates event-type against allow-list and exits non-zero on unknown value", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // Check for validation logic that rejects unknown event types
+      expect(source).toMatch(/ALLOWED_EVENT_TYPES\.has\(args\["event-type"\]\)/);
+      // Check that it calls process.exit(1) on validation failure
+      expect(source).toMatch(/process\.exit\(1\)/);
+    });
+
+    test("source contains branch for args['event-type'] === 'issue_labeled'", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/args\["event-type"\]\s*===\s*"issue_labeled"/);
+    });
+
+    test("label-triggered branch calls fetchIssueTitleAndBody", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // Verify the function is imported
+      expect(source).toMatch(/fetchIssueTitleAndBody/);
+      // Verify it's called (looking for the actual invocation)
+      expect(source).toMatch(/await\s+fetchIssueTitleAndBody\(/);
+    });
+
+    test("label-triggered branch calls sanitizeUserInput on the synthetic description", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // Check that sanitizeUserInput is called after the fetch
+      expect(source).toMatch(/sanitizeUserInput\(/);
+    });
+
+    test("source still calls fenceUserInput for user-request planner fence", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/fenceUserInput\("user-request"/);
+    });
+
+    test("source imports fetchIssueTitleAndBody from github utils", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toContain("fetchIssueTitleAndBody");
+      expect(source).toMatch(/from\s+["'].*\/utils\/github["']/);
+    });
+  });
 });

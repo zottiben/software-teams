@@ -22,6 +22,7 @@ import {
   formatErrorComment,
   fetchCommentThread,
   buildConversationContext,
+  fetchIssueTitleAndBody,
 } from "../../utils/github";
 
 type SoftwareTeamsCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
@@ -35,6 +36,10 @@ interface ParsedIntent {
   isApproval: boolean;
   dryRun: boolean;
 }
+
+// Fail-closed allow-list for --event-type values. New event types require an
+// explicit code change — unknown values are rejected before any API calls.
+const ALLOWED_EVENT_TYPES = new Set(["issue_labeled"]);
 
 function parseComment(
   comment: string,
@@ -151,7 +156,13 @@ export const runCommand = defineCommand({
     },
     "comment-author": {
       type: "string",
-      description: "GitHub username of the comment author (for auth gate)",
+      // On the label-trigger path this carries either the issue author or the
+      // labeller — whichever the workflow YAML supplies (T4 decides).
+      description: "GitHub username of the comment/issue author (for auth gate); on the label path carries the issue author or labeller",
+    },
+    "event-type": {
+      type: "string",
+      description: "Event type override — set by the workflow YAML for non-comment triggers (e.g. 'issue_labeled')",
     },
     "allowed-users": {
       type: "string",
@@ -165,6 +176,14 @@ export const runCommand = defineCommand({
     const issueNumber = Number(args["pr-number"] ?? args["issue-number"] ?? 0);
     const commentAuthor = args["comment-author"] ?? process.env.COMMENT_AUTHOR ?? "";
     const allowedUsers = args["allowed-users"] ?? process.env.ALLOWED_USERS ?? "";
+
+    // Fail-closed event-type validation — reject any value not in the allow-list
+    if (args["event-type"] !== undefined && !ALLOWED_EVENT_TYPES.has(args["event-type"])) {
+      consola.error(
+        `Unsupported event-type: "${args["event-type"]}". Allowed values: ${[...ALLOWED_EVENT_TYPES].join(", ")}`,
+      );
+      process.exit(1);
+    }
 
     // Opt-in authorization gate — only active if SOFTWARE_TEAMS_AUTH_ENABLED or --allowed-users is set
     if (commentAuthor && (allowedUsers || process.env.SOFTWARE_TEAMS_AUTH_ENABLED)) {
@@ -181,6 +200,213 @@ export const runCommand = defineCommand({
         return;
       }
     }
+
+    // ── Label-triggered path (issue_labeled) ──────────────────────────────────
+    // Bypasses comment parsing and thread fetching — the issue title+body IS
+    // the user request. Continues into the existing planner-prompt path below.
+    if (args["event-type"] === "issue_labeled") {
+      consola.info(`Label-triggered run — fetching issue ${issueNumber} from ${repo}`);
+
+      if (!repo) {
+        consola.error("--repo (or GITHUB_REPOSITORY) is required for label-triggered runs");
+        process.exit(1);
+      }
+      if (!issueNumber) {
+        consola.error("--issue-number is required for label-triggered runs");
+        process.exit(1);
+      }
+
+      const issue = await fetchIssueTitleAndBody(repo, issueNumber);
+      if (!issue) {
+        consola.error(`Failed to fetch issue ${issueNumber} from ${repo}`);
+        process.exit(1);
+      }
+
+      const { title, body } = issue;
+      // Build synthetic description: title + body (trim trailing whitespace;
+      // empty body → just the title with no trailing newlines)
+      const synthetic = body.trim() ? `${title}\n\n${body}` : title;
+      const sanitized = sanitizeUserInput(synthetic, 10_000);
+
+      const intent: ParsedIntent = {
+        command: "plan",
+        description: sanitized,
+        clickUpUrl: null,
+        fullFlow: false,
+        isFeedback: false,
+        isApproval: false,
+        dryRun: false,
+      };
+
+      // No comment thread or comment ID on this path — historyBlock is hardcoded below
+      consola.info("Parsed intent: plan (label-triggered)");
+
+      // No eyes reaction — there is no comment to react to
+      // Post a thinking placeholder comment
+      let placeholderCommentId: number | null = null;
+      if (repo && issueNumber) {
+        const thinkingBody = `<h3>🧠 Software Teams <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
+        placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
+      }
+
+      // ── Delegate to the shared planner-prompt path ──────────────────────────
+      // Re-use all the prompt-building and execution logic that follows the
+      // comment-parsing block. We jump there by falling through into the shared
+      // variable scope below — but since the async run() function is a single
+      // block, we extract the shared logic via an IIFE-style inline call.
+      // Simpler: duplicate only the load + prompt-build + execute + post steps.
+      const storage = await createStorage(cwd);
+      const { rulesPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
+
+      const projectType = await detectProjectType(cwd);
+      const adapter = await readAdapter(cwd);
+      const techStack = adapter?.tech_stack
+        ? Object.entries(adapter.tech_stack).map(([k, v]) => `${k}: ${v}`).join(", ")
+        : projectType;
+
+      const projectLines = [
+        `## Project Context`,
+        `- Type: ${projectType}`,
+        `- Tech stack: ${techStack}`,
+        `- Rules: ${rulesPath ?? "(none)"}`,
+        `- Codebase index: ${codebaseIndexPath ?? "(none)"}`,
+      ];
+
+      const workspaceLines = [
+        `## Workspace`,
+        `- Working directory: ${cwd}`,
+      ];
+
+      const baseProtocolBody = getComponent("AgentBase");
+      const complexityRouterBody = getComponent("ComplexityRouter");
+      const orchestrationBody = getComponent("AgentTeamsOrchestration");
+
+      const headerBlock = [
+        `## Agent Base Protocol`,
+        baseProtocolBody,
+        ``,
+        `## Complexity Routing`,
+        complexityRouterBody,
+        ``,
+        `## Agent Teams Orchestration (if needed)`,
+        orchestrationBody,
+        ``,
+        ...projectLines,
+        ``,
+        ...buildRulesBlock(techStack),
+        ``,
+      ];
+
+      const historyBlock = `<conversation-history>\n(none)\n</conversation-history>`;
+
+      const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
+      const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
+      const plannerSpecBlock = plannerSpecBody
+        ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
+        : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
+
+      const prompt = [
+        ...headerBlock,
+        ...plannerSpecBlock,
+        `## Scope Rules`,
+        `IMPORTANT: Only plan what was explicitly requested. Do NOT add extras like testing, linting, formatting, CI, or tooling unless the user asked for them.`,
+        `If something is ambiguous, ask — do not guess.`,
+        `NEVER use time estimates (minutes, hours, etc). Use t-shirt sizes: S, M, L. This is mandatory.`,
+        ``,
+        `## Plan File Format`,
+        `CRITICAL: You MUST write plan files in SPLIT format as defined in your spec (Step 7a):`,
+        `1. Write the index file: \`.software-teams/plans/{phase}-{plan}-{slug}.plan.md\` — contains frontmatter with \`task_files:\` list and a manifest table only (NO inline task details)`,
+        `2. Write each task as a separate file: \`.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
+        `This split format is MANDATORY — it reduces token usage by letting agents load only their assigned task.`,
+        ``,
+        `## Response Format`,
+        `After writing the split plan files, respond with EXACTLY this structure (no deviations, no meta-commentary):`,
+        ``,
+        `1-2 sentence summary of the approach.`,
+        ``,
+        `<details>`,
+        `<summary>View full plan</summary>`,
+        ``,
+        `## {Plan Name}`,
+        ``,
+        `**Overall size:** {S|M|L}`,
+        ``,
+        `### Tasks`,
+        ``,
+        `| Task | Name | Size | Type | Wave |`,
+        `|------|------|------|------|------|`,
+        `| T1 | {name} | {S|M|L} | auto | 1 |`,
+        ``,
+        `(For each task, show a brief 1-2 line summary — full details are in the task files)`,
+        ``,
+        `### Verification`,
+        `- [ ] {check 1}`,
+        `- [ ] {check 2}`,
+        ``,
+        `</details>`,
+        ``,
+        `**Optional additions** — not included in this plan:`,
+        `1. {suggestion}`,
+        `2. {suggestion}`,
+        ``,
+        `Any changes before implementation?`,
+        ``,
+        ...workspaceLines,
+        ``,
+        historyBlock,
+        ``,
+        `## Task`,
+        `You are software-teams-planner. Create an implementation plan for:`,
+        fenceUserInput("user-request", intent.description),
+      ].join("\n");
+
+      let success = true;
+      let fullResponse = "";
+      try {
+        const { exitCode, response } = await spawnClaude(prompt, {
+          cwd,
+          permissionMode: "acceptEdits",
+        });
+        fullResponse = response;
+        if (exitCode !== 0) {
+          success = false;
+          consola.error(`Claude exited with code ${exitCode}`);
+        }
+      } catch (err) {
+        success = false;
+        consola.error("Execution failed:", err);
+      }
+
+      const saved = await savePersistedState(cwd, storage);
+      if (saved.rulesSaved) consola.info("Rules persisted to storage");
+      if (saved.codebaseIndexSaved) consola.info("Codebase index persisted to storage");
+
+      if (repo && issueNumber) {
+        const actionLabel = "plan";
+        let commentBody: string;
+        if (success && fullResponse) {
+          commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse);
+        } else if (!success) {
+          commentBody = formatErrorComment(actionLabel, "Check workflow logs for details.");
+        } else {
+          commentBody = formatSoftwareTeamsComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
+        }
+
+        if (placeholderCommentId) {
+          await updateGitHubComment(repo, placeholderCommentId, commentBody).catch((err) => {
+            consola.error("Failed to update result comment:", err);
+          });
+        } else {
+          await postGitHubComment(repo, issueNumber, commentBody).catch((err) => {
+            consola.error("Failed to post result comment:", err);
+          });
+        }
+      }
+
+      if (!success) process.exit(1);
+      return;
+    }
+    // ── End label-triggered path ───────────────────────────────────────────────
 
     // Fetch comment thread to detect if this is a follow-up conversation
     let conversationHistory = "";
@@ -416,7 +642,7 @@ export const runCommand = defineCommand({
       ].join("\n");
     } else if (intent.isFeedback) {
       // ── Refinement — update the plan only, NEVER implement ──
-      const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
+      const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
       const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
       const plannerSpecBlock = plannerSpecBody
         ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
@@ -450,7 +676,7 @@ export const runCommand = defineCommand({
       ].join("\n");
     } else {
       // ── New command ──
-      const agentSpec = resolve(cwd, `.software-teams/framework/agents/software-teams-planner.md`);
+      const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
       const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
       const plannerSpecBlock = plannerSpecBody
         ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]

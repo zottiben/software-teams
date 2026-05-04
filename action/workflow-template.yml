@@ -20,6 +20,10 @@
 #   Hey software-teams do <clickup-ticket-url>   — Full flow: plan + implement from ticket
 #   Hey software-teams ping                      — Check framework status
 #
+# Auto-pickup: open or label any issue with the 'software-teams' label and the
+# workflow runs the planner automatically. The generated plan is posted as an
+# issue comment; reply 'approved' to advance to implementation.
+#
 # Conversation: Software Teams supports back-and-forth iteration. After Software Teams responds,
 # reply with feedback to refine, or say "approved" to finalise.
 #
@@ -38,6 +42,8 @@ on:
     types: [created]
   pull_request_review:
     types: [submitted]
+  issues:
+    types: [opened, labeled]
   push:
     branches: [main, master]
 
@@ -59,7 +65,7 @@ jobs:
       # Bun is required to run the Software Teams CLI
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.7"
 
       # Resolve the PR head branch
       # - issue_comment: github.head_ref is empty, resolve via API
@@ -167,6 +173,69 @@ jobs:
             .claude/
           key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
 
+  # ── Triggered by opening or labeling an issue with the 'software-teams' label ──
+  software-teams-issue-label:
+    if: >-
+      github.event_name == 'issues'
+      && (
+        (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'software-teams'))
+        || (github.event.action == 'labeled' && github.event.label.name == 'software-teams')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.7"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Restore Software Teams state
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/rules/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-main
+          restore-keys: |
+            software-teams-state-${{ github.repository }}-main
+      - name: Bootstrap Software Teams
+        run: |
+          bunx @websitelabs/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+      - name: Fetch shared rules
+        if: vars.SOFTWARE_TEAMS_RULES_REPO != ''
+        run: |
+          bunx @websitelabs/software-teams@latest action fetch-rules --rules-repo "$RULES_REPO"
+        env:
+          RULES_REPO: ${{ vars.SOFTWARE_TEAMS_RULES_REPO }}
+          RULES_TOKEN: ${{ secrets.SOFTWARE_TEAMS_RULES_TOKEN || github.token }}
+      - name: Configure git
+        run: |
+          git config user.name "software-teams[bot]"
+          git config user.email "software-teams[bot]@users.noreply.github.com"
+      - name: Install Claude Code
+        run: bun install -g @anthropic-ai/claude-code
+      - name: Run Software Teams
+        run: |
+          bunx @websitelabs/software-teams@latest action run "" \
+            --event-type issue_labeled \
+            --repo "$REPO" \
+            --issue-number "$ISSUE_NUMBER" \
+            ${COMMENT_AUTHOR:+--comment-author "$COMMENT_AUTHOR"} \
+            ${ALLOWED_USERS:+--allowed-users "$ALLOWED_USERS"}
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_AUTHOR: ${{ github.event.action == 'labeled' && github.event.sender.login || github.event.issue.user.login }}
+          REPO: ${{ github.repository }}
+          SOFTWARE_TEAMS_AUTH_ENABLED: ${{ vars.SOFTWARE_TEAMS_AUTH_ENABLED || '' }}
+          ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+
   # ── Promote rules to main baseline when PRs merge ──
   # Only runs when Software Teams was actually used on the merged PR
   promote-rules:
@@ -175,7 +244,7 @@ jobs:
     steps:
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.3.7"
 
       - name: Check if Software Teams was involved
         id: check

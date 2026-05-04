@@ -5,12 +5,16 @@ import { join } from "node:path";
 
 /**
  * Ensure the Software Teams framework is initialized.
- * If `.software-teams/framework` is missing, run `bunx @websitelabs/software-teams@latest init --ci`.
+ * Checks for Phase B layout (`.software-teams/state.yaml`) or legacy layout
+ * (`.software-teams/config/state.yaml`). If neither exists, runs
+ * `bunx @websitelabs/software-teams@latest init --ci`.
  * Also ensures `.software-teams/persistence/` exists.
  */
 export function ensureFramework(cwd: string): void {
-  const frameworkDir = join(cwd, ".software-teams/framework");
-  if (!existsSync(frameworkDir)) {
+  const phaseBState = join(cwd, ".software-teams/state.yaml");
+  const legacyState = join(cwd, ".software-teams/config/state.yaml");
+  const needsInit = !existsSync(phaseBState) && !existsSync(legacyState);
+  if (needsInit) {
     consola.info("Framework not found — initializing...");
     const result = Bun.spawnSync(["bunx", "@websitelabs/software-teams@latest", "init", "--ci"], {
       cwd,

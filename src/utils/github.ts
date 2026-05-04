@@ -1,5 +1,34 @@
 import { exec } from "./git";
 
+/**
+ * Fetch the title and body of a GitHub issue via `gh api`.
+ * Returns null on non-zero exit (e.g. network failure, not found).
+ * GitHub returns null for empty issue bodies — coerced to empty string.
+ */
+export async function fetchIssueTitleAndBody(
+  repo: string,
+  issueNumber: number,
+): Promise<{ title: string; body: string } | null> {
+  const { stdout, exitCode } = await exec([
+    "gh", "api",
+    `repos/${repo}/issues/${issueNumber}`,
+    "--jq", "{title: .title, body: .body}",
+  ]);
+
+  if (exitCode !== 0 || !stdout.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(stdout.trim());
+    return {
+      title: parsed.title ?? "",
+      // GitHub returns null for issues with no body — coerce to empty string
+      body: parsed.body ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
 export interface ThreadComment {
   id: number;
   author: string;

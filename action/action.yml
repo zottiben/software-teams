@@ -48,7 +48,7 @@ runs:
     - name: Bootstrap Software Teams framework
       shell: bash
       run: |
-        if [ ! -d ".software-teams/framework" ]; then
+        if [ ! -f ".software-teams/state.yaml" ] && [ ! -f ".software-teams/config/state.yaml" ]; then
           echo "Software Teams framework not found — initialising..."
           bunx @websitelabs/software-teams@${{ inputs.software_teams_version }} init --ci
         fi
@@ -71,7 +71,7 @@ runs:
           ## Framework
 
           The base agent protocol is registered as the `AgentBase` component (fetch via `software-teams component get AgentBase` if you need its body verbatim).
-          Your state is tracked in `.software-teams/config/state.yaml`.
+          Your state is tracked in `.software-teams/state.yaml`.
           Plans live in `.software-teams/plans/`.
 
           ## Rules
@@ -84,11 +84,11 @@ runs:
 
           Based on the user's request, follow the appropriate workflow:
 
-          - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.software-teams/framework/agents/software-teams-planner.md` and create a plan in `.software-teams/plans/`. Present a summary and ask for feedback.
+          - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.claude/agents/software-teams-planner.md` and create a plan in `.software-teams/plans/`. Present a summary and ask for feedback.
           - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, then run `software-teams component get ComplexityRouter` to decide single-agent vs teams mode.
           - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
           - **Review** ("review"): Run `software-teams component get PRReview` for the review checklist; review PR changes against it.
-          - **PR feedback** ("feedback"): Address review comments using `.software-teams/framework/agents/software-teams-pr-feedback.md`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
+          - **PR feedback** ("feedback"): Address review comments using `.claude/agents/software-teams-pr-feedback.md`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
           - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
           ## Iterative Refinement
