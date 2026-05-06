@@ -1,0 +1,15 @@
+{
+  "name": "websitelabs",
+  "owner": {
+    "name": "Ben Zotti",
+    "url": "https://github.com/zottiben"
+  },
+  "description": "Software Teams - Skills and Agents to help with Software Development",
+  "plugins": [
+    {
+      "name": "software-teams",
+      "source": "./",
+      "description": "Software Teams - Skills and Agents to help with Software Development"
+    }
+  ]
+}

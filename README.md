@@ -41,17 +41,28 @@ The differentiators:
 
 ## Quickstart (60 seconds)
 
+Pick one of two install paths.
+
+**Option A — Claude Code plugin** (recommended if you live inside Claude Code):
+
+```
+/plugin marketplace add zottiben/software-teams
+/plugin install software-teams@websitelabs
+```
+
+Then in your project: `/software-teams:init`.
+
+**Option B — npm CLI** (recommended if you also want the terminal commands and GitHub Actions runtime):
+
 ```bash
-# Install globally
 bun install -g @websitelabs/software-teams
 # (or: npm install -g @websitelabs/software-teams)
 
-# Initialise in your project
 cd ~/code/your-project
 software-teams init
 ```
 
-That sets up `.software-teams/` (state, plans, rules), `.claude/agents/` (24 specialists), and a CLAUDE.md routing block.
+Either path sets up `.software-teams/` (state, plans, rules), `.claude/agents/` (24 specialists), and a CLAUDE.md routing block.
 
 Now from inside Claude Code in that project:
 
