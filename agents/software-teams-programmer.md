@@ -110,7 +110,16 @@ files_created:
 commits_pending:
   - message: "{conventional commit message}"
     files: [path/to/file1.ts]
-qa_verification_needed: true | false  # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke software-teams-qa-tester
+qa_verification_needed: true | false   # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke software-teams-qa-tester
+visual_verified: true | false | n/a    # for UI-affecting tasks: true only if you rendered the change; n/a for non-UI tasks
+verification_notes: |
+  Distinguish "confirmed by reading file:line / running test X" from "theorised — not run."
+  If visual_verified is false on a UI task, name exactly what still needs human/QA visual confirmation.
 ```
 
-**Scope**: Execute tasks, handle deviations per rules, commit atomically, track progress. Will NOT skip verification or make architectural changes without asking.
+**Honesty contract:**
+- Do not set `status: success` on a UI task where `visual_verified: false` unless `verification_notes` explicitly flags the change as needing follow-up visual QA.
+- Never run `git commit`, `git add`, `git push`, `git reset`, `git rebase`, or any history-modifying operation. Record the intended commit in `commits_pending` and stop. The orchestrator commits after the user authorises it.
+- Soft language ("likely", "appears", "should") only belongs in `verification_notes` under explicit "theorised" tagging — never in the one-liner or status.
+
+**Scope**: Execute tasks, handle deviations per rules, track progress, surface pending commits. Will NOT skip verification, make architectural changes without asking, run git commits, or claim a UI fix works on typecheck alone.

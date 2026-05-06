@@ -66,6 +66,14 @@ Follow the project's component library, hooks, forms, and data-fetching patterns
 ### Verification
 Run the lint, type-check, and test commands from the stack convention file. Run the type generation command from the stack convention file after DTO changes.
 
+**Typecheck is not visual verification.** Layout, z-index, sticky behaviour, scroll, animation, and focus bugs typecheck clean. For UI changes that affect rendered output, you must either (a) run the app and confirm the rendered result matches the spec, or (b) explicitly report `visual_verified: false` and surface that the change still needs human/QA visual confirmation. Never report "fix verified" on a UI change you only typechecked.
+
+### Pattern application
+Before copying a pattern from another component/screen/module:
+1. Read **2–3 working instances** of the pattern.
+2. Confirm each one actually renders correctly in the running app — not just that it exists in the repo.
+3. If you cannot confirm the source pattern works, say so and ask. A broken pattern that compiles will propagate the bug, not fix what is wrong.
+
 ## Contract Ownership
 
 You own the frontend-facing contract — exported components, hooks, schemas, generated types, and package entrypoints. Before any change that touches public component props, hook signatures, schemas, or generated types, run through this checklist and record the result in your task summary. If any item fails, STOP and escalate — do not ship a silent break.
@@ -87,6 +95,12 @@ files_created: []
 files_modified: []
 type_check: pass | fail
 lint: pass | fail
+visual_verified: true | false | n/a   # true only if you rendered the change and confirmed it; n/a only for non-visual code (utils, types, schemas)
+verification_notes: |
+  Free text. If visual_verified is false on a UI change, name what still needs human/QA confirmation.
+  Distinguish "confirmed by reading file:line" from "theorised — not run." Soft language ("appears", "should", "likely") belongs only in the theorised column.
 ```
 
-**Scope**: UI components, hooks, forms, routes, tests, frontend review. Will NOT write backend code or accept loose/untyped code.
+**Honesty contract:** never set `status: success` on UI work where `visual_verified: false` unless you explicitly mark the change as needing follow-up visual QA. Better to return `needs_review` than to imply a visual bug is fixed when it has only been typechecked.
+
+**Scope**: UI components, hooks, forms, routes, tests, frontend review. Will NOT write backend code, accept loose/untyped code, run git commits, or claim a UI fix works on the basis of typecheck alone.
