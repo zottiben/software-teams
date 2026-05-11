@@ -74,7 +74,16 @@ describe("findClaude", () => {
 describe("spawnClaude", () => {
   test("spawns claude with correct base flags and default allowedTools", async () => {
     await spawnClaude("test prompt");
-    expect(spawnCalls[0].cmd).toEqual([...BASE_WITH_DEFAULTS, "test prompt"]);
+    expect(spawnCalls[0].cmd).toEqual([...BASE_WITH_DEFAULTS, "--", "test prompt"]);
+  });
+
+  test("inserts `--` before prompt so variadic --allowedTools cannot swallow it", async () => {
+    await spawnClaude("test prompt");
+    const cmd = spawnCalls[0].cmd;
+    const sepIdx = cmd.lastIndexOf("--");
+    expect(sepIdx).toBeGreaterThan(-1);
+    expect(cmd[sepIdx + 1]).toBe("test prompt");
+    expect(sepIdx).toBe(cmd.length - 2);
   });
 
   test("default allowedTools list includes expected scopes", async () => {

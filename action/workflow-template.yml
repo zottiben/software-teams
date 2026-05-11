@@ -126,9 +126,13 @@ jobs:
           git config user.name "software-teams[bot]"
           git config user.email "software-teams[bot]@users.noreply.github.com"
 
-      # Install Claude Code CLI (required by Software Teams for AI invocations)
+      # Install Claude Code CLI (required by Software Teams for AI invocations).
+      # `--trust` is required: claude-code ships a placeholder `bin/claude.exe`
+      # and materialises the real native binary in a postinstall script. Bun
+      # blocks postinstall scripts by default, so without `--trust` the stub is
+      # left in place and posix_spawn fails with ENOEXEC at runtime.
       - name: Install Claude Code
-        run: bun install -g @anthropic-ai/claude-code
+        run: bun install -g --trust @anthropic-ai/claude-code
 
       # Run Software Teams CLI directly — full pipeline with routing, agents, and comment posting
       # IMPORTANT: All user input is passed via env vars to avoid shell injection.
@@ -217,7 +221,7 @@ jobs:
           git config user.name "software-teams[bot]"
           git config user.email "software-teams[bot]@users.noreply.github.com"
       - name: Install Claude Code
-        run: bun install -g @anthropic-ai/claude-code
+        run: bun install -g --trust @anthropic-ai/claude-code
       - name: Run Software Teams
         run: |
           bunx @websitelabs/software-teams@latest action run "" \

@@ -113,7 +113,9 @@ export async function spawnClaude(
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
 
   if (!useStdin) {
-    args.push(prompt);
+    // `--` terminates option parsing so the prompt isn't swallowed by the
+    // preceding variadic `--allowedTools` flag.
+    args.push("--", prompt);
   }
 
   consola.start("Launching Claude Code...\n");
