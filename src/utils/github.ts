@@ -1,4 +1,47 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { exec } from "./git";
+
+/**
+ * Standard PR template paths checked by GitHub itself, in detection order.
+ * The runner uses the first match — repos that ship multiple templates via
+ * `.github/PULL_REQUEST_TEMPLATE/` directory are an edge case we don't try
+ * to disambiguate (the human picks at PR-open time anyway).
+ */
+const PR_TEMPLATE_PATHS = [
+  ".github/PULL_REQUEST_TEMPLATE.md",
+  ".github/pull_request_template.md",
+  "PULL_REQUEST_TEMPLATE.md",
+  "pull_request_template.md",
+  "docs/PULL_REQUEST_TEMPLATE.md",
+  "docs/pull_request_template.md",
+];
+
+export interface PrTemplate {
+  path: string;   // workspace-relative
+  body: string;   // raw template content
+}
+
+/**
+ * Locate a PR template at the conventional paths. Returns null if none
+ * exist. Used by the action runner to hand the template body to the
+ * implementation subagent so the "PR proposal" block fills the template
+ * the repo already prefers rather than emitting generic default text.
+ */
+export function findPrTemplate(cwd: string): PrTemplate | null {
+  for (const rel of PR_TEMPLATE_PATHS) {
+    const full = join(cwd, rel);
+    if (existsSync(full)) {
+      try {
+        const body = readFileSync(full, "utf-8");
+        if (body.trim()) return { path: rel, body };
+      } catch {
+        // unreadable — try next candidate
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Fetch the title and body of a GitHub issue via `gh api`.

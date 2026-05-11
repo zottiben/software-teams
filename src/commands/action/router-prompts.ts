@@ -38,6 +38,11 @@ export interface FeatureBranchContext {
   defaultBranch: string;
 }
 
+export interface PrTemplateContext {
+  path: string;   // workspace-relative
+  body: string;   // raw template content
+}
+
 export interface ActionContext {
   flow: ActionFlow;
   userRequest: string;            // already sanitized
@@ -48,6 +53,7 @@ export interface ActionContext {
   workspaceLines: string[];       // ["## Workspace", "- Working directory: ...", ...]
   rulesBlock: string[];           // pre-built rules block lines
   featureBranch?: FeatureBranchContext;  // present when issue-context impl/quick cut a branch
+  prTemplate?: PrTemplateContext;        // present when the repo has a PR template
   isDryRun?: boolean;
 }
 
@@ -176,16 +182,46 @@ function buildSubagentBrief(ctx: ActionContext): string {
     lines.push(`\`git commit -m "<type>: <subject>" -m "Closes #${issueNumber}" -m "<one-paragraph summary>"\``);
     lines.push(`Push with \`git push -u origin ${featureBranch.branchName}\`.`);
     lines.push(``);
-    lines.push(`Do NOT run \`gh pr create\` — a human opens the PR. End your response with EXACTLY this block (no further text):`);
-    lines.push("");
-    lines.push(`## PR proposal`);
-    lines.push("");
-    lines.push(`**Branch:** \`${featureBranch.branchName}\``);
-    lines.push(`**Closes:** #${issueNumber}`);
-    lines.push("");
-    lines.push(`<one short paragraph summary>`);
-    lines.push("");
-    lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+    lines.push(`Do NOT run \`gh pr create\` — a human opens the PR.`);
+
+    // PR-template-aware proposal block. When the repo ships a template,
+    // the agent fills it instead of producing the default one-paragraph
+    // summary; that way the human opening the PR has a body that matches
+    // the repo's own contribution norms (test plan, screenshots, etc.).
+    if (ctx.prTemplate) {
+      lines.push("");
+      lines.push(`### PR template detected`);
+      lines.push(`This repo has a PR template at \`${ctx.prTemplate.path}\`. Fill it with content drawn from your implementation — replace every \`<!-- … -->\` placeholder hint with real content, complete every checklist item that the change satisfies, leave items you genuinely cannot verify unchecked. Preserve all section headings verbatim.`);
+      lines.push("");
+      lines.push(`Template body (between the fences):`);
+      lines.push("```markdown");
+      lines.push(ctx.prTemplate.body.trim());
+      lines.push("```");
+      lines.push(``);
+      lines.push(`End your response with EXACTLY this block (no further text):`);
+      lines.push("");
+      lines.push(`## PR proposal`);
+      lines.push("");
+      lines.push(`**Branch:** \`${featureBranch.branchName}\``);
+      lines.push(`**Closes:** #${issueNumber}`);
+      lines.push("");
+      lines.push(`<the FILLED PR template — preserve its section headings, replace placeholder hints with implementation details. Do NOT wrap this in code fences; render it as live markdown so reviewers can read it directly in the issue comment.>`);
+      lines.push("");
+      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+    } else {
+      lines.push(``);
+      lines.push(`End your response with EXACTLY this block (no further text):`);
+      lines.push("");
+      lines.push(`## PR proposal`);
+      lines.push("");
+      lines.push(`**Branch:** \`${featureBranch.branchName}\``);
+      lines.push(`**Closes:** #${issueNumber}`);
+      lines.push("");
+      lines.push(`<one short paragraph summary>`);
+      lines.push("");
+      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+    }
+
     lines.push("");
     lines.push(`NEVER, under any circumstance:`);
     lines.push(`- run \`gh pr create\` / \`gh pr merge\` / any other PR-creating/merging command`);

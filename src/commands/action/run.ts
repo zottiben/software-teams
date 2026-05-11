@@ -23,6 +23,7 @@ import {
   fetchIssueTitleAndBody,
   isPullRequest,
   fetchPrLinkedIssues,
+  findPrTemplate,
   ASSISTANT_COMMENT_MARKER,
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
@@ -657,6 +658,7 @@ export const runCommand = defineCommand({
             workspaceLines,
             rulesBlock: buildRulesBlock(techStack),
             featureBranch: fb ?? undefined,
+            prTemplate: fb ? findPrTemplate(cwd) ?? undefined : undefined,
             isDryRun: intent.dryRun,
           };
           prompt = buildRouterPrompt(routerCtx);
@@ -677,6 +679,7 @@ export const runCommand = defineCommand({
             workspaceLines,
             rulesBlock: buildRulesBlock(techStack),
             featureBranch: fb ?? undefined,
+            prTemplate: fb ? findPrTemplate(cwd) ?? undefined : undefined,
             isDryRun: intent.dryRun,
           };
           prompt = buildRouterPrompt(routerCtx);
@@ -765,6 +768,7 @@ export const runCommand = defineCommand({
           workspaceLines,
           rulesBlock: buildRulesBlock(techStack),
           featureBranch: fb ?? undefined,
+          prTemplate: fb ? findPrTemplate(cwd) ?? undefined : undefined,
           isDryRun: intent.dryRun,
         };
         const implementPrompt = buildRouterPrompt(implRouterCtx);

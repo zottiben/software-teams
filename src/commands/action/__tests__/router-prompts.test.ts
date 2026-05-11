@@ -188,6 +188,65 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     expect(prompt).toMatch(/force-push to any branch/);
   });
 
+  test("issue-context impl WITH a detected PR template: brief inlines the template + tells the agent to fill it", () => {
+    const prompt = buildRouterPrompt(
+      makeCtx({
+        flow: { kind: "implement" },
+        issueNumber: 44,
+        repo: "zottiben/test-project-one",
+        featureBranch: {
+          branchName: "software-teams/issue-44-implement-render-nav",
+          defaultBranch: "main",
+        },
+        prTemplate: {
+          path: ".github/PULL_REQUEST_TEMPLATE.md",
+          body: "## Summary\n\n<!-- describe the change -->\n\n## Test plan\n\n- [ ] tests pass",
+        },
+      }),
+    );
+    expect(prompt).toContain("### PR template detected");
+    expect(prompt).toContain(".github/PULL_REQUEST_TEMPLATE.md");
+    // Raw template body must be inlined inside fenced code so the agent
+    // sees exactly what to fill.
+    expect(prompt).toContain("## Summary");
+    expect(prompt).toContain("## Test plan");
+    expect(prompt).toMatch(/Replace every `<!-- … -->` placeholder|placeholder hints?/);
+    // Default "one short paragraph summary" placeholder must NOT appear
+    // when a template is in play.
+    expect(prompt).not.toContain("<one short paragraph summary>");
+    expect(prompt).toContain("the FILLED PR template");
+  });
+
+  test("issue-context impl WITHOUT a PR template: keeps the default `<one short paragraph summary>` placeholder", () => {
+    const prompt = buildRouterPrompt(
+      makeCtx({
+        flow: { kind: "implement" },
+        issueNumber: 44,
+        featureBranch: {
+          branchName: "software-teams/issue-44-implement",
+          defaultBranch: "main",
+        },
+      }),
+    );
+    expect(prompt).not.toContain("### PR template detected");
+    expect(prompt).toContain("<one short paragraph summary>");
+  });
+
+  test("prTemplate is ignored on PR-context impl/quick (no new PR is being opened)", () => {
+    const prompt = buildRouterPrompt(
+      makeCtx({
+        flow: { kind: "implement" },
+        // No featureBranch → PR-context path.
+        prTemplate: {
+          path: ".github/PULL_REQUEST_TEMPLATE.md",
+          body: "should not leak into prompt",
+        },
+      }),
+    );
+    expect(prompt).not.toContain("### PR template detected");
+    expect(prompt).not.toContain("should not leak into prompt");
+  });
+
   test("PR-context impl (no feature branch): emits PR-context auto-commit (just `git push`)", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
     expect(prompt).toContain("## Auto-Commit (PR context — already on the correct branch)");

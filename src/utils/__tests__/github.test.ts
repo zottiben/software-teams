@@ -1,9 +1,13 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   isPullRequest,
   fetchPrLinkedIssues,
   formatSoftwareTeamsComment,
   formatErrorComment,
+  findPrTemplate,
   ASSISTANT_COMMENT_MARKER,
 } from "../github";
 
@@ -131,5 +135,85 @@ describe("formatSoftwareTeamsComment (discreet headers)", () => {
     expect(formatErrorComment("implement", "")).toContain("▶ Implementation didn't go through");
     expect(formatErrorComment("auth", "")).toContain("🚫 Access denied");
     expect(formatErrorComment("plan", "")).not.toContain("Software Teams");
+  });
+});
+
+describe("findPrTemplate", () => {
+  let tempDir: string;
+  function fixture(): string {
+    tempDir = mkdtempSync(join(tmpdir(), "pr-tpl-"));
+    return tempDir;
+  }
+  function cleanup() {
+    if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  test("locates `.github/PULL_REQUEST_TEMPLATE.md` (canonical path)", () => {
+    const cwd = fixture();
+    try {
+      mkdirSync(join(cwd, ".github"), { recursive: true });
+      writeFileSync(join(cwd, ".github", "PULL_REQUEST_TEMPLATE.md"), "## Summary\n\n<!-- describe -->\n");
+      const result = findPrTemplate(cwd);
+      expect(result).not.toBeNull();
+      expect(result!.path).toBe(".github/PULL_REQUEST_TEMPLATE.md");
+      expect(result!.body).toContain("## Summary");
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("falls back to root-level `PULL_REQUEST_TEMPLATE.md`", () => {
+    const cwd = fixture();
+    try {
+      writeFileSync(join(cwd, "PULL_REQUEST_TEMPLATE.md"), "root template\n");
+      expect(findPrTemplate(cwd)?.path).toBe("PULL_REQUEST_TEMPLATE.md");
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("falls back to `docs/PULL_REQUEST_TEMPLATE.md`", () => {
+    const cwd = fixture();
+    try {
+      mkdirSync(join(cwd, "docs"), { recursive: true });
+      writeFileSync(join(cwd, "docs", "PULL_REQUEST_TEMPLATE.md"), "docs template\n");
+      expect(findPrTemplate(cwd)?.path).toBe("docs/PULL_REQUEST_TEMPLATE.md");
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("returns null when no template exists at any canonical path", () => {
+    const cwd = fixture();
+    try {
+      expect(findPrTemplate(cwd)).toBeNull();
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("skips empty / whitespace-only template files", () => {
+    const cwd = fixture();
+    try {
+      mkdirSync(join(cwd, ".github"), { recursive: true });
+      writeFileSync(join(cwd, ".github", "PULL_REQUEST_TEMPLATE.md"), "   \n\n");
+      writeFileSync(join(cwd, "PULL_REQUEST_TEMPLATE.md"), "real template\n");
+      // First match is empty → falls through to the root-level fallback.
+      expect(findPrTemplate(cwd)?.path).toBe("PULL_REQUEST_TEMPLATE.md");
+    } finally {
+      cleanup();
+    }
+  });
+
+  test("returns the FIRST match when multiple templates exist (priority order)", () => {
+    const cwd = fixture();
+    try {
+      mkdirSync(join(cwd, ".github"), { recursive: true });
+      writeFileSync(join(cwd, ".github", "PULL_REQUEST_TEMPLATE.md"), "canonical\n");
+      writeFileSync(join(cwd, "PULL_REQUEST_TEMPLATE.md"), "root\n");
+      expect(findPrTemplate(cwd)?.path).toBe(".github/PULL_REQUEST_TEMPLATE.md");
+    } finally {
+      cleanup();
+    }
   });
 });
