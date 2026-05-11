@@ -139,56 +139,56 @@ function buildSubagentBrief(ctx: ActionContext): string {
   lines.push(`## User Request`);
   lines.push(fenceUserInput("user-request", userRequest));
 
-  // Auto-commit + branch instructions — only for impl/quick.
-  // Two mutually exclusive variants:
-  //   (a) issue-context: runner cut a fresh feature branch upstream, agent
-  //       pushes it with `-u` and ends with a "PR proposal" block linking
-  //       to GitHub's manual compare page.
-  //   (b) PR-context: a comment landed on an existing PR; the runner
-  //       checked out the PR head, agent just commits and pushes — no
-  //       new branch, no PR creation.
-  if (flow.kind === "implement" || flow.kind === "quick") {
-    if (featureBranch) {
-      lines.push("");
-      lines.push(`## Auto-Commit (issue-triggered: fresh feature branch)`);
-      lines.push(`- branch: \`${featureBranch.branchName}\``);
-      lines.push(`- default: \`${featureBranch.defaultBranch}\``);
-      lines.push(`- closes: #${issueNumber}`);
-      lines.push(``);
-      lines.push(`Commit message body MUST contain \`Closes #${issueNumber}\` on its own line. Use multiple \`-m\` flags, e.g.:`);
-      lines.push(`\`git commit -m "<type>: <subject>" -m "Closes #${issueNumber}" -m "<one-paragraph summary>"\``);
-      lines.push(`Push with \`git push -u origin ${featureBranch.branchName}\`.`);
-      lines.push(``);
-      lines.push(`Do NOT run \`gh pr create\` — a human opens the PR. End your response with EXACTLY this block (no further text):`);
-      lines.push("");
-      lines.push(`## PR proposal`);
-      lines.push("");
-      lines.push(`**Branch:** \`${featureBranch.branchName}\``);
-      lines.push(`**Closes:** #${issueNumber}`);
-      lines.push("");
-      lines.push(`<one short paragraph summary>`);
-      lines.push("");
-      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
-      lines.push("");
-      lines.push(`NEVER, under any circumstance:`);
-      lines.push(`- run \`gh pr create\` / \`gh pr merge\` / any other PR-creating/merging command`);
-      lines.push(`- push to \`${featureBranch.defaultBranch}\` directly`);
-      lines.push(`- force-push to any branch`);
-      lines.push(`- switch back to \`${featureBranch.defaultBranch}\` and commit there`);
-    } else {
-      lines.push("");
-      lines.push(`## Auto-Commit (PR context — already on the correct branch)`);
-      lines.push(`You are already on the PR's head branch. Do NOT create new branches or switch branches.`);
-      lines.push(``);
-      lines.push(`After making changes:`);
-      lines.push(`1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`);
-      lines.push(`2. \`git commit\` with a conventional commit message.`);
-      lines.push(`3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`);
-      lines.push(``);
-      lines.push(`NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`);
-      lines.push(``);
-      lines.push(`End with a brief summary of what you implemented and committed.`);
-    }
+  // Auto-commit + branch instructions.
+  // - impl/quick on a fresh feature branch → "PR proposal" scaffold.
+  // - impl/quick on a PR comment → "just `git push`" PR-context block.
+  // - feedback/post-impl-iteration → always on the PR's head branch, push
+  //   semantics identical to the impl PR-context block. (review never pushes.)
+  const needsFeatureBranchBlock =
+    (flow.kind === "implement" || flow.kind === "quick") && !!featureBranch;
+  const needsPrContextBlock =
+    ((flow.kind === "implement" || flow.kind === "quick") && !featureBranch)
+    || flow.kind === "feedback"
+    || flow.kind === "post-impl-iteration";
+
+  if (needsFeatureBranchBlock && featureBranch) {
+    lines.push("");
+    lines.push(`## Auto-Commit (issue-triggered: fresh feature branch)`);
+    lines.push(`- branch: \`${featureBranch.branchName}\``);
+    lines.push(`- default: \`${featureBranch.defaultBranch}\``);
+    lines.push(`- closes: #${issueNumber}`);
+    lines.push(``);
+    lines.push(`Commit message body MUST contain \`Closes #${issueNumber}\` on its own line. Use multiple \`-m\` flags, e.g.:`);
+    lines.push(`\`git commit -m "<type>: <subject>" -m "Closes #${issueNumber}" -m "<one-paragraph summary>"\``);
+    lines.push(`Push with \`git push -u origin ${featureBranch.branchName}\`.`);
+    lines.push(``);
+    lines.push(`Do NOT run \`gh pr create\` — a human opens the PR. End your response with EXACTLY this block (no further text):`);
+    lines.push("");
+    lines.push(`## PR proposal`);
+    lines.push("");
+    lines.push(`**Branch:** \`${featureBranch.branchName}\``);
+    lines.push(`**Closes:** #${issueNumber}`);
+    lines.push("");
+    lines.push(`<one short paragraph summary>`);
+    lines.push("");
+    lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+    lines.push("");
+    lines.push(`NEVER, under any circumstance:`);
+    lines.push(`- run \`gh pr create\` / \`gh pr merge\` / any other PR-creating/merging command`);
+    lines.push(`- push to \`${featureBranch.defaultBranch}\` directly`);
+    lines.push(`- force-push to any branch`);
+    lines.push(`- switch back to \`${featureBranch.defaultBranch}\` and commit there`);
+  } else if (needsPrContextBlock) {
+    lines.push("");
+    lines.push(`## Auto-Commit (PR context — already on the correct branch)`);
+    lines.push(`You are already on the PR's head branch. Do NOT create new branches or switch branches.`);
+    lines.push(``);
+    lines.push(`After making changes:`);
+    lines.push(`1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`);
+    lines.push(`2. \`git commit\` with a conventional commit message.`);
+    lines.push(`3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`);
+    lines.push(``);
+    lines.push(`NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`);
   }
 
   return lines.join("\n");
@@ -298,27 +298,54 @@ function buildQuickBrief(_ctx: ActionContext): string[] {
   ];
 }
 
-function buildReviewBrief(_ctx: ActionContext): string[] {
+function buildReviewBrief(ctx: ActionContext): string[] {
   return [
     `## Review Task`,
-    `Review the current PR. Post line-level review comments via \`gh api repos/.../pulls/{n}/comments\`. End with a brief summary of findings.`,
-    `Do NOT modify files or push commits — review only.`,
+    `Review the current PR (#${ctx.issueNumber} on ${ctx.repo}). Post line-level review comments via \`gh api repos/${ctx.repo}/pulls/${ctx.issueNumber}/comments\` covering correctness, security, performance, and readability. Use any PRReview component loaded into your spec if available.`,
+    `Do NOT modify source files. Do NOT push commits. Review only.`,
+    ``,
+    `## Response Format (MANDATORY)`,
+    `Begin with EXACTLY this line:`,
+    ``,
+    `\`software-teams-quality\` reviewed PR #${ctx.issueNumber}.`,
+    ``,
+    `Then a 1-sentence verdict (approve / request changes / comment only), then a bulleted list of the highest-impact findings. End with "Posted N review comments."`,
   ];
 }
 
-function buildFeedbackBrief(_ctx: ActionContext): string[] {
+function buildFeedbackBrief(ctx: ActionContext): string[] {
   return [
     `## PR Feedback Task`,
-    `Address every unresolved PR review comment. Read comments via \`gh api\`, make the requested changes, reply to each comment confirming what you changed. Commit + push when done.`,
+    `Address every unresolved review comment on PR #${ctx.issueNumber}. For each:`,
+    `1. Fetch via \`gh api repos/${ctx.repo}/pulls/${ctx.issueNumber}/comments\` (ignore replies — entries where \`in_reply_to_id\` is set).`,
+    `2. Make the requested change in code.`,
+    `3. Reply to the original comment confirming what you changed.`,
+    ``,
+    `Commit + push on the existing PR branch when done. See the auto-commit block below for push semantics.`,
+    ``,
+    `## Response Format (MANDATORY)`,
+    `Begin with EXACTLY this line:`,
+    ``,
+    `\`software-teams-pr-feedback\` addressed PR review comments on #${ctx.issueNumber}.`,
+    ``,
+    `Then a bulleted list of (comment author → what was changed). End with "Pushed to PR branch."`,
   ];
 }
 
-function buildPostImplBrief(_ctx: ActionContext): string[] {
+function buildPostImplBrief(ctx: ActionContext): string[] {
   return [
     `## Post-Implementation Iteration`,
-    `The user is iterating on already-shipped code on this PR. The conversation history above includes the originating issue (plan, approval) and any prior PR comments — use it to understand what was built before changing anything.`,
-    `If the user asked a question, answer it first. If they requested a change, apply it incrementally — do not rewrite from scratch.`,
-    `Commit + push on the existing PR branch. NEVER \`gh pr merge\`, force-push, or push to the default branch.`,
+    `The user is iterating on already-shipped code on PR #${ctx.issueNumber}. The conversation history above includes the originating issue (plan, approval) and any prior PR comments — use it to understand what was built before changing anything.`,
+    ``,
+    `If the user asked a question, answer it first. If they requested a change, apply it incrementally — do NOT rewrite from scratch.`,
+    `Commit + push on the existing PR branch only when there are actual code changes. See the auto-commit block below for push semantics.`,
+    ``,
+    `## Response Format (MANDATORY)`,
+    `Begin with EXACTLY this line:`,
+    ``,
+    `\`software-teams-pr-feedback\` updated PR #${ctx.issueNumber}.`,
+    ``,
+    `Then a 1-2 sentence summary of what changed, or "No changes — answered the question." if the request was a question. If you committed, end with "Pushed to PR branch."`,
   ];
 }
 

@@ -202,16 +202,27 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     expect(prompt).not.toContain("## PR proposal");
   });
 
-  test("review / feedback / plan flows never get any auto-commit block", () => {
-    const ctxBase = {
-      featureBranch: { branchName: "should-not-appear", defaultBranch: "main" },
-      issueNumber: 1,
-    };
-    for (const flow of [{ kind: "review" } as const, { kind: "feedback" } as const, { kind: "plan" } as const]) {
-      const prompt = buildRouterPrompt(makeCtx({ flow, ...ctxBase }));
-      expect(prompt).not.toContain("should-not-appear");
+  test("review / plan flows get NO auto-commit block (review never writes, plan is files-only)", () => {
+    for (const flow of [{ kind: "review" } as const, { kind: "plan" } as const]) {
+      const prompt = buildRouterPrompt(makeCtx({ flow, issueNumber: 1 }));
       expect(prompt).not.toContain("## Auto-Commit");
       expect(prompt).not.toContain("## PR proposal");
+    }
+  });
+
+  test("feedback + post-impl-iteration get the PR-context auto-commit block (they push to the PR branch)", () => {
+    for (const flow of [{ kind: "feedback" } as const, { kind: "post-impl-iteration" } as const]) {
+      const prompt = buildRouterPrompt(makeCtx({ flow, issueNumber: 1 }));
+      expect(prompt).toContain("## Auto-Commit (PR context — already on the correct branch)");
+      expect(prompt).not.toContain("## PR proposal");
+    }
+  });
+
+  test("featureBranch is ignored on flows that aren't impl/quick (so stray context doesn't leak)", () => {
+    const featureBranch = { branchName: "should-not-appear", defaultBranch: "main" };
+    for (const flow of [{ kind: "review" } as const, { kind: "feedback" } as const, { kind: "plan" } as const]) {
+      const prompt = buildRouterPrompt(makeCtx({ flow, featureBranch, issueNumber: 1 }));
+      expect(prompt).not.toContain("should-not-appear");
     }
   });
 });

@@ -1,6 +1,5 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve } from "node:path";
 import { detectProjectType } from "../../utils/detect-project";
 import { readAdapter } from "../../utils/adapter";
 import { spawnClaude } from "../../utils/claude";
@@ -8,10 +7,9 @@ import { createStorage } from "../../storage";
 import { loadPersistedState, savePersistedState } from "../../utils/storage-lifecycle";
 import { extractClickUpId, fetchClickUpTicket, formatTicketAsContext } from "../../utils/clickup";
 import { checkAuthorization } from "../../utils/auth";
-import { getComponent } from "../../components/resolve";
-import { sanitizeUserInput, fenceUserInput } from "../../utils/sanitize";
+import { sanitizeUserInput } from "../../utils/sanitize";
 import { readState, writeState } from "../../utils/state";
-import { applyDryRunMode, buildRulesBlock, readAgentSpecBody } from "../../utils/prompt-builder";
+import { buildRulesBlock } from "../../utils/prompt-builder";
 import { runQualityGates } from "../../utils/verify";
 import { formatVerificationResults } from "../../utils/github";
 import {
@@ -92,58 +90,6 @@ async function prepareIssueFeatureBranch(opts: {
   const branchName = `software-teams/issue-${opts.issueNumber}-${opts.commandKind}-${slug}`;
   await gitCheckoutNewBranch(branchName, opts.cwd);
   return { branchName, defaultBranch };
-}
-
-function buildPRAutoCommitBlock(commitVerb: "feat" | "fix" | "chore"): string[] {
-  return [
-    `## Auto-Commit`,
-    `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
-    `After making changes:`,
-    `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-    `2. \`git commit -m "${commitVerb}: ..."\` with a conventional commit message`,
-    `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
-    ``,
-    `NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`,
-    ``,
-    `Present a summary of what was implemented and committed.`,
-  ];
-}
-
-function buildIssueAutoCommitBlock(
-  fb: FeatureBranchContext,
-  issueNumber: number,
-  repo: string,
-  commitVerb: "feat" | "fix" | "chore",
-): string[] {
-  const prCompareUrl = `https://github.com/${repo}/pull/new/${fb.branchName}`;
-  return [
-    `## Auto-Commit (issue-triggered: fresh feature branch)`,
-    `You are on a NEW feature branch \`${fb.branchName}\` cut off \`${fb.defaultBranch}\`. The branch has no commits yet.`,
-    `The originating issue is #${issueNumber} in ${repo}.`,
-    ``,
-    `After making all changes:`,
-    `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-    `2. \`git commit\` with a conventional message. The body MUST include \`Closes #${issueNumber}\` on its own line so GitHub auto-links the eventual PR to the originating issue. Use multiple \`-m\` flags, e.g.:`,
-    `   \`git commit -m "${commitVerb}: <concise subject>" -m "Closes #${issueNumber}" -m "<one-paragraph summary of the change>"\``,
-    `3. \`git push -u origin ${fb.branchName}\``,
-    ``,
-    `Do NOT run \`gh pr create\`. Software Teams deliberately leaves PR creation to a human — that IS the review gate. After pushing, your final response MUST end with EXACTLY this block (no further text afterwards):`,
-    ``,
-    `## PR proposal`,
-    ``,
-    `**Branch:** \`${fb.branchName}\``,
-    `**Closes:** #${issueNumber}`,
-    ``,
-    `<one short paragraph summarising what changed and why>`,
-    ``,
-    `[Open this PR](${prCompareUrl})`,
-    ``,
-    `NEVER, under any circumstance:`,
-    `- run \`gh pr create\`, \`gh pr merge\`, or any other PR-creating/merging command`,
-    `- push to \`${fb.defaultBranch}\` directly`,
-    `- force-push to any branch`,
-    `- switch back to \`${fb.defaultBranch}\` and commit there`,
-  ];
 }
 
 function parseComment(
@@ -343,7 +289,8 @@ export const runCommand = defineCommand({
         dryRun: false,
       };
 
-      // No comment thread or comment ID on this path — historyBlock is hardcoded below
+      // No comment thread or comment ID on this path — conversation history
+      // is passed empty to the router brief.
       consola.info("Parsed intent: plan (label-triggered)");
 
       // No eyes reaction — there is no comment to react to
@@ -639,70 +586,28 @@ export const runCommand = defineCommand({
       workspaceLines.push(``, ticketContext);
     }
 
-    // Inline component bodies from the TS registry — no markdown files to read.
-    const baseProtocolBody = getComponent("AgentBase");
-    const complexityRouterBody = getComponent("ComplexityRouter");
-    const orchestrationBody = getComponent("AgentTeamsOrchestration");
-
-    // Shared header used by every variant. Identical bytes regardless of
-    // subcommand (plan/implement/quick/review/feedback) so the API-cache
-    // prefix is shared across the whole action family. ComplexityRouter and
-    // AgentTeamsOrchestration are always inlined — small token cost, big
-    // cache win when the user runs plan→implement back-to-back.
-    const headerBlock = [
-      `## Agent Base Protocol`,
-      baseProtocolBody,
-      ``,
-      `## Complexity Routing`,
-      complexityRouterBody,
-      ``,
-      `## Agent Teams Orchestration (if needed)`,
-      orchestrationBody,
-      ``,
-      ...projectLines,
-      ``,
-      ...buildRulesBlock(techStack),
-      ``,
-    ];
-
-    // Fixed-shape conversation history block. Always emitted (with a "(none)"
-    // placeholder when empty) and placed strictly after the shared header so
-    // the prefix above stays byte-identical between the first invocation and
-    // every subsequent feedback round.
-    const historyBlock = conversationHistory
-      ? fenceUserInput("conversation-history", conversationHistory)
-      : `<conversation-history>\n(none)\n</conversation-history>`;
-
-    // Build prompt based on whether this is feedback or a new command
+    // Build prompt based on whether this is feedback or a new command.
+    // All prompt assembly is delegated to `buildRouterPrompt` — the parent
+    // Claude is a thin router that spawns the right Software Teams
+    // specialist via the `Task` tool. No component bodies or planner-spec
+    // text is inlined here; subagents auto-load their `.claude/agents/*.md`
+    // spec natively.
     let prompt: string;
 
     if (intent.isFeedback && isPostImplementation) {
       // ── Post-implementation iteration — allow code changes, commit, push ──
-      prompt = [
-        ...headerBlock,
-        `## Instructions`,
-        `The user is iterating on code that Software Teams already implemented. The conversation history below covers the originating issue (plan, approval) and any prior PR comments — use it to understand what was built before changing anything.`,
-        `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
-        `Apply changes incrementally to the existing code — do not rewrite from scratch.`,
-        ``,
-        `## Auto-Commit`,
-        `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
-        `After making changes:`,
-        `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-        `2. \`git commit -m "fix: ..."\` or \`git commit -m "refactor: ..."\` with a conventional commit message`,
-        `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
-        ``,
-        `NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`,
-        ``,
-        `End with a brief summary of what you changed (or "No changes — answered question." if the user only asked a question).`,
-        ``,
-        ...workspaceLines,
-        ``,
-        historyBlock,
-        ``,
-        `## User Request`,
-        fenceUserInput("user-request", intent.description),
-      ].join("\n");
+      const routerCtx: ActionContext = {
+        flow: { kind: "post-impl-iteration" },
+        userRequest: intent.description,
+        repo: repo ?? "",
+        issueNumber,
+        conversationHistory,
+        projectLines,
+        workspaceLines,
+        rulesBlock: buildRulesBlock(techStack),
+        isDryRun: intent.dryRun,
+      };
+      prompt = buildRouterPrompt(routerCtx);
     } else if (intent.isFeedback) {
       // ── Refinement — update the plan only, NEVER implement ──
       const routerCtx: ActionContext = {
@@ -718,26 +623,7 @@ export const runCommand = defineCommand({
       };
       prompt = buildRouterPrompt(routerCtx);
     } else {
-      // ── New command ──
-      const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
-      const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
-      const plannerSpecBlock = plannerSpecBody
-        ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
-        : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
-
-      // Only tag plans with provenance when the trigger is an actual issue —
-      // plans created from PR comments would otherwise embed the PR number
-      // and never get pruned (closingIssuesReferences returns issues, not PRs).
-      const planProvenance: string[] = (repo && issueNumber && !(await isPullRequest(repo, issueNumber)))
-        ? [
-            ``,
-            `## Plan Provenance (REQUIRED)`,
-            `Include these fields in the index file's frontmatter — Software Teams uses them to prune the plan when the linked PR merges, so stale plans never bleed into a new run's cache:`,
-            `- \`issue: ${issueNumber}\``,
-            `- \`repo: ${repo}\``,
-          ]
-        : [];
-
+      // ── New command — route to the appropriate native subagent. ──
       switch (intent.command) {
         case "plan": {
           const routerCtx: ActionContext = {
@@ -795,47 +681,55 @@ export const runCommand = defineCommand({
           break;
         }
 
-        case "review":
-          prompt = [
-            ...headerBlock,
-            ...workspaceLines,
-            ``,
-            historyBlock,
-            ``,
-            `## Task`,
-            `Review the current PR. Post line-level review comments via gh api.`,
-          ].join("\n");
+        case "review": {
+          const routerCtx: ActionContext = {
+            flow: { kind: "review" },
+            userRequest: intent.description,
+            repo: repo ?? "",
+            issueNumber,
+            conversationHistory,
+            projectLines,
+            workspaceLines,
+            rulesBlock: buildRulesBlock(techStack),
+            isDryRun: intent.dryRun,
+          };
+          prompt = buildRouterPrompt(routerCtx);
           break;
+        }
 
-        case "feedback":
-          prompt = [
-            ...headerBlock,
-            ...workspaceLines,
-            ``,
-            historyBlock,
-            ``,
-            `## Task`,
-            `Address PR feedback comments. Read comments via gh api, make changes, reply to each.`,
-          ].join("\n");
+        case "feedback": {
+          const routerCtx: ActionContext = {
+            flow: { kind: "feedback" },
+            userRequest: intent.description,
+            repo: repo ?? "",
+            issueNumber,
+            conversationHistory,
+            projectLines,
+            workspaceLines,
+            rulesBlock: buildRulesBlock(techStack),
+            isDryRun: intent.dryRun,
+          };
+          prompt = buildRouterPrompt(routerCtx);
           break;
+        }
 
-        default:
-          prompt = [
-            ...headerBlock,
-            ...workspaceLines,
-            ``,
-            historyBlock,
-            ``,
-            `## Task`,
-            intent.description,
-          ].join("\n");
+        // Note: `ping` is handled earlier in the function and never reaches
+        // this switch. TypeScript narrows it out of `intent.command` by the
+        // time we get here.
+        default: {
+          // Exhaustiveness — every command in SoftwareTeamsCommand must have
+          // a case above. If TypeScript complains here, add the missing case.
+          const _exhaustive: never = intent.command;
+          throw new Error(`Unhandled command: ${_exhaustive}`);
+        }
       }
     }
 
-    // Apply dry-run mode if requested
-    if (intent.dryRun) {
-      prompt = applyDryRunMode(prompt);
-    }
+    // Dry-run mode is handled inside `buildRouterPrompt` (the brief carries
+    // a DRY-RUN MODE block when `isDryRun: true`) so the SUBAGENT — which
+    // actually does the work — sees the no-write directive. The parent
+    // router only spawns Task + echoes the result, so a trailing dry-run
+    // line on the parent prompt is moot.
 
     // Execute
     let success = true;

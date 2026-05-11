@@ -97,8 +97,11 @@ describe("action run command prompt invariants", () => {
       expect(source).toMatch(/sanitizeUserInput\(/);
     });
 
-    test("source still calls fenceUserInput for user-request planner fence", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+    test("router-prompts module fences the user-request block (sanitizes user-controlled content)", async () => {
+      // After phase 5 cleanup the action runner no longer builds prompts
+      // directly — every per-flow prompt lives in router-prompts.ts, which is
+      // where `fenceUserInput("user-request", …)` now belongs.
+      const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/fenceUserInput\("user-request"/);
     });
 
