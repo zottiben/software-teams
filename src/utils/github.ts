@@ -5,6 +5,26 @@ import { exec } from "./git";
  * Returns null on non-zero exit (e.g. network failure, not found).
  * GitHub returns null for empty issue bodies — coerced to empty string.
  */
+/**
+ * Returns true when `number` is an open or closed pull request in `repo`.
+ * Issues that are NOT PRs return false (the `gh api .../pulls/{n}` endpoint
+ * 404s for issue-only numbers). Used to distinguish issue-context runs (no
+ * associated PR — implementation must open one) from PR-context runs (push
+ * to the existing PR branch).
+ */
+export async function isPullRequest(
+  repo: string,
+  number: number,
+): Promise<boolean> {
+  if (!repo || !number) return false;
+  const { exitCode } = await exec([
+    "gh", "api",
+    `repos/${repo}/pulls/${number}`,
+    "--silent",
+  ]);
+  return exitCode === 0;
+}
+
 export async function fetchIssueTitleAndBody(
   repo: string,
   issueNumber: number,

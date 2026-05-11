@@ -1,5 +1,5 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { exec, gitDiff, gitDiffNames, gitLog, gitBranch, gitRoot, gitStatus, gitMergeBase } from "../git";
+import { exec, gitDiff, gitDiffNames, gitLog, gitBranch, gitRoot, gitStatus, gitMergeBase, gitCheckoutNewBranch, slugify } from "../git";
 
 // Track all Bun.spawn calls
 let spawnCalls: Array<{ cmd: string[]; cwd?: string }> = [];
@@ -136,5 +136,32 @@ describe("gitMergeBase", () => {
     const result = await gitMergeBase("main");
     expect(result).toBe("abc123");
     expect(spawnCalls[0].cmd).toEqual(["git", "merge-base", "HEAD", "main"]);
+  });
+});
+
+describe("gitCheckoutNewBranch", () => {
+  test("runs `git checkout -b <name>` with the supplied cwd", async () => {
+    await gitCheckoutNewBranch("software-teams/issue-36-render-nav", "/tmp/work");
+    expect(spawnCalls[0].cmd).toEqual(["git", "checkout", "-b", "software-teams/issue-36-render-nav"]);
+    expect(spawnCalls[0].cwd).toBe("/tmp/work");
+  });
+});
+
+describe("slugify", () => {
+  test("kebab-cases plain text", () => {
+    expect(slugify("Render Nav in App layout")).toBe("render-nav-in-app-layout");
+  });
+
+  test("collapses runs of non-alphanumerics and trims leading/trailing dashes", () => {
+    expect(slugify("  Foo!!  bar??/baz  ")).toBe("foo-bar-baz");
+  });
+
+  test("truncates to maxLength without trailing dash", () => {
+    expect(slugify("aaaaaaaaaa bbbbbbbbbb cccccccccc dddd", 22)).toBe("aaaaaaaaaa-bbbbbbbbbb");
+  });
+
+  test("returns fallback 'task' for empty or all-symbol input", () => {
+    expect(slugify("")).toBe("task");
+    expect(slugify("@@@///!!!")).toBe("task");
   });
 });

@@ -23,7 +23,9 @@ import {
   fetchCommentThread,
   buildConversationContext,
   fetchIssueTitleAndBody,
+  isPullRequest,
 } from "../../utils/github";
+import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
 
 type SoftwareTeamsCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
 
@@ -40,6 +42,78 @@ interface ParsedIntent {
 // Fail-closed allow-list for --event-type values. New event types require an
 // explicit code change — unknown values are rejected before any API calls.
 const ALLOWED_EVENT_TYPES = new Set(["issue_labeled"]);
+
+interface FeatureBranchContext {
+  branchName: string;
+  defaultBranch: string;
+}
+
+/**
+ * When the trigger came from an issue (no associated PR), cut a feature
+ * branch off the current (default) branch BEFORE any agent runs so that the
+ * implementation lands on a reviewable PR — never directly on main/master.
+ * Returns null for PR-context runs (existing flow unchanged).
+ */
+async function prepareIssueFeatureBranch(opts: {
+  cwd: string;
+  repo: string | undefined;
+  issueNumber: number;
+  description: string;
+  commandKind: "implement" | "quick";
+}): Promise<FeatureBranchContext | null> {
+  if (!opts.repo || !opts.issueNumber) return null;
+  if (await isPullRequest(opts.repo, opts.issueNumber)) return null;
+
+  const defaultBranch = await gitBranch();
+  const slug = slugify(opts.description, 30);
+  const branchName = `software-teams/issue-${opts.issueNumber}-${opts.commandKind}-${slug}`;
+  await gitCheckoutNewBranch(branchName, opts.cwd);
+  return { branchName, defaultBranch };
+}
+
+function buildPRAutoCommitBlock(commitVerb: "feat" | "fix" | "chore"): string[] {
+  return [
+    `## Auto-Commit`,
+    `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
+    `After making changes:`,
+    `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
+    `2. \`git commit -m "${commitVerb}: ..."\` with a conventional commit message`,
+    `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
+    ``,
+    `NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`,
+    ``,
+    `Present a summary of what was implemented and committed.`,
+  ];
+}
+
+function buildIssueAutoCommitBlock(
+  fb: FeatureBranchContext,
+  issueNumber: number,
+  commitVerb: "feat" | "fix" | "chore",
+): string[] {
+  return [
+    `## Auto-Commit (issue-triggered: fresh feature branch, NO PR exists yet)`,
+    `You are on a NEW feature branch \`${fb.branchName}\` cut off \`${fb.defaultBranch}\`. The branch has no commits yet.`,
+    `The originating issue is #${issueNumber}.`,
+    ``,
+    `After making all changes:`,
+    `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
+    `2. \`git commit -m "${commitVerb}: ..."\` with a conventional commit message`,
+    `3. \`git push -u origin ${fb.branchName}\``,
+    `4. Open a pull request linked to the issue:`,
+    `   \`gh pr create --base ${fb.defaultBranch} --head ${fb.branchName} \\\\`,
+    `       --title "<concise title>" \\\\`,
+    `       --body "Closes #${issueNumber}"$'\\\\n\\\\n'"<short summary of what changed and why>"\``,
+    ``,
+    `NEVER, under any circumstance:`,
+    `- merge the PR yourself (\`gh pr merge\`, \`gh pr merge --auto\`, etc.)`,
+    `- push to \`${fb.defaultBranch}\` directly`,
+    `- force-push to any branch`,
+    `- switch back to \`${fb.defaultBranch}\` and commit there`,
+    ``,
+    `Your final response MUST end with the PR URL on its own line so it lands as a clickable link in the issue comment.`,
+  ];
+}
 
 function parseComment(
   comment: string,
@@ -743,16 +817,16 @@ export const runCommand = defineCommand({
           ].join("\n");
           break;
 
-        case "implement":
+        case "implement": {
+          const fb = await prepareIssueFeatureBranch({
+            cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
+          });
+          const autoCommit = fb
+            ? buildIssueAutoCommitBlock(fb, issueNumber, "feat")
+            : buildPRAutoCommitBlock("feat");
           prompt = [
             ...headerBlock,
-            `## Auto-Commit`,
-            `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
-            `After implementing all changes:`,
-            `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-            `2. \`git commit -m "feat: ..."\` with a conventional commit message`,
-            `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
-            `Present a summary of what was implemented and committed.`,
+            ...autoCommit,
             ``,
             ...workspaceLines,
             ``,
@@ -763,17 +837,18 @@ export const runCommand = defineCommand({
             `Follow the implement-plan orchestration.`,
           ].join("\n");
           break;
+        }
 
-        case "quick":
+        case "quick": {
+          const fb = await prepareIssueFeatureBranch({
+            cwd, repo, issueNumber, description: intent.description, commandKind: "quick",
+          });
+          const autoCommit = fb
+            ? buildIssueAutoCommitBlock(fb, issueNumber, "fix")
+            : buildPRAutoCommitBlock("fix");
           prompt = [
             ...headerBlock,
-            `## Auto-Commit`,
-            `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
-            `After making changes:`,
-            `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-            `2. \`git commit -m "..."\` with a conventional commit message`,
-            `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
-            `Present what you changed.`,
+            ...autoCommit,
             ``,
             ...workspaceLines,
             ``,
@@ -785,6 +860,7 @@ export const runCommand = defineCommand({
             `Keep changes minimal and focused.`,
           ].join("\n");
           break;
+        }
 
         case "review":
           prompt = [
@@ -846,15 +922,15 @@ export const runCommand = defineCommand({
       // If full flow, run implement after plan
       if (intent.fullFlow && success) {
         consola.info("Full flow: now running implement...");
+        const fb = await prepareIssueFeatureBranch({
+          cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
+        });
+        const autoCommit = fb
+          ? buildIssueAutoCommitBlock(fb, issueNumber, "feat")
+          : buildPRAutoCommitBlock("feat");
         const implementPrompt = [
           ...headerBlock,
-          `## Auto-Commit`,
-          `You are already on the correct PR branch. Do NOT create new branches or switch branches.`,
-          `After implementing all changes:`,
-          `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-          `2. \`git commit -m "feat: ..."\` with a conventional commit message`,
-          `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
-          `Present a summary of what was implemented and committed.`,
+          ...autoCommit,
           ``,
           ...workspaceLines,
           ``,

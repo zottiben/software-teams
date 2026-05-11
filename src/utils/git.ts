@@ -55,3 +55,26 @@ export async function gitMergeBase(branch: string): Promise<string> {
   const { stdout } = await exec(["git", "merge-base", "HEAD", branch]);
   return stdout;
 }
+
+export async function gitCheckoutNewBranch(
+  branchName: string,
+  cwd?: string,
+): Promise<void> {
+  const { exitCode, stdout } = await exec(
+    ["git", "checkout", "-b", branchName],
+    cwd,
+  );
+  if (exitCode !== 0) {
+    throw new Error(`git checkout -b ${branchName} failed: ${stdout}`);
+  }
+}
+
+export function slugify(input: string, maxLength = 30): string {
+  const slug = (input ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, maxLength)
+    .replace(/-+$/, "");
+  return slug || "task";
+}
