@@ -12,13 +12,13 @@
 #   - Set SOFTWARE_TEAMS_RULES_TOKEN secret (PAT with Contents read/write on the rules repo)
 #   - Run `bunx @websitelabs/software-teams init` locally to customise framework files
 #
-# Usage: Comment on any issue or PR with "Hey software-teams" followed by a command:
-#   Hey software-teams plan <description>        — Create an implementation plan
-#   Hey software-teams quick <description>       — Make a small, focused change
-#   Hey software-teams review                    — Review the current PR
-#   Hey software-teams feedback                  — Address PR review comments
-#   Hey software-teams do <clickup-ticket-url>   — Full flow: plan + implement from ticket
-#   Hey software-teams ping                      — Check framework status
+# Usage: Comment on any issue or PR with "Hey AI" followed by a command:
+#   Hey AI plan <description>        — Create an implementation plan
+#   Hey AI quick <description>       — Make a small, focused change
+#   Hey AI review                    — Review the current PR
+#   Hey AI feedback                  — Address PR review comments
+#   Hey AI do <clickup-ticket-url>   — Full flow: plan + implement from ticket
+#   Hey AI ping                      — Check framework status
 #
 # Auto-pickup: open or label any issue with the 'software-teams' label and the
 # workflow runs the planner automatically. The generated plan is posted as an
@@ -54,12 +54,15 @@ permissions:
   id-token: write
 
 jobs:
-  # ── Triggered by "Hey software-teams" comments on issues/PRs or PR reviews ──
+  # ── Triggered by "Hey AI" comments on issues/PRs or PR reviews ──
+  # The runner regex also still accepts the legacy "Hey software-teams"
+  # form, but the workflow trigger here intentionally only matches the new
+  # phrase — discreet-mode is on by default.
   software-teams:
     if: >-
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'Hey software-teams'))
-      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, 'Hey software-teams'))
-      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, 'Hey software-teams'))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, 'Hey AI'))
+      || (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, 'Hey AI'))
+      || (github.event_name == 'pull_request_review' && contains(github.event.review.body, 'Hey AI'))
     runs-on: ubuntu-latest
     steps:
       # Bun is required to run the Software Teams CLI

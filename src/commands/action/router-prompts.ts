@@ -89,6 +89,20 @@ function buildSubagentBrief(ctx: ActionContext): string {
   lines.push(`Trigger: ${flow.kind === "plan" && flow.isRefinement ? "plan refinement" : flow.kind === "plan" && flow.isApproval ? "plan approved" : flow.kind} on #${issueNumber}`);
   lines.push("");
 
+  // Self-reference style — never expose internal subagent names to users.
+  // Even when an explicit opener template tells you exactly what to say,
+  // any other self-reference in your response (e.g. "I'm the planner")
+  // MUST use the user-facing role name instead of the `software-teams-*`
+  // subagent identifier.
+  lines.push(`## Self-reference style (MANDATORY)`);
+  lines.push(`If you reference yourself or name the agent doing the work, use the user-facing role label, NEVER the internal subagent identifier:`);
+  lines.push(`- planning work → **The Planning Agent**`);
+  lines.push(`- implementation / quick changes → **The Implementation Agent**`);
+  lines.push(`- code review → **The Review Agent**`);
+  lines.push(`- PR feedback / post-impl iteration → **The Feedback Agent**`);
+  lines.push(`Do NOT use the literal strings \`software-teams-planner\`, \`software-teams-programmer\`, \`software-teams-quality\`, or \`software-teams-pr-feedback\` in any user-visible output.`);
+  lines.push("");
+
   lines.push(...ctx.projectLines);
   lines.push("");
   lines.push(...ctx.workspaceLines);
@@ -205,7 +219,7 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
       ``,
       `Begin with EXACTLY this line:`,
       ``,
-      `\`software-teams-planner\` refined the plan for issue #${ctx.issueNumber}.`,
+      `**The Planning Agent** refined the plan for issue #${ctx.issueNumber}.`,
       ``,
       `Then a 1-sentence summary of what changed. Then the same collapsible-details block as a fresh plan (see Plan Task spec). End with EXACTLY: "Any changes before implementation?"`,
     ];
@@ -238,7 +252,7 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
     ``,
     `Begin with EXACTLY this line:`,
     ``,
-    `\`software-teams-planner\` has produced a three-tier plan for issue #${ctx.issueNumber}.`,
+    `**The Planning Agent** has produced a three-tier plan for issue #${ctx.issueNumber}.`,
     ``,
     `Follow with a one-sentence objective, then this collapsible block. The entire plan body lives INSIDE the \`<details>\` — nothing about the tasks should appear outside it.`,
     ``,
@@ -307,7 +321,7 @@ function buildReviewBrief(ctx: ActionContext): string[] {
     `## Response Format (MANDATORY)`,
     `Begin with EXACTLY this line:`,
     ``,
-    `\`software-teams-quality\` reviewed PR #${ctx.issueNumber}.`,
+    `**The Review Agent** reviewed PR #${ctx.issueNumber}.`,
     ``,
     `Then a 1-sentence verdict (approve / request changes / comment only), then a bulleted list of the highest-impact findings. End with "Posted N review comments."`,
   ];
@@ -326,7 +340,7 @@ function buildFeedbackBrief(ctx: ActionContext): string[] {
     `## Response Format (MANDATORY)`,
     `Begin with EXACTLY this line:`,
     ``,
-    `\`software-teams-pr-feedback\` addressed PR review comments on #${ctx.issueNumber}.`,
+    `**The Feedback Agent** addressed PR review comments on #${ctx.issueNumber}.`,
     ``,
     `Then a bulleted list of (comment author → what was changed). End with "Pushed to PR branch."`,
   ];
@@ -343,7 +357,7 @@ function buildPostImplBrief(ctx: ActionContext): string[] {
     `## Response Format (MANDATORY)`,
     `Begin with EXACTLY this line:`,
     ``,
-    `\`software-teams-pr-feedback\` updated PR #${ctx.issueNumber}.`,
+    `**The Feedback Agent** updated PR #${ctx.issueNumber}.`,
     ``,
     `Then a 1-2 sentence summary of what changed, or "No changes — answered the question." if the request was a question. If you committed, end with "Pushed to PR branch."`,
   ];

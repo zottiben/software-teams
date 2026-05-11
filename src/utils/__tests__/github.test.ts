@@ -1,5 +1,11 @@
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-import { isPullRequest, fetchPrLinkedIssues } from "../github";
+import {
+  isPullRequest,
+  fetchPrLinkedIssues,
+  formatSoftwareTeamsComment,
+  formatErrorComment,
+  ASSISTANT_COMMENT_MARKER,
+} from "../github";
 
 let spawnCalls: Array<{ cmd: string[] }> = [];
 let mockExitCode = 0;
@@ -90,5 +96,40 @@ describe("fetchPrLinkedIssues", () => {
     expect(await fetchPrLinkedIssues("", 12)).toEqual([]);
     expect(await fetchPrLinkedIssues("z/r", 0)).toEqual([]);
     expect(spawnCalls.length).toBe(0);
+  });
+});
+
+describe("formatSoftwareTeamsComment (discreet headers)", () => {
+  test("plan command produces a chat-like header with no 'Software Teams' brand", () => {
+    const out = formatSoftwareTeamsComment("plan", "all done");
+    expect(out).toContain("🔮 Plan is ready!");
+    expect(out).not.toContain("Software Teams");
+  });
+
+  test("every known command maps to its chat-like header", () => {
+    expect(formatSoftwareTeamsComment("implement", "")).toContain("▶ Implementation done!");
+    expect(formatSoftwareTeamsComment("quick", "")).toContain("⚡ Quick fix done!");
+    expect(formatSoftwareTeamsComment("review", "")).toContain("💠 Review complete");
+    expect(formatSoftwareTeamsComment("feedback", "")).toContain("🌀 Feedback addressed");
+    expect(formatSoftwareTeamsComment("ping", "")).toContain("🔹 Status");
+    expect(formatSoftwareTeamsComment("auth", "")).toContain("🚫 Access denied");
+  });
+
+  test("unknown command falls back to neutral 'Done' header (still no brand leak)", () => {
+    const out = formatSoftwareTeamsComment("nope", "");
+    expect(out).toContain("◈ Done");
+    expect(out).not.toContain("Software Teams");
+  });
+
+  test("every comment carries the invisible HTML marker for thread detection", () => {
+    expect(formatSoftwareTeamsComment("plan", "body")).toContain(ASSISTANT_COMMENT_MARKER);
+    expect(formatErrorComment("plan", "body")).toContain(ASSISTANT_COMMENT_MARKER);
+  });
+
+  test("error comments use the per-command failure copy", () => {
+    expect(formatErrorComment("plan", "")).toContain("🔮 Plan didn't work out");
+    expect(formatErrorComment("implement", "")).toContain("▶ Implementation didn't go through");
+    expect(formatErrorComment("auth", "")).toContain("🚫 Access denied");
+    expect(formatErrorComment("plan", "")).not.toContain("Software Teams");
   });
 });

@@ -128,9 +128,11 @@ describe("buildRouterPrompt — plan-specific brief", () => {
     expect(prompt).toContain("repo: z/p");
   });
 
-  test("initial plan brief mandates exact opening line naming the agent + three-tier", () => {
+  test("initial plan brief mandates exact opening line naming the agent + three-tier (discreet mode)", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 41 }));
-    expect(prompt).toContain("`software-teams-planner` has produced a three-tier plan for issue #41");
+    expect(prompt).toContain("**The Planning Agent** has produced a three-tier plan for issue #41");
+    // Internal subagent name must never appear in the user-facing opener.
+    expect(prompt).not.toContain("`software-teams-planner` has produced");
   });
 
   test("initial plan brief embeds the collapsible <details> response template", () => {
@@ -149,9 +151,10 @@ describe("buildRouterPrompt — plan-specific brief", () => {
     expect(prompt).toMatch(/do not run git commit/i);
   });
 
-  test("refinement brief mandates the matching agent-named opening line", () => {
+  test("refinement brief mandates the matching agent-named opening line (discreet mode)", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan", isRefinement: true }, issueNumber: 17 }));
-    expect(prompt).toContain("`software-teams-planner` refined the plan for issue #17");
+    expect(prompt).toContain("**The Planning Agent** refined the plan for issue #17");
+    expect(prompt).not.toContain("`software-teams-planner` refined");
   });
 
   test("approval brief defers implementation to a later run", () => {
@@ -273,5 +276,37 @@ describe("buildRouterPrompt — content surfaces", () => {
   test("empty rulesBlock does not produce a stray blank `## Rules` header", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, rulesBlock: [] }));
     expect(prompt).not.toMatch(/^## Rules\s*$/m);
+  });
+});
+
+describe("buildRouterPrompt — discreet-mode style directives", () => {
+  const allFlows: ActionFlow[] = [
+    { kind: "plan" },
+    { kind: "plan", isRefinement: true },
+    { kind: "implement" },
+    { kind: "quick" },
+    { kind: "review" },
+    { kind: "feedback" },
+    { kind: "post-impl-iteration" },
+  ];
+
+  for (const flow of allFlows) {
+    const tag = `${flow.kind}${"isRefinement" in flow && flow.isRefinement ? " (refinement)" : ""}`;
+    test(`[${tag}] brief carries the self-reference style directive (no brand leak)`, () => {
+      const prompt = buildRouterPrompt(makeCtx({ flow }));
+      expect(prompt).toContain("## Self-reference style (MANDATORY)");
+      expect(prompt).toMatch(/never the internal subagent identifier/i);
+      // The brief must explicitly forbid the four `software-teams-*` names
+      // in user-visible output.
+      expect(prompt).toContain("Do NOT use the literal strings `software-teams-planner`, `software-teams-programmer`, `software-teams-quality`, or `software-teams-pr-feedback`");
+    });
+  }
+
+  test("user-facing role labels are well-known and consistent across flows", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).toContain("**The Planning Agent**");
+    expect(prompt).toContain("**The Implementation Agent**");
+    expect(prompt).toContain("**The Review Agent**");
+    expect(prompt).toContain("**The Feedback Agent**");
   });
 });

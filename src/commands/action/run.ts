@@ -23,6 +23,7 @@ import {
   fetchIssueTitleAndBody,
   isPullRequest,
   fetchPrLinkedIssues,
+  ASSISTANT_COMMENT_MARKER,
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
 import { buildRouterPrompt, type ActionContext } from "./router-prompts";
@@ -100,8 +101,11 @@ function parseComment(
   const hasDryRun = /--dry-run/i.test(comment);
   const cleanComment = comment.replace(/--dry-run/gi, "").trim();
 
-  // Strip "Hey software-teams" prefix (case-insensitive).
-  const match = cleanComment.match(/hey\s+software[\s-]?teams\s+(.+)/is);
+  // Strip the trigger prefix. The discreet-mode default is "Hey AI"; the
+  // legacy "Hey software-teams" form stays accepted so repos that haven't
+  // updated their workflow `if:` condition can still drive runs once they
+  // do.
+  const match = cleanComment.match(/hey\s+(?:ai|software[\s-]?teams)\s+(.+)/is);
   if (!match) {
     // No trigger prefix — if this is a follow-up in an existing conversation,
     // treat the entire comment as feedback
@@ -181,12 +185,12 @@ function parseComment(
 export const runCommand = defineCommand({
   meta: {
     name: "run",
-    description: "GitHub Action entry point — parse 'Hey software-teams' comment and run workflow",
+    description: "GitHub Action entry point — parse 'Hey AI' comment and run workflow",
   },
   args: {
     comment: {
       type: "positional",
-      description: "The raw comment body containing 'Hey software-teams' mention",
+      description: "The raw comment body containing the trigger mention (default 'Hey AI')",
       required: true,
     },
     "comment-id": {
@@ -297,7 +301,7 @@ export const runCommand = defineCommand({
       // Post a thinking placeholder comment
       let placeholderCommentId: number | null = null;
       if (repo && issueNumber) {
-        const thinkingBody = `<h3>🧠 Software Teams <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
+        const thinkingBody = `${ASSISTANT_COMMENT_MARKER}\n<h3>🧠 Working on it...</h3>\n\n---\n\n_Reviewing your request..._`;
         placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
       }
 
@@ -424,7 +428,7 @@ export const runCommand = defineCommand({
 
       if (isFollowUp) {
         consola.info(
-          `Continuing conversation (${context.previousRuns} previous Software Teams run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
+          `Continuing conversation (${context.previousRuns} previous assistant run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
         );
       }
       // Sanitize conversation history (may contain user-controlled content)
@@ -434,7 +438,7 @@ export const runCommand = defineCommand({
     // Parse intent — pass isFollowUp so ambiguous messages become feedback
     const intent = parseComment(args.comment, isFollowUp);
     if (!intent) {
-      consola.error("Could not parse 'Hey software-teams' intent from comment");
+      consola.error("Could not parse trigger phrase (e.g. 'Hey AI ...') from comment");
       process.exit(1);
     }
 
@@ -453,7 +457,7 @@ export const runCommand = defineCommand({
     // Post a thinking placeholder comment
     let placeholderCommentId: number | null = null;
     if (repo && issueNumber) {
-      const thinkingBody = `<h3>🧠 Software Teams <sup>thinking</sup></h3>\n\n---\n\n_Working on it..._`;
+      const thinkingBody = `${ASSISTANT_COMMENT_MARKER}\n<h3>🧠 Working on it...</h3>\n\n---\n\n_Reviewing your request..._`;
       placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
     }
 
@@ -468,7 +472,7 @@ export const runCommand = defineCommand({
       } as any;
       await writeState(cwd, state);
 
-      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey software-teams implement\`** when you're ready to go.`;
+      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey AI implement\`** when you're ready to go.`;
       const finalBody = formatSoftwareTeamsComment("plan", approvalBody);
 
       if (repo && placeholderCommentId) {

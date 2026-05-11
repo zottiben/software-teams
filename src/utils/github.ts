@@ -154,8 +154,13 @@ export async function fetchCommentThread(
         author: parsed.author,
         body: parsed.body,
         createdAt: parsed.createdAt,
-        // Detect Software Teams' own comments by the header.
-        isSoftwareTeams: parsed.body.includes("Software Teams <sup>"),
+        // Detect this action's own comments via the invisible marker; fall
+        // back to the legacy "Software Teams <sup>" header for comments
+        // written before the discreet-mode rename so existing threads still
+        // bridge correctly.
+        isSoftwareTeams:
+          parsed.body.includes(ASSISTANT_COMMENT_MARKER) ||
+          parsed.body.includes(LEGACY_ASSISTANT_MARKER),
       });
     } catch {
       // skip malformed lines
@@ -190,7 +195,7 @@ export function formatVerificationResults(results: { passed: boolean; gates: Arr
 
 /**
  * Build a conversation history string from the comment thread.
- * Includes previous "Hey software-teams" commands, Software Teams responses, and user feedback.
+ * Includes previous trigger-phrase commands ("Hey AI ..."), assistant responses, and user feedback.
  */
 export function buildConversationContext(
   thread: ThreadComment[],
@@ -218,20 +223,25 @@ export function buildConversationContext(
   // Determine if this is a follow-up to an existing conversation
   const isFollowUp = previousRuns > 0;
 
-  // Detect if implementation has already happened (Software Teams posted an "implement" response)
+  // Detect if implementation has already happened (assistant posted an
+  // implement response). The new headers don't include the command name
+  // verbatim — match against both new and legacy forms.
   const isPostImplementation = segments.some(
-    (c) => c.isSoftwareTeams && c.body.includes("<sup>implement</sup>"),
+    (c) =>
+      c.isSoftwareTeams &&
+      (c.body.includes("Implementation done!") || c.body.includes("<sup>implement</sup>")),
   );
 
   if (segments.length === 0) {
     return { history: "", previousRuns: 0, isFollowUp: false, isPostImplementation: false };
   }
 
-  // Format as conversation log
+  // Format as conversation log. The role label "AI assistant" stays
+  // generic — never expose the internal "Software Teams" brand to the
+  // subagent's conversation history either.
   const lines: string[] = ["## Previous Conversation", ""];
   for (const comment of segments) {
-    const role = comment.isSoftwareTeams ? "Software Teams" : `@${comment.author}`;
-    // Truncate long Software Teams responses to keep context manageable
+    const role = comment.isSoftwareTeams ? "AI assistant" : `@${comment.author}`;
     let body = comment.body;
     if (comment.isSoftwareTeams && body.length > 2000) {
       body = body.slice(0, 2000) + "\n\n... (truncated)";
@@ -244,22 +254,43 @@ export function buildConversationContext(
   return { history: lines.join("\n"), previousRuns, isFollowUp, isPostImplementation };
 }
 
-const COMMAND_EMOJI: Record<string, string> = {
-  plan: "🔮",
-  implement: "▶",
-  quick: "⚡",
-  review: "💠",
-  feedback: "🌀",
-  ping: "🔹",
+// Invisible HTML marker — used by `fetchCommentThread` to detect assistant
+// comments without exposing the "Software Teams" brand to users. Stable
+// across header reword cycles; never user-visible.
+export const ASSISTANT_COMMENT_MARKER = "<!-- st-action -->";
+
+// Legacy marker (pre-discreet-mode) — comments posted by older versions used
+// `<h3>... Software Teams <sup>...</sup></h3>`. Kept as a fallback detection
+// pattern so existing threads in repos that upgraded mid-cycle still bridge
+// correctly.
+const LEGACY_ASSISTANT_MARKER = "Software Teams <sup>";
+
+interface CommandHeader {
+  emoji: string;
+  ok: string;        // success/done header
+  fail: string;      // failure header
+}
+
+const COMMAND_HEADERS: Record<string, CommandHeader> = {
+  plan:     { emoji: "🔮", ok: "Plan is ready!",       fail: "Plan didn't work out" },
+  implement:{ emoji: "▶",  ok: "Implementation done!", fail: "Implementation didn't go through" },
+  quick:    { emoji: "⚡", ok: "Quick fix done!",      fail: "Quick fix didn't go through" },
+  review:   { emoji: "💠", ok: "Review complete",      fail: "Review didn't finish" },
+  feedback: { emoji: "🌀", ok: "Feedback addressed",   fail: "Couldn't address feedback" },
+  ping:     { emoji: "🔹", ok: "Status",               fail: "Status check failed" },
+  auth:     { emoji: "🚫", ok: "Access denied",        fail: "Access denied" },
 };
+
+const DEFAULT_HEADER: CommandHeader = { emoji: "◈", ok: "Done", fail: "Didn't finish" };
 
 export function formatSoftwareTeamsComment(
   command: string,
   response: string,
 ): string {
-  const emoji = COMMAND_EMOJI[command] ?? "◈";
+  const header = COMMAND_HEADERS[command] ?? DEFAULT_HEADER;
   return [
-    `<h3>${emoji} Software Teams <sup>${command}</sup></h3>`,
+    ASSISTANT_COMMENT_MARKER,
+    `<h3>${header.emoji} ${header.ok}</h3>`,
     ``,
     `---`,
     ``,
@@ -271,9 +302,10 @@ export function formatErrorComment(
   command: string,
   summary: string,
 ): string {
-  const emoji = COMMAND_EMOJI[command] ?? "◈";
+  const header = COMMAND_HEADERS[command] ?? DEFAULT_HEADER;
   return [
-    `<h3>${emoji} Software Teams <sup>${command} · failed</sup></h3>`,
+    ASSISTANT_COMMENT_MARKER,
+    `<h3>${header.emoji} ${header.fail}</h3>`,
     ``,
     `---`,
     ``,

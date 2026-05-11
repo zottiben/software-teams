@@ -17,7 +17,7 @@ inputs:
   trigger_phrase:
     description: 'The trigger phrase to look for in comments'
     required: false
-    default: 'Hey software-teams'
+    default: 'Hey AI'
   software_teams_version:
     description: 'Version of @websitelabs/software-teams to install for init'
     required: false

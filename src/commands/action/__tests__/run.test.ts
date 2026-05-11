@@ -128,4 +128,28 @@ describe("action run command prompt invariants", () => {
       }
     });
   });
+
+  describe("trigger phrase (discreet mode)", () => {
+    test("parseComment regex matches both 'Hey AI' (default) and 'Hey software-teams' (legacy)", async () => {
+      // Locked-in source guard — parseComment regex is internal, so we
+      // verify it via source text. If anyone tightens the regex to one
+      // form, surface the breaking change here.
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const re = source.match(/hey\\s\+\(\?:ai\|software\[\\s-\]\?teams\)\\s\+\(\.\+\)/);
+      expect(re).not.toBeNull();
+    });
+
+    test("thinking placeholder never exposes the 'Software Teams' brand", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // The body of both thinking placeholders should use the discreet form.
+      expect(source).toContain("🧠 Working on it...");
+      expect(source).not.toMatch(/🧠 Software Teams <sup>thinking<\/sup>/);
+    });
+
+    test("approval message points users to the new 'Hey AI' trigger", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/Hey AI implement/);
+      expect(source).not.toMatch(/Hey software-teams implement\\?\`\`/);
+    });
+  });
 });
