@@ -402,6 +402,11 @@ export const runCommand = defineCommand({
         `2. Write each task as a separate file: \`.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
         `This split format is MANDATORY — it reduces token usage by letting agents load only their assigned task.`,
         ``,
+        `## Plan Provenance (REQUIRED)`,
+        `Include these fields in the index file's frontmatter — Software Teams uses them to prune the plan when the linked PR merges, so stale plans never bleed into a new run's cache:`,
+        `- \`issue: ${issueNumber}\``,
+        `- \`repo: ${repo}\``,
+        ``,
         `## Response Format`,
         `After writing the split plan files, respond with EXACTLY this structure (no deviations, no meta-commentary):`,
         ``,
@@ -793,6 +798,19 @@ export const runCommand = defineCommand({
         ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
         : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
 
+      // Only tag plans with provenance when the trigger is an actual issue —
+      // plans created from PR comments would otherwise embed the PR number
+      // and never get pruned (closingIssuesReferences returns issues, not PRs).
+      const planProvenance: string[] = (repo && issueNumber && !(await isPullRequest(repo, issueNumber)))
+        ? [
+            ``,
+            `## Plan Provenance (REQUIRED)`,
+            `Include these fields in the index file's frontmatter — Software Teams uses them to prune the plan when the linked PR merges, so stale plans never bleed into a new run's cache:`,
+            `- \`issue: ${issueNumber}\``,
+            `- \`repo: ${repo}\``,
+          ]
+        : [];
+
       switch (intent.command) {
         case "plan":
           prompt = [
@@ -808,6 +826,7 @@ export const runCommand = defineCommand({
             `1. Write the index file: \`.software-teams/plans/{phase}-{plan}-{slug}.plan.md\` — contains frontmatter with \`task_files:\` list and a manifest table only (NO inline task details)`,
             `2. Write each task as a separate file: \`.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
             `This split format is MANDATORY — it reduces token usage by letting agents load only their assigned task.`,
+            ...planProvenance,
             ``,
             `## Response Format`,
             `After writing the split plan files, respond with EXACTLY this structure (no deviations, no meta-commentary):`,

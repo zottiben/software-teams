@@ -280,6 +280,20 @@ jobs:
           restore-keys: |
             software-teams-state-${{ github.repository }}-${{ steps.check.outputs.branch }}-
 
+      # Prune plans tagged with any issue this PR closes (`Closes #N` etc.).
+      # Without this, the merged plan files would bleed into the main baseline
+      # cache and a new label-triggered run on a different issue would still
+      # see the old plan as "active."
+      - name: Prune plans for merged issue(s)
+        if: steps.check.outputs.skip != 'true' && steps.restore.outputs.cache-hit != '' && steps.check.outputs.pr_number != ''
+        run: |
+          bunx @websitelabs/software-teams@latest action prune-plans \
+            --repo "$REPO" \
+            --pr-number "${{ steps.check.outputs.pr_number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
       - name: Promote to main baseline
         if: steps.check.outputs.skip != 'true' && steps.restore.outputs.cache-hit != ''
         uses: actions/cache/save@v4

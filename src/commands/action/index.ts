@@ -4,6 +4,7 @@ import { resolveBranchCommand } from "./resolve-branch";
 import { bootstrapCommand } from "./bootstrap";
 import { fetchRulesCommand } from "./fetch-rules";
 import { promoteRulesCommand } from "./promote-rules";
+import { prunePlansCommand } from "./prune-plans";
 
 export const actionCommand = defineCommand({
   meta: {
@@ -16,5 +17,6 @@ export const actionCommand = defineCommand({
     bootstrap: bootstrapCommand,
     "fetch-rules": fetchRulesCommand,
     "promote-rules": promoteRulesCommand,
+    "prune-plans": prunePlansCommand,
   },
 });
