@@ -139,24 +139,56 @@ function buildSubagentBrief(ctx: ActionContext): string {
   lines.push(`## User Request`);
   lines.push(fenceUserInput("user-request", userRequest));
 
-  // Branch context — only when the runner cut a feature branch upstream
-  if (featureBranch && (flow.kind === "implement" || flow.kind === "quick")) {
-    lines.push("");
-    lines.push(`## Feature Branch (already created by the runner)`);
-    lines.push(`- branch: \`${featureBranch.branchName}\``);
-    lines.push(`- default: \`${featureBranch.defaultBranch}\``);
-    lines.push(`- closes: #${issueNumber}`);
-    lines.push(`Commit message body MUST contain \`Closes #${issueNumber}\`. Push with \`git push -u origin ${featureBranch.branchName}\`. Do NOT run \`gh pr create\` — a human opens the PR.`);
-    lines.push(`End your response with EXACTLY this block:`);
-    lines.push("");
-    lines.push(`## PR proposal`);
-    lines.push("");
-    lines.push(`**Branch:** \`${featureBranch.branchName}\``);
-    lines.push(`**Closes:** #${issueNumber}`);
-    lines.push("");
-    lines.push(`<one short paragraph summary>`);
-    lines.push("");
-    lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+  // Auto-commit + branch instructions — only for impl/quick.
+  // Two mutually exclusive variants:
+  //   (a) issue-context: runner cut a fresh feature branch upstream, agent
+  //       pushes it with `-u` and ends with a "PR proposal" block linking
+  //       to GitHub's manual compare page.
+  //   (b) PR-context: a comment landed on an existing PR; the runner
+  //       checked out the PR head, agent just commits and pushes — no
+  //       new branch, no PR creation.
+  if (flow.kind === "implement" || flow.kind === "quick") {
+    if (featureBranch) {
+      lines.push("");
+      lines.push(`## Auto-Commit (issue-triggered: fresh feature branch)`);
+      lines.push(`- branch: \`${featureBranch.branchName}\``);
+      lines.push(`- default: \`${featureBranch.defaultBranch}\``);
+      lines.push(`- closes: #${issueNumber}`);
+      lines.push(``);
+      lines.push(`Commit message body MUST contain \`Closes #${issueNumber}\` on its own line. Use multiple \`-m\` flags, e.g.:`);
+      lines.push(`\`git commit -m "<type>: <subject>" -m "Closes #${issueNumber}" -m "<one-paragraph summary>"\``);
+      lines.push(`Push with \`git push -u origin ${featureBranch.branchName}\`.`);
+      lines.push(``);
+      lines.push(`Do NOT run \`gh pr create\` — a human opens the PR. End your response with EXACTLY this block (no further text):`);
+      lines.push("");
+      lines.push(`## PR proposal`);
+      lines.push("");
+      lines.push(`**Branch:** \`${featureBranch.branchName}\``);
+      lines.push(`**Closes:** #${issueNumber}`);
+      lines.push("");
+      lines.push(`<one short paragraph summary>`);
+      lines.push("");
+      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+      lines.push("");
+      lines.push(`NEVER, under any circumstance:`);
+      lines.push(`- run \`gh pr create\` / \`gh pr merge\` / any other PR-creating/merging command`);
+      lines.push(`- push to \`${featureBranch.defaultBranch}\` directly`);
+      lines.push(`- force-push to any branch`);
+      lines.push(`- switch back to \`${featureBranch.defaultBranch}\` and commit there`);
+    } else {
+      lines.push("");
+      lines.push(`## Auto-Commit (PR context — already on the correct branch)`);
+      lines.push(`You are already on the PR's head branch. Do NOT create new branches or switch branches.`);
+      lines.push(``);
+      lines.push(`After making changes:`);
+      lines.push(`1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`);
+      lines.push(`2. \`git commit\` with a conventional commit message.`);
+      lines.push(`3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`);
+      lines.push(``);
+      lines.push(`NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`);
+      lines.push(``);
+      lines.push(`End with a brief summary of what you implemented and committed.`);
+    }
   }
 
   return lines.join("\n");
@@ -247,17 +279,22 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
 function buildImplementBrief(_ctx: ActionContext): string[] {
   return [
     `## Implementation Task`,
-    `Execute the implementation plan in \`.software-teams/plans/\` (read \`state.yaml\` or the most recent \`*.plan.md\` index). Follow each task file in order; mark progress in state.yaml.`,
-    `Apply changes via Edit/Write tools. Do NOT modify \`.software-teams/\` or \`.claude/\`.`,
-    `Stage source files only, commit with a conventional message (use multiple \`-m\` flags so the body contains \`Closes #N\` per the Feature Branch block below).`,
+    `Execute the three-tier plan in \`.software-teams/plans/\`:`,
+    `1. Find the active plan via \`state.yaml\` (\`current_plan.path\`) or the most recent \`*.orchestration.md\` if state is empty.`,
+    `2. Read the SPEC (\`*.spec.md\`) for requirements + acceptance criteria.`,
+    `3. Read the ORCHESTRATION's \`task_files:\` frontmatter, then read each per-agent slice (\`*.T{n}.md\`) in dependency order.`,
+    `4. Implement each task directly via Edit/Write — do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Task tool — execute every slice in this single context.)`,
+    `5. Update \`state.yaml\` \`current_plan.completed_tasks\` as you finish each task.`,
+    ``,
+    `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,
   ];
 }
 
 function buildQuickBrief(_ctx: ActionContext): string[] {
   return [
     `## Quick-Change Task`,
-    `Make the smallest possible change that satisfies the user request below. No plan files. Keep the change focused.`,
-    `Stage source files only, commit with a conventional message.`,
+    `Make the smallest possible change that satisfies the user request below. Do NOT create plan files. Keep the change focused.`,
+    `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,
   ];
 }
 

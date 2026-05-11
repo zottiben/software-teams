@@ -160,8 +160,8 @@ describe("buildRouterPrompt — plan-specific brief", () => {
   });
 });
 
-describe("buildRouterPrompt — feature-branch context (issue-context impl / quick)", () => {
-  test("implement on issue-context: includes branch block + PR proposal scaffold", () => {
+describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
+  test("issue-context impl: emits feature-branch auto-commit + PR proposal scaffold + anti-merge guard", () => {
     const prompt = buildRouterPrompt(
       makeCtx({
         flow: { kind: "implement" },
@@ -173,6 +173,7 @@ describe("buildRouterPrompt — feature-branch context (issue-context impl / qui
         },
       }),
     );
+    expect(prompt).toContain("## Auto-Commit (issue-triggered: fresh feature branch)");
     expect(prompt).toContain("software-teams/issue-36-implement-render-nav");
     expect(prompt).toContain("default: `main`");
     expect(prompt).toContain("Closes #36");
@@ -180,9 +181,28 @@ describe("buildRouterPrompt — feature-branch context (issue-context impl / qui
     expect(prompt).toMatch(/Do NOT run `gh pr create`/);
     expect(prompt).toContain("## PR proposal");
     expect(prompt).toContain("pull/new/software-teams/issue-36-implement-render-nav");
+    expect(prompt).toMatch(/push to `main` directly/);
+    expect(prompt).toMatch(/force-push to any branch/);
   });
 
-  test("review / feedback / plan flows never get a feature-branch block", () => {
+  test("PR-context impl (no feature branch): emits PR-context auto-commit (just `git push`)", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
+    expect(prompt).toContain("## Auto-Commit (PR context — already on the correct branch)");
+    expect(prompt).toMatch(/already on the PR's head branch/);
+    expect(prompt).toMatch(/`git push` \(no -u, no origin, no branch name/);
+    expect(prompt).toMatch(/NEVER merge the PR/);
+    // Must NOT show the issue-context scaffold
+    expect(prompt).not.toContain("## PR proposal");
+    expect(prompt).not.toMatch(/git push -u origin/);
+  });
+
+  test("PR-context quick (no feature branch): emits PR-context auto-commit", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "quick" } }));
+    expect(prompt).toContain("## Auto-Commit (PR context — already on the correct branch)");
+    expect(prompt).not.toContain("## PR proposal");
+  });
+
+  test("review / feedback / plan flows never get any auto-commit block", () => {
     const ctxBase = {
       featureBranch: { branchName: "should-not-appear", defaultBranch: "main" },
       issueNumber: 1,
@@ -190,8 +210,24 @@ describe("buildRouterPrompt — feature-branch context (issue-context impl / qui
     for (const flow of [{ kind: "review" } as const, { kind: "feedback" } as const, { kind: "plan" } as const]) {
       const prompt = buildRouterPrompt(makeCtx({ flow, ...ctxBase }));
       expect(prompt).not.toContain("should-not-appear");
-      expect(prompt).not.toContain("## Feature Branch");
+      expect(prompt).not.toContain("## Auto-Commit");
+      expect(prompt).not.toContain("## PR proposal");
     }
+  });
+});
+
+describe("buildRouterPrompt — implement brief (three-tier aware)", () => {
+  test("implement brief reads orchestration + per-agent slices, NOT the legacy `.plan.md`", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
+    expect(prompt).toContain("*.orchestration.md");
+    expect(prompt).toContain("*.spec.md");
+    expect(prompt).toMatch(/\*\.T\{n\}\.md/);
+    expect(prompt).not.toMatch(/most recent \*\.plan\.md/);
+  });
+
+  test("implement brief tells the agent it has no Task tool — execute in-context", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
+    expect(prompt).toMatch(/don't have the Task tool|execute every slice in this single context/i);
   });
 });
 

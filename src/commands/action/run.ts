@@ -759,21 +759,19 @@ export const runCommand = defineCommand({
           const fb = await prepareIssueFeatureBranch({
             cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
           });
-          const autoCommit = fb
-            ? buildIssueAutoCommitBlock(fb, issueNumber, repo!, "feat")
-            : buildPRAutoCommitBlock("feat");
-          prompt = [
-            ...headerBlock,
-            ...autoCommit,
-            ``,
-            ...workspaceLines,
-            ``,
-            historyBlock,
-            ``,
-            `## Task`,
-            `Execute the current implementation plan. Read state.yaml for the active plan path.`,
-            `Follow the implement-plan orchestration.`,
-          ].join("\n");
+          const routerCtx: ActionContext = {
+            flow: { kind: "implement" },
+            userRequest: intent.description,
+            repo: repo ?? "",
+            issueNumber,
+            conversationHistory,
+            projectLines,
+            workspaceLines,
+            rulesBlock: buildRulesBlock(techStack),
+            featureBranch: fb ?? undefined,
+            isDryRun: intent.dryRun,
+          };
+          prompt = buildRouterPrompt(routerCtx);
           break;
         }
 
@@ -781,22 +779,19 @@ export const runCommand = defineCommand({
           const fb = await prepareIssueFeatureBranch({
             cwd, repo, issueNumber, description: intent.description, commandKind: "quick",
           });
-          const autoCommit = fb
-            ? buildIssueAutoCommitBlock(fb, issueNumber, repo!, "fix")
-            : buildPRAutoCommitBlock("fix");
-          prompt = [
-            ...headerBlock,
-            ...autoCommit,
-            ``,
-            ...workspaceLines,
-            ``,
-            historyBlock,
-            ``,
-            `## Task`,
-            `Make this quick change:`,
-            fenceUserInput("user-request", intent.description),
-            `Keep changes minimal and focused.`,
-          ].join("\n");
+          const routerCtx: ActionContext = {
+            flow: { kind: "quick" },
+            userRequest: intent.description,
+            repo: repo ?? "",
+            issueNumber,
+            conversationHistory,
+            projectLines,
+            workspaceLines,
+            rulesBlock: buildRulesBlock(techStack),
+            featureBranch: fb ?? undefined,
+            isDryRun: intent.dryRun,
+          };
+          prompt = buildRouterPrompt(routerCtx);
           break;
         }
 
@@ -864,21 +859,19 @@ export const runCommand = defineCommand({
         const fb = await prepareIssueFeatureBranch({
           cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
         });
-        const autoCommit = fb
-          ? buildIssueAutoCommitBlock(fb, issueNumber, "feat")
-          : buildPRAutoCommitBlock("feat");
-        const implementPrompt = [
-          ...headerBlock,
-          ...autoCommit,
-          ``,
-          ...workspaceLines,
-          ``,
-          historyBlock,
-          ``,
-          `## Task`,
-          `Execute the most recently created implementation plan in .software-teams/plans/.`,
-          `Follow the implement-plan orchestration.`,
-        ].join("\n");
+        const implRouterCtx: ActionContext = {
+          flow: { kind: "implement" },
+          userRequest: intent.description,
+          repo: repo ?? "",
+          issueNumber,
+          conversationHistory,
+          projectLines,
+          workspaceLines,
+          rulesBlock: buildRulesBlock(techStack),
+          featureBranch: fb ?? undefined,
+          isDryRun: intent.dryRun,
+        };
+        const implementPrompt = buildRouterPrompt(implRouterCtx);
 
         const implResult = await spawnClaude(implementPrompt, {
           cwd,
