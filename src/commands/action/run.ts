@@ -729,7 +729,7 @@ export const runCommand = defineCommand({
       prompt = [
         ...headerBlock,
         `## Instructions`,
-        `The user is iterating on code that Software Teams already implemented. Review the conversation above to understand what was built.`,
+        `The user is iterating on code that Software Teams already implemented. The conversation history below covers the originating issue (plan, approval) and any prior PR comments — use it to understand what was built before changing anything.`,
         `Be conversational — if the user asks a question, answer it first. Then make changes if needed.`,
         `Apply changes incrementally to the existing code — do not rewrite from scratch.`,
         ``,
@@ -739,7 +739,17 @@ export const runCommand = defineCommand({
         `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
         `2. \`git commit -m "fix: ..."\` or \`git commit -m "refactor: ..."\` with a conventional commit message`,
         `3. \`git push\` (no -u, no origin, no branch name — just \`git push\`)`,
-        `Present a summary of what you changed.`,
+        ``,
+        `NEVER merge the PR (\`gh pr merge\`), force-push, or push to a different branch.`,
+        ``,
+        `End with a brief summary of what you changed (or "No changes — answered question." if the user only asked a question).`,
+        ``,
+        ...workspaceLines,
+        ``,
+        historyBlock,
+        ``,
+        `## User Request`,
+        fenceUserInput("user-request", intent.description),
       ].join("\n");
     } else if (intent.isFeedback) {
       // ── Refinement — update the plan only, NEVER implement ──
