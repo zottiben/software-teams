@@ -109,4 +109,21 @@ describe("action run command prompt invariants", () => {
       expect(source).toMatch(/from\s+["'].*\/utils\/github["']/);
     });
   });
+
+  describe("parent-Claude model pin (cost control)", () => {
+    test("defines ACTION_MODEL backed by SOFTWARE_TEAMS_MODEL env var", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // Constant lives at module scope so all three spawnClaude call sites share it.
+      expect(source).toMatch(/const\s+ACTION_MODEL\s*=\s*process\.env\.SOFTWARE_TEAMS_MODEL\s*\|\|\s*["']claude-sonnet-4-6["']/);
+    });
+
+    test("every spawnClaude call in the action runner threads model: ACTION_MODEL", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const spawnCalls = source.match(/await\s+spawnClaude\([\s\S]*?\)\s*;/g) ?? [];
+      expect(spawnCalls.length).toBeGreaterThanOrEqual(3); // label plan, comment-driven, full-flow impl
+      for (const call of spawnCalls) {
+        expect(call).toMatch(/model:\s*ACTION_MODEL/);
+      }
+    });
+  });
 });
