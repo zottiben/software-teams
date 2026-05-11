@@ -22,12 +22,15 @@ describe("action run command prompt invariants", () => {
   // for every flow live in `router-prompts.test.ts`. These cases keep the
   // narrow source-presence guards so a future refactor can't silently delete
   // the SPLIT-format and task-file instructions.
-  describe("plan case - split format references", () => {
-    test("router-prompts source contains split format keywords", async () => {
+  describe("plan case - plan-format references", () => {
+    test("router-prompts source drives the planner toward three-tier (canonical Software Teams plan shape)", async () => {
       const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
-      expect(source).toMatch(/split format|SPLIT|Plan File Format/i);
-      expect(source).toMatch(/task_files/);
+      expect(source).toMatch(/three-tier/i);
+      expect(source).toMatch(/Tier Decision Rule/i);
+      expect(source).toContain("spec.md");
+      expect(source).toContain("orchestration.md");
       expect(source).toMatch(/\.T\{?n?\}?\.md/);
+      expect(source).toContain("task_files");
     });
 
     test("run.ts must NOT contain inline task detail template (no monolithic plan format leaked back)", async () => {
@@ -36,10 +39,11 @@ describe("action run command prompt invariants", () => {
     });
   });
 
-  describe("refinement case - split format references", () => {
-    test("router-prompts source keeps refinement → SPLIT-format guidance", async () => {
+  describe("refinement case - in-place plan edits", () => {
+    test("router-prompts source keeps refinement → in-place edit + tier-preservation guidance", async () => {
       const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
-      expect(source).toMatch(/SPLIT (plan )?format|task files/i);
+      expect(source).toMatch(/update them in place/i);
+      expect(source).toMatch(/do NOT switch tiers/);
     });
   });
 

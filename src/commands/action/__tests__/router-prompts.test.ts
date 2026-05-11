@@ -107,19 +107,52 @@ describe("buildRouterPrompt — shape invariants (every flow)", () => {
 });
 
 describe("buildRouterPrompt — plan-specific brief", () => {
-  test("initial plan brief requires SPLIT format + provenance frontmatter", () => {
+  test("initial plan brief defaults to three-tier output with Tier Decision Rule", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 99, repo: "z/p" }));
-    expect(prompt).toMatch(/SPLIT format/i);
-    expect(prompt).toContain(".plan.md");
-    expect(prompt).toContain(".T{n}.md");
+    expect(prompt).toMatch(/Tier Decision Rule/i);
+    expect(prompt).toMatch(/three-tier.*DEFAULT/i);
+    expect(prompt).toContain("{slug}.spec.md");
+    expect(prompt).toContain("{slug}.orchestration.md");
+    expect(prompt).toMatch(/per-agent slices?/);
+  });
+
+  test("initial plan brief lists single-tier as the downgrade option", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).toMatch(/single-tier.*downgrade/i);
+    expect(prompt).toContain("{slug}.plan.md");
+    expect(prompt).toContain("{slug}.T{n}.md");
+  });
+
+  test("initial plan brief carries `issue:` + `repo:` provenance into both tier specs", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 99, repo: "z/p" }));
     expect(prompt).toContain("issue: 99");
     expect(prompt).toContain("repo: z/p");
+  });
+
+  test("initial plan brief mandates exact opening line naming the agent + tier", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 41 }));
+    expect(prompt).toContain("`software-teams-planner` has produced a {tier} plan for issue #41");
+  });
+
+  test("initial plan brief embeds the collapsible <details> response template", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).toContain("<details>");
+    expect(prompt).toContain("<summary>View full plan</summary>");
+    expect(prompt).toContain("</details>");
+    expect(prompt).toContain("**Overall size:**");
+    expect(prompt).toContain("| ID | Task | Agent | Size | Requires |");
+    expect(prompt).toContain("Any changes before implementation?");
   });
 
   test("refinement brief forbids source-code edits + git writes", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan", isRefinement: true } }));
     expect(prompt).toMatch(/do not write source code/i);
     expect(prompt).toMatch(/do not run git commit/i);
+  });
+
+  test("refinement brief mandates the matching agent-named opening line", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan", isRefinement: true }, issueNumber: 17 }));
+    expect(prompt).toContain("`software-teams-planner` refined the plan for issue #17");
   });
 
   test("approval brief defers implementation to a later run", () => {
