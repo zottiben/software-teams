@@ -27,6 +27,7 @@ import {
   fetchPrLinkedIssues,
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
+import { buildRouterPrompt, type ActionContext } from "./router-prompts";
 
 type SoftwareTeamsCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
 
@@ -381,93 +382,17 @@ export const runCommand = defineCommand({
         `- Working directory: ${cwd}`,
       ];
 
-      const baseProtocolBody = getComponent("AgentBase");
-      const complexityRouterBody = getComponent("ComplexityRouter");
-      const orchestrationBody = getComponent("AgentTeamsOrchestration");
-
-      const headerBlock = [
-        `## Agent Base Protocol`,
-        baseProtocolBody,
-        ``,
-        `## Complexity Routing`,
-        complexityRouterBody,
-        ``,
-        `## Agent Teams Orchestration (if needed)`,
-        orchestrationBody,
-        ``,
-        ...projectLines,
-        ``,
-        ...buildRulesBlock(techStack),
-        ``,
-      ];
-
-      const historyBlock = `<conversation-history>\n(none)\n</conversation-history>`;
-
-      const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
-      const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
-      const plannerSpecBlock = plannerSpecBody
-        ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
-        : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
-
-      const prompt = [
-        ...headerBlock,
-        ...plannerSpecBlock,
-        `## Scope Rules`,
-        `IMPORTANT: Only plan what was explicitly requested. Do NOT add extras like testing, linting, formatting, CI, or tooling unless the user asked for them.`,
-        `If something is ambiguous, ask — do not guess.`,
-        `NEVER use time estimates (minutes, hours, etc). Use t-shirt sizes: S, M, L. This is mandatory.`,
-        ``,
-        `## Plan File Format`,
-        `CRITICAL: You MUST write plan files in SPLIT format as defined in your spec (Step 7a):`,
-        `1. Write the index file: \`.software-teams/plans/{phase}-{plan}-{slug}.plan.md\` — contains frontmatter with \`task_files:\` list and a manifest table only (NO inline task details)`,
-        `2. Write each task as a separate file: \`.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
-        `This split format is MANDATORY — it reduces token usage by letting agents load only their assigned task.`,
-        ``,
-        `## Plan Provenance (REQUIRED)`,
-        `Include these fields in the index file's frontmatter — Software Teams uses them to prune the plan when the linked PR merges, so stale plans never bleed into a new run's cache:`,
-        `- \`issue: ${issueNumber}\``,
-        `- \`repo: ${repo}\``,
-        ``,
-        `## Response Format`,
-        `After writing the split plan files, respond with EXACTLY this structure (no deviations, no meta-commentary):`,
-        ``,
-        `1-2 sentence summary of the approach.`,
-        ``,
-        `<details>`,
-        `<summary>View full plan</summary>`,
-        ``,
-        `## {Plan Name}`,
-        ``,
-        `**Overall size:** {S|M|L}`,
-        ``,
-        `### Tasks`,
-        ``,
-        `| Task | Name | Size | Type | Wave |`,
-        `|------|------|------|------|------|`,
-        `| T1 | {name} | {S|M|L} | auto | 1 |`,
-        ``,
-        `(For each task, show a brief 1-2 line summary — full details are in the task files)`,
-        ``,
-        `### Verification`,
-        `- [ ] {check 1}`,
-        `- [ ] {check 2}`,
-        ``,
-        `</details>`,
-        ``,
-        `**Optional additions** — not included in this plan:`,
-        `1. {suggestion}`,
-        `2. {suggestion}`,
-        ``,
-        `Any changes before implementation?`,
-        ``,
-        ...workspaceLines,
-        ``,
-        historyBlock,
-        ``,
-        `## Task`,
-        `You are software-teams-planner. Create an implementation plan for:`,
-        fenceUserInput("user-request", intent.description),
-      ].join("\n");
+      const routerCtx: ActionContext = {
+        flow: { kind: "plan" },
+        userRequest: intent.description,
+        repo: repo!,
+        issueNumber,
+        conversationHistory: "",
+        projectLines,
+        workspaceLines,
+        rulesBlock: buildRulesBlock(techStack),
+      };
+      const prompt = buildRouterPrompt(routerCtx);
 
       let success = true;
       let fullResponse = "";
@@ -780,38 +705,18 @@ export const runCommand = defineCommand({
       ].join("\n");
     } else if (intent.isFeedback) {
       // ── Refinement — update the plan only, NEVER implement ──
-      const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
-      const plannerSpecBody = readAgentSpecBody(cwd, "software-teams-planner");
-      const plannerSpecBlock = plannerSpecBody
-        ? [`## Agent Spec — software-teams-planner`, plannerSpecBody, ``]
-        : [`## Planner Spec`, `Spec file: ${agentSpec}`, `(Read the spec file before proceeding — it could not be inlined into this prompt.)`, ``];
-
-      prompt = [
-        ...headerBlock,
-        ...plannerSpecBlock,
-        `## HARD CONSTRAINTS — PLAN REFINEMENT MODE`,
-        `- ONLY modify files under \`.software-teams/plans/\` and \`.software-teams/config/\` — NEVER create, edit, or delete source code files`,
-        `- NEVER run \`git commit\`, \`git push\`, or any git write operations`,
-        `- Planning and implementation are SEPARATE gates — user must explicitly approve before implementation`,
-        ``,
-        `## Instructions`,
-        `You are software-teams-planner. Read state.yaml and existing plan files. Apply feedback incrementally — do not restart from scratch.`,
-        `If the feedback is a question, answer it conversationally. If it implies a plan change, update the plan.`,
-        `Maintain the SPLIT plan format: update the index file and individual task files (.T{n}.md) separately.`,
-        ``,
-        `## Response Format (MANDATORY)`,
-        `1-2 sentence summary of what changed. Then the updated plan summary in a collapsible block:`,
-        `\`<details><summary>View full plan</summary> ... </details>\``,
-        `Show the tasks manifest table and brief summaries — full task details are in the task files.`,
-        `End with: "Any changes before implementation?"`,
-        ``,
-        ...workspaceLines,
-        ``,
-        historyBlock,
-        ``,
-        `## Refinement Feedback`,
-        fenceUserInput("user-request", intent.description),
-      ].join("\n");
+      const routerCtx: ActionContext = {
+        flow: { kind: "plan", isRefinement: true },
+        userRequest: intent.description,
+        repo: repo ?? "",
+        issueNumber,
+        conversationHistory,
+        projectLines,
+        workspaceLines,
+        rulesBlock: buildRulesBlock(techStack),
+        isDryRun: intent.dryRun,
+      };
+      prompt = buildRouterPrompt(routerCtx);
     } else {
       // ── New command ──
       const agentSpec = resolve(cwd, `.claude/agents/software-teams-planner.md`);
@@ -834,66 +739,21 @@ export const runCommand = defineCommand({
         : [];
 
       switch (intent.command) {
-        case "plan":
-          prompt = [
-            ...headerBlock,
-            ...plannerSpecBlock,
-            `## Scope Rules`,
-            `IMPORTANT: Only plan what was explicitly requested. Do NOT add extras like testing, linting, formatting, CI, or tooling unless the user asked for them.`,
-            `If something is ambiguous, ask — do not guess.`,
-            `NEVER use time estimates (minutes, hours, etc). Use t-shirt sizes: S, M, L. This is mandatory.`,
-            ``,
-            `## Plan File Format`,
-            `CRITICAL: You MUST write plan files in SPLIT format as defined in your spec (Step 7a):`,
-            `1. Write the index file: \`.software-teams/plans/{phase}-{plan}-{slug}.plan.md\` — contains frontmatter with \`task_files:\` list and a manifest table only (NO inline task details)`,
-            `2. Write each task as a separate file: \`.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md\` — one file per task with full implementation details`,
-            `This split format is MANDATORY — it reduces token usage by letting agents load only their assigned task.`,
-            ...planProvenance,
-            ``,
-            `## Response Format`,
-            `After writing the split plan files, respond with EXACTLY this structure (no deviations, no meta-commentary):`,
-            ``,
-            `1-2 sentence summary of the approach.`,
-            ``,
-            `<details>`,
-            `<summary>View full plan</summary>`,
-            ``,
-            `## {Plan Name}`,
-            ``,
-            `**Overall size:** {S|M|L}`,
-            ``,
-            `### Tasks`,
-            ``,
-            `| Task | Name | Size | Type | Wave |`,
-            `|------|------|------|------|------|`,
-            `| T1 | {name} | {S|M|L} | auto | 1 |`,
-            ``,
-            `(For each task, show a brief 1-2 line summary — full details are in the task files)`,
-            ``,
-            `### Verification`,
-            `- [ ] {check 1}`,
-            `- [ ] {check 2}`,
-            ``,
-            `</details>`,
-            ``,
-            `**Optional additions** — not included in this plan:`,
-            `1. {suggestion}`,
-            `2. {suggestion}`,
-            ``,
-            `Any changes before implementation?`,
-            ``,
-            ...workspaceLines,
-            ``,
-            historyBlock,
-            ``,
-            `## Task`,
-            `You are software-teams-planner. Create an implementation plan for:`,
-            fenceUserInput("user-request", intent.description),
-            ticketContext
-              ? `\nUse the ClickUp ticket above as the primary requirements source.`
-              : ``,
-          ].join("\n");
+        case "plan": {
+          const routerCtx: ActionContext = {
+            flow: { kind: "plan" },
+            userRequest: intent.description,
+            repo: repo ?? "",
+            issueNumber,
+            conversationHistory,
+            projectLines,
+            workspaceLines,
+            rulesBlock: buildRulesBlock(techStack),
+            isDryRun: intent.dryRun,
+          };
+          prompt = buildRouterPrompt(routerCtx);
           break;
+        }
 
         case "implement": {
           const fb = await prepareIssueFeatureBranch({

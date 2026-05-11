@@ -16,35 +16,30 @@ import { buildRulesBlock } from "../../../utils/prompt-builder";
  */
 
 describe("action run command prompt invariants", () => {
+  // Phase 2 migration note: the plan-path and refinement prompts now live in
+  // `router-prompts.ts` (the helper that `buildRouterPrompt` returns). The
+  // assertions below moved with them — the broader prompt-shape invariants
+  // for every flow live in `router-prompts.test.ts`. These cases keep the
+  // narrow source-presence guards so a future refactor can't silently delete
+  // the SPLIT-format and task-file instructions.
   describe("plan case - split format references", () => {
-    test("plan prompt must contain split format keywords (verified via source)", async () => {
-      // Read the run.ts source and verify the plan case contains split format references
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
-
-      // The plan case must reference split format
+    test("router-prompts source contains split format keywords", async () => {
+      const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/split format|SPLIT|Plan File Format/i);
-
-      // The plan case must reference task_files
       expect(source).toMatch(/task_files/);
-
-      // The plan case must reference .T{n}.md task file pattern
       expect(source).toMatch(/\.T\{?n?\}?\.md/);
     });
 
-    test("plan prompt must NOT contain inline task detail template", async () => {
+    test("run.ts must NOT contain inline task detail template (no monolithic plan format leaked back)", async () => {
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
-
-      // Should not have "### T1 " as an inline task detail heading (tasks belong in split files)
-      // Note: the manifest table references like "| T1 |" are fine — we're checking for
-      // inline detail headings that would indicate monolithic format
       expect(source).not.toMatch(/### T1 [^|]/);
     });
   });
 
   describe("refinement case - split format references", () => {
-    test("refinement prompt references split plan format", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
-      expect(source).toMatch(/SPLIT plan format|split format|task files/i);
+    test("router-prompts source keeps refinement → SPLIT-format guidance", async () => {
+      const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/SPLIT (plan )?format|task files/i);
     });
   });
 
