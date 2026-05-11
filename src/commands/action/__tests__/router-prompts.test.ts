@@ -107,20 +107,19 @@ describe("buildRouterPrompt — shape invariants (every flow)", () => {
 });
 
 describe("buildRouterPrompt — plan-specific brief", () => {
-  test("initial plan brief defaults to three-tier output with Tier Decision Rule", () => {
+  test("initial plan brief REQUIRES three-tier output (no downgrade allowed)", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 99, repo: "z/p" }));
-    expect(prompt).toMatch(/Tier Decision Rule/i);
-    expect(prompt).toMatch(/three-tier.*DEFAULT/i);
+    expect(prompt).toMatch(/three-tier.*REQUIRED/i);
+    expect(prompt).toMatch(/do NOT apply the Tier Decision Rule's single-tier downgrade/);
     expect(prompt).toContain("{slug}.spec.md");
     expect(prompt).toContain("{slug}.orchestration.md");
-    expect(prompt).toMatch(/per-agent slices?/);
+    expect(prompt).toContain("{slug}.T{n}.md");
   });
 
-  test("initial plan brief lists single-tier as the downgrade option", () => {
+  test("initial plan brief explicitly forbids the legacy single-tier `.plan.md` index", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
-    expect(prompt).toMatch(/single-tier.*downgrade/i);
-    expect(prompt).toContain("{slug}.plan.md");
-    expect(prompt).toContain("{slug}.T{n}.md");
+    expect(prompt).toMatch(/Do NOT write `\{slug\}\.plan\.md`/);
+    expect(prompt).not.toMatch(/single-tier.*downgrade option/);
   });
 
   test("initial plan brief carries `issue:` + `repo:` provenance into both tier specs", () => {
@@ -129,9 +128,9 @@ describe("buildRouterPrompt — plan-specific brief", () => {
     expect(prompt).toContain("repo: z/p");
   });
 
-  test("initial plan brief mandates exact opening line naming the agent + tier", () => {
+  test("initial plan brief mandates exact opening line naming the agent + three-tier", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 41 }));
-    expect(prompt).toContain("`software-teams-planner` has produced a {tier} plan for issue #41");
+    expect(prompt).toContain("`software-teams-planner` has produced a three-tier plan for issue #41");
   });
 
   test("initial plan brief embeds the collapsible <details> response template", () => {
