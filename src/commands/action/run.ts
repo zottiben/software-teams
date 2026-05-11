@@ -101,11 +101,9 @@ function parseComment(
   const hasDryRun = /--dry-run/i.test(comment);
   const cleanComment = comment.replace(/--dry-run/gi, "").trim();
 
-  // Strip the trigger prefix. The discreet-mode default is "Hey AI"; the
-  // legacy "Hey software-teams" form stays accepted so repos that haven't
-  // updated their workflow `if:` condition can still drive runs once they
-  // do.
-  const match = cleanComment.match(/hey\s+(?:ai|software[\s-]?teams)\s+(.+)/is);
+  // Strip "Hey Software Teams" trigger prefix (case-insensitive; accepts
+  // both spaced and hyphenated forms).
+  const match = cleanComment.match(/hey\s+software[\s-]?teams\s+(.+)/is);
   if (!match) {
     // No trigger prefix — if this is a follow-up in an existing conversation,
     // treat the entire comment as feedback
@@ -185,12 +183,12 @@ function parseComment(
 export const runCommand = defineCommand({
   meta: {
     name: "run",
-    description: "GitHub Action entry point — parse 'Hey AI' comment and run workflow",
+    description: "GitHub Action entry point — parse 'Hey Software Teams' comment and run workflow",
   },
   args: {
     comment: {
       type: "positional",
-      description: "The raw comment body containing the trigger mention (default 'Hey AI')",
+      description: "The raw comment body containing the trigger mention (default 'Hey Software Teams')",
       required: true,
     },
     "comment-id": {
@@ -438,7 +436,7 @@ export const runCommand = defineCommand({
     // Parse intent — pass isFollowUp so ambiguous messages become feedback
     const intent = parseComment(args.comment, isFollowUp);
     if (!intent) {
-      consola.error("Could not parse trigger phrase (e.g. 'Hey AI ...') from comment");
+      consola.error("Could not parse trigger phrase (e.g. 'Hey Software Teams ...') from comment");
       process.exit(1);
     }
 
@@ -472,7 +470,7 @@ export const runCommand = defineCommand({
       } as any;
       await writeState(cwd, state);
 
-      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey AI implement\`** when you're ready to go.`;
+      const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey Software Teams implement\`** when you're ready to go.`;
       const finalBody = formatSoftwareTeamsComment("plan", approvalBody);
 
       if (repo && placeholderCommentId) {

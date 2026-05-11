@@ -129,27 +129,26 @@ describe("action run command prompt invariants", () => {
     });
   });
 
-  describe("trigger phrase (discreet mode)", () => {
-    test("parseComment regex matches both 'Hey AI' (default) and 'Hey software-teams' (legacy)", async () => {
-      // Locked-in source guard — parseComment regex is internal, so we
-      // verify it via source text. If anyone tightens the regex to one
-      // form, surface the breaking change here.
+  describe("trigger phrase", () => {
+    test("parseComment regex matches the 'Hey Software Teams' trigger (spaced or hyphenated)", async () => {
+      // Locked-in source guard — parseComment regex is internal, so verify
+      // via source text. The `software[\s-]?teams` segment accepts both
+      // "Hey Software Teams" (user-friendly spaced form) and
+      // "Hey software-teams" (legacy hyphenated form).
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
-      const re = source.match(/hey\\s\+\(\?:ai\|software\[\\s-\]\?teams\)\\s\+\(\.\+\)/);
+      const re = source.match(/hey\\s\+software\[\\s-\]\?teams\\s\+\(\.\+\)/);
       expect(re).not.toBeNull();
     });
 
-    test("thinking placeholder never exposes the 'Software Teams' brand", async () => {
+    test("thinking placeholder uses the chat-like header, not the legacy brand format", async () => {
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
-      // The body of both thinking placeholders should use the discreet form.
       expect(source).toContain("🧠 Working on it...");
       expect(source).not.toMatch(/🧠 Software Teams <sup>thinking<\/sup>/);
     });
 
-    test("approval message points users to the new 'Hey AI' trigger", async () => {
+    test("approval message points users to the 'Hey Software Teams' trigger", async () => {
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
-      expect(source).toMatch(/Hey AI implement/);
-      expect(source).not.toMatch(/Hey software-teams implement\\?\`\`/);
+      expect(source).toMatch(/Hey Software Teams implement/);
     });
   });
 });
