@@ -43,7 +43,7 @@ on:
   pull_request_review:
     types: [submitted]
   issues:
-    types: [opened, labeled]
+    types: [opened, labeled, closed]
   push:
     branches: [main, master]
 
@@ -240,6 +240,64 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
+
+  # ── Prune plans when a labelled issue is closed without a merge ──
+  # The promote-rules job already covers the PR-merge path. This job
+  # handles the case where a user closes an issue manually (no PR opened,
+  # or PR closed without merging). Gated by the `software-teams` label so
+  # we don't burn CI minutes on unrelated issue closes.
+  software-teams-issue-close:
+    if: >-
+      github.event_name == 'issues'
+      && github.event.action == 'closed'
+      && contains(github.event.issue.labels.*.name, 'software-teams')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.7"
+
+      - uses: actions/checkout@v4
+
+      # Restore from the main baseline — that's where stale plans accumulate.
+      - name: Restore main-baseline state
+        id: restore
+        uses: actions/cache@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/rules/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-main-issue-close-${{ github.event.issue.number }}-${{ github.run_id }}
+          restore-keys: |
+            software-teams-state-${{ github.repository }}-main
+
+      - name: Prune plans for closed issue
+        id: prune
+        if: steps.restore.outputs.cache-hit != ''
+        run: |
+          bunx @websitelabs/software-teams@latest action prune-plans \
+            --repo "$REPO" \
+            --issue-number "${{ github.event.issue.number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+
+      # Only re-save when pruning actually changed something — avoids cache
+      # churn when the closed issue had no Software Teams plan.
+      - name: Save pruned state as new main baseline
+        if: steps.prune.outputs.pruned == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/rules/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-${{ github.repository }}-main-issue-close-${{ github.event.issue.number }}-${{ github.run_id }}
 
   # ── Promote rules to main baseline when PRs merge ──
   # Only runs when Software Teams was actually used on the merged PR

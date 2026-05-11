@@ -1,10 +1,18 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { join, basename } from "node:path";
-import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, appendFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { fetchPrLinkedIssues } from "../../utils/github";
 import { readState, writeState } from "../../utils/state";
+
+function writeGitHubOutput(key: string, value: string): void {
+  const outputFile = process.env.GITHUB_OUTPUT;
+  if (outputFile) {
+    appendFileSync(outputFile, `${key}=${value}\n`);
+  }
+  console.log(`${key}=${value}`);
+}
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
@@ -184,11 +192,15 @@ export const prunePlansCommand = defineCommand({
       prNumber,
     });
 
+    const pruned = result.removed.length > 0;
+    writeGitHubOutput("pruned", String(pruned));
+    writeGitHubOutput("removed_count", String(result.removed.length));
+
     if (result.resolvedIssues.length === 0) {
       consola.info("prune-plans: no closing issues resolved — nothing to prune");
       return;
     }
-    if (result.removed.length === 0) {
+    if (!pruned) {
       consola.info(
         `prune-plans: no plan files tagged with issue(s) ${result.resolvedIssues.join(", ")} — nothing to prune`,
       );

@@ -25,10 +25,10 @@ describe("workflow YAML structure", () => {
       expect(parsed.on.issues.types).toEqual(expect.arrayContaining(["opened", "labeled"]));
     });
 
-    test("on.issues.types equals exactly ['opened', 'labeled']", async () => {
+    test("on.issues.types equals exactly ['opened', 'labeled', 'closed']", async () => {
       const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
-      expect(parsed.on.issues.types).toEqual(["opened", "labeled"]);
+      expect(parsed.on.issues.types).toEqual(["opened", "labeled", "closed"]);
     });
 
     test("software-teams-issue-label job exists", async () => {
@@ -117,6 +117,16 @@ describe("workflow YAML structure", () => {
         expect(step.with["bun-version"]).toBe("1.3.7");
       }
     });
+
+    test("software-teams-issue-close job exists and gates on closed + label", async () => {
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      parsed = yaml.parse(content);
+      const job = parsed.jobs["software-teams-issue-close"];
+      expect(job).toBeDefined();
+      expect(job.if).toMatch(/github\.event_name.*issues/);
+      expect(job.if).toMatch(/action == 'closed'/);
+      expect(job.if).toMatch(/contains\(github\.event\.issue\.labels.*software-teams/);
+    });
   });
 
   describe("action/workflow-template.yml", () => {
@@ -128,10 +138,10 @@ describe("workflow YAML structure", () => {
       expect(parsed).toBeDefined();
     });
 
-    test("on.issues.types equals exactly ['opened', 'labeled']", async () => {
+    test("on.issues.types equals exactly ['opened', 'labeled', 'closed']", async () => {
       const content = await Bun.file(resolve(import.meta.dir, "../../../../action/workflow-template.yml")).text();
       parsed = yaml.parse(content);
-      expect(parsed.on.issues.types).toEqual(["opened", "labeled"]);
+      expect(parsed.on.issues.types).toEqual(["opened", "labeled", "closed"]);
     });
 
     test("software-teams-issue-label job exists", async () => {
@@ -163,6 +173,16 @@ describe("workflow YAML structure", () => {
       for (const step of bunSteps) {
         expect(step.with["bun-version"]).toBe("1.3.7");
       }
+    });
+
+    test("software-teams-issue-close job exists and gates on closed + label", async () => {
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../action/workflow-template.yml")).text();
+      parsed = yaml.parse(content);
+      const job = parsed.jobs["software-teams-issue-close"];
+      expect(job).toBeDefined();
+      expect(job.if).toMatch(/github\.event_name.*issues/);
+      expect(job.if).toMatch(/action == 'closed'/);
+      expect(job.if).toMatch(/contains\(github\.event\.issue\.labels.*software-teams/);
     });
   });
 
