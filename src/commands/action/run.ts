@@ -24,6 +24,7 @@ import {
   buildConversationContext,
   fetchIssueTitleAndBody,
   isPullRequest,
+  fetchPrLinkedIssues,
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
 
@@ -89,29 +90,37 @@ function buildPRAutoCommitBlock(commitVerb: "feat" | "fix" | "chore"): string[] 
 function buildIssueAutoCommitBlock(
   fb: FeatureBranchContext,
   issueNumber: number,
+  repo: string,
   commitVerb: "feat" | "fix" | "chore",
 ): string[] {
+  const prCompareUrl = `https://github.com/${repo}/pull/new/${fb.branchName}`;
   return [
-    `## Auto-Commit (issue-triggered: fresh feature branch, NO PR exists yet)`,
+    `## Auto-Commit (issue-triggered: fresh feature branch)`,
     `You are on a NEW feature branch \`${fb.branchName}\` cut off \`${fb.defaultBranch}\`. The branch has no commits yet.`,
-    `The originating issue is #${issueNumber}.`,
+    `The originating issue is #${issueNumber} in ${repo}.`,
     ``,
     `After making all changes:`,
     `1. \`git add\` only source files you changed (NOT .software-teams/ or .claude/)`,
-    `2. \`git commit -m "${commitVerb}: ..."\` with a conventional commit message`,
+    `2. \`git commit\` with a conventional message. The body MUST include \`Closes #${issueNumber}\` on its own line so GitHub auto-links the eventual PR to the originating issue. Use multiple \`-m\` flags, e.g.:`,
+    `   \`git commit -m "${commitVerb}: <concise subject>" -m "Closes #${issueNumber}" -m "<one-paragraph summary of the change>"\``,
     `3. \`git push -u origin ${fb.branchName}\``,
-    `4. Open a pull request linked to the issue:`,
-    `   \`gh pr create --base ${fb.defaultBranch} --head ${fb.branchName} \\\\`,
-    `       --title "<concise title>" \\\\`,
-    `       --body "Closes #${issueNumber}"$'\\\\n\\\\n'"<short summary of what changed and why>"\``,
+    ``,
+    `Do NOT run \`gh pr create\`. Software Teams deliberately leaves PR creation to a human — that IS the review gate. After pushing, your final response MUST end with EXACTLY this block (no further text afterwards):`,
+    ``,
+    `## PR proposal`,
+    ``,
+    `**Branch:** \`${fb.branchName}\``,
+    `**Closes:** #${issueNumber}`,
+    ``,
+    `<one short paragraph summarising what changed and why>`,
+    ``,
+    `[Open this PR](${prCompareUrl})`,
     ``,
     `NEVER, under any circumstance:`,
-    `- merge the PR yourself (\`gh pr merge\`, \`gh pr merge --auto\`, etc.)`,
+    `- run \`gh pr create\`, \`gh pr merge\`, or any other PR-creating/merging command`,
     `- push to \`${fb.defaultBranch}\` directly`,
     `- force-push to any branch`,
     `- switch back to \`${fb.defaultBranch}\` and commit there`,
-    ``,
-    `Your final response MUST end with the PR URL on its own line so it lands as a clickable link in the issue comment.`,
   ];
 }
 
@@ -482,12 +491,30 @@ export const runCommand = defineCommand({
     }
     // ── End label-triggered path ───────────────────────────────────────────────
 
-    // Fetch comment thread to detect if this is a follow-up conversation
+    // Fetch comment thread to detect if this is a follow-up conversation.
+    // On PR-context runs, also fetch comments from any issue this PR
+    // closes (via `Closes #N` trailer) so the agent inherits the originating
+    // issue's conversation — otherwise it would start from scratch on the
+    // first PR comment.
     let conversationHistory = "";
     let isFollowUp = false;
     let isPostImplementation = false;
     if (repo && issueNumber) {
-      const thread = await fetchCommentThread(repo, issueNumber);
+      let thread = await fetchCommentThread(repo, issueNumber);
+
+      if (await isPullRequest(repo, issueNumber)) {
+        const linkedIssues = await fetchPrLinkedIssues(repo, issueNumber);
+        for (const issueN of linkedIssues) {
+          const linkedThread = await fetchCommentThread(repo, issueN);
+          if (linkedThread.length > 0) {
+            consola.info(
+              `Bridged ${linkedThread.length} comment(s) from linked issue #${issueN}`,
+            );
+            thread = [...linkedThread, ...thread];
+          }
+        }
+      }
+
       const context = buildConversationContext(
         thread,
         commentId ?? 0,
@@ -822,7 +849,7 @@ export const runCommand = defineCommand({
             cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
           });
           const autoCommit = fb
-            ? buildIssueAutoCommitBlock(fb, issueNumber, "feat")
+            ? buildIssueAutoCommitBlock(fb, issueNumber, repo!, "feat")
             : buildPRAutoCommitBlock("feat");
           prompt = [
             ...headerBlock,
@@ -844,7 +871,7 @@ export const runCommand = defineCommand({
             cwd, repo, issueNumber, description: intent.description, commandKind: "quick",
           });
           const autoCommit = fb
-            ? buildIssueAutoCommitBlock(fb, issueNumber, "fix")
+            ? buildIssueAutoCommitBlock(fb, issueNumber, repo!, "fix")
             : buildPRAutoCommitBlock("fix");
           prompt = [
             ...headerBlock,

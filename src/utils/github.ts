@@ -25,6 +25,35 @@ export async function isPullRequest(
   return exitCode === 0;
 }
 
+/**
+ * Return the originating issue numbers a PR closes, as resolved by GitHub
+ * from `Closes #N` / `Fixes #N` / `Resolves #N` trailers in the PR body or
+ * commits. Used by the action runner to bridge conversation context: when
+ * Software Teams runs on a PR, it ALSO fetches comments from the original
+ * issue so the agent doesn't restart from scratch.
+ */
+export async function fetchPrLinkedIssues(
+  repo: string,
+  prNumber: number,
+): Promise<number[]> {
+  if (!repo || !prNumber) return [];
+  // GraphQL via `gh pr view` — closingIssuesReferences resolves the linked
+  // issues GitHub itself associates with the PR (the same ones that auto-
+  // close on merge).
+  const { stdout, exitCode } = await exec([
+    "gh", "pr", "view", String(prNumber),
+    "--repo", repo,
+    "--json", "closingIssuesReferences",
+    "--jq", ".closingIssuesReferences[].number",
+  ]);
+  if (exitCode !== 0 || !stdout.trim()) return [];
+  return stdout
+    .trim()
+    .split("\n")
+    .map((line) => Number(line.trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+}
+
 export async function fetchIssueTitleAndBody(
   repo: string,
   issueNumber: number,

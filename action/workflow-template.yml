@@ -102,6 +102,7 @@ jobs:
             .claude/
           key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
           restore-keys: |
+            software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-
             software-teams-state-${{ github.repository }}-main
 
       # Bootstrap Software Teams framework if not present (first run or cache miss)
