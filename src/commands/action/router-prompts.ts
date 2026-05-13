@@ -208,6 +208,26 @@ function buildSubagentBrief(ctx: ActionContext): string {
     // the agent fills it instead of producing the default one-paragraph
     // summary; that way the human opening the PR has a body that matches
     // the repo's own contribution norms (test plan, screenshots, etc.).
+    // PR title — agent chooses a conventional-commit-style title and
+    // URL-encodes it into the compare link so GitHub's PR form opens with
+    // it pre-filled. Multi-commit PRs (the orchestrator's normal output)
+    // otherwise fall back to GitHub's branch-name-derived title, which is
+    // never conventional-commit shaped.
+    const prTitleGuidance = [
+      ``,
+      `### PR title (pre-fill)`,
+      `Choose a conventional-commit title for the PR — \`<type>: <subject>\` where \`<type>\` is one of \`feat\`, \`fix\`, \`chore\`, \`refactor\`, \`docs\`, \`test\`, \`perf\`, \`style\`. The subject is imperative, lower-case, no trailing dot. Examples:`,
+      `  - \`feat: render Nav across all routes\``,
+      `  - \`fix: handle null in /stats response\``,
+      `  - \`chore: bump bun to 1.3.7 in workflow\``,
+      ``,
+      `URL-encode the title (space → \`%20\`, colon → \`%3A\`, comma → \`%2C\`, parens → \`%28\`/\`%29\`) and append as the \`title\` query param. Worked example for \`feat: render Nav across all routes\`:`,
+      `  encoded: \`feat%3A%20render%20Nav%20across%20all%20routes\``,
+      `  link: \`https://github.com/${repo}/pull/new/${featureBranch.branchName}?title=feat%3A%20render%20Nav%20across%20all%20routes\``,
+      ``,
+      `NEVER include "Software Teams" anywhere in the title. The brand is intentionally hidden from end users.`,
+    ];
+
     if (ctx.prTemplate) {
       lines.push("");
       lines.push(`### PR template detected`);
@@ -217,29 +237,33 @@ function buildSubagentBrief(ctx: ActionContext): string {
       lines.push("```markdown");
       lines.push(ctx.prTemplate.body.trim());
       lines.push("```");
+      lines.push(...prTitleGuidance);
       lines.push(``);
       lines.push(`End your response with EXACTLY this block (no further text):`);
       lines.push("");
       lines.push(`## PR proposal`);
       lines.push("");
+      lines.push(`**Title:** \`<your conventional-commit title — same one you encoded into the URL>\``);
       lines.push(`**Branch:** \`${featureBranch.branchName}\``);
       lines.push(`**Closes:** #${issueNumber}`);
       lines.push("");
       lines.push(`<the FILLED PR template — preserve its section headings, replace placeholder hints with implementation details. Do NOT wrap this in code fences; render it as live markdown so reviewers can read it directly in the issue comment.>`);
       lines.push("");
-      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName}?title=<url-encoded-title>)`);
     } else {
+      lines.push(...prTitleGuidance);
       lines.push(``);
       lines.push(`End your response with EXACTLY this block (no further text):`);
       lines.push("");
       lines.push(`## PR proposal`);
       lines.push("");
+      lines.push(`**Title:** \`<your conventional-commit title — same one you encoded into the URL>\``);
       lines.push(`**Branch:** \`${featureBranch.branchName}\``);
       lines.push(`**Closes:** #${issueNumber}`);
       lines.push("");
       lines.push(`<one short paragraph summary>`);
       lines.push("");
-      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName})`);
+      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName}?title=<url-encoded-title>)`);
     }
 
     lines.push("");
@@ -651,8 +675,16 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
     finalBlock.push(``);
     finalBlock.push(`After the attribution header + 1–2 sentence summary, emit EXACTLY this block (no further text):`);
     finalBlock.push(``);
+    finalBlock.push(`### PR title (pre-fill)`);
+    finalBlock.push(`Choose ONE umbrella conventional-commit title that summarises the combined change across all spawns — \`<type>: <subject>\` where type is \`feat\` / \`fix\` / \`chore\` / \`refactor\` / \`docs\` / \`test\` / \`perf\` / \`style\`. Example: \`feat: hardcoded /stats endpoint + frontend route\`.`);
+    finalBlock.push(``);
+    finalBlock.push(`URL-encode the title (space → \`%20\`, colon → \`%3A\`) and append as \`?title=<encoded>\` on the compare URL so GitHub's PR form opens with it pre-filled. Worked example for \`feat: render Nav across all routes\` → \`feat%3A%20render%20Nav%20across%20all%20routes\`.`);
+    finalBlock.push(``);
+    finalBlock.push(`NEVER include "Software Teams" in the title — the brand is intentionally hidden from end users.`);
+    finalBlock.push(``);
     finalBlock.push(`## PR proposal`);
     finalBlock.push(``);
+    finalBlock.push(`**Title:** \`<your conventional-commit title — same one you encoded into the URL>\``);
     finalBlock.push(`**Branch:** \`${fb.branchName}\``);
     finalBlock.push(`**Closes:** #${ctx.issueNumber}`);
     finalBlock.push(``);
@@ -666,7 +698,7 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
       finalBlock.push(`<one short paragraph summary of the combined change across all spawns>`);
     }
     finalBlock.push(``);
-    finalBlock.push(`[Open this PR](${prCompareUrl})`);
+    finalBlock.push(`[Open this PR](${prCompareUrl}?title=<url-encoded-title>)`);
   } else {
     finalBlock.push(`End with "Pushed to PR branch."`);
   }

@@ -222,6 +222,22 @@ interface FeatureBranchContext {
  * branch off the current (default) branch BEFORE any agent runs so that the
  * implementation lands on a reviewable PR — never directly on main/master.
  * Returns null for PR-context runs (existing flow unchanged).
+ *
+ * Branch name format: `issue-<N>-<slug>` where slug is derived from the
+ * user's description with leading command verbs ("implement", "quick",
+ * "plan", "do", "the") stripped. No "software-teams/" prefix — the
+ * branch name surfaces in PR titles when GitHub falls back from
+ * commit-message derivation, and we don't want the brand leaking there.
+ *
+ * Examples:
+ *   "Hey Software Teams implement the plan" (issue 49)
+ *     description = "implement the plan"
+ *     slug after strip = "plan" (leading "implement the" → leading verbs)
+ *     branch = "issue-49-plan"
+ *   "Hey Software Teams quick fix the nav bug" (issue 50)
+ *     description = "fix the nav bug"
+ *     slug after strip = "fix-the-nav-bug" (no leading command-verb to strip)
+ *     branch = "issue-50-fix-the-nav-bug"
  */
 async function prepareIssueFeatureBranch(opts: {
   cwd: string;
@@ -234,8 +250,18 @@ async function prepareIssueFeatureBranch(opts: {
   if (await isPullRequest(opts.repo, opts.issueNumber)) return null;
 
   const defaultBranch = await gitBranch();
-  const slug = slugify(opts.description, 30);
-  const branchName = `software-teams/issue-${opts.issueNumber}-${opts.commandKind}-${slug}`;
+
+  // Strip leading filler verbs/articles the user often types after the
+  // trigger phrase ("implement the plan", "quick fix the foo", etc.) so
+  // the slug doesn't double up with the command word.
+  const stripped = opts.description
+    .replace(/^\s*(implement|quick|plan|do|the)\s+/i, "")
+    .replace(/^\s*(implement|quick|plan|do|the)\s+/i, "")
+    .trim();
+  const slugBase = stripped.length > 0 ? stripped : opts.description;
+  const slug = slugify(slugBase, 30);
+
+  const branchName = `issue-${opts.issueNumber}-${slug}`;
   await gitCheckoutNewBranch(branchName, opts.cwd);
   return { branchName, defaultBranch };
 }

@@ -260,6 +260,34 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     expect(prompt).not.toContain("should not leak into prompt");
   });
 
+  test("issue-context impl brief instructs URL-encoded `?title=` pre-fill (conventional commit)", () => {
+    const prompt = buildRouterPrompt(
+      makeCtx({
+        flow: { kind: "implement" },
+        issueNumber: 49,
+        repo: "zottiben/test-project-one",
+        featureBranch: { branchName: "issue-49-stats-api", defaultBranch: "main" },
+      }),
+    );
+    expect(prompt).toContain("### PR title (pre-fill)");
+    expect(prompt).toMatch(/conventional-commit title/i);
+    expect(prompt).toMatch(/feat: render Nav across all routes/);
+    expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
+    expect(prompt).toContain("?title=<url-encoded-title>");
+    expect(prompt).toMatch(/NEVER include "Software Teams" anywhere in the title/);
+  });
+
+  test("issue-context impl PR proposal block includes a `**Title:**` row (mirrors the URL-encoded title)", () => {
+    const prompt = buildRouterPrompt(
+      makeCtx({
+        flow: { kind: "implement" },
+        issueNumber: 49,
+        featureBranch: { branchName: "issue-49-stats-api", defaultBranch: "main" },
+      }),
+    );
+    expect(prompt).toMatch(/\*\*Title:\*\* `<your conventional-commit title/);
+  });
+
   test("PR-context impl (no feature branch): emits PR-context auto-commit (just `git push`)", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
     expect(prompt).toContain("## Auto-Commit (PR context — already on the correct branch)");
@@ -461,6 +489,20 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
     expect(prompt).toContain("**Branch:** `software-teams/issue-46-implement-multi`");
     expect(prompt).toContain("**Closes:** #46");
     expect(prompt).toMatch(/\[Open this PR\]\(https:\/\/github\.com\/zottiben\/test-project-one\/pull\/new\//);
+  });
+
+  test("orchestrator instructs conventional-commit `?title=` pre-fill for the combined PR", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toContain("### PR title (pre-fill)");
+    expect(prompt).toMatch(/ONE umbrella conventional-commit title/i);
+    expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
+    expect(prompt).toContain("?title=<url-encoded-title>");
+    expect(prompt).toMatch(/NEVER include "Software Teams" in the title/);
+  });
+
+  test("orchestrator PR proposal block includes a `**Title:**` row", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/\*\*Title:\*\* `<your conventional-commit title/);
   });
 
   test("PR proposal embeds the FILLED template when a PR template is present", () => {

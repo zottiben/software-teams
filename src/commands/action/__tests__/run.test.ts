@@ -152,6 +152,25 @@ describe("action run command prompt invariants", () => {
     });
   });
 
+  describe("feature branch naming (no brand leak, no command-verb duplication)", () => {
+    test("`prepareIssueFeatureBranch` uses `issue-<N>-<slug>` (no `software-teams/` prefix)", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // The branch builder must NOT prefix with `software-teams/` anymore —
+      // PR titles auto-derive from branch names and we don't want the
+      // brand leaking there.
+      expect(source).toMatch(/branchName = `issue-\$\{opts\.issueNumber\}-\$\{slug\}`/);
+      expect(source).not.toMatch(/software-teams\/issue-\$\{opts\.issueNumber\}/);
+    });
+
+    test("`prepareIssueFeatureBranch` strips leading command verbs from the slug", async () => {
+      // For inputs like "implement the plan" / "quick fix the X", strip
+      // the leading verb so the slug isn't duplicated with the command
+      // word (avoids the old "implement-implement-the-plan" doubling).
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/replace\(\/\^\\s\*\(implement\|quick\|plan\|do\|the\)\\s\+\/i, ""\)/);
+    });
+  });
+
   describe("pre-plan discovery gate (phase C)", () => {
     test("runner exposes a `runDiscoveryAndGate` helper that aborts on questions", async () => {
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
