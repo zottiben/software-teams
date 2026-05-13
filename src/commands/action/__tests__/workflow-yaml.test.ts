@@ -205,4 +205,45 @@ describe("workflow YAML structure", () => {
       expect(canonicalStripped).toBe(templateStripped);
     });
   });
+
+  describe("cache step uses actions/cache/restore@v4 (regression guard for v0.5.24)", () => {
+    // v0.5.23 used `actions/cache@v4` for restore. That action's outputs
+    // DON'T include `cache-matched-key` (only the `actions/cache/restore`
+    // sub-action exposes it). Result: bootstrap always saw an empty
+    // matched-key → always cleared plans → implement runs found nothing.
+    // This guard locks in the restore-action choice + ensures every save
+    // step uses the run_id-suffixed key so we never recreate the stale
+    // "no-run_id-primary-key" cache entries that caused the original
+    // poisoning.
+    for (const file of [
+      "../../../../.github/workflows/software-teams.yml",
+      "../../../../action/workflow-template.yml",
+    ]) {
+      test(`${file.split("/").pop()} restores via actions/cache/restore@v4 (not actions/cache@v4)`, async () => {
+        const content = await Bun.file(resolve(import.meta.dir, file)).text();
+        expect(content).toMatch(/uses: actions\/cache\/restore@v4/);
+        // Bare actions/cache@v4 (the composite that auto-saves on post-step)
+        // must NOT be used — that's what auto-created the no-run_id stale
+        // entries that poisoned restores.
+        expect(content).not.toMatch(/uses: actions\/cache@v4\b/);
+      });
+
+      test(`${file.split("/").pop()} passes cache-matched-key to bootstrap (not the broken cache-hit alone)`, async () => {
+        const content = await Bun.file(resolve(import.meta.dir, file)).text();
+        expect(content).toMatch(/bootstrap --matched-key "\$\{\{ steps\.cache\.outputs\.cache-matched-key \}\}"/);
+      });
+
+      test(`${file.split("/").pop()} save keys all include \${{ github.run_id }} (no no-run_id primary saves)`, async () => {
+        const content = await Bun.file(resolve(import.meta.dir, file)).text();
+        const saveBlocks = content.split("uses: actions/cache/save@v4").slice(1);
+        expect(saveBlocks.length).toBeGreaterThan(0);
+        for (const block of saveBlocks) {
+          // The `key:` line in each save step must include run_id (or sha
+          // for promote-rules) — never bare branch/scope alone.
+          const keyMatch = block.match(/\n\s+key:\s*([^\n]+)/);
+          expect(keyMatch?.[1]).toMatch(/\$\{\{ github\.run_id \}\}|\$\{\{ github\.sha \}\}/);
+        }
+      });
+    }
+  });
 });

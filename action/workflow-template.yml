@@ -92,7 +92,7 @@ jobs:
       # 2. Fall back to main baseline (rules only — plans are cleared below)
       - name: Restore Software Teams state
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .software-teams/persistence/
@@ -197,7 +197,7 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
       - name: Restore Software Teams state
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .software-teams/persistence/
@@ -264,7 +264,7 @@ jobs:
       # Restore from the main baseline — that's where stale plans accumulate.
       - name: Restore main-baseline state
         id: restore
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .software-teams/persistence/
@@ -328,7 +328,7 @@ jobs:
       - name: Restore Software Teams state from merged branch
         if: steps.check.outputs.skip != 'true'
         id: restore
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             .software-teams/persistence/
