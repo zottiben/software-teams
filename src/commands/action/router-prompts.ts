@@ -307,6 +307,10 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
     ``,
     `(one short line per task — full detail lives in the per-agent slice)`,
     ``,
+    `### Open questions`,
+    ``,
+    `Anything ambiguous in the issue you'd want clarified before implementation. Bullet each question on its own line. If the issue is fully specified and you have no questions, emit the literal text \`_none._\` on its own line — do NOT omit this section.`,
+    ``,
     `### Files written`,
     `- SPEC: \`{path}\``,
     `- ORCHESTRATION: \`{path}\``,
@@ -326,7 +330,7 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
   ];
 }
 
-function buildImplementBrief(_ctx: ActionContext): string[] {
+function buildImplementBrief(ctx: ActionContext): string[] {
   return [
     `## Implementation Task`,
     `Execute the three-tier plan in \`.software-teams/plans/\`:`,
@@ -337,14 +341,28 @@ function buildImplementBrief(_ctx: ActionContext): string[] {
     `5. Update \`state.yaml\` \`current_plan.completed_tasks\` as you finish each task.`,
     ``,
     `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,
+    ``,
+    `## Response Format (MANDATORY)`,
+    `Begin with EXACTLY this line:`,
+    ``,
+    `**The Implementation Agent** implemented the plan for issue #${ctx.issueNumber}.`,
+    ``,
+    `Then a 1-2 sentence summary of what changed. The auto-commit block below dictates how the response ends (PR proposal scaffold for issue-context runs, summary line for PR-context runs).`,
   ];
 }
 
-function buildQuickBrief(_ctx: ActionContext): string[] {
+function buildQuickBrief(ctx: ActionContext): string[] {
   return [
     `## Quick-Change Task`,
     `Make the smallest possible change that satisfies the user request below. Do NOT create plan files. Keep the change focused.`,
     `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,
+    ``,
+    `## Response Format (MANDATORY)`,
+    `Begin with EXACTLY this line:`,
+    ``,
+    `**The Implementation Agent** applied a quick change for issue #${ctx.issueNumber}.`,
+    ``,
+    `Then a 1-2 sentence summary of what changed. The auto-commit block below dictates how the response ends.`,
   ];
 }
 

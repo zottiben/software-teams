@@ -145,6 +145,15 @@ describe("buildRouterPrompt — plan-specific brief", () => {
     expect(prompt).toContain("Any changes before implementation?");
   });
 
+  test("initial plan brief requires an `### Open questions` section with `_none._` fallback", () => {
+    // Mirrors `commands/create-plan.md:199` — the local skill's response
+    // shape requires an Open questions bullet list OR the literal `none`.
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).toContain("### Open questions");
+    expect(prompt).toContain("_none._");
+    expect(prompt).toMatch(/do NOT omit this section/i);
+  });
+
   test("refinement brief forbids source-code edits + git writes", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan", isRefinement: true } }));
     expect(prompt).toMatch(/do not write source code/i);
@@ -301,6 +310,16 @@ describe("buildRouterPrompt — implement brief (three-tier aware)", () => {
   test("implement brief tells the agent it has no Task tool — execute in-context", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
     expect(prompt).toMatch(/don't have the Task tool|execute every slice in this single context/i);
+  });
+
+  test("implement brief mandates the static agent-named opener (parity with plan/review/feedback flows)", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" }, issueNumber: 44 }));
+    expect(prompt).toContain("**The Implementation Agent** implemented the plan for issue #44");
+  });
+
+  test("quick brief mandates its own agent-named opener", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "quick" }, issueNumber: 17 }));
+    expect(prompt).toContain("**The Implementation Agent** applied a quick change for issue #17");
   });
 });
 
