@@ -151,4 +151,38 @@ describe("action run command prompt invariants", () => {
       expect(source).toMatch(/Hey Software Teams implement/);
     });
   });
+
+  describe("pre-plan discovery gate (phase C)", () => {
+    test("runner exposes a `runDiscoveryAndGate` helper that aborts on questions", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/async function runDiscoveryAndGate/);
+      expect(source).toMatch(/parseResearcherQuestions/);
+      expect(source).toMatch(/formatQuestionsCommentBody/);
+    });
+
+    test("all three plan entry points route through runDiscoveryAndGate", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const calls = source.match(/await runDiscoveryAndGate\(/g) ?? [];
+      // Label-triggered plan, comment-driven `case "plan"`, and the
+      // follow-up branch when no plan exists yet — three sites.
+      expect(calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    test("isFeedback follow-up checks for existing orchestration before routing", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // The branch reroutes to discovery-gate when no plan exists for the
+      // current issue. Source-grep guards lock that invariant.
+      expect(source).toMatch(/answer-to-pre-plan-questions/);
+      expect(source).toMatch(/findActiveOrchestration\(cwd, issueNumber\)/);
+    });
+
+    test("aborted gate returns early — no planner spawn after questions are posted", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // Every gate call must guard against aborted state. Accept both
+      // `if (gateResult.aborted) return;` and the brace form
+      // `if (gateResult.aborted) { ... return; }` used in the label path.
+      const guards = source.match(/if \(gateResult\.aborted\)/g) ?? [];
+      expect(guards.length).toBeGreaterThanOrEqual(3);
+    });
+  });
 });

@@ -315,13 +315,14 @@ interface CommandHeader {
 }
 
 const COMMAND_HEADERS: Record<string, CommandHeader> = {
-  plan:     { emoji: "🔮", ok: "Plan is ready!",       fail: "Plan didn't work out" },
-  implement:{ emoji: "▶",  ok: "Implementation done!", fail: "Implementation didn't go through" },
-  quick:    { emoji: "⚡", ok: "Quick fix done!",      fail: "Quick fix didn't go through" },
-  review:   { emoji: "💠", ok: "Review complete",      fail: "Review didn't finish" },
-  feedback: { emoji: "🌀", ok: "Feedback addressed",   fail: "Couldn't address feedback" },
-  ping:     { emoji: "🔹", ok: "Status",               fail: "Status check failed" },
-  auth:     { emoji: "🚫", ok: "Access denied",        fail: "Access denied" },
+  plan:      { emoji: "🔮", ok: "Plan is ready!",                 fail: "Plan didn't work out" },
+  questions: { emoji: "🔮", ok: "A few questions before I plan",  fail: "Couldn't gather pre-plan questions" },
+  implement: { emoji: "▶",  ok: "Implementation done!",           fail: "Implementation didn't go through" },
+  quick:     { emoji: "⚡", ok: "Quick fix done!",                fail: "Quick fix didn't go through" },
+  review:    { emoji: "💠", ok: "Review complete",                fail: "Review didn't finish" },
+  feedback:  { emoji: "🌀", ok: "Feedback addressed",             fail: "Couldn't address feedback" },
+  ping:      { emoji: "🔹", ok: "Status",                         fail: "Status check failed" },
+  auth:      { emoji: "🚫", ok: "Access denied",                  fail: "Access denied" },
 };
 
 const DEFAULT_HEADER: CommandHeader = { emoji: "◈", ok: "Done", fail: "Didn't finish" };

@@ -119,6 +119,13 @@ describe("formatSoftwareTeamsComment (discreet headers)", () => {
     expect(formatSoftwareTeamsComment("auth", "")).toContain("🚫 Access denied");
   });
 
+  test("`questions` command header is set for the headless ambiguity gate (phase C)", () => {
+    const out = formatSoftwareTeamsComment("questions", "Q1\nQ2");
+    expect(out).toContain("🔮 A few questions before I plan");
+    expect(out).toContain("Q1");
+    expect(out).not.toContain("Software Teams");
+  });
+
   test("unknown command falls back to neutral 'Done' header (still no brand leak)", () => {
     const out = formatSoftwareTeamsComment("nope", "");
     expect(out).toContain("◈ Done");

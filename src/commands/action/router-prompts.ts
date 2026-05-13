@@ -529,6 +529,8 @@ function buildPrePlanDiscoveryBrief(ctx: ActionContext): string[] {
     ``,
     `Bullet each genuine open question. If the codebase fully answers everything and there is nothing left for a human to decide, emit \`_none._\` on its own line — never omit this section. Do NOT pad with rhetorical or confirmatory questions.`,
     ``,
+    `IMPORTANT: read the conversation history above before listing questions. If the user has already answered some questions in a prior comment, do NOT re-ask them — surface only what remains genuinely open. When ALL prior questions are answered AND the codebase determines the rest, emit \`_none._\`.`,
+    ``,
     `- <question 1>`,
     `- <question 2>`,
   ];

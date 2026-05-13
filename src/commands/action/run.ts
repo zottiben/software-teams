@@ -28,6 +28,7 @@ import {
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
 import { findActiveOrchestration } from "../../utils/orchestration";
+import { parseResearcherQuestions } from "../../utils/researcher-output";
 import { buildRouterPrompt, type ActionContext } from "./router-prompts";
 
 type SoftwareTeamsCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
@@ -120,6 +121,95 @@ async function runPrePlanDiscovery(opts: {
     consola.warn(`Pre-plan discovery failed; planner will run without findings: ${err}`);
     return "";
   }
+}
+
+/**
+ * Format a "🔮 A few questions before I plan" comment body from the
+ * researcher's surfaced pre-plan questions. Wrapped by
+ * `formatSoftwareTeamsComment("questions", …)` at the post site so the
+ * comment header + invisible marker land consistently.
+ */
+function formatQuestionsCommentBody(questions: string[], issueNumber: number): string {
+  return [
+    `The Research Agent surveyed the codebase and has a few questions before producing a plan for issue #${issueNumber}. Answer them in a follow-up comment on this issue and the plan will continue.`,
+    ``,
+    `### Questions`,
+    ``,
+    ...questions.map((q) => `- ${q}`),
+    ``,
+    `_(I'll skip the plan until I have your answers — no plan files have been written yet.)_`,
+  ].join("\n");
+}
+
+/**
+ * Run the pre-plan researcher and gate the rest of the plan flow on its
+ * output. When the researcher surfaces genuine pre-plan questions, the
+ * runner posts a comment containing JUST those questions and exits — the
+ * planner does NOT run, no plan files are written. The user replies in a
+ * follow-up comment; on the next run the researcher sees their answers
+ * in the conversation history and either returns `_none._` (plan
+ * proceeds) or asks remaining questions (gate re-fires).
+ *
+ * Returns:
+ *   - `{ findings, aborted: false }` — proceed to planner.
+ *   - `{ findings: "", aborted: true }` — comment posted; caller MUST
+ *     return / exit without running the planner.
+ *
+ * Mirrors `commands/create-plan.md` §4b ("Pre-Planning Questions
+ * (Interactive Gate)") for the headless action context — AskUserQuestion
+ * isn't available here, so we use issue comments as the human-in-loop
+ * channel.
+ */
+async function runDiscoveryAndGate(opts: {
+  cwd: string;
+  repo: string | undefined;
+  issueNumber: number;
+  intent: ParsedIntent;
+  projectLines: string[];
+  workspaceLines: string[];
+  rulesBlock: string[];
+  conversationHistory: string;
+  placeholderCommentId: number | null;
+  storage: ReturnType<typeof createStorage> extends Promise<infer S> ? S : never;
+}): Promise<{ findings: string; aborted: boolean }> {
+  const findings = await runPrePlanDiscovery({
+    cwd: opts.cwd,
+    repo: opts.repo,
+    issueNumber: opts.issueNumber,
+    intent: opts.intent,
+    projectLines: opts.projectLines,
+    workspaceLines: opts.workspaceLines,
+    rulesBlock: opts.rulesBlock,
+    conversationHistory: opts.conversationHistory,
+  });
+
+  const parsed = parseResearcherQuestions(findings);
+  if (!parsed.hasQuestions) {
+    return { findings, aborted: false };
+  }
+
+  consola.info(
+    `Researcher surfaced ${parsed.questions.length} pre-plan question(s) — posting and aborting plan run`,
+  );
+  if (opts.repo && opts.issueNumber) {
+    const body = formatQuestionsCommentBody(parsed.questions, opts.issueNumber);
+    const finalBody = formatSoftwareTeamsComment("questions", body);
+    if (opts.placeholderCommentId) {
+      await updateGitHubComment(opts.repo, opts.placeholderCommentId, finalBody).catch((err) => {
+        consola.error("Failed to update placeholder with questions:", err);
+      });
+    } else {
+      await postGitHubComment(opts.repo, opts.issueNumber, finalBody).catch((err) => {
+        consola.error("Failed to post questions comment:", err);
+      });
+    }
+  }
+
+  // Persist whatever state the researcher's run accumulated (rules etc.)
+  // so the next run picks up where this one left off.
+  await savePersistedState(opts.cwd, opts.storage).catch(() => {});
+
+  return { findings: "", aborted: true };
 }
 
 interface FeatureBranchContext {
@@ -388,7 +478,7 @@ export const runCommand = defineCommand({
         `- Working directory: ${cwd}`,
       ];
 
-      const prePlanDiscovery = await runPrePlanDiscovery({
+      const gateResult = await runDiscoveryAndGate({
         cwd,
         repo,
         issueNumber,
@@ -397,7 +487,15 @@ export const runCommand = defineCommand({
         workspaceLines,
         rulesBlock: buildRulesBlock(techStack),
         conversationHistory: "",
+        placeholderCommentId,
+        storage,
       });
+      if (gateResult.aborted) {
+        // Researcher surfaced pre-plan questions — comment posted, no
+        // plan written. Wait for the user to reply; the next run picks
+        // up their answers via the conversation history bridge.
+        return;
+      }
       const routerCtx: ActionContext = {
         flow: { kind: "plan" },
         userRequest: intent.description,
@@ -407,7 +505,7 @@ export const runCommand = defineCommand({
         projectLines,
         workspaceLines,
         rulesBlock: buildRulesBlock(techStack),
-        prePlanDiscovery: prePlanDiscovery || undefined,
+        prePlanDiscovery: gateResult.findings || undefined,
       };
       const prompt = buildRouterPrompt(routerCtx);
 
@@ -679,24 +777,72 @@ export const runCommand = defineCommand({
       };
       prompt = buildRouterPrompt(routerCtx);
     } else if (intent.isFeedback) {
-      // ── Refinement — update the plan only, NEVER implement ──
-      const routerCtx: ActionContext = {
-        flow: { kind: "plan", isRefinement: true },
-        userRequest: intent.description,
-        repo: repo ?? "",
-        issueNumber,
-        conversationHistory,
-        projectLines,
-        workspaceLines,
-        rulesBlock: buildRulesBlock(techStack),
-        isDryRun: intent.dryRun,
-      };
-      prompt = buildRouterPrompt(routerCtx);
+      // ── Plan refinement OR answer-to-pre-plan-questions ──
+      //
+      // The user wrote a follow-up comment without an explicit trigger
+      // phrase. Two cases:
+      //
+      //   (a) A plan already exists for this issue → refinement. The
+      //       Planning Agent edits the existing plan in place.
+      //   (b) No plan exists yet → the user is answering pre-plan
+      //       questions from a prior Phase C abort. Reroute through the
+      //       Discovery Gate: researcher reads the conversation history
+      //       (which now includes the user's answers) and either returns
+      //       `_none._` → planner builds a fresh plan, or surfaces
+      //       remaining questions → gate re-fires.
+      const existingOrch = await findActiveOrchestration(cwd, issueNumber);
+      if (existingOrch) {
+        // (a) Refinement — update the plan only, NEVER implement.
+        const routerCtx: ActionContext = {
+          flow: { kind: "plan", isRefinement: true },
+          userRequest: intent.description,
+          repo: repo ?? "",
+          issueNumber,
+          conversationHistory,
+          projectLines,
+          workspaceLines,
+          rulesBlock: buildRulesBlock(techStack),
+          isDryRun: intent.dryRun,
+        };
+        prompt = buildRouterPrompt(routerCtx);
+      } else {
+        // (b) No plan yet — treat as initial plan with the user's answers
+        // folded into the conversation history.
+        consola.info(
+          `No plan exists for issue #${issueNumber} yet — treating this follow-up as an answer to pre-plan questions`,
+        );
+        const gateResult = await runDiscoveryAndGate({
+          cwd,
+          repo,
+          issueNumber,
+          intent,
+          projectLines,
+          workspaceLines,
+          rulesBlock: buildRulesBlock(techStack),
+          conversationHistory,
+          placeholderCommentId,
+          storage,
+        });
+        if (gateResult.aborted) return;
+        const routerCtx: ActionContext = {
+          flow: { kind: "plan" },
+          userRequest: intent.description,
+          repo: repo ?? "",
+          issueNumber,
+          conversationHistory,
+          projectLines,
+          workspaceLines,
+          rulesBlock: buildRulesBlock(techStack),
+          prePlanDiscovery: gateResult.findings || undefined,
+          isDryRun: intent.dryRun,
+        };
+        prompt = buildRouterPrompt(routerCtx);
+      }
     } else {
       // ── New command — route to the appropriate native subagent. ──
       switch (intent.command) {
         case "plan": {
-          const prePlanDiscovery = await runPrePlanDiscovery({
+          const gateResult = await runDiscoveryAndGate({
             cwd,
             repo,
             issueNumber,
@@ -705,7 +851,10 @@ export const runCommand = defineCommand({
             workspaceLines,
             rulesBlock: buildRulesBlock(techStack),
             conversationHistory,
+            placeholderCommentId,
+            storage,
           });
+          if (gateResult.aborted) return;
           const routerCtx: ActionContext = {
             flow: { kind: "plan" },
             userRequest: intent.description,
@@ -715,7 +864,7 @@ export const runCommand = defineCommand({
             projectLines,
             workspaceLines,
             rulesBlock: buildRulesBlock(techStack),
-            prePlanDiscovery: prePlanDiscovery || undefined,
+            prePlanDiscovery: gateResult.findings || undefined,
             isDryRun: intent.dryRun,
           };
           prompt = buildRouterPrompt(routerCtx);
