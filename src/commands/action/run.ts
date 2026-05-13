@@ -67,6 +67,61 @@ const ALLOWED_EVENT_TYPES = new Set(["issue_labeled"]);
  */
 const ACTION_MODEL = process.env.SOFTWARE_TEAMS_MODEL || "claude-sonnet-4-6";
 
+/**
+ * Spawn the pre-plan researcher and return its markdown findings.
+ *
+ * Mirrors `commands/create-plan.md` §4a: before the Planning Agent runs,
+ * we spawn `software-teams-researcher` in `pre-plan-discovery` mode to
+ * survey the workspace, surface codebase context, and report genuine
+ * pre-plan questions the issue text doesn't pin down. The findings are
+ * threaded into the planner's brief as a `## Discovery findings` block.
+ *
+ * Failure (non-zero exit, empty response) is non-fatal — the caller
+ * falls back to running the planner without findings, same as today's
+ * behaviour. We log a warning so the operator can spot it in the run.
+ */
+async function runPrePlanDiscovery(opts: {
+  cwd: string;
+  repo: string | undefined;
+  issueNumber: number;
+  intent: ParsedIntent;
+  projectLines: string[];
+  workspaceLines: string[];
+  rulesBlock: string[];
+  conversationHistory: string;
+}): Promise<string> {
+  const discoveryCtx: ActionContext = {
+    flow: { kind: "pre-plan-discovery" },
+    userRequest: opts.intent.description,
+    repo: opts.repo ?? "",
+    issueNumber: opts.issueNumber,
+    conversationHistory: opts.conversationHistory,
+    projectLines: opts.projectLines,
+    workspaceLines: opts.workspaceLines,
+    rulesBlock: opts.rulesBlock,
+  };
+  const discoveryPrompt = buildRouterPrompt(discoveryCtx);
+  consola.info("Running pre-plan discovery (Research Agent)...");
+  try {
+    const result = await spawnClaude(discoveryPrompt, {
+      cwd: opts.cwd,
+      permissionMode: "acceptEdits",
+      model: ACTION_MODEL,
+    });
+    if (result.exitCode !== 0 || !result.response.trim()) {
+      consola.warn(
+        `Pre-plan discovery returned no findings (exit ${result.exitCode}) — planner will run without them`,
+      );
+      return "";
+    }
+    consola.success(`Pre-plan discovery captured ${result.response.length} bytes of findings`);
+    return result.response;
+  } catch (err) {
+    consola.warn(`Pre-plan discovery failed; planner will run without findings: ${err}`);
+    return "";
+  }
+}
+
 interface FeatureBranchContext {
   branchName: string;
   defaultBranch: string;
@@ -333,6 +388,16 @@ export const runCommand = defineCommand({
         `- Working directory: ${cwd}`,
       ];
 
+      const prePlanDiscovery = await runPrePlanDiscovery({
+        cwd,
+        repo,
+        issueNumber,
+        intent,
+        projectLines,
+        workspaceLines,
+        rulesBlock: buildRulesBlock(techStack),
+        conversationHistory: "",
+      });
       const routerCtx: ActionContext = {
         flow: { kind: "plan" },
         userRequest: intent.description,
@@ -342,6 +407,7 @@ export const runCommand = defineCommand({
         projectLines,
         workspaceLines,
         rulesBlock: buildRulesBlock(techStack),
+        prePlanDiscovery: prePlanDiscovery || undefined,
       };
       const prompt = buildRouterPrompt(routerCtx);
 
@@ -630,6 +696,16 @@ export const runCommand = defineCommand({
       // ── New command — route to the appropriate native subagent. ──
       switch (intent.command) {
         case "plan": {
+          const prePlanDiscovery = await runPrePlanDiscovery({
+            cwd,
+            repo,
+            issueNumber,
+            intent,
+            projectLines,
+            workspaceLines,
+            rulesBlock: buildRulesBlock(techStack),
+            conversationHistory,
+          });
           const routerCtx: ActionContext = {
             flow: { kind: "plan" },
             userRequest: intent.description,
@@ -639,6 +715,7 @@ export const runCommand = defineCommand({
             projectLines,
             workspaceLines,
             rulesBlock: buildRulesBlock(techStack),
+            prePlanDiscovery: prePlanDiscovery || undefined,
             isDryRun: intent.dryRun,
           };
           prompt = buildRouterPrompt(routerCtx);

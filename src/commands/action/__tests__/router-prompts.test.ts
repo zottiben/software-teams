@@ -40,6 +40,10 @@ describe("pickSubagent", () => {
     expect(pickSubagent({ kind: "post-impl-iteration" }).type).toBe("software-teams-pr-feedback");
   });
 
+  test("pre-plan-discovery routes to software-teams-researcher", () => {
+    expect(pickSubagent({ kind: "pre-plan-discovery" }).type).toBe("software-teams-researcher");
+  });
+
   test("plan flow description disambiguates initial vs refinement vs approval", () => {
     expect(pickSubagent({ kind: "plan" }).description).toMatch(/create/i);
     expect(pickSubagent({ kind: "plan", isRefinement: true }).description).toMatch(/refine/i);
@@ -151,7 +155,7 @@ describe("buildRouterPrompt — plan-specific brief", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
     expect(prompt).toContain("### Open questions");
     expect(prompt).toContain("_none._");
-    expect(prompt).toMatch(/do NOT omit this section/i);
+    expect(prompt).toMatch(/Never omit this section/i);
   });
 
   test("refinement brief forbids source-code edits + git writes", () => {
@@ -295,6 +299,64 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
       const prompt = buildRouterPrompt(makeCtx({ flow, featureBranch, issueNumber: 1 }));
       expect(prompt).not.toContain("should-not-appear");
     }
+  });
+});
+
+describe("buildRouterPrompt — pre-plan discovery (phase D)", () => {
+  test("pre-plan-discovery brief mandates read-only behaviour + structured response shape", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "pre-plan-discovery" }, issueNumber: 46 }));
+    expect(prompt).toContain("## Pre-Plan Discovery (read-only)");
+    expect(prompt).toMatch(/Do NOT use Edit, Write, MultiEdit/);
+    expect(prompt).toMatch(/Do NOT run `git commit`/);
+    expect(prompt).toContain("**The Research Agent** completed pre-plan discovery for issue #46.");
+    expect(prompt).toContain("### Codebase context");
+    expect(prompt).toContain("### Pre-plan questions");
+    expect(prompt).toContain("_none._");
+  });
+
+  test("pre-plan-discovery brief does NOT emit any auto-commit block", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "pre-plan-discovery" } }));
+    expect(prompt).not.toContain("## Auto-Commit");
+    expect(prompt).not.toContain("## PR proposal");
+    // The brief forbids `git push` ("Do NOT run `git push`") — that mention
+    // is fine. We're guarding against any POSITIVE instruction to push.
+    expect(prompt).not.toMatch(/^[^]*?\bgit push -u\b/m);
+    expect(prompt).toMatch(/Do NOT run `git commit`, `git push`/);
+  });
+
+  test("plan brief WITH prePlanDiscovery prepends the Discovery findings block", () => {
+    const findings = "**The Research Agent** completed pre-plan discovery for issue #46.\n\nRepo is a Bun monorepo with `apps/test-jedi` as the only frontend.\n\n### Codebase context\n- ...\n\n### Pre-plan questions\n- Where should the new API live?";
+    const prompt = buildRouterPrompt(
+      makeCtx({ flow: { kind: "plan" }, prePlanDiscovery: findings, issueNumber: 46 }),
+    );
+    expect(prompt).toContain("## Discovery findings (from the Research Agent)");
+    expect(prompt).toContain("Where should the new API live?");
+    expect(prompt).toMatch(/Treat these findings as authoritative/);
+    // Discovery findings must precede the Plan Task block.
+    const discoveryIdx = prompt.indexOf("## Discovery findings");
+    const planTaskIdx = prompt.indexOf("## Plan Task");
+    expect(discoveryIdx).toBeGreaterThan(-1);
+    expect(planTaskIdx).toBeGreaterThan(discoveryIdx);
+  });
+
+  test("plan brief WITHOUT prePlanDiscovery omits the Discovery findings block entirely", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).not.toContain("## Discovery findings");
+  });
+
+  test("plan brief WITH prePlanDiscovery cross-references the findings in the Open questions guidance", () => {
+    const prompt = buildRouterPrompt(
+      makeCtx({ flow: { kind: "plan" }, prePlanDiscovery: "<findings>" }),
+    );
+    expect(prompt).toMatch(/per the Discovery findings above/);
+  });
+
+  test("tightened Open questions guidance forbids assumption-confirmations", () => {
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).toMatch(/GENUINE unknowns that need a human to answer/);
+    expect(prompt).toMatch(/INVALID \(do NOT include/i);
+    expect(prompt).toMatch(/I picked port 8080/);  // explicit example of an invalid question
+    expect(prompt).toMatch(/Default to ASKING/);
   });
 });
 

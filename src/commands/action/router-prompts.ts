@@ -32,7 +32,8 @@ export type ActionFlow =
   | { kind: "quick" }
   | { kind: "review" }
   | { kind: "feedback" }
-  | { kind: "post-impl-iteration" };
+  | { kind: "post-impl-iteration" }
+  | { kind: "pre-plan-discovery" };
 
 export interface FeatureBranchContext {
   branchName: string;
@@ -61,6 +62,13 @@ export interface ActionContext {
   // pushes, writes per-agent attribution). Single-slice plans and missing
   // orchestrations fall back to the legacy single-agent brief.
   orchestration?: ActiveOrchestration;
+  // Pre-plan researcher's findings from a prior spawn. When set on a plan
+  // flow, the brief prepends a `## Discovery findings` block so the
+  // planner makes codebase-grounded decisions and only surfaces genuinely
+  // unanswered questions in its `### Open questions` slot. Empty string
+  // or undefined means the researcher hasn't run (or returned nothing
+  // useful) — planner falls back to working from issue text alone.
+  prePlanDiscovery?: string;
   isDryRun?: boolean;
 }
 
@@ -90,6 +98,8 @@ export function pickSubagent(flow: ActionFlow): SubagentSpawn {
       return { type: "software-teams-pr-feedback", description: "Address PR review comments" };
     case "post-impl-iteration":
       return { type: "software-teams-pr-feedback", description: "Iterate on already-shipped code" };
+    case "pre-plan-discovery":
+      return { type: "software-teams-researcher", description: "Pre-plan codebase discovery" };
   }
 }
 
@@ -151,6 +161,9 @@ function buildSubagentBrief(ctx: ActionContext): string {
       break;
     case "post-impl-iteration":
       lines.push(...buildPostImplBrief(ctx));
+      break;
+    case "pre-plan-discovery":
+      lines.push(...buildPrePlanDiscoveryBrief(ctx));
       break;
   }
 
@@ -273,7 +286,21 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
       `The user approved the plan. Confirm the plan is ready for implementation and return a 1-2 sentence summary plus the tasks table. Do NOT begin implementation in this run.`,
     ];
   }
+  const discoveryBlock: string[] = ctx.prePlanDiscovery && ctx.prePlanDiscovery.trim()
+    ? [
+        `## Discovery findings (from the Research Agent)`,
+        ``,
+        `The Research Agent surveyed the workspace before this run. Treat these findings as authoritative — make codebase-grounded decisions, do NOT generic-guess against them. If the findings include unresolved \`### Pre-plan questions\`, surface ONLY those (and any new ones you discover while planning) in your own \`### Open questions\` section below — do NOT silently make decisions on the user's behalf.`,
+        ``,
+        ctx.prePlanDiscovery.trim(),
+        ``,
+        `---`,
+        ``,
+      ]
+    : [];
+
   return [
+    ...discoveryBlock,
     `## Plan Task`,
     `Produce a **three-tier** Software Teams plan in \`.software-teams/plans/\`. Three-tier is REQUIRED for every action-driven plan — do NOT apply the Tier Decision Rule's single-tier downgrade. Even single-task plans MUST produce all three artefacts (SPEC + ORCHESTRATION + per-agent slice). The GitHub Action's downstream flow assumes three-tier output; do not deviate.`,
     ``,
@@ -316,7 +343,20 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
     ``,
     `### Open questions`,
     ``,
-    `Anything ambiguous in the issue you'd want clarified before implementation. Bullet each question on its own line. If the issue is fully specified and you have no questions, emit the literal text \`_none._\` on its own line — do NOT omit this section.`,
+    `Surface GENUINE unknowns that need a human to answer before implementation. Each bullet must be a real question with no defensible default.`,
+    ``,
+    `Valid (surface these):`,
+    `- "Where should the new API live — \`apps/api/\` (currently empty placeholder) or a new \`apps/<service>/\`?"`,
+    `- "The frontend has no HTTP client yet — use \`fetch\` directly, \`react-query\`, or \`axios\`?"`,
+    `- "What status code on validation failure — 400 or 422?"`,
+    ``,
+    `INVALID (do NOT include — these are decisions, not questions):`,
+    `- "I picked port 8080, flag if you'd rather use a different port."`,
+    `- "Assumed JSON response, confirm if not."`,
+    `- "Didn't add tests, want me to fold them in?"`,
+    `  ↑ Each of these is a decision you already made. Decisions go in the plan body. Questions go here.`,
+    ``,
+    `Default to ASKING. Emit \`_none._\` on its own line ONLY when every architectural choice is either explicit in the issue OR fully determined by the codebase${ctx.prePlanDiscovery ? " (per the Discovery findings above)" : ""}. Never omit this section.`,
     ``,
     `### Files written`,
     `- SPEC: \`{path}\``,
@@ -421,6 +461,53 @@ function buildPostImplBrief(ctx: ActionContext): string[] {
     `**The Feedback Agent** updated PR #${ctx.issueNumber}.`,
     ``,
     `Then a 1-2 sentence summary of what changed, or "No changes — answered the question." if the request was a question. If you committed, end with "Pushed to PR branch."`,
+  ];
+}
+
+function buildPrePlanDiscoveryBrief(ctx: ActionContext): string[] {
+  return [
+    `## Pre-Plan Discovery (read-only)`,
+    `You are the Research Agent. Before the Planning Agent produces a plan for issue #${ctx.issueNumber}, your job is to explore the workspace and surface what the planner cannot learn from the issue text alone. Two outputs:`,
+    ``,
+    `1. **Relevant codebase context** — existing conventions the plan should respect:`,
+    `   - File layout for similar work (where do routes / APIs / pages / services live?)`,
+    `   - Framework choices, language versions, build/test tooling, router version`,
+    `   - Existing helpers, fixtures, env-config patterns the plan should reuse`,
+    `   - Monorepo / workspace shape — which app should the change live in?`,
+    `2. **Genuine pre-plan questions** — decisions the planner cannot make alone:`,
+    `   - File locations not yet established in the codebase`,
+    `   - API contracts (field names, status codes, error shape) the issue is silent on`,
+    `   - Routing patterns, UX flows, env / secret requirements`,
+    `   - Anything where multiple defensible answers exist AND the issue doesn't pick one`,
+    `   Do NOT list questions for things the codebase already answers. The goal is to bring back ONLY what genuinely needs a human in the loop.`,
+    ``,
+    `## Scope rules (strict)`,
+    ``,
+    `- READ-ONLY. Do NOT use Edit, Write, MultiEdit. Do NOT run \`git commit\`, \`git push\`, or any state-changing shell command.`,
+    `- Budget: at most ~20 file reads and a handful of \`Glob\` / \`Grep\` passes. Stop once you have enough context — you are NOT producing the plan.`,
+    `- \`Bash\` is allowed only for read-only inspection (\`git log\`, \`git diff\`, \`ls\`, \`cat\`).`,
+    `- Keep your final response ≤ 80 lines. Concise observations beat exhaustive listings.`,
+    ``,
+    `## Response Format (MANDATORY)`,
+    ``,
+    `Begin with EXACTLY this line:`,
+    ``,
+    `**The Research Agent** completed pre-plan discovery for issue #${ctx.issueNumber}.`,
+    ``,
+    `Then a one-sentence summary of the project's relevant shape (e.g. "Monorepo with apps/test-jedi as the only React app; no API service yet."). Then this exact structure:`,
+    ``,
+    `### Codebase context`,
+    ``,
+    `- <observation 1, with concrete file paths>`,
+    `- <observation 2>`,
+    `- ...`,
+    ``,
+    `### Pre-plan questions`,
+    ``,
+    `Bullet each genuine open question. If the codebase fully answers everything and there is nothing left for a human to decide, emit \`_none._\` on its own line — never omit this section. Do NOT pad with rhetorical or confirmatory questions.`,
+    ``,
+    `- <question 1>`,
+    `- <question 2>`,
   ];
 }
 
