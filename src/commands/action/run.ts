@@ -27,6 +27,7 @@ import {
   ASSISTANT_COMMENT_MARKER,
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
+import { findActiveOrchestration } from "../../utils/orchestration";
 import { buildRouterPrompt, type ActionContext } from "./router-prompts";
 
 type SoftwareTeamsCommand = "plan" | "implement" | "quick" | "review" | "feedback" | "ping";
@@ -648,6 +649,12 @@ export const runCommand = defineCommand({
           const fb = await prepareIssueFeatureBranch({
             cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
           });
+          const orchestration = await findActiveOrchestration(cwd);
+          if (orchestration && orchestration.slices.length >= 2) {
+            consola.info(
+              `Three-tier plan detected — orchestrator will dispatch ${orchestration.slices.length} per-agent spawns in parallel`,
+            );
+          }
           const routerCtx: ActionContext = {
             flow: { kind: "implement" },
             userRequest: intent.description,
@@ -659,6 +666,7 @@ export const runCommand = defineCommand({
             rulesBlock: buildRulesBlock(techStack),
             featureBranch: fb ?? undefined,
             prTemplate: fb ? findPrTemplate(cwd) ?? undefined : undefined,
+            orchestration: orchestration ?? undefined,
             isDryRun: intent.dryRun,
           };
           prompt = buildRouterPrompt(routerCtx);
@@ -758,6 +766,12 @@ export const runCommand = defineCommand({
         const fb = await prepareIssueFeatureBranch({
           cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
         });
+        const implOrchestration = await findActiveOrchestration(cwd);
+        if (implOrchestration && implOrchestration.slices.length >= 2) {
+          consola.info(
+            `Three-tier plan detected — orchestrator will dispatch ${implOrchestration.slices.length} per-agent spawns in parallel`,
+          );
+        }
         const implRouterCtx: ActionContext = {
           flow: { kind: "implement" },
           userRequest: intent.description,
@@ -769,6 +783,7 @@ export const runCommand = defineCommand({
           rulesBlock: buildRulesBlock(techStack),
           featureBranch: fb ?? undefined,
           prTemplate: fb ? findPrTemplate(cwd) ?? undefined : undefined,
+          orchestration: implOrchestration ?? undefined,
           isDryRun: intent.dryRun,
         };
         const implementPrompt = buildRouterPrompt(implRouterCtx);

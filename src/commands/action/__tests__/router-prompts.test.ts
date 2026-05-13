@@ -298,6 +298,140 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
   });
 });
 
+describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
+  const makeMultiSpawn = (overrides: Partial<ActionContext> = {}): ActionContext => ({
+    flow: { kind: "implement" },
+    userRequest: "implement the plan",
+    repo: "zottiben/test-project-one",
+    issueNumber: 46,
+    conversationHistory: "",
+    projectLines: ["## Project Context", "- Type: react-typescript"],
+    workspaceLines: ["## Workspace", "- Working directory: /tmp/work"],
+    rulesBlock: ["## Rules", "- ..."],
+    featureBranch: {
+      branchName: "software-teams/issue-46-implement-multi",
+      defaultBranch: "main",
+    },
+    orchestration: {
+      orchestrationPath: ".software-teams/plans/p.orchestration.md",
+      specPath: ".software-teams/plans/p.spec.md",
+      slices: [
+        { slicePath: ".software-teams/plans/p.T1.md", agentType: "software-teams-frontend" },
+        { slicePath: ".software-teams/plans/p.T2.md", agentType: "software-teams-backend" },
+      ],
+    },
+    ...overrides,
+  });
+
+  test("dispatches to orchestrator prompt when implement has ≥2 slices", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/Software Teams Action — Implementation Orchestrator/);
+    expect(prompt).not.toMatch(/Software Teams Action Router/);
+  });
+
+  test("falls back to single-spawn router when orchestration has only 1 slice", () => {
+    const prompt = buildRouterPrompt(
+      makeMultiSpawn({
+        orchestration: {
+          orchestrationPath: ".software-teams/plans/p.orchestration.md",
+          slices: [{ slicePath: ".software-teams/plans/p.T1.md", agentType: "software-teams-frontend" }],
+        },
+      }),
+    );
+    expect(prompt).toMatch(/Software Teams Action Router/);
+    expect(prompt).not.toMatch(/Implementation Orchestrator/);
+  });
+
+  test("falls back to single-spawn router when orchestration is absent", () => {
+    const prompt = buildRouterPrompt(
+      makeMultiSpawn({ orchestration: undefined }),
+    );
+    expect(prompt).toMatch(/Software Teams Action Router/);
+    expect(prompt).not.toMatch(/Implementation Orchestrator/);
+  });
+
+  test("orchestrator prompt mandates a SINGLE assistant message with all N Task calls", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/Spawn ALL 2 tasks in a SINGLE assistant message/);
+    expect(prompt).toMatch(/Multiple Task tool calls inside one assistant message run \*\*concurrently\*\*/);
+  });
+
+  test("orchestrator prompt embeds one Task spawn block per slice with correct subagent_type", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toContain("### Spawn 1: `software-teams-frontend`");
+    expect(prompt).toContain("### Spawn 2: `software-teams-backend`");
+    expect(prompt).toContain(`subagent_type: "software-teams-frontend"`);
+    expect(prompt).toContain(`subagent_type: "software-teams-backend"`);
+  });
+
+  test("each spawn's brief tells the worker NOT to commit / push (orchestrator handles it)", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/Do NOT run `git commit` or `git push`/);
+    expect(prompt).toMatch(/the orchestrator \(your parent\) handles all commits/);
+  });
+
+  test("each spawn's brief mandates a structured `commits_pending` yaml return", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/commits_pending:/);
+    expect(prompt).toMatch(/files_modified:/);
+    expect(prompt).toMatch(/files_created:/);
+    expect(prompt).toMatch(/summary:/);
+  });
+
+  test("orchestrator step 2 walks commits_pending and runs git add + commit + single push", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/Step 2 — After all spawns return: commit \+ push/);
+    expect(prompt).toMatch(/git add <files from this entry>/);
+    expect(prompt).toMatch(/Closes #46/);
+    expect(prompt).toMatch(/git push -u origin software-teams\/issue-46-implement-multi/);
+  });
+
+  test("orchestrator response opener attributes the orchestrator + per-spawn bullets with role labels", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toContain("**The Implementation Agent** orchestrated 2 per-agent spawns for issue #46.");
+    expect(prompt).toContain("- **The Frontend Agent** changed");
+    expect(prompt).toContain("- **The Backend Agent** changed");
+  });
+
+  test("PR-proposal block appears for issue-context multi-spawn (with featureBranch)", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toContain("## PR proposal");
+    expect(prompt).toContain("**Branch:** `software-teams/issue-46-implement-multi`");
+    expect(prompt).toContain("**Closes:** #46");
+    expect(prompt).toMatch(/\[Open this PR\]\(https:\/\/github\.com\/zottiben\/test-project-one\/pull\/new\//);
+  });
+
+  test("PR proposal embeds the FILLED template when a PR template is present", () => {
+    const prompt = buildRouterPrompt(
+      makeMultiSpawn({
+        prTemplate: {
+          path: ".github/PULL_REQUEST_TEMPLATE.md",
+          body: "## Summary\n\n<!-- describe -->\n\n## Test plan\n\n- [ ] tests",
+        },
+      }),
+    );
+    expect(prompt).toContain("the FILLED PR template");
+    expect(prompt).toContain("## Summary");
+    expect(prompt).toContain("## Test plan");
+    // Default summary placeholder NOT used when template is in play.
+    expect(prompt).not.toContain("<one short paragraph summary of the combined change");
+  });
+
+  test("orchestrator forbids gh pr create/merge, force-push, default-branch push, brand leak", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/NEVER run `gh pr create`/);
+    expect(prompt).toMatch(/NEVER push to `main`/);
+    expect(prompt).toMatch(/NEVER force-push/);
+    expect(prompt).toMatch(/NEVER emit the internal subagent identifiers/);
+  });
+
+  test("orchestrator tolerates blocked spawns — never aborts the whole run", () => {
+    const prompt = buildRouterPrompt(makeMultiSpawn());
+    expect(prompt).toMatch(/status: blocked/);
+    expect(prompt).toMatch(/Never abort the whole run because one spawn failed/);
+  });
+});
+
 describe("buildRouterPrompt — implement brief (three-tier aware)", () => {
   test("implement brief reads orchestration + per-agent slices, NOT the legacy `.plan.md`", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
