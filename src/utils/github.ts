@@ -244,7 +244,7 @@ export function buildConversationContext(
   thread: ThreadComment[],
   currentCommentId: number,
 ): { history: string; previousRuns: number; isFollowUp: boolean; isPostImplementation: boolean } {
-  // Filter to only Software-Teams-related comments (commands, responses, feedback between them).
+  // Filter to only assistant-related comments (commands, responses, feedback between them).
   const segments: ThreadComment[] = [];
   let inConversation = false;
 
@@ -252,11 +252,20 @@ export function buildConversationContext(
     // Don't include the current triggering comment
     if (comment.id === currentCommentId) break;
 
-    if (/hey\s+software[\s-]?teams/i.test(comment.body)) {
+    // Two ways to start "inConversation" mode:
+    //   1. A user comment with the legacy or current trigger phrase.
+    //   2. An assistant comment (detected via the invisible marker or
+    //      legacy "Software Teams <sup>" header). Phase C posts
+    //      "🔮 A few questions before I plan" — discreet mode means
+    //      that body never contains the literal trigger phrase, so
+    //      anchoring on assistant-marker comments is the only way the
+    //      bridge captures Q&A threads.
+    const matchesTriggerPhrase = /hey\s+software[\s-]?teams/i.test(comment.body);
+    if (matchesTriggerPhrase || comment.isSoftwareTeams) {
       inConversation = true;
       segments.push(comment);
     } else if (inConversation) {
-      // Include all comments between trigger and Software Teams responses
+      // Include any user follow-ups once the conversation has started.
       segments.push(comment);
     }
   }

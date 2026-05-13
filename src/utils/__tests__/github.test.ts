@@ -8,6 +8,7 @@ import {
   formatSoftwareTeamsComment,
   formatErrorComment,
   findPrTemplate,
+  buildConversationContext,
   ASSISTANT_COMMENT_MARKER,
 } from "../github";
 
@@ -222,5 +223,104 @@ describe("findPrTemplate", () => {
     } finally {
       cleanup();
     }
+  });
+});
+
+describe("buildConversationContext — assistant-anchored bridge (regression guard for Phase C loop)", () => {
+  // Earlier the segment collector only entered "inConversation" mode when
+  // a user comment matched `/hey\s+software[\s-]?teams/i`. Phase C posts
+  // a `🔮 A few questions before I plan` comment whose body never
+  // contains that phrase (discreet mode), so the prior assistant comment
+  // was silently dropped from the bridged history. The researcher saw
+  // an empty thread on the follow-up run and started from scratch,
+  // producing the "answers ignored, new questions asked" loop. The
+  // fix: assistant comments (detected via the marker) also start the
+  // conversation. These tests pin that contract.
+
+  const assistantComment = (id: number, body: string) => ({
+    id,
+    author: "github-actions[bot]",
+    body,
+    createdAt: `2026-05-13T0${id}:00:00Z`,
+    isSoftwareTeams: true,
+  });
+  const userComment = (id: number, author: string, body: string) => ({
+    id,
+    author,
+    body,
+    createdAt: `2026-05-13T0${id}:00:00Z`,
+    isSoftwareTeams: false,
+  });
+
+  test("recognises an assistant questions comment as the conversation anchor", () => {
+    const thread = [
+      assistantComment(1, "<!-- st-action -->\n🔮 A few questions before I plan\n\n- Q1\n- Q2"),
+      userComment(2, "alice", "Hey Software Teams\n\nA1\nA2"),
+    ];
+    const triggerCommentId = 2; // the user's reply triggered the run
+    const result = buildConversationContext(thread, triggerCommentId);
+    expect(result.isFollowUp).toBe(true);
+    expect(result.previousRuns).toBe(1);
+    expect(result.history).toContain("Q1");
+    expect(result.history).toContain("Q2");
+    expect(result.history).toContain("AI assistant");
+  });
+
+  test("still recognises the legacy `Hey software-teams` trigger phrase (back-compat)", () => {
+    const thread = [
+      userComment(1, "alice", "Hey software-teams plan something"),
+      assistantComment(2, "<!-- st-action -->\n🔮 Plan is ready!\n\nbody"),
+      userComment(3, "alice", "Hey software-teams refine task 2"),
+    ];
+    const triggerCommentId = 3;
+    const result = buildConversationContext(thread, triggerCommentId);
+    expect(result.isFollowUp).toBe(true);
+    expect(result.previousRuns).toBe(1);
+  });
+
+  test("returns empty when the thread has only the triggering comment (fresh start)", () => {
+    const thread = [userComment(1, "alice", "Hey Software Teams plan something fresh")];
+    const result = buildConversationContext(thread, 1);
+    expect(result.isFollowUp).toBe(false);
+    expect(result.previousRuns).toBe(0);
+    expect(result.history).toBe("");
+  });
+
+  test("includes user follow-ups between the assistant anchor and the trigger comment", () => {
+    const thread = [
+      assistantComment(1, "<!-- st-action -->\n🔮 A few questions before I plan\n\n- Q1"),
+      userComment(2, "alice", "answer to Q1"),
+      userComment(3, "alice", "Hey Software Teams here's one more answer"),
+    ];
+    const triggerCommentId = 3;
+    const result = buildConversationContext(thread, triggerCommentId);
+    expect(result.history).toContain("answer to Q1");
+  });
+
+  test("ignores comments that come BEFORE the assistant conversation anchor", () => {
+    // Random unrelated chatter from before the assistant even arrived
+    // should NOT pollute the bridged context.
+    const thread = [
+      userComment(1, "bob", "fyi I noticed something weird about this repo"),
+      userComment(2, "alice", "yeah let's see what software teams thinks"),
+      assistantComment(3, "<!-- st-action -->\n🔮 A few questions before I plan\n\n- Q1"),
+      userComment(4, "alice", "Hey Software Teams answer to Q1"),
+    ];
+    const triggerCommentId = 4;
+    const result = buildConversationContext(thread, triggerCommentId);
+    expect(result.history).not.toContain("noticed something weird");
+    expect(result.history).not.toContain("let's see what software teams thinks");
+    expect(result.history).toContain("Q1");
+  });
+
+  test("detects post-implementation state via new `Implementation done!` header", () => {
+    const thread = [
+      assistantComment(1, "<!-- st-action -->\n🔮 Plan is ready!\n\n..."),
+      assistantComment(2, "<!-- st-action -->\n▶ Implementation done!\n\nshipped"),
+      userComment(3, "alice", "Hey Software Teams tweak the colour"),
+    ];
+    const triggerCommentId = 3;
+    const result = buildConversationContext(thread, triggerCommentId);
+    expect(result.isPostImplementation).toBe(true);
   });
 });
