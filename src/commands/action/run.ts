@@ -723,11 +723,28 @@ export const runCommand = defineCommand({
         }
 
         case "implement": {
+          const orchestration = await findActiveOrchestration(cwd, issueNumber);
+          if (!orchestration) {
+            // No plan tagged with `issue: ${issueNumber}` exists in the
+            // workspace. Implementing whatever stale plan is lying around
+            // (the May-11 regression) is unsafe — refuse and tell the user
+            // to run plan first.
+            consola.error(
+              `No plan found for issue #${issueNumber} in .software-teams/plans/. Refusing to implement.`,
+            );
+            const body = `_No current plan found for issue #${issueNumber}._\n\nThis issue does not have a three-tier plan tagged with \`issue: ${issueNumber}\` in its orchestration frontmatter. Run **\`Hey Software Teams plan\`** on this issue first, then comment **\`Hey Software Teams implement\`** once the plan is ready.`;
+            const finalBody = formatErrorComment("implement", body);
+            if (repo && placeholderCommentId) {
+              await updateGitHubComment(repo, placeholderCommentId, finalBody).catch(() => {});
+            } else if (repo && issueNumber) {
+              await postGitHubComment(repo, issueNumber, finalBody).catch(() => {});
+            }
+            process.exit(1);
+          }
           const fb = await prepareIssueFeatureBranch({
             cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
           });
-          const orchestration = await findActiveOrchestration(cwd);
-          if (orchestration && orchestration.slices.length >= 2) {
+          if (orchestration.slices.length >= 2) {
             consola.info(
               `Three-tier plan detected — orchestrator will dispatch ${orchestration.slices.length} per-agent spawns in parallel`,
             );
@@ -743,7 +760,7 @@ export const runCommand = defineCommand({
             rulesBlock: buildRulesBlock(techStack),
             featureBranch: fb ?? undefined,
             prTemplate: fb ? findPrTemplate(cwd) ?? undefined : undefined,
-            orchestration: orchestration ?? undefined,
+            orchestration,
             isDryRun: intent.dryRun,
           };
           prompt = buildRouterPrompt(routerCtx);
@@ -843,7 +860,7 @@ export const runCommand = defineCommand({
         const fb = await prepareIssueFeatureBranch({
           cwd, repo, issueNumber, description: intent.description, commandKind: "implement",
         });
-        const implOrchestration = await findActiveOrchestration(cwd);
+        const implOrchestration = await findActiveOrchestration(cwd, issueNumber);
         if (implOrchestration && implOrchestration.slices.length >= 2) {
           consola.info(
             `Three-tier plan detected — orchestrator will dispatch ${implOrchestration.slices.length} per-agent spawns in parallel`,

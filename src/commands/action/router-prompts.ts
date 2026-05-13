@@ -378,12 +378,35 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
 }
 
 function buildImplementBrief(ctx: ActionContext): string[] {
+  // The runner has already resolved the orchestration for this issue and
+  // refuses to spawn implement when no matching plan exists, so we can
+  // address the plan paths explicitly rather than telling the agent to
+  // "find the plan" (which previously led it to stale state.yaml entries).
+  const orch = ctx.orchestration;
+  const planPathLines: string[] = orch
+    ? [
+        `Execute the three-tier plan for issue #${ctx.issueNumber}. The runner already located it for you — do NOT search for a different plan:`,
+        ``,
+        `- ORCHESTRATION: \`${orch.orchestrationPath}\``,
+        ...(orch.specPath ? [`- SPEC: \`${orch.specPath}\``] : []),
+        ...orch.slices.map((s, i) => `- TASK ${i + 1} (\`${s.agentType}\`): \`${s.slicePath}\``),
+        ``,
+        `1. Read the SPEC for requirements + acceptance criteria.`,
+        `2. Read the ORCHESTRATION's frontmatter and Tasks manifest table.`,
+        `3. Read each per-agent slice (TASK file) above in dependency order.`,
+      ]
+    : [
+        // Safety fallback — should never fire because the runner gates on
+        // `findActiveOrchestration` returning a non-null result before
+        // spawning implement. Kept for robustness if a future caller forgets.
+        `Execute the three-tier plan in \`.software-teams/plans/\`:`,
+        `1. Find the active plan via the most recent \`*.orchestration.md\` whose frontmatter \`issue:\` field matches #${ctx.issueNumber}. Do NOT fall back to the most-recent file by mtime — only the issue-tagged orchestration is valid.`,
+        `2. Read the SPEC (\`*.spec.md\`) for requirements + acceptance criteria.`,
+        `3. Read the ORCHESTRATION's \`task_files:\` frontmatter, then read each per-agent slice (\`*.T{n}.md\`) in dependency order.`,
+      ];
   return [
     `## Implementation Task`,
-    `Execute the three-tier plan in \`.software-teams/plans/\`:`,
-    `1. Find the active plan via \`state.yaml\` (\`current_plan.path\`) or the most recent \`*.orchestration.md\` if state is empty.`,
-    `2. Read the SPEC (\`*.spec.md\`) for requirements + acceptance criteria.`,
-    `3. Read the ORCHESTRATION's \`task_files:\` frontmatter, then read each per-agent slice (\`*.T{n}.md\`) in dependency order.`,
+    ...planPathLines,
     `4. Implement each task directly via Edit/Write — do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Task tool — execute every slice in this single context.)`,
     `5. Update \`state.yaml\` \`current_plan.completed_tasks\` as you finish each task.`,
     ``,

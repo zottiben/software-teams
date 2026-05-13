@@ -16,7 +16,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, basename, dirname } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { readState } from "./state";
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
@@ -25,6 +24,14 @@ interface OrchestrationFrontmatter {
   spec_link?: unknown;
   available_agents?: unknown;
   primary_agent?: unknown;
+  /**
+   * Issue number this plan addresses — written by the planner per the
+   * "Plan Provenance" block in `router-prompts.ts`. The action runner
+   * uses this to find the right orchestration for a given issue,
+   * avoiding state.yaml staleness or cross-issue contamination.
+   */
+  issue?: unknown;
+  repo?: unknown;
   [key: string]: unknown;
 }
 
@@ -72,45 +79,55 @@ function asString(value: unknown): string | undefined {
 }
 
 /**
- * Locate the orchestration index for the currently active plan.
+ * Locate the orchestration index for a given issue.
  *
- * Resolution order:
- *   1. `state.yaml`'s `current_plan.path` — if set AND it ends with
- *      `.orchestration.md` AND exists, use it.
- *   2. If `current_plan.path` ends in `.plan.md`, derive the orchestration
- *      filename by replacing `.plan.md` with `.orchestration.md` (some
- *      single-tier plans get upgraded to three-tier later).
- *   3. Otherwise, fall back to the most recently modified
- *      `.software-teams/plans/*.orchestration.md` file.
+ * Resolution strategy:
+ *   1. If `issueNumber` is supplied, scan `.software-teams/plans/` for any
+ *      `*.orchestration.md` whose frontmatter `issue:` matches. This is the
+ *      authoritative path — it can't be fooled by stale state.yaml entries
+ *      or by plan files that linger from earlier issues in the same repo.
+ *   2. If `issueNumber` is undefined OR no match by frontmatter, fall back
+ *      to the most recently modified `*.orchestration.md`. This covers
+ *      legacy plans created before frontmatter tagging shipped (0.5.9).
+ *   3. Returns null when no orchestration exists at all — caller falls
+ *      back gracefully (the action runner refuses to implement in that case).
  *
- * Returns null when the workspace has no orchestration index — caller falls
- * back to the legacy single-agent implementation flow.
+ * Why this changed (post-0.5.22): the previous version preferred
+ * state.yaml's `current_plan.path`, but state.yaml is never updated by the
+ * action runner after the planner returns, so it stayed pointing at older
+ * plans from earlier issues. That caused the wrong plan to be picked up
+ * during implement runs — exactly the regression seen on issue #46.
  */
-async function locateOrchestrationFile(cwd: string): Promise<string | null> {
+async function locateOrchestrationFile(
+  cwd: string,
+  issueNumber?: number,
+): Promise<string | null> {
   const plansDir = join(cwd, ".software-teams", "plans");
-
-  const state = await readState(cwd).catch(() => null);
-  const statePath = state?.current_plan?.path;
-  if (typeof statePath === "string" && statePath.length > 0) {
-    const absolute = statePath.startsWith("/") ? statePath : join(cwd, statePath);
-    if (absolute.endsWith(".orchestration.md") && existsSync(absolute)) {
-      return absolute;
-    }
-    if (absolute.endsWith(".plan.md")) {
-      const candidate = absolute.replace(/\.plan\.md$/, ".orchestration.md");
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-
   if (!existsSync(plansDir)) return null;
-  const candidates = readdirSync(plansDir)
+
+  const allOrchestrations = readdirSync(plansDir)
     .filter((name) => name.endsWith(".orchestration.md"))
     .map((name) => join(plansDir, name));
-  if (candidates.length === 0) return null;
-  // Most recently modified wins — if the user shipped an old plan and then
-  // labelled a new issue, the new plan's orchestration is the more recent one.
-  candidates.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
-  return candidates[0];
+  if (allOrchestrations.length === 0) return null;
+
+  if (issueNumber && issueNumber > 0) {
+    for (const path of allOrchestrations) {
+      const content = readFileSync(path, "utf-8");
+      const fm = parseFrontmatter<OrchestrationFrontmatter>(content);
+      const tagged = typeof fm?.issue === "number" ? fm.issue : Number(fm?.issue);
+      if (Number.isFinite(tagged) && tagged === issueNumber) {
+        return path;
+      }
+    }
+    // No frontmatter-tagged match for this issue — do NOT fall back to
+    // most-recent. That would silently pick up a different issue's plan,
+    // which is exactly the regression we're fixing.
+    return null;
+  }
+
+  // No issue number provided — return the most recently modified file.
+  allOrchestrations.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs);
+  return allOrchestrations[0];
 }
 
 /**
@@ -124,8 +141,11 @@ async function locateOrchestrationFile(cwd: string): Promise<string | null> {
  * In all these cases, the caller falls back to today's legacy single-agent
  * implementation flow rather than producing a half-formed multi-spawn brief.
  */
-export async function findActiveOrchestration(cwd: string): Promise<ActiveOrchestration | null> {
-  const orchestrationAbs = await locateOrchestrationFile(cwd);
+export async function findActiveOrchestration(
+  cwd: string,
+  issueNumber?: number,
+): Promise<ActiveOrchestration | null> {
+  const orchestrationAbs = await locateOrchestrationFile(cwd, issueNumber);
   if (!orchestrationAbs) return null;
 
   const orchestrationRel = orchestrationAbs.startsWith(cwd + "/")

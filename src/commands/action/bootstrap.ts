@@ -117,7 +117,12 @@ export const bootstrapCommand = defineCommand({
   args: {
     "cache-hit": {
       type: "string",
-      description: "Cache hit status from actions/cache ('true' if exact match)",
+      description: "[DEPRECATED] Cache hit status. Kept for back-compat — prefer --matched-key.",
+    },
+    "matched-key": {
+      type: "string",
+      description:
+        "Output of actions/cache@v4's `cache-matched-key`. Non-empty when the cache restored ANYTHING (primary or restore-keys prefix). We skip clearStaleState in that case so plan files persist across runs on the same issue/branch. The old --cache-hit approach was broken: actions/cache only sets cache-hit=true on EXACT primary-key match, but our save keys include `${run_id}` while restore primaries don't — so cache-hit was structurally always false, and the only reason it ever returned true was a stale legacy cache entry that fooled the system into preserving the WRONG plans.",
     },
   },
   run({ args }) {
@@ -125,8 +130,22 @@ export const bootstrapCommand = defineCommand({
 
     ensureFramework(cwd);
 
-    if (args["cache-hit"] !== "true") {
+    // Continuity rule:
+    //   - matched-key non-empty → cache restored something (exact or prefix).
+    //     Preserve plans / state — the next agent run continues prior work.
+    //   - matched-key empty → no cache match. Fresh start; wipe plans.
+    //   - For back-compat: if --matched-key is absent (older workflow YAML),
+    //     fall back to the legacy --cache-hit check.
+    const matchedKey = args["matched-key"] ?? "";
+    const cacheHit = args["cache-hit"] ?? "";
+    const hasContinuity = matchedKey
+      ? matchedKey.length > 0
+      : cacheHit === "true";
+
+    if (!hasContinuity) {
       clearStaleState(cwd);
+    } else {
+      consola.info(`Cache continuity detected (matched: ${matchedKey || cacheHit}) — preserving plan state`);
     }
 
     setupGitExclude(cwd);

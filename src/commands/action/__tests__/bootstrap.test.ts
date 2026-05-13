@@ -97,6 +97,19 @@ describe("setupGitExclude", () => {
     expect(claudeMatches).toHaveLength(1);
   });
 
+  test("bootstrap command switches to matched-key continuity (regression guard for issue #46)", async () => {
+    // The bootstrap CLI handler now uses cache-matched-key (any restore,
+    // exact or prefix) rather than cache-hit (exact-match-only) to decide
+    // whether to wipe plans. Source-grep guards lock that contract in.
+    const source = await Bun.file(new URL("../bootstrap.ts", import.meta.url).pathname).text();
+    expect(source).toMatch(/"matched-key":\s*\{/);
+    expect(source).toMatch(/hasContinuity/);
+    expect(source).toMatch(/preserving plan state/);
+    // Back-compat: legacy --cache-hit still accepted as a fallback.
+    expect(source).toMatch(/\[DEPRECATED\]/);
+    expect(source).toMatch(/cacheHit === "true"/);
+  });
+
   test("preserves existing exclude content", () => {
     const cwd = makeTempDir();
     mkdirSync(join(cwd, ".git/info"), { recursive: true });

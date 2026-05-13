@@ -22,7 +22,7 @@ function seedSlice(plansDir: string, name: string, agent: string, body = "task b
 function seedOrchestration(
   plansDir: string,
   name: string,
-  opts: { taskFiles: string[]; specLink?: string; primary?: string },
+  opts: { taskFiles: string[]; specLink?: string; primary?: string; issue?: number; repo?: string },
 ) {
   const lines = [
     "---",
@@ -31,6 +31,8 @@ function seedOrchestration(
     "task_files:",
     ...opts.taskFiles.map((f) => `  - ${f}`),
     ...(opts.specLink ? [`spec_link: ${opts.specLink}`] : []),
+    ...(opts.issue !== undefined ? [`issue: ${opts.issue}`] : []),
+    ...(opts.repo !== undefined ? [`repo: ${opts.repo}`] : []),
     "---",
     "",
     "## Tasks",
@@ -62,41 +64,65 @@ describe("findActiveOrchestration", () => {
     expect(await findActiveOrchestration(cwd)).toBeNull();
   });
 
-  test("uses state.yaml `current_plan.path` when it points at an orchestration file", async () => {
+  test("matches the orchestration whose frontmatter `issue:` field equals the requested issue number", async () => {
     const cwd = makeProject();
     const plans = join(cwd, ".software-teams", "plans");
-    seedSlice(plans, "p.T1.md", "software-teams-frontend");
-    seedSlice(plans, "p.T2.md", "software-teams-backend");
-    seedOrchestration(plans, "p.orchestration.md", { taskFiles: ["p.T1.md", "p.T2.md"] });
-    seedState(cwd, ".software-teams/plans/p.orchestration.md");
+    seedSlice(plans, "p46.T1.md", "software-teams-frontend");
+    seedSlice(plans, "p46.T2.md", "software-teams-backend");
+    seedOrchestration(plans, "p46.orchestration.md", {
+      taskFiles: ["p46.T1.md", "p46.T2.md"],
+      issue: 46,
+      repo: "owner/repo",
+    });
+    // Decoy from a different issue — must NOT be picked up.
+    seedSlice(plans, "p37.T1.md", "software-teams-frontend");
+    seedOrchestration(plans, "p37.orchestration.md", {
+      taskFiles: ["p37.T1.md"],
+      issue: 37,
+      repo: "owner/repo",
+    });
 
-    const result = await findActiveOrchestration(cwd);
-    expect(result?.orchestrationPath).toBe(".software-teams/plans/p.orchestration.md");
+    const result = await findActiveOrchestration(cwd, 46);
+    expect(result?.orchestrationPath).toBe(".software-teams/plans/p46.orchestration.md");
     expect(result?.slices).toHaveLength(2);
-    expect(result?.slices[0].agentType).toBe("software-teams-frontend");
-    expect(result?.slices[1].agentType).toBe("software-teams-backend");
   });
 
-  test("falls back to most-recent `.orchestration.md` when state.yaml is empty", async () => {
+  test("returns null when no orchestration matches the requested issue (no silent fallback)", async () => {
+    // The regression fix — don't silently pick up a different issue's plan
+    // when the requested issue has no plan of its own.
+    const cwd = makeProject();
+    const plans = join(cwd, ".software-teams", "plans");
+    seedSlice(plans, "p37.T1.md", "software-teams-frontend");
+    seedOrchestration(plans, "p37.orchestration.md", {
+      taskFiles: ["p37.T1.md"],
+      issue: 37,
+    });
+
+    const result = await findActiveOrchestration(cwd, 46);
+    expect(result).toBeNull();
+  });
+
+  test("ignores state.yaml — even when it points at a different orchestration", async () => {
+    // State.yaml staleness was the root cause of the issue #46 regression.
+    // Verify that the helper picks the issue-tagged orchestration regardless
+    // of what state.yaml says.
+    const cwd = makeProject();
+    const plans = join(cwd, ".software-teams", "plans");
+    seedSlice(plans, "right.T1.md", "software-teams-frontend");
+    seedOrchestration(plans, "right.orchestration.md", { taskFiles: ["right.T1.md"], issue: 46 });
+    seedSlice(plans, "wrong.T1.md", "software-teams-frontend");
+    seedOrchestration(plans, "wrong.orchestration.md", { taskFiles: ["wrong.T1.md"], issue: 37 });
+    seedState(cwd, ".software-teams/plans/wrong.orchestration.md");
+
+    const result = await findActiveOrchestration(cwd, 46);
+    expect(result?.orchestrationPath).toBe(".software-teams/plans/right.orchestration.md");
+  });
+
+  test("with no issueNumber, falls back to the most recently modified orchestration (legacy)", async () => {
     const cwd = makeProject();
     const plans = join(cwd, ".software-teams", "plans");
     seedSlice(plans, "p.T1.md", "software-teams-frontend");
     seedOrchestration(plans, "p.orchestration.md", { taskFiles: ["p.T1.md"] });
-    seedState(cwd, null);
-
-    const result = await findActiveOrchestration(cwd);
-    expect(result?.orchestrationPath).toBe(".software-teams/plans/p.orchestration.md");
-  });
-
-  test("derives orchestration path when state.yaml points at a `.plan.md` index", async () => {
-    // Some legacy plans land single-tier, then get upgraded. state.yaml may
-    // still point at the `.plan.md` after upgrade.
-    const cwd = makeProject();
-    const plans = join(cwd, ".software-teams", "plans");
-    seedSlice(plans, "p.T1.md", "software-teams-frontend");
-    seedOrchestration(plans, "p.orchestration.md", { taskFiles: ["p.T1.md"] });
-    writeFileSync(join(plans, "p.plan.md"), "stub\n");
-    seedState(cwd, ".software-teams/plans/p.plan.md");
 
     const result = await findActiveOrchestration(cwd);
     expect(result?.orchestrationPath).toBe(".software-teams/plans/p.orchestration.md");

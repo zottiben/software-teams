@@ -100,15 +100,15 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
+          key: software-teams-state-v2-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}
           restore-keys: |
-            software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-
-            software-teams-state-${{ github.repository }}-main
+            software-teams-state-v2-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-
+            software-teams-state-v2-${{ github.repository }}-main
 
       # Bootstrap Software Teams framework if not present (first run or cache miss)
       - name: Bootstrap Software Teams
         run: |
-          bunx @websitelabs/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+          bunx @websitelabs/software-teams@latest action bootstrap --matched-key "${{ steps.cache.outputs.cache-matched-key }}"
 
       # Fetch shared rules from an external repo if configured.
       # This merges cross-project rules into the local .software-teams/rules/ before agents run.
@@ -177,7 +177,7 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
+          key: software-teams-state-v2-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
 
   # ── Triggered by opening or labeling an issue with the 'software-teams' label ──
   software-teams-issue-label:
@@ -205,12 +205,12 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-main
+          key: software-teams-state-v2-${{ github.repository }}-main
           restore-keys: |
-            software-teams-state-${{ github.repository }}-main
+            software-teams-state-v2-${{ github.repository }}-main
       - name: Bootstrap Software Teams
         run: |
-          bunx @websitelabs/software-teams@latest action bootstrap --cache-hit "${{ steps.cache.outputs.cache-hit }}"
+          bunx @websitelabs/software-teams@latest action bootstrap --matched-key "${{ steps.cache.outputs.cache-matched-key }}"
       - name: Fetch shared rules
         if: vars.SOFTWARE_TEAMS_RULES_REPO != ''
         run: |
@@ -272,9 +272,9 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-main-issue-close-${{ github.event.issue.number }}-${{ github.run_id }}
+          key: software-teams-state-v2-${{ github.repository }}-main-issue-close-${{ github.event.issue.number }}-${{ github.run_id }}
           restore-keys: |
-            software-teams-state-${{ github.repository }}-main
+            software-teams-state-v2-${{ github.repository }}-main
 
       - name: Prune plans for closed issue
         id: prune
@@ -299,7 +299,7 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-main-issue-close-${{ github.event.issue.number }}-${{ github.run_id }}
+          key: software-teams-state-v2-${{ github.repository }}-main-issue-close-${{ github.event.issue.number }}-${{ github.run_id }}
 
   # ── Promote rules to main baseline when PRs merge ──
   # Only runs when Software Teams was actually used on the merged PR
@@ -336,9 +336,9 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-main-promotion-${{ github.sha }}
+          key: software-teams-state-v2-${{ github.repository }}-main-promotion-${{ github.sha }}
           restore-keys: |
-            software-teams-state-${{ github.repository }}-${{ steps.check.outputs.branch }}-
+            software-teams-state-v2-${{ github.repository }}-${{ steps.check.outputs.branch }}-
 
       # Prune plans tagged with any issue this PR closes (`Closes #N` etc.).
       # Without this, the merged plan files would bleed into the main baseline
@@ -364,7 +364,7 @@ jobs:
             .software-teams/config/
             .software-teams/plans/
             .claude/
-          key: software-teams-state-${{ github.repository }}-main-${{ github.sha }}
+          key: software-teams-state-v2-${{ github.repository }}-main-${{ github.sha }}
 
       # Opt-in: commit rules so they survive cache eviction.
       # Set repo variable SOFTWARE_TEAMS_COMMIT_RULES=true to enable.
