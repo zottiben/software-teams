@@ -426,11 +426,12 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
     ``,
     `Default to ASKING. Emit \`_none._\` on its own line ONLY when every architectural choice is either explicit in the issue OR fully determined by the codebase${ctx.prePlanDiscovery ? " (per the Discovery findings above)" : ""}. Never omit this section.`,
     ``,
-    `### Files written`,
-    `- SPEC: \`{path}\``,
-    `- ORCHESTRATION: \`{path}\``,
-    `- Per-agent slices: \`{path1}\`, \`{path2}\`, ...`,
-    ``,
+    // NOTE: do NOT emit a "Files written" / paths bullet list here. The
+    // runner appends a "📂 Plan files" section after your text that
+    // embeds each artefact's full content in a collapsible block — your
+    // raw paths would be redundant (and unhelpful, since users can't
+    // click them). Keep the response focused on the plan summary +
+    // verification checklist.
     `### Verification`,
     `- [ ] {check 1}`,
     `- [ ] {check 2}`,

@@ -28,6 +28,7 @@ import {
 } from "../../utils/github";
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
 import { findActiveOrchestration } from "../../utils/orchestration";
+import { readPlanFiles, formatPlanFilesSection } from "../../utils/plan-files-comment";
 import { parseResearcherQuestions } from "../../utils/researcher-output";
 import { buildRouterPrompt, type ActionContext } from "./router-prompts";
 
@@ -589,7 +590,20 @@ export const runCommand = defineCommand({
         const actionLabel = "plan";
         let commentBody: string;
         if (success && fullResponse) {
-          commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse);
+          // Embed the just-written plan files into the comment so the
+          // user can actually read them before approving. The runner
+          // owns this section (not the planner's text) — see
+          // `utils/plan-files-comment.ts` for the rationale.
+          let planFilesBlock = "";
+          try {
+            const writtenOrch = await findActiveOrchestration(cwd, issueNumber);
+            if (writtenOrch) {
+              planFilesBlock = formatPlanFilesSection(readPlanFiles(cwd, writtenOrch));
+            }
+          } catch (err) {
+            consola.warn("Failed to build plan-files comment block:", err);
+          }
+          commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse + planFilesBlock);
         } else if (!success) {
           commentBody = formatErrorComment(actionLabel, "Check workflow logs for details.");
         } else {
