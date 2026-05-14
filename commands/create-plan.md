@@ -147,7 +147,7 @@ The spawn prompt MUST include:
 - Explicit instruction: _"Do NOT re-prompt the user for anything already in PRE_DISCOVERED_CONTEXT. These questions were already answered by the user — do NOT re-ask them. The research context below summarises what was found in the codebase — use it, don't re-scan. Only surface NEW questions that emerged during planning that could not have been anticipated."_
 - Explicit instruction: _"Apply your Tier Decision Rule. If tier resolves to three-tier, write SPEC + ORCHESTRATION + per-agent slices. If tier resolves to single-tier, write the legacy `.plan.md` index + per-task files. Report the chosen `tier:` in your structured return."_
 
-The planner creates split plan files directly via the Write tool (sandbox override for plan files). In three-tier mode it writes `{slug}.spec.md`, `{slug}.orchestration.md`, and per-agent `{slug}.T{n}.md` slices, with `available_agents:` and `primary_agent:` in the orchestration frontmatter and `agent:` pinned in every per-agent slice. In single-tier mode it writes `{slug}.plan.md` + per-task `{slug}.T{n}.md`, with `available_agents:` in the index frontmatter and `agent:` pinned in every task file.
+The planner creates split plan files directly via the Write tool (sandbox override for plan files). In three-tier mode it writes the artifacts described in [`commands/_shared/plan-three-tier-artifacts.md`](_shared/plan-three-tier-artifacts.md) — that fragment is the canonical contract for the artifact shape (file names, required frontmatter, what's forbidden). In single-tier mode it writes `{slug}.plan.md` + per-task `{slug}.T{n}.md`, with `available_agents:` in the index frontmatter and `agent:` pinned in every task file.
 
 ### 6. Verify Planner Output
 

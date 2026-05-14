@@ -26,11 +26,18 @@ describe("action run command prompt invariants", () => {
     test("router-prompts source drives the planner toward three-tier (canonical Software Teams plan shape)", async () => {
       const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/three-tier/i);
-      expect(source).toMatch(/Tier Decision Rule/i);
-      expect(source).toContain("spec.md");
-      expect(source).toContain("orchestration.md");
-      expect(source).toMatch(/\.T\{?n?\}?\.md/);
-      expect(source).toContain("task_files");
+      // The canonical three-tier artifacts contract now lives in the shared
+      // fragment imported here — verify the import is present and the
+      // fragment file still carries the per-tier specifics.
+      expect(source).toContain("plan-three-tier-artifacts.md");
+      expect(source).toContain("planThreeTierArtifactsFragment");
+      const fragment = await Bun.file(
+        new URL("../../../../commands/_shared/plan-three-tier-artifacts.md", import.meta.url).pathname,
+      ).text();
+      expect(fragment).toContain("spec.md");
+      expect(fragment).toContain("orchestration.md");
+      expect(fragment).toMatch(/\.T\{?n?\}?\.md/);
+      expect(fragment).toContain("task_files");
     });
 
     test("run.ts must NOT contain inline task detail template (no monolithic plan format leaked back)", async () => {

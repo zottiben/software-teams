@@ -26,6 +26,12 @@
 import { fenceUserInput } from "../../utils/sanitize";
 import { agentTypeToRoleLabel, type ActiveOrchestration } from "../../utils/orchestration";
 
+// Shared prompt fragments — see `commands/_shared/README.md`.
+// `bun build --target=bun` inlines `with { type: "text" }` imports at
+// build time, so the fragments ship embedded in `dist/index.js`.
+import selfReferenceStyleFragment from "../../../commands/_shared/self-reference-style.md" with { type: "text" };
+import planThreeTierArtifactsFragment from "../../../commands/_shared/plan-three-tier-artifacts.md" with { type: "text" };
+
 export type ActionFlow =
   | { kind: "plan"; isRefinement?: boolean; isApproval?: boolean }
   | { kind: "implement" }
@@ -116,14 +122,9 @@ function buildSubagentBrief(ctx: ActionContext): string {
   // Even when an explicit opener template tells you exactly what to say,
   // any other self-reference in your response (e.g. "I'm the planner")
   // MUST use the user-facing role name instead of the `software-teams-*`
-  // subagent identifier.
-  lines.push(`## Self-reference style (MANDATORY)`);
-  lines.push(`If you reference yourself or name the agent doing the work, use the user-facing role label, NEVER the internal subagent identifier:`);
-  lines.push(`- planning work → **The Planning Agent**`);
-  lines.push(`- implementation / quick changes → **The Implementation Agent**`);
-  lines.push(`- code review → **The Review Agent**`);
-  lines.push(`- PR feedback / post-impl iteration → **The Feedback Agent**`);
-  lines.push(`Do NOT use the literal strings \`software-teams-planner\`, \`software-teams-programmer\`, \`software-teams-quality\`, or \`software-teams-pr-feedback\` in any user-visible output.`);
+  // subagent identifier. Single source of truth lives in
+  // `commands/_shared/self-reference-style.md`.
+  lines.push(selfReferenceStyleFragment.trim());
   lines.push("");
 
   lines.push(...ctx.projectLines);
@@ -353,15 +354,17 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
   return [
     ...discoveryBlock,
     `## Plan Task`,
-    `Produce a **three-tier** Software Teams plan in \`.software-teams/plans/\`. Three-tier is REQUIRED for every action-driven plan — do NOT apply the Tier Decision Rule's single-tier downgrade. Even single-task plans MUST produce all three artefacts (SPEC + ORCHESTRATION + per-agent slice). The GitHub Action's downstream flow assumes three-tier output; do not deviate.`,
     ``,
-    `### Required artefacts (every plan, no exceptions)`,
+    `Three-tier output is required for action-driven plans — do NOT apply the planner's single-tier downgrade rule, because the action's downstream flow assumes three-tier output. The artifact shape itself is documented in the shared fragment below.`,
     ``,
-    `1. \`{slug}.spec.md\` — requirements + acceptance criteria.`,
-    `2. \`{slug}.orchestration.md\` — frontmatter MUST include \`available_agents:\`, \`primary_agent:\`, \`task_files:\`, \`issue: ${ctx.issueNumber}\`, \`repo: ${ctx.repo}\`; body contains the Tasks manifest table (\`ID | Task | Agent | Priority | Requires\`).`,
-    `3. Per-agent slices \`{slug}.T{n}.md\` — one per task, each with frontmatter \`agent:\`, \`tier: per-agent\`, \`spec_link:\`, \`orchestration_link:\`. Single-task plans still produce exactly one \`.T1.md\` slice.`,
+    // Three-tier artifacts contract — canonical text shared with
+    // `commands/create-plan.md` via `commands/_shared/plan-three-tier-artifacts.md`.
+    // Single source of truth on the artifact shape; this action wraps
+    // it with the "always three-tier" mandate above and the per-run
+    // issue/repo provenance below.
+    planThreeTierArtifactsFragment.trim(),
     ``,
-    `Do NOT write \`{slug}.plan.md\` — that is the legacy single-tier index and must not appear.`,
+    `**For this run specifically:** the orchestration's frontmatter \`issue:\` field MUST be \`issue: ${ctx.issueNumber}\` and \`repo:\` MUST be \`repo: ${ctx.repo}\` so the action's runner can find this plan when implementing.`,
     ``,
     `### Scope rules`,
     ``,
@@ -779,8 +782,7 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
       ? fenceUserInput("conversation-history", ctx.conversationHistory)
       : `<conversation-history>\n(none)\n</conversation-history>`,
     ``,
-    `## Self-reference style (MANDATORY)`,
-    `In any user-facing output, use the user-facing role labels — \`The Frontend Agent\`, \`The Backend Agent\`, \`The Implementation Agent\`, etc. NEVER use the internal subagent identifiers (\`software-teams-frontend\`, \`software-teams-backend\`, etc.).`,
+    selfReferenceStyleFragment.trim(),
     ``,
     `## User Request`,
     fenceUserInput("user-request", ctx.userRequest),

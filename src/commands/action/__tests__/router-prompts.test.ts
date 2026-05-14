@@ -113,8 +113,8 @@ describe("buildRouterPrompt — shape invariants (every flow)", () => {
 describe("buildRouterPrompt — plan-specific brief", () => {
   test("initial plan brief REQUIRES three-tier output (no downgrade allowed)", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" }, issueNumber: 99, repo: "z/p" }));
-    expect(prompt).toMatch(/three-tier.*REQUIRED/i);
-    expect(prompt).toMatch(/do NOT apply the Tier Decision Rule's single-tier downgrade/);
+    expect(prompt).toMatch(/Three-tier output is required/i);
+    expect(prompt).toMatch(/do NOT apply the planner's single-tier downgrade rule/);
     expect(prompt).toContain("{slug}.spec.md");
     expect(prompt).toContain("{slug}.orchestration.md");
     expect(prompt).toContain("{slug}.T{n}.md");
@@ -645,11 +645,19 @@ describe("buildRouterPrompt — discreet-mode style directives", () => {
     const tag = `${flow.kind}${"isRefinement" in flow && flow.isRefinement ? " (refinement)" : ""}`;
     test(`[${tag}] brief carries the self-reference style directive (no brand leak)`, () => {
       const prompt = buildRouterPrompt(makeCtx({ flow }));
+      // The directive lives in `commands/_shared/self-reference-style.md`
+      // and is text-imported by router-prompts.ts. Both single-spawn
+      // briefs and the multi-spawn orchestrator consume the same fragment.
       expect(prompt).toContain("## Self-reference style (MANDATORY)");
-      expect(prompt).toMatch(/never the internal subagent identifier/i);
-      // The brief must explicitly forbid the four `software-teams-*` names
-      // in user-visible output.
-      expect(prompt).toContain("Do NOT use the literal strings `software-teams-planner`, `software-teams-programmer`, `software-teams-quality`, or `software-teams-pr-feedback`");
+      expect(prompt).toMatch(/NEVER the internal subagent identifier/);
+      // Single-spawn openers spelled out.
+      expect(prompt).toContain("planning work → **The Planning Agent**");
+      expect(prompt).toContain("implementation / quick changes → **The Implementation Agent**");
+      // Per-agent role labels (multi-spawn) spelled out.
+      expect(prompt).toContain("`software-teams-frontend` → **The Frontend Agent**");
+      expect(prompt).toContain("`software-teams-backend` → **The Backend Agent**");
+      // Explicit literal-string ban — single canonical list.
+      expect(prompt).toMatch(/Do NOT use the literal strings `software-teams-planner`,.*`software-teams-frontend`/);
     });
   }
 
