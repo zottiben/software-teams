@@ -243,6 +243,22 @@ jobs:
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
 
+      # Save Software Teams state — plan files written by the planner must
+      # land in the cache so the implement comment that follows can find
+      # them. Missing this step was the cause of the issue #54 "no plan
+      # found" regression. See workflow-yaml.test.ts regression guard.
+      - name: Save Software Teams state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .software-teams/persistence/
+            .software-teams/rules/
+            .software-teams/config/
+            .software-teams/plans/
+            .claude/
+          key: software-teams-state-v2-${{ github.repository }}-main-${{ github.run_id }}
+
   # ── Prune plans when a labelled issue is closed without a merge ──
   # The promote-rules job already covers the PR-merge path. This job
   # handles the case where a user closes an issue manually (no PR opened,

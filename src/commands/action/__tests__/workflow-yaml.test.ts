@@ -244,6 +244,32 @@ describe("workflow YAML structure", () => {
           expect(keyMatch?.[1]).toMatch(/\$\{\{ github\.run_id \}\}|\$\{\{ github\.sha \}\}/);
         }
       });
+
+      test(`${file.split("/").pop()} every job that RESTORES cache also SAVES (no orphan restores)`, async () => {
+        // Regression guard for the issue #54 "no plan found" bug. The
+        // `software-teams-issue-label` job restored cache but had no save
+        // step — every plan run for a labeled issue silently dropped its
+        // plan files into a workspace that the next run could never see.
+        // Lock in the invariant: every job with a `Restore Software Teams
+        // state` step must also have an `actions/cache/save@v4` step.
+        const content = await Bun.file(resolve(import.meta.dir, file)).text();
+        const restoreCount = (content.match(/uses: actions\/cache\/restore@v4/g) ?? []).length;
+        const saveCount = (content.match(/uses: actions\/cache\/save@v4/g) ?? []).length;
+        expect(saveCount).toBeGreaterThanOrEqual(restoreCount);
+      });
+
+      test(`${file.split("/").pop()} software-teams-issue-label job has its Save step (issue #54 regression guard)`, async () => {
+        const content = await Bun.file(resolve(import.meta.dir, file)).text();
+        // Slice out the label-triggered job's body (from its name to the
+        // next top-level job declaration) and assert it contains a save.
+        const labelJobMatch = content.match(
+          /software-teams-issue-label:[\s\S]*?(?=\n  [a-z-]+:\n    if:|\n  [a-z-]+:\n    runs-on:|\Z)/,
+        );
+        expect(labelJobMatch).not.toBeNull();
+        const labelJobBody = labelJobMatch![0];
+        expect(labelJobBody).toMatch(/uses: actions\/cache\/save@v4/);
+        expect(labelJobBody).toMatch(/key: software-teams-state-v2-\$\{\{ github\.repository \}\}-main-\$\{\{ github\.run_id \}\}/);
+      });
     }
   });
 });
