@@ -149,6 +149,23 @@ describe("buildRouterPrompt — plan-specific brief", () => {
     expect(prompt).toContain("Any changes before implementation?");
   });
 
+  test("plan brief mandates per-task role labels in the Agent column (not generic Implementation Agent)", () => {
+    // Regression guard: the brief must tell the planner to fill each
+    // row's Agent column with the role matching the slice's pinned
+    // `agent:` frontmatter — NOT the generic "The Implementation Agent"
+    // opener-line label. Reviewers use that column to tell which
+    // discipline owns each task at a glance.
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
+    expect(prompt).toMatch(/Agent column — IMPORTANT/i);
+    expect(prompt).toContain("software-teams-frontend");
+    expect(prompt).toContain("The Frontend Agent");
+    expect(prompt).toContain("software-teams-backend");
+    expect(prompt).toContain("The Backend Agent");
+    expect(prompt).toContain("The DevOps Agent");
+    expect(prompt).toContain("The UX Agent");
+    expect(prompt).toMatch(/Falling back to "The Implementation Agent" for stack-specific work .* is wrong/i);
+  });
+
   test("initial plan brief requires an `### Open questions` section with `_none._` fallback", () => {
     // Mirrors `commands/create-plan.md:199` — the local skill's response
     // shape requires an Open questions bullet list OR the literal `none`.
