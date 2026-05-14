@@ -196,7 +196,11 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     expect(prompt).toContain("git push -u origin software-teams/issue-36-implement-render-nav");
     expect(prompt).toMatch(/Do NOT run `gh pr create`/);
     expect(prompt).toContain("## PR proposal");
-    expect(prompt).toContain("pull/new/software-teams/issue-36-implement-render-nav");
+    // Compare-form URL with `?expand=1`. The `pull/new/<branch>` URL form
+    // silently drops `?title=` / `?body=` query params on GitHub's side —
+    // documented in 0.5.29 commit. Use `compare/<default>...<branch>`.
+    expect(prompt).toContain("compare/main...software-teams/issue-36-implement-render-nav");
+    expect(prompt).toMatch(/\?expand=1/);
     expect(prompt).toMatch(/push to `main` directly/);
     expect(prompt).toMatch(/force-push to any branch/);
   });
@@ -273,7 +277,11 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     expect(prompt).toMatch(/conventional-commit shape/i);
     expect(prompt).toMatch(/feat: render Nav across all routes/);
     expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
-    expect(prompt).toContain("?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>");
+    expect(prompt).toContain("?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>");
+    // CRITICAL: URL must use compare/ form, not pull/new/. GitHub drops
+    // query params on pull/new/ but honours them on compare/.
+    expect(prompt).toContain("compare/main...issue-49-stats-api");
+    expect(prompt).not.toContain("pull/new/issue-49-stats-api");
     // Body must start with `Closes #N` for GitHub's Development link.
     expect(prompt).toMatch(/MUST start with `Closes #49`/);
     expect(prompt).toMatch(/Closes%20%2349/);
@@ -491,15 +499,20 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
     expect(prompt).toContain("## PR proposal");
     expect(prompt).toContain("**Branch:** `software-teams/issue-46-implement-multi`");
     expect(prompt).toContain("**Closes:** #46");
-    expect(prompt).toMatch(/\[Open this PR\]\(https:\/\/github\.com\/zottiben\/test-project-one\/pull\/new\//);
+    // Compare-form URL (not pull/new/) — see orchestrator brief regression
+    // guard below.
+    expect(prompt).toMatch(/\[Open this PR\]\(https:\/\/github\.com\/zottiben\/test-project-one\/compare\/main\.\.\.software-teams\/issue-46-implement-multi/);
   });
 
-  test("orchestrator instructs conventional-commit `?title=` + `?body=` pre-fill for the combined PR", () => {
+  test("orchestrator instructs conventional-commit `?title=` + `?body=` pre-fill for the combined PR (compare/ form)", () => {
     const prompt = buildRouterPrompt(makeMultiSpawn());
     expect(prompt).toContain("### PR title + body pre-fill (BOTH required)");
     expect(prompt).toMatch(/ONE umbrella conventional-commit title/i);
     expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
-    expect(prompt).toContain("?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-46>");
+    expect(prompt).toContain("?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-46>");
+    // CRITICAL regression guard: orchestrator must NEVER use pull/new/.
+    expect(prompt).toContain("compare/main...software-teams/issue-46-implement-multi");
+    expect(prompt).not.toMatch(/pull\/new\/software-teams\/issue-46-implement-multi/);
     expect(prompt).toMatch(/MUST start with `Closes #46`/);
     expect(prompt).toMatch(/Closes%20%2346/);
     expect(prompt).toMatch(/NEVER include "Software Teams"/);

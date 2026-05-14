@@ -208,14 +208,22 @@ function buildSubagentBrief(ctx: ActionContext): string {
     // the agent fills it instead of producing the default one-paragraph
     // summary; that way the human opening the PR has a body that matches
     // the repo's own contribution norms (test plan, screenshots, etc.).
-    // PR title + body pre-fill. The compare URL takes BOTH \`?title=\` and
-    // \`?body=\` query params; we need both because:
+    // PR title + body pre-fill. CRITICAL: the URL must use the \`compare/\`
+    // form (\`compare/<default>...<branch>?expand=1&title=…&body=…\`) — NOT
+    // \`pull/new/<branch>?title=…&body=…\`. GitHub silently drops the query
+    // string on \`pull/new/\` URLs, falling back to branch-name-derived
+    // titles and an empty body. Only the \`compare/\` form honours
+    // \`?title=\` and \`?body=\` (per
+    // https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/creating-pull-requests).
+    //
+    // We need both query params because:
     //   - Title pre-fill prevents GitHub's "Issue 51 plan" branch-derived
     //     fallback on multi-commit PRs.
     //   - Body pre-fill ensures \`Closes #N\` is in the PR body, which is
     //     what GitHub uses to wire the Issue ↔ PR link in the issue's
     //     "Development" section. Commit-message keywords trigger auto-close
     //     on merge but do NOT create the sidebar link.
+    const compareUrlBase = `https://github.com/${repo}/compare/${featureBranch.defaultBranch}...${featureBranch.branchName}`;
     const prTitleGuidance = [
       ``,
       `### PR title + body pre-fill (BOTH required)`,
@@ -227,7 +235,10 @@ function buildSubagentBrief(ctx: ActionContext): string {
       ``,
       `**Body** — MUST start with \`Closes #${issueNumber}\` on its own line, followed by a blank line, followed by your summary (or the FILLED PR template if one was detected). The \`Closes\` keyword is what GitHub uses to create the Issue ↔ PR link in the "Development" section — without it, the PR shows as un-linked even if commits mention it.`,
       ``,
-      `URL-encode BOTH and append as \`?title=<encoded-title>&body=<encoded-body>\`. Encoding cheat sheet (these are the chars that actually appear in practice):`,
+      `**URL format — MUST be the \`compare/\` form with \`?expand=1\`** (NOT \`pull/new/...\` — GitHub drops query params on that one):`,
+      `  \`${compareUrlBase}?expand=1&title=<encoded-title>&body=<encoded-body>\``,
+      ``,
+      `URL-encode BOTH params. Encoding cheat sheet (chars that actually appear in practice):`,
       `  - space → \`%20\``,
       `  - newline → \`%0A\` (blank line is \`%0A%0A\`)`,
       `  - colon → \`%3A\``,
@@ -239,7 +250,7 @@ function buildSubagentBrief(ctx: ActionContext): string {
       `Worked example. Title: \`feat: render Nav across all routes\`. Body: \`Closes #${issueNumber}\\n\\nMounted Nav above Outlet in App.tsx so navigation appears on every route.\` Encodes to:`,
       `  title=\`feat%3A%20render%20Nav%20across%20all%20routes\``,
       `  body=\`Closes%20%23${issueNumber}%0A%0AMounted%20Nav%20above%20Outlet%20in%20App.tsx%20so%20navigation%20appears%20on%20every%20route.\``,
-      `  link=\`https://github.com/${repo}/pull/new/${featureBranch.branchName}?title=feat%3A%20render%20Nav%20across%20all%20routes&body=Closes%20%23${issueNumber}%0A%0AMounted%20Nav%20above%20Outlet%20in%20App.tsx%20so%20navigation%20appears%20on%20every%20route.\``,
+      `  link=\`${compareUrlBase}?expand=1&title=feat%3A%20render%20Nav%20across%20all%20routes&body=Closes%20%23${issueNumber}%0A%0AMounted%20Nav%20above%20Outlet%20in%20App.tsx%20so%20navigation%20appears%20on%20every%20route.\``,
       ``,
       `NEVER include "Software Teams" anywhere in the title or body. The brand is intentionally hidden from end users.`,
     ];
@@ -265,7 +276,7 @@ function buildSubagentBrief(ctx: ActionContext): string {
       lines.push("");
       lines.push(`<the FILLED PR template — preserve its section headings, replace placeholder hints with implementation details. Do NOT wrap this in code fences; render it as live markdown so reviewers can read it directly in the issue comment.>`);
       lines.push("");
-      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName}?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>)`);
+      lines.push(`[Open this PR](${compareUrlBase}?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>)`);
     } else {
       lines.push(...prTitleGuidance);
       lines.push(``);
@@ -279,7 +290,7 @@ function buildSubagentBrief(ctx: ActionContext): string {
       lines.push("");
       lines.push(`<one short paragraph summary>`);
       lines.push("");
-      lines.push(`[Open this PR](https://github.com/${repo}/pull/new/${featureBranch.branchName}?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>)`);
+      lines.push(`[Open this PR](${compareUrlBase}?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>)`);
     }
 
     lines.push("");
@@ -660,7 +671,13 @@ function buildPerSliceBrief(ctx: ActionContext, slice: { slicePath: string; agen
 function buildOrchestratorPrompt(ctx: ActionContext): string {
   const orch = ctx.orchestration!;
   const fb = ctx.featureBranch;
-  const prCompareUrl = fb ? `https://github.com/${ctx.repo}/pull/new/${fb.branchName}` : "";
+  // CRITICAL: use the `compare/<default>...<branch>` URL form, NOT
+  // `pull/new/<branch>`. Only the compare form honours `?title=` /
+  // `?body=` query params (per GitHub docs); `pull/new/` silently
+  // discards them.
+  const prCompareUrl = fb
+    ? `https://github.com/${ctx.repo}/compare/${fb.defaultBranch}...${fb.branchName}`
+    : "";
 
   const sliceBlocks = orch.slices.map((slice, i) => {
     const briefText = buildPerSliceBrief(ctx, slice, i);
@@ -697,7 +714,10 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
     finalBlock.push(``);
     finalBlock.push(`**Body** — MUST start with \`Closes #${ctx.issueNumber}\` on its own line, followed by a blank line, followed by your combined summary (or the FILLED PR template if one was detected). The \`Closes\` keyword is what GitHub uses to wire the Issue ↔ PR "Development" link — without it the PR shows as un-linked even when commits mention the issue.`);
     finalBlock.push(``);
-    finalBlock.push(`URL-encode BOTH and append as \`?title=<encoded-title>&body=<encoded-body>\`. Encoding cheat sheet:`);
+    finalBlock.push(`**URL format — MUST be the \`compare/\` form with \`?expand=1\`** (NOT \`pull/new/...\` — GitHub drops query params on that one):`);
+    finalBlock.push(`  \`${prCompareUrl}?expand=1&title=<encoded-title>&body=<encoded-body>\``);
+    finalBlock.push(``);
+    finalBlock.push(`URL-encode BOTH params. Encoding cheat sheet:`);
     finalBlock.push(`  - space → \`%20\``);
     finalBlock.push(`  - newline → \`%0A\` (blank line → \`%0A%0A\`)`);
     finalBlock.push(`  - colon → \`%3A\``);
@@ -724,7 +744,7 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
       finalBlock.push(`<one short paragraph summary of the combined change across all spawns>`);
     }
     finalBlock.push(``);
-    finalBlock.push(`[Open this PR](${prCompareUrl}?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-${ctx.issueNumber}>)`);
+    finalBlock.push(`[Open this PR](${prCompareUrl}?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-${ctx.issueNumber}>)`);
   } else {
     finalBlock.push(`End with "Pushed to PR branch."`);
   }
