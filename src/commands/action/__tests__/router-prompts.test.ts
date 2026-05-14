@@ -260,7 +260,7 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     expect(prompt).not.toContain("should not leak into prompt");
   });
 
-  test("issue-context impl brief instructs URL-encoded `?title=` pre-fill (conventional commit)", () => {
+  test("issue-context impl brief instructs URL-encoded `?title=` + `?body=` pre-fill (conventional commit + Closes link)", () => {
     const prompt = buildRouterPrompt(
       makeCtx({
         flow: { kind: "implement" },
@@ -269,12 +269,15 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
         featureBranch: { branchName: "issue-49-stats-api", defaultBranch: "main" },
       }),
     );
-    expect(prompt).toContain("### PR title (pre-fill)");
-    expect(prompt).toMatch(/conventional-commit title/i);
+    expect(prompt).toContain("### PR title + body pre-fill (BOTH required)");
+    expect(prompt).toMatch(/conventional-commit shape/i);
     expect(prompt).toMatch(/feat: render Nav across all routes/);
     expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
-    expect(prompt).toContain("?title=<url-encoded-title>");
-    expect(prompt).toMatch(/NEVER include "Software Teams" anywhere in the title/);
+    expect(prompt).toContain("?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>");
+    // Body must start with `Closes #N` for GitHub's Development link.
+    expect(prompt).toMatch(/MUST start with `Closes #49`/);
+    expect(prompt).toMatch(/Closes%20%2349/);
+    expect(prompt).toMatch(/NEVER include "Software Teams"/);
   });
 
   test("issue-context impl PR proposal block includes a `**Title:**` row (mirrors the URL-encoded title)", () => {
@@ -491,13 +494,15 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
     expect(prompt).toMatch(/\[Open this PR\]\(https:\/\/github\.com\/zottiben\/test-project-one\/pull\/new\//);
   });
 
-  test("orchestrator instructs conventional-commit `?title=` pre-fill for the combined PR", () => {
+  test("orchestrator instructs conventional-commit `?title=` + `?body=` pre-fill for the combined PR", () => {
     const prompt = buildRouterPrompt(makeMultiSpawn());
-    expect(prompt).toContain("### PR title (pre-fill)");
+    expect(prompt).toContain("### PR title + body pre-fill (BOTH required)");
     expect(prompt).toMatch(/ONE umbrella conventional-commit title/i);
     expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
-    expect(prompt).toContain("?title=<url-encoded-title>");
-    expect(prompt).toMatch(/NEVER include "Software Teams" in the title/);
+    expect(prompt).toContain("?title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-46>");
+    expect(prompt).toMatch(/MUST start with `Closes #46`/);
+    expect(prompt).toMatch(/Closes%20%2346/);
+    expect(prompt).toMatch(/NEVER include "Software Teams"/);
   });
 
   test("orchestrator PR proposal block includes a `**Title:**` row", () => {
