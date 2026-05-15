@@ -29,6 +29,7 @@ import {
 import { gitBranch, gitCheckoutNewBranch, slugify } from "../../utils/git";
 import { findActiveOrchestration } from "../../utils/orchestration";
 import { readPlanFiles, formatPlanFilesSection } from "../../utils/plan-files-comment";
+import { setLifecycleLabel, findPrForBranch } from "../../utils/labels";
 import { parseResearcherQuestions } from "../../utils/researcher-output";
 import { buildRouterPrompt, type ActionContext } from "./router-prompts";
 
@@ -287,6 +288,8 @@ async function runDiscoveryAndGate(opts: {
         consola.error("Failed to post questions comment:", err);
       });
     }
+    // Lifecycle label: researcher is waiting on the user.
+    await setLifecycleLabel(opts.repo, opts.issueNumber, "questions-pending").catch(() => {});
   }
 
   // Persist whatever state the researcher's run accumulated (rules etc.)
@@ -759,6 +762,10 @@ export const runCommand = defineCommand({
             consola.error("Failed to post result comment:", err);
           });
         }
+        // Lifecycle label: plan produced and waiting on user (approval or implement).
+        if (success) {
+          await setLifecycleLabel(repo, issueNumber, "plan-ready").catch(() => {});
+        }
       }
 
       if (!success) process.exit(1);
@@ -861,6 +868,10 @@ export const runCommand = defineCommand({
 
       if (repo && commentId) {
         await reactToComment(repo, commentId, "+1").catch(() => {});
+      }
+      // Lifecycle label: plan locked in, awaiting `Hey Software Teams implement`.
+      if (repo && issueNumber) {
+        await setLifecycleLabel(repo, issueNumber, "plan-approved").catch(() => {});
       }
       return;
     }
@@ -1295,6 +1306,33 @@ export const runCommand = defineCommand({
         await postGitHubComment(repo, issueNumber, commentBody).catch((err) => {
           consola.error("Failed to post result comment:", err);
         });
+      }
+
+      // Lifecycle label: advance the issue/PR's Software Teams state
+      // label so the issue board reflects the current stage. Only acts
+      // on successful runs — failed runs leave the prior label in place.
+      if (success) {
+        if (intent.command === "implement" || intent.fullFlow) {
+          // Implement just ran. The programmer subagent (if successful)
+          // pushed a branch + opened a PR. Find that PR by current
+          // branch and flip BOTH the PR and the originating issue to
+          // ready-to-review. If no PR was opened (subagent reported
+          // success but skipped PR creation), the lookup returns null
+          // and we leave the label alone.
+          const branch = await gitBranch().catch(() => "");
+          const prNumber = branch ? await findPrForBranch(repo, branch) : null;
+          if (prNumber) {
+            await setLifecycleLabel(repo, prNumber, "ready-to-review").catch(() => {});
+            if (prNumber !== issueNumber) {
+              await setLifecycleLabel(repo, issueNumber, "ready-to-review").catch(() => {});
+            }
+          }
+        } else if (intent.command === "plan") {
+          // Plan flow — both initial plan (isFeedback=false) and
+          // refinement (isFeedback=true) end with a usable plan on
+          // disk, so plan-ready is the right label for both.
+          await setLifecycleLabel(repo, issueNumber, "plan-ready").catch(() => {});
+        }
       }
     }
 
