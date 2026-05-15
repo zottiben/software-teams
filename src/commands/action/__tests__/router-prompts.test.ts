@@ -370,6 +370,54 @@ describe("buildRouterPrompt — pre-plan discovery (phase D)", () => {
     expect(prompt).toContain("_none._");
   });
 
+  test("pre-plan-discovery brief carries bug-investigation rules (URL→app, simplest-hypothesis-first, diagnostic depth)", () => {
+    // Regression guard: when the issue is a runtime error, the researcher
+    // must (a) map the production URL to the owning app/workspace BEFORE
+    // grepping for code, (b) test the cheapest hypothesis before the
+    // expensive one, and (c) actually verify hypotheses by reading the
+    // file that would disprove them — rather than stopping at "likely
+    // X" speculation. These three behaviours are the difference between
+    // root-cause findings and plausible-sounding-but-wrong findings.
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "pre-plan-discovery" }, issueNumber: 99 }));
+
+    // A — URL → app/workspace mapping
+    expect(prompt).toContain("## Investigating a bug or runtime error");
+    expect(prompt).toMatch(/URL\s*→\s*app/i);
+    expect(prompt).toMatch(/BEFORE grepping for code/i);
+    // Several generic deployment-manifest sources (test a representative
+    // sample, not the full list, so wording can flex without breaking).
+    expect(prompt).toContain("vercel.json");
+    expect(prompt).toContain("netlify.toml");
+    expect(prompt).toMatch(/turbo\.json|nx\.json|pnpm-workspace\.yaml/);
+    expect(prompt).toMatch(/anchoring on the first app/i);
+    expect(prompt).toMatch(/surface it as a `### Pre-plan questions` item/i);
+
+    // B — simplest hypothesis first
+    expect(prompt).toMatch(/Simplest hypothesis first/i);
+    expect(prompt).toMatch(/X is genuinely not present in the failing app/i);
+    expect(prompt).toMatch(/Do NOT propose a level-3 hypothesis until level 1 has been ruled out/i);
+
+    // C — diagnostic depth: git log/blame + bundler config + speculation smells
+    expect(prompt).toContain("git log -p");
+    expect(prompt).toContain("git blame");
+    expect(prompt).toMatch(/vite\.config|webpack\.config|next\.config/);
+    expect(prompt).toMatch(/dependencies.*peerDependencies/);
+    expect(prompt).toMatch(/"Likely", "probably", "may"/);
+    expect(prompt).toMatch(/fix at the source.+fix at the consumer.+workaround at the call site/);
+  });
+
+  test("pre-plan-discovery brief raises the read/response budget for bug-investigation passes", () => {
+    // Budget guard: bug investigations need to read git log, bundler
+    // configs, and multiple package.json files. The 20-read cap on a
+    // fresh feature issue is too tight for that. Keep the cap explicit
+    // so a future tightening doesn't silently re-block the path that
+    // 6186/6187-class issues need.
+    const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "pre-plan-discovery" }, issueNumber: 99 }));
+    expect(prompt).toMatch(/~35 reads/);
+    expect(prompt).toMatch(/bug \/ runtime error|bug-investigation/i);
+    expect(prompt).toMatch(/≤ 180 lines/);
+  });
+
   test("pre-plan-discovery brief does NOT emit any auto-commit block", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "pre-plan-discovery" } }));
     expect(prompt).not.toContain("## Auto-Commit");
