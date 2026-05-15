@@ -141,4 +141,94 @@ _none._
     const result = parseResearcherQuestions(response);
     expect(result.hasQuestions).toBe(false);
   });
+
+  describe("opening summary + codebase context surfacing", () => {
+    test("extracts the one-paragraph opening summary between the attribution line and the first heading", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #6186.
+
+React monorepo with 4 portal apps; the error is in customer-portal where NoGuarantor.page.tsx calls useNavigation.
+
+### Codebase context
+
+- Root cause: dual-instance context problem.
+
+### Pre-plan questions
+
+- Should the shared page be kept?
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.openingSummary).toBe(
+        "React monorepo with 4 portal apps; the error is in customer-portal where NoGuarantor.page.tsx calls useNavigation.",
+      );
+    });
+
+    test("extracts a multi-line opening summary verbatim until the first blank line", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #1.
+
+Line one of the summary.
+Line two continues it.
+
+### Codebase context
+
+- a
+### Pre-plan questions
+_none._
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.openingSummary).toBe("Line one of the summary.\nLine two continues it.");
+    });
+
+    test("captures the codebase context body without the heading", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #6186.
+
+summary.
+
+### Codebase context
+
+- Root cause identified: dual-instance context problem.
+- The failing page is NoGuarantor.page.tsx at packages/nodifi-pages.
+
+### Pre-plan questions
+
+- Which fix should I apply?
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.codebaseContext).toContain("Root cause identified");
+      expect(result.codebaseContext).toContain("NoGuarantor.page.tsx");
+      expect(result.codebaseContext).not.toContain("### Codebase context");
+      // Stops at the next heading.
+      expect(result.codebaseContext).not.toContain("Pre-plan questions");
+      expect(result.codebaseContext).not.toContain("Which fix should I apply");
+    });
+
+    test("returns empty opening summary + empty context when sections are missing", () => {
+      const response = `### Pre-plan questions
+
+- Q1
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.openingSummary).toBe("");
+      expect(result.codebaseContext).toBe("");
+      expect(result.questions).toEqual(["Q1"]);
+    });
+
+    test("surfaces context + opening summary even when there are no questions (no-op call site, but consistent shape)", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #2.
+
+Everything is clear.
+
+### Codebase context
+
+- Existing patterns answer everything.
+
+### Pre-plan questions
+
+_none._
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.hasQuestions).toBe(false);
+      expect(result.openingSummary).toBe("Everything is clear.");
+      expect(result.codebaseContext).toContain("Existing patterns answer everything.");
+    });
+  });
 });

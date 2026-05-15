@@ -129,17 +129,47 @@ async function runPrePlanDiscovery(opts: {
  * researcher's surfaced pre-plan questions. Wrapped by
  * `formatSoftwareTeamsComment("questions", …)` at the post site so the
  * comment header + invisible marker land consistently.
+ *
+ * Includes the researcher's opening summary inline and the full
+ * `### Codebase context` section inside a collapsible `<details>` block,
+ * so the user can see HOW the researcher arrived at the questions —
+ * otherwise wrongly-framed questions land with no anchor for the user
+ * to correct the underlying reasoning (e.g. researcher fingered the
+ * wrong app in the monorepo, user has no way to tell without the
+ * context).
  */
-function formatQuestionsCommentBody(questions: string[], issueNumber: number): string {
-  return [
+function formatQuestionsCommentBody(opts: {
+  questions: string[];
+  issueNumber: number;
+  openingSummary: string;
+  codebaseContext: string;
+}): string {
+  const { questions, issueNumber, openingSummary, codebaseContext } = opts;
+  const lines: string[] = [
     `The Research Agent surveyed the codebase and has a few questions before producing a plan for issue #${issueNumber}. Answer them in a follow-up comment on this issue and the plan will continue.`,
     ``,
-    `### Questions`,
-    ``,
-    ...questions.map((q) => `- ${q}`),
-    ``,
-    `_(I'll skip the plan until I have your answers — no plan files have been written yet.)_`,
-  ].join("\n");
+  ];
+  if (openingSummary) {
+    lines.push(`**Researcher's read on the codebase:** ${openingSummary}`);
+    lines.push(``);
+  }
+  lines.push(`### Questions`);
+  lines.push(``);
+  for (const q of questions) lines.push(`- ${q}`);
+  lines.push(``);
+  if (codebaseContext) {
+    lines.push(`<details>`);
+    lines.push(`<summary><strong>How I got here — codebase context</strong> (expand to see what the researcher found)</summary>`);
+    lines.push(``);
+    lines.push(codebaseContext);
+    lines.push(``);
+    lines.push(`</details>`);
+    lines.push(``);
+    lines.push(`_If any of this context is wrong, say so in your reply — the next pass will re-research with your correction in the conversation history._`);
+    lines.push(``);
+  }
+  lines.push(`_(I'll skip the plan until I have your answers — no plan files have been written yet.)_`);
+  return lines.join("\n");
 }
 
 /**
@@ -193,7 +223,12 @@ async function runDiscoveryAndGate(opts: {
     `Researcher surfaced ${parsed.questions.length} pre-plan question(s) — posting and aborting plan run`,
   );
   if (opts.repo && opts.issueNumber) {
-    const body = formatQuestionsCommentBody(parsed.questions, opts.issueNumber);
+    const body = formatQuestionsCommentBody({
+      questions: parsed.questions,
+      issueNumber: opts.issueNumber,
+      openingSummary: parsed.openingSummary,
+      codebaseContext: parsed.codebaseContext,
+    });
     const finalBody = formatSoftwareTeamsComment("questions", body);
     if (opts.placeholderCommentId) {
       await updateGitHubComment(opts.repo, opts.placeholderCommentId, finalBody).catch((err) => {
