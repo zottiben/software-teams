@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { buildRulesBlock } from "../../../utils/prompt-builder";
+import { parseComment } from "../run";
 
 /**
  * run.ts (formerly action.ts) builds prompts inline in its switch cases.
@@ -156,6 +157,83 @@ describe("action run command prompt invariants", () => {
     test("approval message points users to the 'Hey Software Teams' trigger", async () => {
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/Hey Software Teams implement/);
+    });
+  });
+
+  describe("parseComment — follow-up command recognition (regression: issue 6190)", () => {
+    // Background: when a user replies in-thread with a clear command verb
+    // ("implement the plan", "approve", "review"), parseComment used to
+    // silently route the entire comment to feedback whenever the strict
+    // "Hey Software Teams" trigger regex didn't match. That swallowed
+    // the command and produced a new plan instead of implementing — the
+    // exact regression reported on issue 6190 ("Hey AI implement the
+    // plan" → planner re-ran, no implementation).
+    //
+    // The fix: on a follow-up, when the strict trigger regex fails,
+    // strip a generic salutation prefix and run the same command-keyword
+    // checks. Only fall back to feedback when NO explicit command word
+    // is present.
+
+    test("`Hey AI implement the plan` on a follow-up routes to implement, NOT feedback", () => {
+      const parsed = parseComment("Hey AI implement the plan", true);
+      expect(parsed).not.toBeNull();
+      expect(parsed!.command).toBe("implement");
+      expect(parsed!.isFeedback).toBe(false);
+    });
+
+    test("`Hi bot, please implement` on a follow-up routes to implement", () => {
+      const parsed = parseComment("Hi bot, please implement", true);
+      expect(parsed!.command).toBe("implement");
+      expect(parsed!.isFeedback).toBe(false);
+    });
+
+    test("`@software-teams-bot lgtm` on a follow-up is recognised as approval", () => {
+      const parsed = parseComment("@software-teams-bot lgtm", true);
+      expect(parsed!.isFeedback).toBe(true);
+      expect(parsed!.isApproval).toBe(true);
+    });
+
+    test("`implement` typed bare on a follow-up routes to implement", () => {
+      const parsed = parseComment("implement", true);
+      expect(parsed!.command).toBe("implement");
+      expect(parsed!.isFeedback).toBe(false);
+    });
+
+    test("`Yo Claude review this` on a follow-up routes to review", () => {
+      const parsed = parseComment("Yo Claude review this", true);
+      expect(parsed!.command).toBe("review");
+      expect(parsed!.isFeedback).toBe(false);
+    });
+
+    test("free-form follow-up without a command keyword still falls back to feedback", () => {
+      // Regression guard for the OTHER direction: don't accidentally
+      // start routing every free-form follow-up to a command. "Can you
+      // also add tests?" is feedback, not a quick/implement/review.
+      const parsed = parseComment("Hey AI can you also add tests?", true);
+      expect(parsed!.isFeedback).toBe(true);
+      expect(parsed!.command).toBe("plan"); // placeholder; isFeedback drives the runner
+    });
+
+    test("free-form follow-up with no salutation at all still falls back to feedback", () => {
+      const parsed = parseComment("Looks fine but what about the edge case where the user has no email?", true);
+      expect(parsed!.isFeedback).toBe(true);
+    });
+
+    test("non-follow-up comment without a trigger phrase still returns null (unchanged)", () => {
+      // The new loose-salutation branch fires only on follow-ups. A
+      // brand-new comment (no prior assistant comment in thread) with
+      // no trigger phrase should still be ignored, same as before.
+      const parsed = parseComment("Hey AI please implement this", false);
+      expect(parsed).toBeNull();
+    });
+
+    test("`Hey Software Teams implement the plan` (the original trigger) still works", () => {
+      // Regression guard: the canonical trigger phrase path must keep
+      // working exactly as before — the loose-salutation branch is a
+      // FALLBACK, not a replacement.
+      const parsed = parseComment("Hey Software Teams implement the plan", true);
+      expect(parsed!.command).toBe("implement");
+      expect(parsed!.isFeedback).toBe(false);
     });
   });
 
