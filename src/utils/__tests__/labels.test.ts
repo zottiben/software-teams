@@ -56,4 +56,33 @@ describe("runner call sites use the lifecycle labels", () => {
     expect(source).toMatch(/prNumber !== issueNumber/);
     expect(source).toMatch(/setLifecycleLabel\(repo, issueNumber, "ready-to-review"\)/);
   });
+
+  test("post-impl iteration (PR feedback that pushes code) is treated as a code-push flow (regression: PR 6193)", async () => {
+    // Regression guard for the 0.5.39 bug: a comment like
+    // "Hey AI fix the Lint error" on a PR that already has
+    // implementation flips to the post-impl-iteration branch
+    // (pushes a code commit). Pre-fix, the labelling logic only
+    // looked at `intent.command === "plan"` and applied plan-ready
+    // — wrong, no plan was produced. Post-fix, this case is
+    // included in `isCodePushFlow` and gets ready-to-review.
+    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    expect(source).toMatch(/const isPostImplFeedback = intent\.isFeedback && isPostImplementation/);
+    expect(source).toMatch(/isCodePushFlow =/);
+    expect(source).toMatch(/isPostImplFeedback/);
+  });
+
+  test("plan refinement on a non-implemented issue still flips to plan-ready, but NOT post-impl iteration", async () => {
+    // Companion guard for the previous test: the plan-ready branch
+    // must explicitly exclude isPostImplementation, otherwise a
+    // post-impl iteration on a refined plan would double-label.
+    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    expect(source).toMatch(/isPlanProducingFlow =\s*\n\s*intent\.command === "plan" && !isPostImplementation/);
+  });
+
+  test("quick command (which also pushes code) is in the code-push flow", async () => {
+    // Quick fixes also push a new branch + PR — should label
+    // ready-to-review, not plan-ready.
+    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    expect(source).toMatch(/intent\.command === "quick"/);
+  });
 });

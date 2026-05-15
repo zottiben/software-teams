@@ -6,6 +6,7 @@ import { spawnClaude } from "../../utils/claude";
 import { createStorage } from "../../storage";
 import { loadPersistedState, savePersistedState } from "../../utils/storage-lifecycle";
 import { extractClickUpId, fetchClickUpTicket, formatTicketAsContext } from "../../utils/clickup";
+import { extractDatadogIssue, fetchDatadogIssue, formatDatadogAsContext } from "../../utils/datadog";
 import { checkAuthorization } from "../../utils/auth";
 import { sanitizeUserInput } from "../../utils/sanitize";
 import { readState, writeState } from "../../utils/state";
@@ -382,6 +383,52 @@ async function prepareIssueFeatureBranch(opts: {
 }
 
 /**
+ * Scan a text corpus for external context references (ClickUp ticket
+ * URLs, Datadog Error Tracking URLs) and fetch each one through its
+ * respective sanitised formatter. Returns the formatted markdown
+ * blocks ready to be appended to the agent's workspace context.
+ *
+ * Used by BOTH the label-triggered path (text = issue title + body)
+ * AND the comment-triggered path (text = trigger comment + issue
+ * title + body). Each fetcher returns null on missing creds /
+ * unreachable API / parse failure — failures log once and the run
+ * continues without that block.
+ *
+ * PII safety is enforced inside each formatter (`formatTicketAsContext`
+ * for ClickUp, `formatDatadogAsContext` for Datadog) — the scrubber
+ * runs at the format step so the raw API responses never enter the
+ * agent prompt.
+ */
+async function loadExternalContexts(searchText: string): Promise<string[]> {
+  if (!searchText) return [];
+  const blocks: string[] = [];
+
+  // ClickUp
+  const clickUpId = extractClickUpId(searchText);
+  if (clickUpId) {
+    consola.info(`Fetching ClickUp ticket: ${clickUpId}`);
+    const ticket = await fetchClickUpTicket(clickUpId);
+    if (ticket) {
+      blocks.push(formatTicketAsContext(ticket));
+      consola.success(`Loaded ClickUp ticket: ${ticket.name}`);
+    }
+  }
+
+  // Datadog Error Tracking
+  const ddRef = extractDatadogIssue(searchText);
+  if (ddRef) {
+    consola.info(`Fetching Datadog Error Tracking issue: ${ddRef.issueId}`);
+    const issue = await fetchDatadogIssue(ddRef.issueId, ddRef.apiBase);
+    if (issue) {
+      blocks.push(formatDatadogAsContext(issue));
+      consola.success(`Loaded Datadog issue: ${issue.title}`);
+    }
+  }
+
+  return blocks;
+}
+
+/**
  * Strip a generic salutation prefix from a follow-up comment so the
  * downstream command-keyword checks (`startsWith("implement")` etc) can
  * still see the user's verb.
@@ -676,6 +723,15 @@ export const runCommand = defineCommand({
         `- Working directory: ${cwd}`,
       ];
 
+      // Scan the synthesised issue text (title + body) for external
+      // context URLs (ClickUp tickets, Datadog Error Tracking issues)
+      // and append their sanitised context blocks. The synthetic
+      // description IS `${title}\n\n${body}` for this path.
+      const externalBlocks = await loadExternalContexts(intent.description);
+      for (const block of externalBlocks) {
+        workspaceLines.push("", block);
+      }
+
       const gateResult = await runDiscoveryAndGate({
         cwd,
         repo,
@@ -931,19 +987,20 @@ export const runCommand = defineCommand({
     const storage = await createStorage(cwd);
     const { rulesPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
 
-    // Fetch ClickUp ticket context if URL present
-    let ticketContext = "";
-    if (intent.clickUpUrl) {
-      const taskId = extractClickUpId(intent.clickUpUrl);
-      if (taskId) {
-        consola.info(`Fetching ClickUp ticket: ${taskId}`);
-        const ticket = await fetchClickUpTicket(taskId);
-        if (ticket) {
-          ticketContext = formatTicketAsContext(ticket);
-          consola.success(`Loaded ticket: ${ticket.name}`);
-        }
+    // Load external-context blocks (ClickUp tickets, Datadog Error
+    // Tracking issues). URLs are searched in BOTH the trigger comment
+    // AND the issue/PR title + body — users often paste the Datadog
+    // link in the issue body itself, with the trigger comment being
+    // just "Hey Software Teams fix this". Each context is sanitised
+    // through the PII scrubber before it lands in the prompt.
+    let externalSearchCorpus = intent.description ?? "";
+    if (repo && issueNumber) {
+      const issueRecord = await fetchIssueTitleAndBody(repo, issueNumber).catch(() => null);
+      if (issueRecord) {
+        externalSearchCorpus += `\n${issueRecord.title}\n${issueRecord.body}`;
       }
     }
+    const externalBlocks = await loadExternalContexts(externalSearchCorpus);
 
     // Build project context
     const projectType = await detectProjectType(cwd);
@@ -969,8 +1026,8 @@ export const runCommand = defineCommand({
       `## Workspace`,
       `- Working directory: ${cwd}`,
     ];
-    if (ticketContext) {
-      workspaceLines.push(``, ticketContext);
+    for (const block of externalBlocks) {
+      workspaceLines.push(``, block);
     }
 
     // Build prompt based on whether this is feedback or a new command.
@@ -1310,15 +1367,38 @@ export const runCommand = defineCommand({
 
       // Lifecycle label: advance the issue/PR's Software Teams state
       // label so the issue board reflects the current stage. Only acts
-      // on successful runs — failed runs leave the prior label in place.
+      // on successful runs — failed runs leave the prior label in
+      // place.
+      //
+      // Two categories matter:
+      //   - Code-pushing flows → ready-to-review on the PR (and
+      //     originating issue, when different). Includes:
+      //       * explicit implement / quick commands
+      //       * fullFlow (plan + implement in one shot)
+      //       * post-implementation iteration — when the user replies
+      //         to a PR comment thread that already has implementation
+      //         commits, the feedback flow pushes a new code commit
+      //         rather than refining a plan. Regression on PR 6193:
+      //         this was mislabeled as plan-ready because the parser
+      //         returns command="plan" for any unspecified follow-up,
+      //         even though the actual flow pushed code.
+      //   - Plan-producing flows → plan-ready on the issue. Includes:
+      //       * explicit plan command
+      //       * plan refinement (isFeedback=true) on a non-implemented
+      //         issue — that updates the plan in place.
+      //     Crucially NOT when isPostImplementation is true — that
+      //     branch pushes code, not a plan.
       if (success) {
-        if (intent.command === "implement" || intent.fullFlow) {
-          // Implement just ran. The programmer subagent (if successful)
-          // pushed a branch + opened a PR. Find that PR by current
-          // branch and flip BOTH the PR and the originating issue to
-          // ready-to-review. If no PR was opened (subagent reported
-          // success but skipped PR creation), the lookup returns null
-          // and we leave the label alone.
+        const isPostImplFeedback = intent.isFeedback && isPostImplementation;
+        const isCodePushFlow =
+          intent.command === "implement" ||
+          intent.command === "quick" ||
+          intent.fullFlow ||
+          isPostImplFeedback;
+        const isPlanProducingFlow =
+          intent.command === "plan" && !isPostImplementation;
+
+        if (isCodePushFlow) {
           const branch = await gitBranch().catch(() => "");
           const prNumber = branch ? await findPrForBranch(repo, branch) : null;
           if (prNumber) {
@@ -1327,10 +1407,7 @@ export const runCommand = defineCommand({
               await setLifecycleLabel(repo, issueNumber, "ready-to-review").catch(() => {});
             }
           }
-        } else if (intent.command === "plan") {
-          // Plan flow — both initial plan (isFeedback=false) and
-          // refinement (isFeedback=true) end with a usable plan on
-          // disk, so plan-ready is the right label for both.
+        } else if (isPlanProducingFlow) {
           await setLifecycleLabel(repo, issueNumber, "plan-ready").catch(() => {});
         }
       }

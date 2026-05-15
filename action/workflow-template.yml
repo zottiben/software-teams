@@ -7,6 +7,9 @@
 #
 # Optional:
 #   - Set CLICKUP_API_TOKEN secret for ClickUp ticket integration
+#   - Set DATADOG_API_KEY and DATADOG_APP_KEY secrets for Datadog Error
+#     Tracking integration (both required; PII is scrubbed before any
+#     Datadog content lands in an agent prompt — see docs)
 #   - Set SOFTWARE_TEAMS_COMMIT_RULES=true repo variable to persist rules in git
 #   - Set SOFTWARE_TEAMS_RULES_REPO variable to push rules to a central repo (e.g. org/software-teams-rules)
 #   - Set SOFTWARE_TEAMS_RULES_TOKEN secret (PAT with Contents read/write on the rules repo)
@@ -164,6 +167,8 @@ jobs:
           ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
           GH_TOKEN: ${{ github.token }}
 
       # Save Software Teams state — rules, config, persistence all cached together
@@ -241,6 +246,8 @@ jobs:
           ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
           GH_TOKEN: ${{ github.token }}
 
       # Save Software Teams state — plan files written by the planner must

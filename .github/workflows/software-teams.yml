@@ -129,6 +129,8 @@ jobs:
           ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
           GH_TOKEN: ${{ github.token }}
 
       # Save Software Teams state — rules, config, persistence all cached together
@@ -206,6 +208,8 @@ jobs:
           ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+          DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
           GH_TOKEN: ${{ github.token }}
 
       # Save Software Teams state — plan files written by the planner must

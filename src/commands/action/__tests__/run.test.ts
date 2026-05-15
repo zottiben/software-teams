@@ -160,6 +160,54 @@ describe("action run command prompt invariants", () => {
     });
   });
 
+  describe("external context (ClickUp + Datadog) wiring", () => {
+    // Source-level guards — the runner needs to (a) extract URLs from
+    // BOTH the trigger comment AND the issue/PR body (today's
+    // user-visible regression: ClickUp URLs in issue bodies were
+    // ignored), (b) run all external context through the shared
+    // sanitiser-aware helper, (c) feed Datadog secrets through the
+    // env, scrubbed. These tests fail loudly if a future refactor
+    // silently drops one of those.
+
+    test("loadExternalContexts helper aggregates ClickUp + Datadog blocks", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      expect(source).toMatch(/async function loadExternalContexts\(searchText: string\)/);
+      expect(source).toContain("extractClickUpId(searchText)");
+      expect(source).toContain("extractDatadogIssue(searchText)");
+    });
+
+    test("comment-triggered path scans BOTH the comment AND the issue/PR body for URLs", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // Look for the aggregation pattern: corpus starts as the
+      // comment description, then appends the issue title + body.
+      expect(source).toMatch(/let externalSearchCorpus = intent\.description/);
+      expect(source).toMatch(/externalSearchCorpus \+= `\\n\$\{issueRecord\.title\}\\n\$\{issueRecord\.body\}`/);
+    });
+
+    test("label-triggered path also runs the external-context lookup against the synthetic issue text", async () => {
+      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      // The label-triggered path's `intent.description` is already
+      // `${title}\n\n${body}`, so loadExternalContexts is called
+      // directly on it.
+      expect(source).toMatch(/loadExternalContexts\(intent\.description\)/);
+    });
+
+    test("ClickUp output is routed through scrubPII (ticket bodies often contain customer references)", async () => {
+      const clickup = await Bun.file(new URL("../../../utils/clickup.ts", import.meta.url).pathname).text();
+      expect(clickup).toMatch(/import \{ scrubPII \} from ["']\.\/pii-scrubber["']/);
+      expect(clickup).toContain("scrubPII(ticket.name)");
+      expect(clickup).toContain("scrubPII(ticket.description)");
+    });
+
+    test("workflow template threads DATADOG_API_KEY + DATADOG_APP_KEY secrets through the env", async () => {
+      const tmpl = await Bun.file(
+        new URL("../../../../action/workflow-template.yml", import.meta.url).pathname,
+      ).text();
+      expect(tmpl).toMatch(/DATADOG_API_KEY:\s*\$\{\{\s*secrets\.DATADOG_API_KEY\s*\}\}/);
+      expect(tmpl).toMatch(/DATADOG_APP_KEY:\s*\$\{\{\s*secrets\.DATADOG_APP_KEY\s*\}\}/);
+    });
+  });
+
   describe("parseComment — follow-up command recognition (regression: issue 6190)", () => {
     // Background: when a user replies in-thread with a clear command verb
     // ("implement the plan", "approve", "review"), parseComment used to
