@@ -45,6 +45,15 @@ export interface PrePlanQuestions {
    * section is missing.
    */
   codebaseContext: string;
+  /**
+   * Raw markdown body of the `### Answers to your previous comment`
+   * section — the researcher's direct responses to questions / pushback
+   * the user posted in their last comment. Empty on a first-pass run
+   * (nothing for the researcher to answer back yet) or when the user's
+   * last comment only contained answers to the researcher's prior
+   * questions.
+   */
+  previousCommentAnswers: string;
 }
 
 export function parseResearcherQuestions(response: string): PrePlanQuestions {
@@ -53,6 +62,7 @@ export function parseResearcherQuestions(response: string): PrePlanQuestions {
     questions: [],
     openingSummary: "",
     codebaseContext: "",
+    previousCommentAnswers: "",
   };
   if (!response) return empty;
 
@@ -62,6 +72,11 @@ export function parseResearcherQuestions(response: string): PrePlanQuestions {
   const preamble = chunks[0] ?? "";
   const openingSummary = extractOpeningSummary(preamble);
 
+  const answersChunk = chunks.find((s) => /^###\s+Answers to your previous comment/i.test(s)) ?? "";
+  const previousCommentAnswers = answersChunk
+    ? answersChunk.replace(/^###\s+Answers to your previous comment[^\n]*\n/i, "").trim()
+    : "";
+
   const contextChunk = chunks.find((s) => /^###\s+Codebase context/i.test(s)) ?? "";
   const codebaseContext = contextChunk
     ? contextChunk.replace(/^###\s+Codebase context[^\n]*\n/i, "").trim()
@@ -69,7 +84,7 @@ export function parseResearcherQuestions(response: string): PrePlanQuestions {
 
   const questionsChunk = chunks.find((s) => /^###\s+Pre-plan questions/i.test(s));
   if (!questionsChunk) {
-    return { ...empty, openingSummary, codebaseContext };
+    return { ...empty, openingSummary, codebaseContext, previousCommentAnswers };
   }
 
   const body = questionsChunk
@@ -80,7 +95,7 @@ export function parseResearcherQuestions(response: string): PrePlanQuestions {
   // questions. We accept a few minor variants because the researcher
   // sometimes drops the trailing dot or wraps in different markers.
   if (/^_?none\.?_?\s*$/im.test(body)) {
-    return { ...empty, openingSummary, codebaseContext };
+    return { ...empty, openingSummary, codebaseContext, previousCommentAnswers };
   }
 
   // Extract every bulleted line (`-` or `*` prefix). Ignore non-bullet
@@ -96,6 +111,7 @@ export function parseResearcherQuestions(response: string): PrePlanQuestions {
     questions,
     openingSummary,
     codebaseContext,
+    previousCommentAnswers,
   };
 }
 

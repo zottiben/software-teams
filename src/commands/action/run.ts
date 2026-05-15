@@ -143,20 +143,53 @@ function formatQuestionsCommentBody(opts: {
   issueNumber: number;
   openingSummary: string;
   codebaseContext: string;
+  previousCommentAnswers: string;
 }): string {
-  const { questions, issueNumber, openingSummary, codebaseContext } = opts;
-  const lines: string[] = [
-    `The Research Agent surveyed the codebase and has a few questions before producing a plan for issue #${issueNumber}. Answer them in a follow-up comment on this issue and the plan will continue.`,
-    ``,
-  ];
+  const {
+    questions,
+    issueNumber,
+    openingSummary,
+    codebaseContext,
+    previousCommentAnswers,
+  } = opts;
+
+  const hasQuestions = questions.length > 0;
+  const hasAnswers = previousCommentAnswers.trim().length > 0;
+
+  // Intro line — phrased to match what's actually in the comment.
+  // Three cases: answers+questions, answers only, questions only.
+  let intro: string;
+  if (hasAnswers && hasQuestions) {
+    intro = `The Research Agent has answers to your last comment plus a few remaining questions before producing a plan for issue #${issueNumber}. Reply when ready and the plan will continue.`;
+  } else if (hasAnswers) {
+    intro = `The Research Agent has answers to your last comment for issue #${issueNumber}. Reply to confirm or push further — the planner will run on your next message.`;
+  } else {
+    intro = `The Research Agent surveyed the codebase and has a few questions before producing a plan for issue #${issueNumber}. Answer them in a follow-up comment on this issue and the plan will continue.`;
+  }
+  const lines: string[] = [intro, ``];
+
   if (openingSummary) {
     lines.push(`**Researcher's read on the codebase:** ${openingSummary}`);
     lines.push(``);
   }
-  lines.push(`### Questions`);
-  lines.push(``);
-  for (const q of questions) lines.push(`- ${q}`);
-  lines.push(``);
+
+  // Answers go ABOVE questions — they respond directly to the user's
+  // most recent message, so they're the first thing the reader wants
+  // to see when they come back to the issue.
+  if (hasAnswers) {
+    lines.push(`### Answers to your last comment`);
+    lines.push(``);
+    lines.push(previousCommentAnswers);
+    lines.push(``);
+  }
+
+  if (hasQuestions) {
+    lines.push(`### Questions`);
+    lines.push(``);
+    for (const q of questions) lines.push(`- ${q}`);
+    lines.push(``);
+  }
+
   if (codebaseContext) {
     lines.push(`<details>`);
     lines.push(`<summary><strong>How I got here — codebase context</strong> (expand to see what the researcher found)</summary>`);
@@ -168,7 +201,12 @@ function formatQuestionsCommentBody(opts: {
     lines.push(`_If any of this context is wrong, say so in your reply — the next pass will re-research with your correction in the conversation history._`);
     lines.push(``);
   }
-  lines.push(`_(I'll skip the plan until I have your answers — no plan files have been written yet.)_`);
+
+  if (hasQuestions) {
+    lines.push(`_(I'll skip the plan until I have your answers — no plan files have been written yet.)_`);
+  } else {
+    lines.push(`_(No plan files written yet — reply when you're satisfied and the plan will proceed.)_`);
+  }
   return lines.join("\n");
 }
 
@@ -215,12 +253,21 @@ async function runDiscoveryAndGate(opts: {
   });
 
   const parsed = parseResearcherQuestions(findings);
-  if (!parsed.hasQuestions) {
+  const hasAnswers = parsed.previousCommentAnswers.trim().length > 0;
+  // Gate fires when the researcher has either remaining questions OR
+  // direct answers to the user's most recent comment. The answers
+  // branch matters because — without it — when a user replies to a
+  // questions comment with their own follow-up question ("why X?"),
+  // the researcher would investigate + answer, then the planner would
+  // run immediately, and the user would never see the answer to what
+  // they asked. Surfacing answers as a comment hands control back to
+  // the user.
+  if (!parsed.hasQuestions && !hasAnswers) {
     return { findings, aborted: false };
   }
 
   consola.info(
-    `Researcher surfaced ${parsed.questions.length} pre-plan question(s) — posting and aborting plan run`,
+    `Researcher pre-plan gate firing — questions: ${parsed.questions.length}, has-answers: ${hasAnswers}`,
   );
   if (opts.repo && opts.issueNumber) {
     const body = formatQuestionsCommentBody({
@@ -228,6 +275,7 @@ async function runDiscoveryAndGate(opts: {
       issueNumber: opts.issueNumber,
       openingSummary: parsed.openingSummary,
       codebaseContext: parsed.codebaseContext,
+      previousCommentAnswers: parsed.previousCommentAnswers,
     });
     const finalBody = formatSoftwareTeamsComment("questions", body);
     if (opts.placeholderCommentId) {

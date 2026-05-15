@@ -231,4 +231,72 @@ _none._
       expect(result.codebaseContext).toContain("Existing patterns answer everything.");
     });
   });
+
+  describe("conversational answers section (`### Answers to your previous comment`)", () => {
+    test("captures the answers body verbatim without the heading", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #6186.
+
+Re-scoped to nodifi-portal per your correction.
+
+### Answers to your previous comment
+
+You were right that this is nodifi-portal, not customer-portal. My prior pass anchored on the App.tsx that mounted NavigationProvider with the most recent route additions — which happened to be customer-portal/src/App.tsx — without checking which app actually loads NoGuarantor.page.tsx at runtime. Re-checking via \`git log\` on nodifi-portal's route config: the route was added 2026-04-22 in commit a1b2c3d.
+
+### Codebase context
+
+- Re-scoped findings here.
+
+### Pre-plan questions
+
+- One more thing to confirm?
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.previousCommentAnswers).toContain("You were right that this is nodifi-portal");
+      expect(result.previousCommentAnswers).toContain("a1b2c3d");
+      expect(result.previousCommentAnswers).not.toContain("### Answers to your previous comment");
+      // Stops at next heading.
+      expect(result.previousCommentAnswers).not.toContain("Re-scoped findings here.");
+      expect(result.previousCommentAnswers).not.toContain("One more thing");
+    });
+
+    test("returns empty answers when the section is omitted (first-pass run)", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #1.
+
+Summary.
+
+### Codebase context
+
+- Nothing yet.
+
+### Pre-plan questions
+
+- Q1
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.previousCommentAnswers).toBe("");
+    });
+
+    test("captures answers alongside `_none._` for questions (researcher answered everything, no remaining questions)", () => {
+      const response = `**The Research Agent** completed pre-plan discovery for issue #6186.
+
+Re-scoped.
+
+### Answers to your previous comment
+
+This started failing after commit a1b2c3d (2026-04-22) added the route without a NavigationProvider wrapper. Only nodifi-portal is affected because the other portals don't import NoGuarantor.page.tsx.
+
+### Codebase context
+
+- Nothing else open.
+
+### Pre-plan questions
+
+_none._
+`;
+      const result = parseResearcherQuestions(response);
+      expect(result.hasQuestions).toBe(false);
+      expect(result.previousCommentAnswers).toContain("a1b2c3d");
+      expect(result.previousCommentAnswers).toContain("Only nodifi-portal");
+    });
+  });
 });
