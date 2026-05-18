@@ -290,10 +290,20 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
         featureBranch: { branchName: "issue-49-stats-api", defaultBranch: "main" },
       }),
     );
-    expect(prompt).toContain("### PR title + body pre-fill (BOTH required)");
+    // Post-0.5.42: the `### PR title + body pre-fill (BOTH required)`
+    // heading was dropped from the brief because the agent was
+    // echoing it as a literal output heading (with the title/body
+    // quoted above the link — redundant noise). The encoding rules
+    // are now framed as internal instructions only.
+    expect(prompt).not.toContain("### PR title + body pre-fill (BOTH required)");
+    expect(prompt).toMatch(/do NOT emit these as a heading/);
+    // Encoding rules content is still present, just not as a heading.
     expect(prompt).toMatch(/conventional-commit shape/i);
-    expect(prompt).toMatch(/feat: render Nav across all routes/);
-    expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
+    // The condensed worked example uses a shorter title so encoding
+    // rules fit on one line — `feat%3A%20render%20Nav` is what the
+    // brief now ships (was: `feat%3A%20render%20Nav%20across%20all%20routes`).
+    expect(prompt).toMatch(/feat: render Nav/);
+    expect(prompt).toMatch(/feat%3A%20render%20Nav/);
     expect(prompt).toContain("?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-N>");
     // CRITICAL: URL must use compare/ form, not pull/new/. GitHub drops
     // query params on pull/new/ but honours them on compare/.
@@ -302,7 +312,7 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     // Body must start with `Closes #N` for GitHub's Development link.
     expect(prompt).toMatch(/MUST start with `Closes #49`/);
     expect(prompt).toMatch(/Closes%20%2349/);
-    expect(prompt).toMatch(/NEVER include "Software Teams"/);
+    expect(prompt).toMatch(/Never.*include "Software Teams"/);
   });
 
   test("issue-context impl PR proposal block includes a `**Title:**` row (mirrors the URL-encoded title)", () => {
@@ -571,7 +581,11 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
 
   test("orchestrator instructs conventional-commit `?title=` + `?body=` pre-fill for the combined PR (compare/ form)", () => {
     const prompt = buildRouterPrompt(makeMultiSpawn());
-    expect(prompt).toContain("### PR title + body pre-fill (BOTH required)");
+    // Post-0.5.42: same heading-removal fix as the single-spawn brief
+    // (see test of the same shape above). The encoding rules stay,
+    // just not as a heading the agent echoes verbatim.
+    expect(prompt).not.toContain("### PR title + body pre-fill (BOTH required)");
+    expect(prompt).toMatch(/do NOT emit these as a heading/);
     expect(prompt).toMatch(/ONE umbrella conventional-commit title/i);
     expect(prompt).toMatch(/feat%3A%20render%20Nav%20across%20all%20routes/);
     expect(prompt).toContain("?expand=1&title=<url-encoded-title>&body=<url-encoded-body-starting-with-Closes-46>");
@@ -580,7 +594,7 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
     expect(prompt).not.toMatch(/pull\/new\/software-teams\/issue-46-implement-multi/);
     expect(prompt).toMatch(/MUST start with `Closes #46`/);
     expect(prompt).toMatch(/Closes%20%2346/);
-    expect(prompt).toMatch(/NEVER include "Software Teams"/);
+    expect(prompt).toMatch(/Never.*include "Software Teams"/);
   });
 
   test("orchestrator PR proposal block includes a `**Title:**` row", () => {

@@ -225,35 +225,22 @@ function buildSubagentBrief(ctx: ActionContext): string {
     //     "Development" section. Commit-message keywords trigger auto-close
     //     on merge but do NOT create the sidebar link.
     const compareUrlBase = `https://github.com/${repo}/compare/${featureBranch.defaultBranch}...${featureBranch.branchName}`;
+    // Encoding rules for the [Open this PR] link below. These are
+    // INSTRUCTIONS for how to build the URL — do NOT emit any of this
+    // as a heading or quoted block in the response. The user-facing
+    // response should END with the `## PR proposal` block + the link;
+    // restating the title and body above the link is redundant noise
+    // (the link already carries them as URL-encoded query params).
     const prTitleGuidance = [
       ``,
-      `### PR title + body pre-fill (BOTH required)`,
+      `**How to build the [Open this PR] link below — internal rules, do NOT emit these as a heading or quote block in your response:**`,
       ``,
-      `**Title** — conventional-commit shape \`<type>: <subject>\` where \`<type>\` is one of \`feat\`, \`fix\`, \`chore\`, \`refactor\`, \`docs\`, \`test\`, \`perf\`, \`style\`. Subject is imperative, lower-case, no trailing dot. Examples:`,
-      `  - \`feat: render Nav across all routes\``,
-      `  - \`fix: handle null in /stats response\``,
-      `  - \`chore: bump bun to 1.3.7 in workflow\``,
-      ``,
-      `**Body** — MUST start with \`Closes #${issueNumber}\` on its own line, followed by a blank line, followed by your summary (or the FILLED PR template if one was detected). The \`Closes\` keyword is what GitHub uses to create the Issue ↔ PR link in the "Development" section — without it, the PR shows as un-linked even if commits mention it.`,
-      ``,
-      `**URL format — MUST be the \`compare/\` form with \`?expand=1\`** (NOT \`pull/new/...\` — GitHub drops query params on that one):`,
-      `  \`${compareUrlBase}?expand=1&title=<encoded-title>&body=<encoded-body>\``,
-      ``,
-      `URL-encode BOTH params. Encoding cheat sheet (chars that actually appear in practice):`,
-      `  - space → \`%20\``,
-      `  - newline → \`%0A\` (blank line is \`%0A%0A\`)`,
-      `  - colon → \`%3A\``,
-      `  - hash → \`%23\` (used by \`#${issueNumber}\` → \`%23${issueNumber}\`)`,
-      `  - slash → \`%2F\``,
-      `  - comma → \`%2C\``,
-      `  - parens → \`%28\` / \`%29\``,
-      ``,
-      `Worked example. Title: \`feat: render Nav across all routes\`. Body: \`Closes #${issueNumber}\\n\\nMounted Nav above Outlet in App.tsx so navigation appears on every route.\` Encodes to:`,
-      `  title=\`feat%3A%20render%20Nav%20across%20all%20routes\``,
-      `  body=\`Closes%20%23${issueNumber}%0A%0AMounted%20Nav%20above%20Outlet%20in%20App.tsx%20so%20navigation%20appears%20on%20every%20route.\``,
-      `  link=\`${compareUrlBase}?expand=1&title=feat%3A%20render%20Nav%20across%20all%20routes&body=Closes%20%23${issueNumber}%0A%0AMounted%20Nav%20above%20Outlet%20in%20App.tsx%20so%20navigation%20appears%20on%20every%20route.\``,
-      ``,
-      `NEVER include "Software Teams" anywhere in the title or body. The brand is intentionally hidden from end users.`,
+      `- **Title** — conventional-commit shape \`<type>: <subject>\` where \`<type>\` is one of \`feat\`, \`fix\`, \`chore\`, \`refactor\`, \`docs\`, \`test\`, \`perf\`, \`style\`. Subject is imperative, lower-case, no trailing dot. Examples: \`feat: render Nav across all routes\` / \`fix: handle null in /stats response\` / \`chore: bump bun to 1.3.7\`.`,
+      `- **Body** — MUST start with \`Closes #${issueNumber}\` on its own line, followed by a blank line, followed by your summary (or the FILLED PR template if one was detected). The \`Closes\` keyword is what GitHub uses to create the Issue ↔ PR link in the "Development" section.`,
+      `- **URL** — MUST be the \`compare/\` form with \`?expand=1\` (NOT \`pull/new/...\` — GitHub drops query params on that one): \`${compareUrlBase}?expand=1&title=<encoded-title>&body=<encoded-body>\`.`,
+      `- **URL-encode** both params. space→\`%20\`, newline→\`%0A\` (blank line→\`%0A%0A\`), colon→\`%3A\`, hash→\`%23\` (so \`#${issueNumber}\` → \`%23${issueNumber}\`), slash→\`%2F\`, comma→\`%2C\`, parens→\`%28\`/\`%29\`.`,
+      `- **Worked example** (for your reference only, do not echo it): title \`feat: render Nav\` encodes to \`feat%3A%20render%20Nav\`; body \`Closes #${issueNumber}\\n\\nSummary.\` encodes to \`Closes%20%23${issueNumber}%0A%0ASummary.\`.`,
+      `- **Never** include "Software Teams" anywhere in the title or body — the brand is intentionally hidden from end users.`,
     ];
 
     if (ctx.prTemplate) {
@@ -438,10 +425,11 @@ function buildPlanBrief(ctx: ActionContext, flow: { kind: "plan"; isRefinement?:
     ``,
     `</details>`,
     ``,
-    `**Optional additions** — not included in this plan:`,
-    `1. {suggestion}`,
-    `2. {suggestion}`,
-    ``,
+    // No "Optional additions" / scope-creep suggestions. The plan is
+    // what it is; reviewers don't want an open-ended list of things
+    // we COULD have done but aren't doing — it dilutes the focused
+    // ask and reads as indecisive. If something genuinely belongs in
+    // a follow-up issue, the user will surface it themselves.
     `End with EXACTLY: \`Any changes before implementation?\``,
   ];
 }
@@ -767,27 +755,20 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
     finalBlock.push(``);
     finalBlock.push(`## Step 3 — End your response with the PR proposal block`);
     finalBlock.push(``);
-    finalBlock.push(`After the attribution header + 1–2 sentence summary, emit EXACTLY this block (no further text):`);
+    // The encoding rules below are INSTRUCTIONS for building the
+    // `[Open this PR]` link — do NOT emit them as a heading or quoted
+    // block in the response. The user-facing output ends with the
+    // `## PR proposal` block + the link only.
+    finalBlock.push(`**How to build the [Open this PR] link below — internal rules, do NOT emit these as a heading or quote block in your response:**`);
     finalBlock.push(``);
-    finalBlock.push(`### PR title + body pre-fill (BOTH required)`);
+    finalBlock.push(`- **Title** — choose ONE umbrella conventional-commit title that summarises the combined change across all spawns: \`<type>: <subject>\` where type is \`feat\` / \`fix\` / \`chore\` / \`refactor\` / \`docs\` / \`test\` / \`perf\` / \`style\`. Example: \`feat: hardcoded /stats endpoint + frontend route\`.`);
+    finalBlock.push(`- **Body** — MUST start with \`Closes #${ctx.issueNumber}\` on its own line, followed by a blank line, followed by your combined summary (or the FILLED PR template if one was detected). The \`Closes\` keyword is what GitHub uses to wire the Issue ↔ PR "Development" link.`);
+    finalBlock.push(`- **URL** — MUST be the \`compare/\` form with \`?expand=1\` (NOT \`pull/new/...\` — GitHub drops query params on that one): \`${prCompareUrl}?expand=1&title=<encoded-title>&body=<encoded-body>\`.`);
+    finalBlock.push(`- **URL-encode** both params. space→\`%20\`, newline→\`%0A\` (blank line→\`%0A%0A\`), colon→\`%3A\`, hash→\`%23\` (so \`#${ctx.issueNumber}\` → \`%23${ctx.issueNumber}\`), slash→\`%2F\`.`);
+    finalBlock.push(`- **Worked example** (for your reference only, do not echo): title \`feat: render Nav across all routes\` encodes to \`feat%3A%20render%20Nav%20across%20all%20routes\`; body \`Closes #${ctx.issueNumber}\\n\\nSummary.\` encodes to \`Closes%20%23${ctx.issueNumber}%0A%0ASummary.\`.`);
+    finalBlock.push(`- **Never** include "Software Teams" in the title or body — the brand is intentionally hidden from end users.`);
     finalBlock.push(``);
-    finalBlock.push(`**Title** — choose ONE umbrella conventional-commit title that summarises the combined change across all spawns: \`<type>: <subject>\` where type is \`feat\` / \`fix\` / \`chore\` / \`refactor\` / \`docs\` / \`test\` / \`perf\` / \`style\`. Example: \`feat: hardcoded /stats endpoint + frontend route\`.`);
-    finalBlock.push(``);
-    finalBlock.push(`**Body** — MUST start with \`Closes #${ctx.issueNumber}\` on its own line, followed by a blank line, followed by your combined summary (or the FILLED PR template if one was detected). The \`Closes\` keyword is what GitHub uses to wire the Issue ↔ PR "Development" link — without it the PR shows as un-linked even when commits mention the issue.`);
-    finalBlock.push(``);
-    finalBlock.push(`**URL format — MUST be the \`compare/\` form with \`?expand=1\`** (NOT \`pull/new/...\` — GitHub drops query params on that one):`);
-    finalBlock.push(`  \`${prCompareUrl}?expand=1&title=<encoded-title>&body=<encoded-body>\``);
-    finalBlock.push(``);
-    finalBlock.push(`URL-encode BOTH params. Encoding cheat sheet:`);
-    finalBlock.push(`  - space → \`%20\``);
-    finalBlock.push(`  - newline → \`%0A\` (blank line → \`%0A%0A\`)`);
-    finalBlock.push(`  - colon → \`%3A\``);
-    finalBlock.push(`  - hash → \`%23\` (used by \`#${ctx.issueNumber}\` → \`%23${ctx.issueNumber}\`)`);
-    finalBlock.push(`  - slash → \`%2F\``);
-    finalBlock.push(``);
-    finalBlock.push(`Worked example. Title \`feat: render Nav across all routes\` encodes to \`feat%3A%20render%20Nav%20across%20all%20routes\`. Body \`Closes #${ctx.issueNumber}\\n\\nMounted Nav across all routes.\` encodes to \`Closes%20%23${ctx.issueNumber}%0A%0AMounted%20Nav%20across%20all%20routes.\`.`);
-    finalBlock.push(``);
-    finalBlock.push(`NEVER include "Software Teams" in the title or body — the brand is intentionally hidden from end users.`);
+    finalBlock.push(`Emit EXACTLY this block as the end of your response (no further text after the link):`);
     finalBlock.push(``);
     finalBlock.push(`## PR proposal`);
     finalBlock.push(``);

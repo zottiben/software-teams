@@ -146,6 +146,12 @@ function formatQuestionsCommentBody(opts: {
   openingSummary: string;
   codebaseContext: string;
   previousCommentAnswers: string;
+  // True when this is a follow-up researcher pass (i.e. there's
+  // already at least one assistant comment in the thread). On
+  // follow-ups, the opening summary becomes noise — the user already
+  // knows the project shape from the first pass. Only emit it on
+  // the FIRST pass.
+  isFollowUp: boolean;
 }): string {
   const {
     questions,
@@ -153,6 +159,7 @@ function formatQuestionsCommentBody(opts: {
     openingSummary,
     codebaseContext,
     previousCommentAnswers,
+    isFollowUp,
   } = opts;
 
   const hasQuestions = questions.length > 0;
@@ -170,7 +177,10 @@ function formatQuestionsCommentBody(opts: {
   }
   const lines: string[] = [intro, ``];
 
-  if (openingSummary) {
+  // Opening summary fires only on the FIRST researcher pass. By
+  // round 2+ the user knows what stack we're in; repeating it on
+  // every reply adds noise (real complaint observed on issue 6206).
+  if (openingSummary && !isFollowUp) {
     lines.push(`**Researcher's read on the codebase:** ${openingSummary}`);
     lines.push(``);
   }
@@ -242,6 +252,10 @@ async function runDiscoveryAndGate(opts: {
   conversationHistory: string;
   placeholderCommentId: number | null;
   storage: ReturnType<typeof createStorage> extends Promise<infer S> ? S : never;
+  // True when there's already at least one assistant comment in the
+  // thread. Passed through to `formatQuestionsCommentBody` so it can
+  // skip the verbose opening-summary line on follow-up replies.
+  isFollowUp?: boolean;
 }): Promise<{ findings: string; aborted: boolean }> {
   const findings = await runPrePlanDiscovery({
     cwd: opts.cwd,
@@ -255,19 +269,24 @@ async function runDiscoveryAndGate(opts: {
   });
 
   const parsed = parseResearcherQuestions(findings);
-  const hasAnswers = parsed.previousCommentAnswers.trim().length > 0;
-  // Gate fires when the researcher has either remaining questions OR
-  // direct answers to the user's most recent comment. The answers
-  // branch matters because — without it — when a user replies to a
-  // questions comment with their own follow-up question ("why X?"),
-  // the researcher would investigate + answer, then the planner would
-  // run immediately, and the user would never see the answer to what
-  // they asked. Surfacing answers as a comment hands control back to
-  // the user.
-  if (!parsed.hasQuestions && !hasAnswers) {
+  // Gate fires ONLY when the researcher has remaining questions. The
+  // earlier behaviour (also firing when answers were present, even
+  // with `_none._` for questions) was causing a frustrating extra
+  // round-trip on issue 6206: the user answered the final question,
+  // the researcher emitted an acknowledging "answers" block + no
+  // remaining questions, the gate fired anyway, the user had to
+  // comment AGAIN ("proceed with the plan") for the planner to run.
+  //
+  // The answers section is still useful when paired WITH remaining
+  // questions (the user sees the researcher's reasoning alongside
+  // what's still open). When there are no remaining questions, just
+  // proceed to the planner — the answers are still in the planner's
+  // brief via the discovery findings, so they're not lost.
+  if (!parsed.hasQuestions) {
     return { findings, aborted: false };
   }
 
+  const hasAnswers = parsed.previousCommentAnswers.trim().length > 0;
   consola.info(
     `Researcher pre-plan gate firing — questions: ${parsed.questions.length}, has-answers: ${hasAnswers}`,
   );
@@ -278,6 +297,7 @@ async function runDiscoveryAndGate(opts: {
       openingSummary: parsed.openingSummary,
       codebaseContext: parsed.codebaseContext,
       previousCommentAnswers: parsed.previousCommentAnswers,
+      isFollowUp: opts.isFollowUp ?? false,
     });
     const finalBody = formatSoftwareTeamsComment("questions", body);
     if (opts.placeholderCommentId) {
@@ -1103,6 +1123,7 @@ export const runCommand = defineCommand({
           conversationHistory,
           placeholderCommentId,
           storage,
+          isFollowUp,
         });
         if (gateResult.aborted) return;
         const routerCtx: ActionContext = {
@@ -1134,6 +1155,7 @@ export const runCommand = defineCommand({
             conversationHistory,
             placeholderCommentId,
             storage,
+            isFollowUp,
           });
           if (gateResult.aborted) return;
           const routerCtx: ActionContext = {
@@ -1353,7 +1375,27 @@ export const runCommand = defineCommand({
       let commentBody: string;
 
       if (success && fullResponse) {
-        commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse);
+        // Plan flows on this comment-triggered path also get the
+        // `📂 Plan files` collapsible appended — same behaviour as the
+        // label-triggered path. Both initial plan (intent.command ===
+        // "plan") and plan refinement (intent.isFeedback === true on
+        // a non-implemented issue) produce/refresh the plan files on
+        // disk, so the user should see them inline. Implement / quick
+        // / feedback flows don't write plan files, so we skip.
+        let planFilesBlock = "";
+        const isPlanFlow =
+          (intent.command === "plan" || intent.isFeedback) && !isPostImplementation;
+        if (isPlanFlow) {
+          try {
+            const writtenOrch = await findActiveOrchestration(cwd, issueNumber);
+            if (writtenOrch) {
+              planFilesBlock = formatPlanFilesSection(readPlanFiles(cwd, writtenOrch));
+            }
+          } catch (err) {
+            consola.warn("Failed to build plan-files comment block:", err);
+          }
+        }
+        commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse + planFilesBlock);
       } else if (!success) {
         commentBody = formatErrorComment(actionLabel, "Check workflow logs for details.");
       } else {
@@ -1404,13 +1446,25 @@ export const runCommand = defineCommand({
           intent.command === "plan" && !isPostImplementation;
 
         if (isCodePushFlow) {
+          // Always advance the originating issue's label — the
+          // implementation work is done from Software Teams' side, and
+          // the issue board should reflect that even if the user
+          // hasn't yet clicked the [Open this PR] link. Pre-this-fix
+          // we only labelled when findPrForBranch returned a PR
+          // number, so issues whose implementation completed with
+          // only the compare-URL link stayed on `plan-ready` forever
+          // (observed on issue 6206).
+          await setLifecycleLabel(repo, issueNumber, "ready-to-review").catch(() => {});
+
+          // Also label the PR itself when one already exists (e.g.
+          // for PR-context implements where the user commented on an
+          // existing PR thread, or for follow-up post-impl runs).
+          // When no PR exists yet, we can't label it — but a future
+          // pull_request:opened trigger could pick that up.
           const branch = await gitBranch().catch(() => "");
           const prNumber = branch ? await findPrForBranch(repo, branch) : null;
-          if (prNumber) {
+          if (prNumber && prNumber !== issueNumber) {
             await setLifecycleLabel(repo, prNumber, "ready-to-review").catch(() => {});
-            if (prNumber !== issueNumber) {
-              await setLifecycleLabel(repo, issueNumber, "ready-to-review").catch(() => {});
-            }
           }
         } else if (isPlanProducingFlow) {
           await setLifecycleLabel(repo, issueNumber, "plan-ready").catch(() => {});
