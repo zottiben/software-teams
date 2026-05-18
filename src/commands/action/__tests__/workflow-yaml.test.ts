@@ -234,13 +234,18 @@ describe("workflow YAML structure", () => {
       "../../../../.github/workflows/software-teams.yml",
       "../../../../action/workflow-template.yml",
     ]) {
-      test(`${file.split("/").pop()} restores via actions/cache/restore@v4 (not actions/cache@v4)`, async () => {
+      test(`${file.split("/").pop()} restores via actions/cache/restore (the sub-action) not the bare composite`, async () => {
+        // The KEY invariant is "use the sub-action that exposes
+        // cache-matched-key, NOT the bare composite that auto-saves
+        // on post-step". The major version is incidental — accept
+        // any vN so we can bump majors (e.g. for Node 24 runtime)
+        // without rewriting this guard.
         const content = await Bun.file(resolve(import.meta.dir, file)).text();
-        expect(content).toMatch(/uses: actions\/cache\/restore@v4/);
-        // Bare actions/cache@v4 (the composite that auto-saves on post-step)
-        // must NOT be used — that's what auto-created the no-run_id stale
-        // entries that poisoned restores.
-        expect(content).not.toMatch(/uses: actions\/cache@v4\b/);
+        expect(content).toMatch(/uses:\s*actions\/cache\/restore@v\d+/);
+        // Bare actions/cache@vN (the composite that auto-saves on
+        // post-step) must NOT be used — that's what auto-created the
+        // no-run_id stale entries that poisoned restores.
+        expect(content).not.toMatch(/uses:\s*actions\/cache@v\d+\b/);
       });
 
       test(`${file.split("/").pop()} passes cache-matched-key to bootstrap (not the broken cache-hit alone)`, async () => {
@@ -250,7 +255,8 @@ describe("workflow YAML structure", () => {
 
       test(`${file.split("/").pop()} save keys all include \${{ github.run_id }} (no no-run_id primary saves)`, async () => {
         const content = await Bun.file(resolve(import.meta.dir, file)).text();
-        const saveBlocks = content.split("uses: actions/cache/save@v4").slice(1);
+        // Match any actions/cache/save@vN — version-agnostic split.
+        const saveBlocks = content.split(/uses:\s*actions\/cache\/save@v\d+/).slice(1);
         expect(saveBlocks.length).toBeGreaterThan(0);
         for (const block of saveBlocks) {
           // The `key:` line in each save step must include run_id (or sha
@@ -266,10 +272,12 @@ describe("workflow YAML structure", () => {
         // step — every plan run for a labeled issue silently dropped its
         // plan files into a workspace that the next run could never see.
         // Lock in the invariant: every job with a `Restore Software Teams
-        // state` step must also have an `actions/cache/save@v4` step.
+        // state` step must also have a matching `cache/save` step.
+        // Version-agnostic on the major so we can bump action versions
+        // (e.g. v4 → v5 for Node 24) without rewriting the guard.
         const content = await Bun.file(resolve(import.meta.dir, file)).text();
-        const restoreCount = (content.match(/uses: actions\/cache\/restore@v4/g) ?? []).length;
-        const saveCount = (content.match(/uses: actions\/cache\/save@v4/g) ?? []).length;
+        const restoreCount = (content.match(/uses:\s*actions\/cache\/restore@v\d+/g) ?? []).length;
+        const saveCount = (content.match(/uses:\s*actions\/cache\/save@v\d+/g) ?? []).length;
         expect(saveCount).toBeGreaterThanOrEqual(restoreCount);
       });
 
@@ -282,7 +290,7 @@ describe("workflow YAML structure", () => {
         );
         expect(labelJobMatch).not.toBeNull();
         const labelJobBody = labelJobMatch![0];
-        expect(labelJobBody).toMatch(/uses: actions\/cache\/save@v4/);
+        expect(labelJobBody).toMatch(/uses:\s*actions\/cache\/save@v\d+/);
         expect(labelJobBody).toMatch(/key: software-teams-state-v2-\$\{\{ github\.repository \}\}-main-\$\{\{ github\.run_id \}\}/);
       });
     }

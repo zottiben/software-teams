@@ -86,7 +86,7 @@ jobs:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref || '' }}
           PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ steps.pr.outputs.branch || github.head_ref || github.ref }}
 
@@ -95,7 +95,7 @@ jobs:
       # 2. Fall back to main baseline (rules only — plans are cleared below)
       - name: Restore Software Teams state
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             .software-teams/persistence/
@@ -174,7 +174,7 @@ jobs:
       # Save Software Teams state — rules, config, persistence all cached together
       - name: Save Software Teams state
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             .software-teams/persistence/
@@ -201,12 +201,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.7"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.repository.default_branch }}
       - name: Restore Software Teams state
         id: cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             .software-teams/persistence/
@@ -260,7 +260,7 @@ jobs:
       # found" regression. See workflow-yaml.test.ts regression guard.
       - name: Save Software Teams state
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             .software-teams/persistence/
@@ -286,12 +286,12 @@ jobs:
         with:
           bun-version: "1.3.7"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # Restore from the main baseline — that's where stale plans accumulate.
       - name: Restore main-baseline state
         id: restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             .software-teams/persistence/
@@ -318,7 +318,7 @@ jobs:
       # churn when the closed issue had no Software Teams plan.
       - name: Save pruned state as new main baseline
         if: steps.prune.outputs.pruned == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             .software-teams/persistence/
@@ -349,13 +349,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.check.outputs.skip != 'true'
 
       - name: Restore Software Teams state from merged branch
         if: steps.check.outputs.skip != 'true'
         id: restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             .software-teams/persistence/
@@ -383,7 +383,7 @@ jobs:
 
       - name: Promote to main baseline
         if: steps.check.outputs.skip != 'true' && steps.restore.outputs.cache-hit != ''
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             .software-teams/persistence/

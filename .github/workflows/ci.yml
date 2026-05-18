@@ -17,7 +17,7 @@ jobs:
       # post-audit measurement was confirmed inside the soft-fail band.
       BENCH_ASSERT: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -62,7 +62,7 @@ jobs:
     # was retired in plan 3-02 alongside the markdown component layer.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: oven-sh/setup-bun@v2
         with:
