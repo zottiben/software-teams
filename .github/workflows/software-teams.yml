@@ -146,14 +146,18 @@ jobs:
             .claude/
           key: software-teams-state-v2-${{ github.repository }}-${{ steps.pr.outputs.branch || github.head_ref || github.ref_name }}-${{ github.run_id }}
 
-  # ── Triggered by opening or labeling an issue with the 'software-teams' label ──
   software-teams-issue-label:
+    # Fires ONLY on `labeled` events (never on `opened`). GitHub emits
+    # a `labeled` event for every label present at issue creation as
+    # well as labels added later — so this single condition covers
+    # both "opened with the trigger label" and "trigger label added
+    # after the fact" without the double-fire bug we hit pre-0.5.41
+    # (a single user action could trigger two workflow runs in the
+    # same second when `opened` + `labeled` both matched).
     if: >-
       github.event_name == 'issues'
-      && (
-        (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'software-teams'))
-        || (github.event.action == 'labeled' && github.event.label.name == 'software-teams')
-      )
+      && github.event.action == 'labeled'
+      && github.event.label.name == 'software-teams'
     runs-on: ubuntu-latest
     steps:
       - uses: oven-sh/setup-bun@v2

@@ -10,35 +10,88 @@ export interface ClickUpTicket {
   subtasks: { name: string; status: string }[];
 }
 
-const CLICKUP_URL_PATTERNS = [
-  /app\.clickup\.com\/t\/([a-z0-9]+)/i,
-  /sharing\.clickup\.com\/t\/([a-z0-9]+)/i,
-  /clickup\.com\/t\/([a-z0-9]+)/i,
+/**
+ * What we pull out of a ClickUp URL. Two shapes are supported:
+ *
+ *   1. Simple — `app.clickup.com/t/<task_id>` (no team prefix). The
+ *      captured value IS the API's task ID; `teamId` is undefined.
+ *   2. With team — `app.clickup.com/t/<team_id>/<custom_task_id>`.
+ *      The first segment is the team ID and the second is a custom
+ *      task alias (e.g. `NDP-33700`). The API call needs BOTH the
+ *      custom task ID AND `?custom_task_ids=true&team_id=...` query
+ *      params; otherwise ClickUp returns 404 and the ticket context
+ *      is silently dropped — the bug observed on issue 6201.
+ */
+export interface ClickUpRef {
+  taskId: string;
+  teamId?: string;
+}
+
+// Order matters — the team-prefix form must be tested before the
+// simple form, otherwise the simple regex matches the team_id segment
+// alone and skips the real task alias.
+const CLICKUP_URL_PATTERNS_WITH_TEAM = [
+  /app\.clickup\.com\/t\/(\d+)\/([A-Za-z0-9_-]+)/,
+  /sharing\.clickup\.com\/t\/(\d+)\/([A-Za-z0-9_-]+)/,
+  /clickup\.com\/t\/(\d+)\/([A-Za-z0-9_-]+)/,
+];
+const CLICKUP_URL_PATTERNS_SIMPLE = [
+  /app\.clickup\.com\/t\/([a-z0-9]+)(?![\/\w-])/i,
+  /sharing\.clickup\.com\/t\/([a-z0-9]+)(?![\/\w-])/i,
+  /clickup\.com\/t\/([a-z0-9]+)(?![\/\w-])/i,
 ];
 
-export function extractClickUpId(text: string): string | null {
-  for (const pattern of CLICKUP_URL_PATTERNS) {
+export function extractClickUpRef(text: string): ClickUpRef | null {
+  // Try team-prefix form FIRST so we don't truncate `team/task` into
+  // just `team`.
+  for (const pattern of CLICKUP_URL_PATTERNS_WITH_TEAM) {
+    const match = text.match(pattern);
+    if (match) {
+      const teamId = match[1];
+      const taskId = match[2];
+      if (taskId.length > 40) return null; // sanity bound
+      return { taskId, teamId };
+    }
+  }
+  for (const pattern of CLICKUP_URL_PATTERNS_SIMPLE) {
     const match = text.match(pattern);
     if (match) {
       const id = match[1];
       if (id.length > 20) return null;
-      return id;
+      return { taskId: id };
     }
   }
   return null;
 }
 
+/**
+ * Back-compat shim. Existing callers that only want the task ID
+ * string can continue using this — but the runner uses
+ * `extractClickUpRef` so it can pass `teamId` to the fetcher.
+ */
+export function extractClickUpId(text: string): string | null {
+  return extractClickUpRef(text)?.taskId ?? null;
+}
+
 export async function fetchClickUpTicket(
-  taskId: string,
+  ref: ClickUpRef | string,
 ): Promise<ClickUpTicket | null> {
   const token = process.env.CLICKUP_API_TOKEN;
   if (!token) return null;
 
+  // Normalise: accept a bare string for back-compat with older callers.
+  const { taskId, teamId } =
+    typeof ref === "string" ? { taskId: ref, teamId: undefined as string | undefined } : ref;
+
+  // Custom task IDs (URLs like `/t/{team_id}/{NDP-33700}`) need the
+  // custom_task_ids=true + team_id=... query params; ClickUp 404s
+  // without them. Plain task IDs work against the bare endpoint.
+  const url = teamId
+    ? `https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}?custom_task_ids=true&team_id=${encodeURIComponent(teamId)}`
+    : `https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}`;
+
   try {
-    const res = await fetch(
-      `https://api.clickup.com/api/v2/task/${taskId}`,
-      { headers: { Authorization: token } },
-    );
+    const res = await fetch(url, { headers: { Authorization: token } });
 
     if (!res.ok) return null;
 

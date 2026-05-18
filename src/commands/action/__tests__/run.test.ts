@@ -172,7 +172,7 @@ describe("action run command prompt invariants", () => {
     test("loadExternalContexts helper aggregates ClickUp + Datadog blocks", async () => {
       const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/async function loadExternalContexts\(searchText: string\)/);
-      expect(source).toContain("extractClickUpId(searchText)");
+      expect(source).toContain("extractClickUpRef(searchText)");
       expect(source).toContain("extractDatadogIssue(searchText)");
     });
 

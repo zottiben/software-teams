@@ -5,7 +5,7 @@ import { readAdapter } from "../../utils/adapter";
 import { spawnClaude } from "../../utils/claude";
 import { createStorage } from "../../storage";
 import { loadPersistedState, savePersistedState } from "../../utils/storage-lifecycle";
-import { extractClickUpId, fetchClickUpTicket, formatTicketAsContext } from "../../utils/clickup";
+import { extractClickUpRef, fetchClickUpTicket, formatTicketAsContext } from "../../utils/clickup";
 import { extractDatadogIssue, fetchDatadogIssue, formatDatadogAsContext } from "../../utils/datadog";
 import { checkAuthorization } from "../../utils/auth";
 import { sanitizeUserInput } from "../../utils/sanitize";
@@ -404,13 +404,18 @@ async function loadExternalContexts(searchText: string): Promise<string[]> {
   const blocks: string[] = [];
 
   // ClickUp
-  const clickUpId = extractClickUpId(searchText);
-  if (clickUpId) {
-    consola.info(`Fetching ClickUp ticket: ${clickUpId}`);
-    const ticket = await fetchClickUpTicket(clickUpId);
+  const clickUpRef = extractClickUpRef(searchText);
+  if (clickUpRef) {
+    const label = clickUpRef.teamId
+      ? `${clickUpRef.taskId} (team ${clickUpRef.teamId})`
+      : clickUpRef.taskId;
+    consola.info(`Fetching ClickUp ticket: ${label}`);
+    const ticket = await fetchClickUpTicket(clickUpRef);
     if (ticket) {
       blocks.push(formatTicketAsContext(ticket));
       consola.success(`Loaded ClickUp ticket: ${ticket.name}`);
+    } else {
+      consola.warn(`ClickUp fetch returned no ticket for ${label} — check CLICKUP_API_TOKEN and that the ID exists`);
     }
   }
 

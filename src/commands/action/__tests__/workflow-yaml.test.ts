@@ -44,11 +44,23 @@ describe("workflow YAML structure", () => {
       expect(ifCondition).toMatch(/github\.event_name\s*==\s*['"]issues['"]/);
     });
 
-    test("software-teams-issue-label if condition includes 'opened' trigger", async () => {
+    test("software-teams-issue-label if condition does NOT branch on 'opened' (double-fire regression: issue 6201)", async () => {
+      // Pre-0.5.41 the filter accepted BOTH:
+      //   (action == 'opened' && contains(labels, 'software-teams'))
+      //   || (action == 'labeled' && label.name == 'software-teams')
+      //
+      // GitHub fires both events when an issue is opened with a label
+      // attached, so the workflow ran TWICE in the same second. The fix
+      // is to listen only on `labeled` — GitHub emits a labeled event
+      // for every label present at creation as well as labels added
+      // later, so one branch covers both cases without duplication.
       const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
-      const ifCondition = parsed.jobs["software-teams-issue-label"].if;
-      expect(ifCondition).toMatch(/opened/);
+      const ifCondition = parsed.jobs["software-teams-issue-label"].if as string;
+      // Must NOT branch on `opened` — that re-introduces the double-fire.
+      expect(ifCondition).not.toMatch(/action\s*==\s*['"]opened['"]/);
+      // Must still listen on `labeled` so the trigger keeps working.
+      expect(ifCondition).toMatch(/action\s*==\s*['"]labeled['"]/);
     });
 
     test("software-teams-issue-label if condition includes 'labeled' trigger", async () => {
@@ -150,13 +162,16 @@ describe("workflow YAML structure", () => {
       expect(parsed.jobs["software-teams-issue-label"]).toBeDefined();
     });
 
-    test("software-teams-issue-label if condition structure matches canonical", async () => {
+    test("software-teams-issue-label if condition structure matches canonical (labeled-only, no opened branch)", async () => {
+      // Post-0.5.41: the template fires ONLY on `labeled` events (not
+      // `opened`). See the double-fire regression note on the local
+      // workflow test of the same shape.
       const content = await Bun.file(resolve(import.meta.dir, "../../../../action/workflow-template.yml")).text();
       parsed = yaml.parse(content);
-      const ifCondition = parsed.jobs["software-teams-issue-label"].if;
+      const ifCondition = parsed.jobs["software-teams-issue-label"].if as string;
       expect(ifCondition).toMatch(/github\.event_name.*issues/);
-      expect(ifCondition).toMatch(/opened/);
       expect(ifCondition).toMatch(/labeled/);
+      expect(ifCondition).not.toMatch(/action\s*==\s*['"]opened['"]/);
     });
 
     test("all setup-bun steps pin bun-version 1.3.7", async () => {
