@@ -31,6 +31,7 @@ import { agentTypeToRoleLabel, type ActiveOrchestration } from "../../utils/orch
 // build time, so the fragments ship embedded in `dist/index.js`.
 import selfReferenceStyleFragment from "../../../commands/_shared/self-reference-style.md" with { type: "text" };
 import planThreeTierArtifactsFragment from "../../../commands/_shared/plan-three-tier-artifacts.md" with { type: "text" };
+import prTemplateConcisenessFragment from "../../../commands/_shared/pr-template-conciseness.md" with { type: "text" };
 
 export type ActionFlow =
   | { kind: "plan"; isRefinement?: boolean; isApproval?: boolean }
@@ -247,6 +248,13 @@ function buildSubagentBrief(ctx: ActionContext): string {
       lines.push("");
       lines.push(`### PR template detected`);
       lines.push(`This repo has a PR template at \`${ctx.prTemplate.path}\`. Fill it with content drawn from your implementation — replace every \`<!-- … -->\` placeholder hint with real content, complete every checklist item that the change satisfies, leave items you genuinely cannot verify unchecked. Preserve all section headings verbatim.`);
+      lines.push("");
+      // Conciseness rules — canonical text shared with the orchestrator
+      // brief below via `commands/_shared/pr-template-conciseness.md`.
+      // Without these, the agent fills the template with per-file
+      // enumerations that read like a compliance report rather than a
+      // reviewer-friendly summary.
+      lines.push(prTemplateConcisenessFragment.trim());
       lines.push("");
       lines.push(`Template body (between the fences):`);
       lines.push("```markdown");
@@ -778,6 +786,9 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
     finalBlock.push(``);
     if (ctx.prTemplate) {
       finalBlock.push(`<the FILLED PR template — preserve its section headings, replace every \`<!-- … -->\` placeholder hint with implementation details drawn from the spawn summaries. The repo's PR template is below, between the fences:>`);
+      finalBlock.push("");
+      // Same conciseness rules as the single-spawn brief — see fragment.
+      finalBlock.push(prTemplateConcisenessFragment.trim());
       finalBlock.push("");
       finalBlock.push("```markdown");
       finalBlock.push(ctx.prTemplate.body.trim());

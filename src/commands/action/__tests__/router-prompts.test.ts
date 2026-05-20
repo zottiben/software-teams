@@ -249,6 +249,14 @@ describe("buildRouterPrompt — auto-commit blocks (impl / quick)", () => {
     // when a template is in play.
     expect(prompt).not.toContain("<one short paragraph summary>");
     expect(prompt).toContain("the FILLED PR template");
+    // Conciseness rules (0.5.44) must be embedded in the PR template
+    // section so the agent doesn't fill the template with per-file
+    // enumerations that read like a compliance report.
+    expect(prompt).toContain("# PR template conciseness rules");
+    expect(prompt).toMatch(/One line per bullet/i);
+    expect(prompt).toMatch(/Group by concern/i);
+    expect(prompt).toMatch(/Don't enumerate every file/i);
+    expect(prompt).toMatch(/Closes #\$\{issueNumber\}|Closes #\d+/);
   });
 
   test("issue-context impl WITHOUT a PR template: keeps the default `<one short paragraph summary>` placeholder", () => {
@@ -616,6 +624,11 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
     expect(prompt).toContain("## Test plan");
     // Default summary placeholder NOT used when template is in play.
     expect(prompt).not.toContain("<one short paragraph summary of the combined change");
+    // Conciseness rules (0.5.44) must accompany the orchestrator's
+    // template-fill instructions just like the single-spawn brief.
+    expect(prompt).toContain("# PR template conciseness rules");
+    expect(prompt).toMatch(/One line per bullet/i);
+    expect(prompt).toMatch(/Don't enumerate every file/i);
   });
 
   test("orchestrator forbids gh pr create/merge, force-push, default-branch push, brand leak", () => {

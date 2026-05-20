@@ -46,3 +46,4 @@ fragments — they don't inline their content.
 | `self-reference-style.md` | `router-prompts.ts` (both single-spawn brief + orchestrator) |
 | `pr-title-body-prefill.md` | `router-prompts.ts` (PR proposal blocks in subagent brief + orchestrator) |
 | `plan-three-tier-artifacts.md` | `router-prompts.ts` (`buildPlanBrief`) + `commands/create-plan.md` (Step 7) |
+| `pr-template-conciseness.md` | `router-prompts.ts` (template-filling instructions in both single-spawn + orchestrator briefs) |
