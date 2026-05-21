@@ -12,6 +12,14 @@
 #
 # To toggle off: /st:orchestrator-mode off
 #
+# ─── EXEMPTIONS ────────────────────────────────────────────────────────────
+#
+#   Calls originating from a Task-spawned subagent are always allowed. The
+#   hook detects this via the `agent_id` field, which Claude Code adds to the
+#   payload only inside subagent contexts. This matches the directive in
+#   .claude/orchestrator-mode.md: the restriction is meant for the MAIN
+#   thread; specialists are expected to mutate freely.
+#
 # ─── DENY PATTERN SET (canonical — audit here, not in the regex blocks) ────
 #
 #   Non-Bash tools (always blocked when this hook is installed):
@@ -70,6 +78,16 @@ tool=$(printf '%s' "$payload" | jq -r '.tool_name // empty')
 if [[ -z "$tool" ]]; then
   printf 'orchestrator-mode: malformed hook payload (no tool_name)\n' >&2
   exit 2
+fi
+
+# ── Subagent exemption ──────────────────────────────────────────────────────
+# Claude Code populates `agent_id` on the hook payload only when the call
+# originates inside a Task-spawned subagent. The orchestrator-only restriction
+# applies to the MAIN thread; specialist agents must remain free to mutate.
+# Allow unconditionally when agent_id is present.
+agent_id=$(printf '%s' "$payload" | jq -r '.agent_id // empty')
+if [[ -n "$agent_id" ]]; then
+  exit 0
 fi
 
 # ── Branch on tool name ──────────────────────────────────────────────────────

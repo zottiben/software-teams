@@ -732,4 +732,47 @@ describe("orchestrator-deny-bash.sh", () => {
 
     expect(exitCode).toBe(0);
   });
+
+  // Subagent exemption — Task-spawned subagents must NOT be blocked.
+  skip("Edit from a subagent (agent_id present) is allowed", async () => {
+    const { exitCode, stderr } = await runDenyScript({
+      tool_name: "Edit",
+      tool_input: { file_path: "file.ts", old_string: "x", new_string: "y" },
+      agent_id: "agent_abc123",
+      agent_type: "software-teams-programmer",
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+  });
+
+  skip("Write from a subagent (agent_id present) is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Write",
+      tool_input: { file_path: "file.ts", content: "x" },
+      agent_id: "agent_abc123",
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Otherwise-denied Bash from a subagent (agent_id present) is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "git commit -m 'test'" },
+      agent_id: "agent_abc123",
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Empty agent_id ('') is treated as absent — main-thread Edit still blocked", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Edit",
+      tool_input: { file_path: "file.ts", old_string: "x", new_string: "y" },
+      agent_id: "",
+    });
+
+    expect(exitCode).toBe(2);
+  });
 });

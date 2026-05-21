@@ -43,15 +43,15 @@ async function on(): Promise<number> {
   await mkdir(dirname(absDirective), { recursive: true });
   await writeFile(absDirective, directiveContent, "utf8");
 
-  // 3. Ensure the hook script exists at .claude/hooks/orchestrator-deny-bash.sh.
+  // 3. Write the hook script (overwrite — idempotent; content is deterministic,
+  //    no per-project customization). Overwriting ensures fixes ship to existing
+  //    projects when they toggle off/on after a framework upgrade.
   const absHookScript = join(process.cwd(), HOOK_SCRIPT_PATH);
-  if (!existsSync(absHookScript)) {
-    const hookSrc = join(packageRoot, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
-    const hookContent = await readFile(hookSrc, "utf8");
-    await mkdir(dirname(absHookScript), { recursive: true });
-    await writeFile(absHookScript, hookContent, "utf8");
-    await chmod(absHookScript, 0o755);
-  }
+  const hookSrc = join(packageRoot, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
+  const hookContent = await readFile(hookSrc, "utf8");
+  await mkdir(dirname(absHookScript), { recursive: true });
+  await writeFile(absHookScript, hookContent, "utf8");
+  await chmod(absHookScript, 0o755);
 
   // 4. Append @import to .claude/CLAUDE.md (idempotent).
   const absClaudeMd = join(process.cwd(), CLAUDE_MD_PATH);
