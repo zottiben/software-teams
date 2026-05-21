@@ -2,9 +2,9 @@
 node_modules/
 dist/
 bun.lockb
-.claude
+/.claude/
 
 # Software Teams framework — remove these lines to version control Software Teams artefacts
 .software-teams/
-.claude/commands/st/
+/.claude/commands/st/
 dist-test/

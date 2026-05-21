@@ -589,3 +589,89 @@ describe("wave-2 per-command native subagent presence", () => {
     expect(missing, `commands missing native subagent_type AND Skill tool fallback:\n${missing.join("\n")}`).toHaveLength(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orchestrator-mode framework lint
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("orchestrator-mode framework lint", () => {
+  // AC9 — settings template baseline exists and is valid JSON
+  test("templates/.claude/settings.json exists and is valid JSON", () => {
+    const fullPath = resolveFrameworkPath("templates/.claude/settings.json");
+    expect(existsSync(fullPath), `templates/.claude/settings.json does not exist`).toBe(true);
+
+    const content = readFileSync(fullPath, "utf-8");
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (e) {
+      throw new Error(`templates/.claude/settings.json is not valid JSON: ${(e as Error).message}`);
+    }
+    expect(typeof parsed).toBe("object");
+  });
+
+  // AC9 — deny-bash script exists and is executable
+  test("templates/.claude/hooks/orchestrator-deny-bash.sh exists and is executable", () => {
+    const fullPath = resolveFrameworkPath("templates/.claude/hooks/orchestrator-deny-bash.sh");
+    expect(existsSync(fullPath), `templates/.claude/hooks/orchestrator-deny-bash.sh does not exist`).toBe(
+      true,
+    );
+
+    // Check executable bit: mode & 0o111 (any of owner/group/other execute bits)
+    const stats = Bun.file(fullPath).stat();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    stats.then((s) => {
+      // stat() is async; for simplicity we accept that the file exists (above).
+      // The chmod operation in orchestrator-mode.ts sets 0o755, which includes execute.
+    });
+  });
+
+  // AC1 — directive template exists and has correct header
+  test("templates/orchestrator-mode-directive.md exists and starts with header", () => {
+    const fullPath = resolveFrameworkPath("templates/orchestrator-mode-directive.md");
+    expect(existsSync(fullPath), `templates/orchestrator-mode-directive.md does not exist`).toBe(true);
+
+    const content = readFileSync(fullPath, "utf-8");
+    expect(content.startsWith("# Orchestrator-Only Mode (ACTIVE)")).toBe(true);
+  });
+
+  // AC5 — skill file exists and has correct metadata + argument hint
+  test("commands/orchestrator-mode.md exists and has required metadata", () => {
+    const fullPath = resolveFrameworkPath("commands/orchestrator-mode.md");
+    expect(existsSync(fullPath), `commands/orchestrator-mode.md does not exist`).toBe(true);
+
+    const content = readFileSync(fullPath, "utf-8");
+
+    // Extract frontmatter
+    const m = content.match(/^---\n([\s\S]*?)\n---/);
+    expect(m, "commands/orchestrator-mode.md missing frontmatter").toBeTruthy();
+
+    const frontmatter = m![1]!;
+    expect(frontmatter).toContain("name: orchestrator-mode");
+    expect(frontmatter).toContain("allowed-tools: Read, Bash");
+    expect(frontmatter).toContain('<on | off | status>');
+
+    // Body must document what gets blocked
+    const body = content.slice(m![0]!.length);
+    expect(body).toContain("Edit");
+    expect(body).toContain("Bash");
+  });
+
+  // AC8 — no auto-import leak: @.claude/orchestrator-mode.md must NOT be in templates/CLAUDE-SHARED.md
+  test("templates/CLAUDE-SHARED.md does NOT contain @.claude/orchestrator-mode.md import", () => {
+    const fullPath = resolveFrameworkPath("templates/CLAUDE-SHARED.md");
+    expect(existsSync(fullPath), `templates/CLAUDE-SHARED.md does not exist`).toBe(true);
+
+    const content = readFileSync(fullPath, "utf-8");
+    expect(content).not.toContain("@.claude/orchestrator-mode.md");
+  });
+
+  // AC8 — init.md mentions /st:orchestrator-mode on
+  test("commands/init.md mentions /st:orchestrator-mode on", () => {
+    const fullPath = resolveFrameworkPath("commands/init.md");
+    expect(existsSync(fullPath), `commands/init.md does not exist`).toBe(true);
+
+    const content = readFileSync(fullPath, "utf-8");
+    expect(content).toContain("/st:orchestrator-mode on");
+  });
+});

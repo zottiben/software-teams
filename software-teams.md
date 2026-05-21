@@ -117,6 +117,7 @@ If `.claude/agents/` is empty (e.g. you have just cloned a Software Teams-using 
 | `/st:quick` | Direct | Quick focused change (no orchestration) |
 | `/st:map-codebase` | Agent | Analyse codebase architecture and conventions (spawns software-teams-codebase-mapper) |
 | `/st:verify` | Agent | Run verification checks (spawns software-teams-verifier) |
+| `/st:orchestrator-mode on\|off\|status` | Direct | **Orchestrator-Only Mode** — opt-in per-project enforcement that restricts the main thread to read / plan / delegate. `on` writes `.claude/orchestrator-mode.md`, appends the `@import` line to `.claude/CLAUDE.md`, and merges a `PreToolUse` hook into `.claude/settings.json`. `off` reverses all three. `status` reports per-artefact state and flags drift. The hook hard-blocks `Edit`, `Write`, `NotebookEdit`, and mutating Bash (`exit 2`); the deny-pattern list lives in [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh). Specialists invoked via `Task` are unaffected. Per-project only — no user-global cascade. |
 
 **Agent commands:** Spawn a Task agent with isolated context (~300 tokens in main)
 **Direct commands:** Execute in main context (kept minimal)

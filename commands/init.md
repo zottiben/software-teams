@@ -114,6 +114,10 @@ Templates are NOT copied into `.software-teams/templates/` — they are package-
 
 List all available commands and suggest `/st:create-plan "your feature"` to get started.
 
+- Optional: harden the main thread to read/plan/delegate only by running
+  `/st:orchestrator-mode on`. Toggle off with `/st:orchestrator-mode off`.
+  See the skill for details on what's blocked.
+
 ## Arguments
 
 | Argument | Description |

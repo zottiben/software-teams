@@ -1,0 +1,20 @@
+{
+  "allowedTools": [
+    "Read",
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "Glob",
+    "Grep",
+    "Task",
+    "Bash(bun:*)",
+    "Bash(git:*)",
+    "Bash(gh:*)",
+    "Bash(npm:*)",
+    "Bash(npx:*)",
+    "Bash(mkdir:*)",
+    "Bash(rm:*)",
+    "Bash(software-teams:*)"
+  ],
+  "hooks": {}
+}

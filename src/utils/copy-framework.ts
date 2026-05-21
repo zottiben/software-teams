@@ -1,5 +1,6 @@
 import { join, dirname } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
+import { readdir, stat, chmod } from "node:fs/promises";
 import type { ProjectType } from "./detect-project";
 
 /**
@@ -101,6 +102,31 @@ export async function copyFrameworkFiles(
     if (force || !existsSync(settingsDest)) {
       const content = await Bun.file(settingsTemplate).text();
       await Bun.write(settingsDest, content);
+    }
+  }
+
+  // Copy the declarative `.claude/hooks/` directory into the project root.
+  // Hooks are shell scripts invoked by PreToolUse / PostToolUse / etc.
+  // Used by Orchestrator-Only Mode (templates/.claude/hooks/orchestrator-deny-bash.sh).
+  // Do NOT clobber existing consumer hooks unless --force was passed.
+  const hooksTemplateDir = join(packageRoot, "templates", ".claude", "hooks");
+  if (existsSync(hooksTemplateDir)) {
+    const hooksDestDir = join(cwd, ".claude", "hooks");
+    if (!existsSync(hooksDestDir)) mkdirSync(hooksDestDir, { recursive: true });
+    const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const src = join(hooksTemplateDir, entry.name);
+      const dst = join(hooksDestDir, entry.name);
+      if (force || !existsSync(dst)) {
+        const content = await Bun.file(src).text();
+        await Bun.write(dst, content);
+        // Preserve the executable bit from the template.
+        const srcStat = await stat(src);
+        if (srcStat.mode & 0o111) {
+          await chmod(dst, srcStat.mode);
+        }
+      }
     }
   }
 
