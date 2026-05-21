@@ -161,23 +161,6 @@ describe("framework file invariants", () => {
     ).toBeGreaterThanOrEqual(2);
   });
 
-  test(".claude/commands/st/implement-plan.md TeamCreate/TeamDelete counts match the source", () => {
-    const source = readFrameworkFile("commands/implement-plan.md");
-    const synced = readFrameworkFile(".claude/commands/st/implement-plan.md");
-    const sourceTeamCreate = (source.match(/TeamCreate\(/g) ?? []).length;
-    const syncedTeamCreate = (synced.match(/TeamCreate\(/g) ?? []).length;
-    const sourceTeamDelete = (source.match(/\bTeamDelete\b/g) ?? []).length;
-    const syncedTeamDelete = (synced.match(/\bTeamDelete\b/g) ?? []).length;
-    expect(
-      syncedTeamCreate,
-      "sync drift: .claude/commands/st/implement-plan.md has fewer TeamCreate( hits than commands/implement-plan.md — run `software-teams sync-framework --force`",
-    ).toBe(sourceTeamCreate);
-    expect(
-      syncedTeamDelete,
-      "sync drift: .claude/commands/st/implement-plan.md has fewer TeamDelete hits than commands/implement-plan.md — run `software-teams sync-framework --force`",
-    ).toBe(sourceTeamDelete);
-  });
-
   test("ComplexityRouter SingleAgentMode still asserts 'No TeamCreate' (single-agent path stays envelope-free)", () => {
     // Direct file read — the literal phrase MUST appear in the TS source so
     // future edits to ComplexityRouter.ts are caught at lint time.

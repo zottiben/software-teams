@@ -1,5 +1,5 @@
 import { describe, test, expect, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, chmodSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { copyFrameworkFiles } from "../copy-framework";
@@ -167,5 +167,50 @@ describe("copyFrameworkFiles", () => {
 
     const content = await Bun.file(customPath).text();
     expect(content).not.toBe("CUSTOM CONTENT");
+  });
+
+  test("propagates commands/*.md content verbatim to .claude/commands/st/", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    const sourceContent =
+      "# Custom Skill\n\nLine with `TeamCreate(team_name: \"slug-team\")` token.\n";
+    writeFileSync(join(packageRoot, "commands", "custom.md"), sourceContent);
+
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    const synced = await Bun.file(join(dir, ".claude", "commands", "st", "custom.md")).text();
+    expect(synced).toBe(sourceContent);
+  });
+
+  test("copies templates/.claude/settings.json to consumer's .claude/settings.json", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    const templatesClaude = join(packageRoot, "templates", ".claude");
+    mkdirSync(templatesClaude, { recursive: true });
+    const settingsContent = '{"allowedTools":["Read","Write"],"hooks":{}}\n';
+    writeFileSync(join(templatesClaude, "settings.json"), settingsContent);
+
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    const dest = join(dir, ".claude", "settings.json");
+    expect(existsSync(dest)).toBe(true);
+    expect(await Bun.file(dest).text()).toBe(settingsContent);
+  });
+
+  test("copies templates/.claude/hooks/ to consumer's .claude/hooks/ preserving executable bit", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    const hooksDir = join(packageRoot, "templates", ".claude", "hooks");
+    mkdirSync(hooksDir, { recursive: true });
+    const hookPath = join(hooksDir, "test-hook.sh");
+    writeFileSync(hookPath, "#!/usr/bin/env bash\nexit 0\n");
+    chmodSync(hookPath, 0o755);
+
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    const dest = join(dir, ".claude", "hooks", "test-hook.sh");
+    expect(existsSync(dest)).toBe(true);
+    expect(await Bun.file(dest).text()).toBe("#!/usr/bin/env bash\nexit 0\n");
+    expect(statSync(dest).mode & 0o111).toBeGreaterThan(0);
   });
 });

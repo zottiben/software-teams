@@ -53,15 +53,6 @@ jobs:
             exit 1
           fi
 
-      - name: Populate .claude/commands/st/ from canonical commands/
-        # .claude/commands/st/ is gitignored in this self-hosting repo (the
-        # canonical source lives in commands/). framework-lint tests assert
-        # parity between the two — copy commands/*.md across before tests so
-        # the parity assertions can run in a fresh checkout. Mirrors what
-        # copy-framework.ts:78-89 does for consumer projects via
-        # `software-teams init`.
-        run: mkdir -p .claude/commands/st && cp commands/*.md .claude/commands/st/
-
       - run: bun test
 
   component-validate:
