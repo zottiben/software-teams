@@ -147,6 +147,48 @@ describe("framework file invariants", () => {
     expect(content).toMatch(/type:\s*test|type: test/);
   });
 
+  test("commands/implement-plan.md Agent Teams branches contain TeamCreate and TeamDelete", () => {
+    const content = readFrameworkFile("commands/implement-plan.md");
+    const teamCreateCount = (content.match(/TeamCreate\(/g) ?? []).length;
+    const teamDeleteCount = (content.match(/\bTeamDelete\b/g) ?? []).length;
+    expect(
+      teamCreateCount,
+      "commands/implement-plan.md must call TeamCreate( at least twice: once in §8 single-tier Agent Teams branch and once in §3T.8 three-tier per-task spawn loop",
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      teamDeleteCount,
+      "commands/implement-plan.md must reference TeamDelete at least twice: once in the §11 cleanup and once in the §3T.11 cleanup (or via cross-reference)",
+    ).toBeGreaterThanOrEqual(2);
+  });
+
+  test(".claude/commands/st/implement-plan.md TeamCreate/TeamDelete counts match the source", () => {
+    const source = readFrameworkFile("commands/implement-plan.md");
+    const synced = readFrameworkFile(".claude/commands/st/implement-plan.md");
+    const sourceTeamCreate = (source.match(/TeamCreate\(/g) ?? []).length;
+    const syncedTeamCreate = (synced.match(/TeamCreate\(/g) ?? []).length;
+    const sourceTeamDelete = (source.match(/\bTeamDelete\b/g) ?? []).length;
+    const syncedTeamDelete = (synced.match(/\bTeamDelete\b/g) ?? []).length;
+    expect(
+      syncedTeamCreate,
+      "sync drift: .claude/commands/st/implement-plan.md has fewer TeamCreate( hits than commands/implement-plan.md — run `software-teams sync-framework --force`",
+    ).toBe(sourceTeamCreate);
+    expect(
+      syncedTeamDelete,
+      "sync drift: .claude/commands/st/implement-plan.md has fewer TeamDelete hits than commands/implement-plan.md — run `software-teams sync-framework --force`",
+    ).toBe(sourceTeamDelete);
+  });
+
+  test("ComplexityRouter SingleAgentMode still asserts 'No TeamCreate' (single-agent path stays envelope-free)", () => {
+    // Direct file read — the literal phrase MUST appear in the TS source so
+    // future edits to ComplexityRouter.ts are caught at lint time.
+    const path = join(repoRoot, "src", "components", "meta", "ComplexityRouter.ts");
+    const content = readFileSync(path, "utf-8");
+    expect(
+      content,
+      "ComplexityRouter.ts must contain the literal phrase 'No TeamCreate' inside SingleAgentMode — this is the AC4 contract for single-agent mode",
+    ).toContain("No TeamCreate");
+  });
+
   test("TaskBreakdown component includes test task rules", () => {
     const content = getComponent("TaskBreakdown");
     expect(content).toMatch(/Test Task Rules|test task/i);

@@ -103,6 +103,8 @@ Run `software-teams state executing`. Do NOT manually edit `.software-teams/stat
 
 ### 3T.8. Per-Task Spawn Loop
 
+**Team setup (Agent Teams mode only).** If `DISCOVERED_STATE.routing.mode` is `agent-teams`, call `TeamCreate(team_name: "{slug}-team")` once before entering the loop, where `{slug}` is `current_plan.slug` from `state.yaml`. This matches the team-name convention used in the single-tier §8 path and is the contract documented in `AgentTeamsOrchestration` `CorePattern` step 2. Single-agent mode (the one-agent-acts-as-its-own-orchestrator flow described in §3T.5) skips this step — no team is created.
+
 For each task in the topologically sorted task graph:
 
 1. **Resolve the slice load set.** Read the slice file (`{slug}.T{n}.md`) and parse its `**Read first:**` line. That line names the SPEC sections (and optionally specific ORCHESTRATION sections) the agent needs. Build a load set of:
@@ -110,6 +112,8 @@ For each task in the topologically sorted task graph:
    - The exact SPEC sections cited (NOT the full SPEC)
    - Any ORCHESTRATION subsections explicitly cited (e.g. `ORCHESTRATION §Quality Gates → contract-check`)
    - **Do NOT** include: the full SPEC, the full ORCHESTRATION, sibling slices, or the per-task files of other agents.
+
+1a. **Register the task with the team (Agent Teams mode only).** Call `TaskCreate(task_id: "{task.id}", agent: "{task.agent}", addBlockedBy: [{ids from the slice's depends_on: frontmatter}])`. The `addBlockedBy` list comes from the per-agent slice's `depends_on:` field. Per RQ-03 this is supplementary scheduler context and does NOT replace the wave gate at step 6 below — both coexist by design. Skip this step in single-agent mode.
 
 2. **Spawn the pinned agent natively.** Use `subagent_type="{task.agent}"` (post-T6 native migration — Claude Code resolves the spec from `.claude/agents/{task.agent}.md` directly). Spawn under `mode: "acceptEdits"` with the scoped allowlist from `.claude/settings.json`. The prompt MUST include:
    - A `## Project Context` block (type, tech stack, quality gates, working directory)
@@ -153,6 +157,8 @@ Mechanism is identical to the single-tier loop's **§10. Post-Task Verify**. The
 ### 3T.11. Execute Deferred Ops
 
 Same as **§11. Execute Deferred Ops** below — execute `commits_pending` via `git add` + `git commit`, create any `files_to_create` entries via the Write tool. Do NOT skip this step.
+
+**Tear down the team (Agent Teams mode only).** After all commits are written, call `TeamDelete` for the team created in §3T.8 (team name `{slug}-team`). Single-agent mode skips this step.
 
 ### 3T.12. Run Verification Gates
 
@@ -263,7 +269,17 @@ Run `software-teams state executing`. Do NOT manually edit `.software-teams/stat
 
 For split plans, the agent reads task files one at a time via the `file:` field in `.software-teams/state.yaml`.
 
-**Agent Teams mode:** Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
+**Agent Teams mode:**
+
+**Team setup.** Before the wave loop, call:
+
+```
+TeamCreate(team_name: "{slug}-team")
+```
+
+Team name pattern: `{slug}-team`. The `{slug}` value comes from `current_plan.slug` in `state.yaml` (see step §2). This pattern is deliberate and identical in the three-tier path (§3T.8) so the team is predictable and FleetView-discoverable.
+
+Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
 **Prompt scoping rules (non-negotiable):**
 - One task = one spawn. Never bundle multiple tasks into one prompt.
@@ -280,7 +296,7 @@ For split plans, the agent reads task files one at a time via the `file:` field 
 - The test agent writes test files and runs them — failures are reported as structured returns
 - Test task failures are treated as S2 severity: halt the plan and escalate to the user
 
-**Wave-based execution:** honour `waves:` from the plan frontmatter. Spawn all tasks in wave N in parallel; wait for all returns before starting wave N+1.
+**Wave-based execution:** honour `waves:` from the plan frontmatter. Inside each wave, for every task the orchestrator: (a) calls `TaskCreate(task_id: "{task.id}", agent: "{task.agent}", addBlockedBy: [{ids of all tasks in waves prior to this one}])` with `addBlockedBy` populated from the union of every task ID in waves prior to this one (this gives the Claude Code team scheduler the dep graph for visibility and tooling — it does NOT drive flow control; the wave for-loop below is still the gate), (b) spawns the Agent with `subagent_type="{task.agent}"`. Per RQ-03 the wave for-loop and `addBlockedBy` coexist by design; do NOT remove the wave for-loop thinking `addBlockedBy` supersedes it. Spawn all tasks in wave N in parallel; wait for all returns before starting wave N+1.
 
 ### 8a. Blocker Resolution
 
@@ -326,6 +342,8 @@ After each task's programmer returns, invoke `software-teams-qa-tester` in `post
 ### 11. Execute Deferred Ops
 
 Agents create files directly (spawned under `acceptEdits` with the scoped allowlist from `.claude/settings.json`), so `files_to_create` should be empty. If any agent does return `files_to_create` entries, create them via Write tool. Execute `commits_pending` via `git add` + `git commit`. Do NOT skip this step.
+
+**Tear down the team.** If Agent Teams mode was used, call `TeamDelete` for the team created in §8 (team name `{slug}-team`) after all commits have been written. Single-agent mode skips this step (no team exists).
 
 ### 12. Run Verification Gates
 
