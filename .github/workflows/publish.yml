@@ -115,6 +115,13 @@ jobs:
             exit 1
           fi
 
+      - name: Populate .claude/commands/st/ from canonical commands/
+        # See ci.yml — same rationale. .claude/commands/st/ is gitignored;
+        # framework-lint parity tests need both source and synced copies on
+        # disk to run.
+        if: steps.version.outputs.changed == 'true'
+        run: mkdir -p .claude/commands/st && cp commands/*.md .claude/commands/st/
+
       - run: bun run test
         if: steps.version.outputs.changed == 'true'
 
