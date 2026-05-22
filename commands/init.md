@@ -117,6 +117,10 @@ List all available commands and suggest `/st:create-plan "your feature"` to get 
 - Optional: harden the main thread to read/plan/delegate only by running
   `/st:orchestrator-mode on`. Toggle off with `/st:orchestrator-mode off`.
   See the skill for details on what's blocked.
+- Optional: counter the auto-mode "skip clarifying questions" reminder by
+  running `/st:ask-questions on`. Tells Claude (and sub-agents) to ask
+  substantive questions about ambiguous work even when auto permission
+  mode is active. Toggle off with `/st:ask-questions off`.
 
 ## Arguments
 

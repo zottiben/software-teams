@@ -143,6 +143,7 @@ Both prefixes invoke the same skills — pick by how you installed.
 | `worktree` | `/st:worktree` | `/software-teams:worktree` | Create an isolated worktree |
 | `status` | `/st:status` | `/software-teams:status` | Show current state and next action |
 | `orchestrator-mode` | `/st:orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate; `Edit`, `Write`, `NotebookEdit`, and mutating Bash are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Task` are unaffected. Per-project only. |
+| `ask-questions` | `/st:ask-questions` | `/software-teams:ask-questions` | Toggle the Ask Clarifying Questions policy (`on\|off\|status`) — overrides the Claude Code harness's hardcoded auto-mode reminder that tells Claude to "work without stopping for clarifying questions." When `on`, Claude and sub-agents are told to ask substantive questions about ambiguous architectural/scope decisions even in auto permission mode. No hooks — pure prompt-layer policy. Per-project only. |
 
 ---
 

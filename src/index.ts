@@ -24,6 +24,7 @@ import { roadmapCommand } from "./commands/roadmap";
 import { requirementsCommand } from "./commands/requirements";
 import { projectCommand } from "./commands/project";
 import { orchestratorModeCommand } from "./commands/orchestrator-mode";
+import { askQuestionsCommand } from "./commands/ask-questions";
 import pkg from "../package.json";
 
 const main = defineCommand({
@@ -57,6 +58,7 @@ const main = defineCommand({
     requirements: requirementsCommand,
     project: projectCommand,
     "orchestrator-mode": orchestratorModeCommand,
+    "ask-questions": askQuestionsCommand,
   },
 });
 
