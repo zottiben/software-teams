@@ -1,7 +1,7 @@
 ---
 name: software-teams-architect
 description: Designs system architecture with focus on maintainability and scalability
-model: opus
+model_tier: large
 tools:
   - Bash
   - Edit

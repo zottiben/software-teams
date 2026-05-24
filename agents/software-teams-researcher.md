@@ -1,7 +1,7 @@
 ---
 name: software-teams-researcher
 description: Domain and ecosystem research with structured knowledge gathering
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

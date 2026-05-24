@@ -1,7 +1,7 @@
 ---
 name: software-teams-phase-researcher
 description: Phase-specific research agent that gathers targeted context before planning
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

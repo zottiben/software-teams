@@ -26,11 +26,13 @@ const TOOL_ALLOWLIST = new Set([
   "AskUserQuestion",
 ]);
 const VALID_MODELS = new Set(["opus", "sonnet", "haiku"]);
+const VALID_TIERS = new Set(["large", "medium", "small"]);
 
 interface AgentFm {
   name?: string;
   description?: string;
   model?: string;
+  model_tier?: string;
   tools?: unknown;
   [k: string]: unknown;
 }
@@ -177,7 +179,7 @@ describe("framework file invariants", () => {
 });
 
 describe("agent frontmatter audit", () => {
-  test("every agents/software-teams-*.md declares name, description, model, tools", () => {
+  test("every agents/software-teams-*.md declares name, description, model or model_tier, tools", () => {
     const files = listAgentFiles();
     expect(files.length).toBeGreaterThanOrEqual(24);
 
@@ -187,16 +189,33 @@ describe("agent frontmatter audit", () => {
       expect((fm.name ?? "").length).toBeGreaterThan(0);
       expect(fm.description, `${file}: missing description`).toBeString();
       expect((fm.description ?? "").length).toBeGreaterThan(0);
-      expect(fm.model, `${file}: missing model`).toBeString();
+      // Accept either new `model_tier:` shape or legacy `model:` shape (bw-compat).
+      const hasModelTier = typeof fm.model_tier === "string" && fm.model_tier.length > 0;
+      const hasLegacyModel = typeof fm.model === "string" && fm.model.length > 0;
+      expect(
+        hasModelTier || hasLegacyModel,
+        `${file}: must declare model_tier (new) or model (legacy)`,
+      ).toBe(true);
       expect(Array.isArray(fm.tools), `${file}: tools must be an array`).toBe(true);
       expect((fm.tools as unknown[]).length).toBeGreaterThan(0);
     }
   });
 
-  test("model: is one of opus | sonnet | haiku", () => {
+  test("model_tier: (when present) is one of large | medium | small; legacy model: is one of opus | sonnet | haiku", () => {
     for (const file of listAgentFiles()) {
       const { fm } = parseAgentSpec(file);
-      expect(VALID_MODELS.has(fm.model ?? ""), `${file}: model='${fm.model}' not in ${[...VALID_MODELS].join(",")}`).toBe(true);
+      if (fm.model_tier !== undefined) {
+        expect(
+          VALID_TIERS.has(fm.model_tier ?? ""),
+          `${file}: model_tier='${fm.model_tier}' not in ${[...VALID_TIERS].join(",")}`,
+        ).toBe(true);
+      } else {
+        // Legacy-only: model must be a valid Anthropic short-name.
+        expect(
+          VALID_MODELS.has(fm.model ?? ""),
+          `${file}: model='${fm.model}' not in ${[...VALID_MODELS].join(",")}`,
+        ).toBe(true);
+      }
     }
   });
 
@@ -226,17 +245,19 @@ describe("agent frontmatter audit", () => {
     }
   });
 
-  test("frontmatter only declares the plugin-spec allowlist (name/description/model/tools)", () => {
+  test("frontmatter only declares the plugin-spec allowlist (name/description/model/model_tier/tools)", () => {
     // Replaces the retired build-plugin generator's "drop unknown fields" transform.
-    // Anything outside the allowlist gets shipped to the Claude Code plugin layer
+    // `model_tier` is accepted as the new vendor-agnostic field (T5 migration).
+    // The legacy `model:` field is also accepted for one minor version (bw-compat).
+    // Anything else gets shipped to the Claude Code plugin layer
     // and the spec is undefined for it — so reject at author time.
-    const ALLOWED_FIELDS = new Set(["name", "description", "model", "tools"]);
+    const ALLOWED_FIELDS = new Set(["name", "description", "model", "model_tier", "tools"]);
     for (const file of listAgentFiles()) {
       const { fm } = parseAgentSpec(file);
       const extra = Object.keys(fm).filter((k) => !ALLOWED_FIELDS.has(k));
       expect(
         extra,
-        `${file}: frontmatter contains unsupported fields [${extra.join(", ")}]; allowed: name|description|model|tools`,
+        `${file}: frontmatter contains unsupported fields [${extra.join(", ")}]; allowed: name|description|model|model_tier|tools`,
       ).toEqual([]);
     }
   });

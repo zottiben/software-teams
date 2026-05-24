@@ -1,7 +1,7 @@
 ---
 name: software-teams-qa-tester
 description: Writes test cases, regression checklists and runs post-task verification
-model: haiku
+model_tier: small
 tools:
   - Bash
   - Edit

@@ -1,7 +1,7 @@
 ---
 name: software-teams-committer
 description: Creates well-formatted conventional commits with automatic type detection
-model: haiku
+model_tier: small
 tools:
   - Bash
   - Edit

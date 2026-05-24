@@ -1,7 +1,7 @@
 ---
 name: software-teams-head-engineering
 description: Engineering manager who ensures high code quality, removes blockers, and keeps engineers on plan
-model: opus
+model_tier: large
 tools:
   - Bash
   - Glob

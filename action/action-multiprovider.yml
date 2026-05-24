@@ -1,0 +1,222 @@
+name: 'Software Teams AI Developer (Multi-Provider)'
+description: 'Provider-agnostic composite action — routes by provider input. Anthropic branch delegates to claude-code-action; other providers run the self-hosted CLI path.'
+author: 'benzotti'
+
+inputs:
+  # ── Provider selection ────────────────────────────────────────────────────
+  provider:
+    description: 'LLM provider to use. Allowed values: anthropic, openai, xai, moonshot'
+    required: false
+    default: 'anthropic'
+
+  # ── API keys (each required only when its provider is selected) ───────────
+  anthropic_api_key:
+    description: 'Anthropic API key (required when provider=anthropic)'
+    required: false
+    default: ''
+  openai_api_key:
+    description: 'OpenAI API key (required when provider=openai)'
+    required: false
+    default: ''
+  xai_api_key:
+    description: 'xAI API key (required when provider=xai)'
+    required: false
+    default: ''
+  moonshot_api_key:
+    description: 'Moonshot API key (required when provider=moonshot)'
+    required: false
+    default: ''
+
+  # ── Shared inputs (preserved from legacy action.yml) ─────────────────────
+  clickup_api_token:
+    description: 'ClickUp API token for ticket fetching (optional)'
+    required: false
+    default: ''
+  allowed_users:
+    description: 'Comma-separated GitHub usernames allowed to trigger (empty = repo collaborators with write access)'
+    required: false
+    default: ''
+  trigger_phrase:
+    description: 'The trigger phrase to look for in comments'
+    required: false
+    default: 'Hey software-teams'
+  software_teams_version:
+    description: 'Version of @websitelabs/software-teams to install for init'
+    required: false
+    default: 'latest'
+  claude_code_action_version:
+    description: 'Version of anthropics/claude-code-action to use (anthropic branch only)'
+    required: false
+    default: 'v1'
+
+outputs:
+  session_id:
+    description: 'Claude Code session ID for conversation continuity (anthropic branch only; empty for other providers)'
+    value: ${{ steps.claude.outputs.session_id }}
+  execution_file:
+    description: 'Path to Claude Code execution output (anthropic branch only; empty for other providers)'
+    value: ${{ steps.claude.outputs.execution_file }}
+
+runs:
+  using: 'composite'
+  steps:
+    # ── Shared setup: always required regardless of provider ──────────────
+
+    # Bun is required to run the Software Teams CLI
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
+    # Ensure Software Teams framework is initialised in the repo
+    - name: Bootstrap Software Teams framework
+      shell: bash
+      run: |
+        if [ ! -f ".software-teams/state.yaml" ] && [ ! -f ".software-teams/config/state.yaml" ]; then
+          echo "Software Teams framework not found — initialising..."
+          bunx @websitelabs/software-teams@${{ inputs.software_teams_version }} init --ci
+        fi
+
+        # Ensure persistence directory exists
+        mkdir -p .software-teams/persistence
+
+    # ── Anthropic branch ─────────────────────────────────────────────────────
+    # Delegates to anthropics/claude-code-action — behaviour is identical to
+    # the legacy action.yml body (regression-safety for R-08 / T13).
+
+    # Run Claude Code Action with Software Teams-specific configuration
+    - name: Run Claude with Software Teams framework
+      id: claude
+      if: inputs.provider == 'anthropic'
+      uses: anthropics/claude-code-action@${{ inputs.claude_code_action_version }}
+      with:
+        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        trigger_phrase: ${{ inputs.trigger_phrase }}
+        prompt: |
+          You are Software Teams, an AI development framework that uses specialised agents to plan, implement, review, and ship features.
+
+          IMPORTANT: You are running inside a GitHub Action. Your final text response will be posted as a comment on the issue/PR. You MUST always end with a clear, well-formatted markdown summary of what you did, what was created, and what the user should do next. Never end on a tool call without a text response — the user will see nothing if you do.
+
+          ## Framework
+
+          The base agent protocol is registered as the `AgentBase` component (fetch via `software-teams component get AgentBase` if you need its body verbatim).
+          Your state is tracked in `.software-teams/state.yaml`.
+          Plans live in `.software-teams/plans/`.
+
+          ## Rules
+
+          Check `.software-teams/rules/` for categorised team rules (backend, frontend, testing, devops, general).
+          These rules layer ON TOP of the project's `.claude/CLAUDE.md` — they exist to add team conventions NOT already documented there.
+          When you learn something from a review or feedback, update the appropriate rules file. Before adding a rule, verify it is not already in `.claude/CLAUDE.md` (or `./CLAUDE.md`); if it is, do NOT duplicate it in `.software-teams/rules/`.
+
+          ## Workflow Routing
+
+          Based on the user's request, follow the appropriate workflow:
+
+          - **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read `.claude/agents/software-teams-planner.md` and create a plan in `.software-teams/plans/`. Present a summary and ask for feedback.
+          - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml, then run `software-teams component get ComplexityRouter` to decide single-agent vs teams mode.
+          - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
+          - **Review** ("review"): Run `software-teams component get PRReview` for the review checklist; review PR changes against it.
+          - **PR feedback** ("feedback"): Address review comments using `.claude/agents/software-teams-pr-feedback.md`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
+          - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
+
+          ## Iterative Refinement
+
+          After completing any workflow, present a summary and ask for feedback.
+          When the user provides feedback, apply changes incrementally — do not restart from scratch.
+          When the user approves ("approved", "lgtm", "looks good"), finalise the work.
+
+          ## ClickUp Integration
+
+          If the user provides a ClickUp URL, fetch the ticket details using the ClickUp API:
+          ```bash
+          curl -s -H "Authorization: $CLICKUP_API_TOKEN" "https://api.clickup.com/api/v2/task/{task_id}"
+          ```
+          Use the ticket name, description, and checklists as requirements.
+
+        claude_args: '--permission-mode acceptEdits --allowedTools Read,Write,Edit,MultiEdit,Glob,Grep,Task,Bash(bun:*),Bash(git:*),Bash(gh:*),Bash(npm:*),Bash(npx:*),Bash(mkdir:*),Bash(rm:*),Bash(software-teams:*),Bash(curl:*)'
+
+      env:
+        CLICKUP_API_TOKEN: ${{ inputs.clickup_api_token }}
+
+    # ── Non-Anthropic branch: self-hosted CLI path ───────────────────────────
+    # Mirrors the steps in workflow-template.yml.
+    # All non-anthropic providers share the same steps; the provider-specific
+    # API key is injected via the appropriate env var.
+
+    - name: Configure git (non-anthropic)
+      if: inputs.provider != 'anthropic'
+      shell: bash
+      run: |
+        git config user.name "software-teams[bot]"
+        git config user.email "software-teams[bot]@users.noreply.github.com"
+
+    - name: Install Software Teams CLI (non-anthropic)
+      if: inputs.provider != 'anthropic'
+      shell: bash
+      run: bun install -g @websitelabs/software-teams@${{ inputs.software_teams_version }}
+
+    - name: Run Software Teams (non-anthropic)
+      if: inputs.provider != 'anthropic'
+      shell: bash
+      run: |
+        # Validate provider
+        case "$PROVIDER" in
+          openai|xai|moonshot) ;;
+          *)
+            echo "ERROR: Unknown provider '$PROVIDER'. Allowed values: anthropic, openai, xai, moonshot" >&2
+            exit 1
+            ;;
+        esac
+
+        # Validate that the required API key is present
+        case "$PROVIDER" in
+          openai)
+            if [ -z "$OPENAI_API_KEY" ]; then
+              echo "ERROR: provider=openai requires openai_api_key to be set." >&2
+              exit 1
+            fi
+            ;;
+          xai)
+            if [ -z "$XAI_API_KEY" ]; then
+              echo "ERROR: provider=xai requires xai_api_key to be set." >&2
+              exit 1
+            fi
+            ;;
+          moonshot)
+            if [ -z "$MOONSHOT_API_KEY" ]; then
+              echo "ERROR: provider=moonshot requires moonshot_api_key to be set." >&2
+              exit 1
+            fi
+            ;;
+        esac
+
+        software-teams action run "$COMMENT_BODY" \
+          --provider "$PROVIDER" \
+          --repo "$REPO" \
+          ${COMMENT_ID:+--comment-id "$COMMENT_ID"} \
+          ${PR_NUMBER:+--pr-number "$PR_NUMBER"} \
+          ${ISSUE_NUMBER:+--issue-number "$ISSUE_NUMBER"} \
+          ${COMMENT_AUTHOR:+--comment-author "$COMMENT_AUTHOR"} \
+          ${ALLOWED_USERS:+--allowed-users "$ALLOWED_USERS"} \
+          ${TRIGGER_PHRASE:+--trigger-phrase "$TRIGGER_PHRASE"}
+      env:
+        PROVIDER: ${{ inputs.provider }}
+        COMMENT_BODY: ${{ github.event.comment.body || github.event.review.body || '' }}
+        COMMENT_ID: ${{ github.event.comment.id || github.event.review.id || '' }}
+        PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
+        ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number || '' }}
+        COMMENT_AUTHOR: ${{ github.event.comment.user.login || github.event.review.user.login || '' }}
+        REPO: ${{ github.repository }}
+        TRIGGER_PHRASE: ${{ inputs.trigger_phrase }}
+        ALLOWED_USERS: ${{ inputs.allowed_users }}
+        CLICKUP_API_TOKEN: ${{ inputs.clickup_api_token }}
+        GH_TOKEN: ${{ github.token }}
+        # Provider-specific keys — only the relevant one will be non-empty at runtime
+        OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        XAI_API_KEY: ${{ inputs.xai_api_key }}
+        MOONSHOT_API_KEY: ${{ inputs.moonshot_api_key }}
+
+branding:
+  icon: 'zap'
+  color: 'purple'

@@ -1,7 +1,7 @@
 ---
 name: software-teams-devops
 description: DevOps engineer for infrastructure architecture, CI/CD, and developer tooling
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

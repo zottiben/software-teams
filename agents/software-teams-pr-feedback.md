@@ -1,7 +1,7 @@
 ---
 name: software-teams-pr-feedback
 description: Addresses PR review comments systematically with code changes and replies
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

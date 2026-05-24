@@ -216,6 +216,8 @@ describe("convertAgents — AGENTS.md catalogue", () => {
     expect(names).toEqual(sorted);
 
     // Cross-reference each row's model with the source spec frontmatter.
+    // Source specs now use model_tier (new shape), so we translate tier → Anthropic name.
+    const TIER_TO_MODEL: Record<string, string> = { large: "opus", medium: "sonnet", small: "haiku" };
     for (const row of rowLines) {
       const cells = row.split("|").map((c) => c.trim());
       // ['', name, model, description, '']
@@ -224,7 +226,12 @@ describe("convertAgents — AGENTS.md catalogue", () => {
       const sourcePath = join(REAL_SOURCE, `${name}.md`);
       const src = await readFile(sourcePath, "utf-8");
       const { fm } = parseFrontmatter(src);
-      expect(model).toBe(fm.model as string);
+      // Resolve expected Anthropic model: from model_tier (new) or model (legacy).
+      const expectedModel =
+        fm.model_tier !== undefined
+          ? TIER_TO_MODEL[fm.model_tier as string]
+          : (fm.model as string);
+      expect(model).toBe(expectedModel);
     }
   });
 });
@@ -286,7 +293,7 @@ describe("convertAgents — wave 4 round-trip (@ST: expansion)", () => {
     const syntheticContent = `---
 name: software-teams-wave4-test
 description: Wave 4 round-trip test agent
-model: test-model
+model_tier: medium
 tools: [Read, Bash]
 ---
 
@@ -328,7 +335,7 @@ More content here.
     const syntheticContent = `---
 name: software-teams-broken-ref
 description: Broken reference test
-model: test-model
+model_tier: medium
 tools: [Read]
 ---
 
@@ -399,7 +406,7 @@ End.
     const syntheticContent = `---
 name: software-teams-codeblock-test
 description: Code block preservation test
-model: test-model
+model_tier: medium
 tools: [Read]
 ---
 

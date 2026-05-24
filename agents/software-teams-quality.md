@@ -1,7 +1,7 @@
 ---
 name: software-teams-quality
 description: Ensures software quality through testing strategies and systematic edge case detection
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

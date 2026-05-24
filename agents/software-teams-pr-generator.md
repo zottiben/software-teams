@@ -1,7 +1,7 @@
 ---
 name: software-teams-pr-generator
 description: Generates comprehensive PR descriptions and creates pull requests
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

@@ -3,7 +3,7 @@ import { consola } from "consola";
 import { resolve, basename, join } from "node:path";
 import { existsSync, readdirSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
-import { spawnClaude } from "../utils/claude";
+import { spawnAgent } from "../utils/agent";
 import { createStorage } from "../storage";
 import { savePersistedState } from "../utils/storage-lifecycle";
 import { gatherPromptContext, buildPlanPrompt } from "../utils/prompt-builder";
@@ -41,7 +41,7 @@ const runCommand = defineCommand({
     } else if (args.print) {
       console.log(prompt);
     } else {
-      const { exitCode } = await spawnClaude(prompt, { cwd });
+      const { exitCode } = await spawnAgent({ agent: "planner", prompt, cwd });
       const storage = await createStorage(cwd);
       await savePersistedState(cwd, storage);
       if (exitCode !== 0) {

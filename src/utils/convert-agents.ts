@@ -132,10 +132,62 @@ async function writeIfChanged(outPath: string, rendered: string): Promise<boolea
   return true;
 }
 
+/**
+ * Legacy `model:` short-name → `model_tier` mapping.
+ * Used by the bw-compat reader when only the legacy field is present.
+ */
+const LEGACY_MODEL_TO_TIER: Record<string, string> = {
+  opus: "large",
+  sonnet: "medium",
+  haiku: "small",
+};
+
+/**
+ * `model_tier` → Anthropic model short-name mapping.
+ * Used when emitting `.claude/agents/*.md` so the Claude Code host registry
+ * receives the concrete `model:` name it expects (R-01 / R-07 regression-safety).
+ */
+const TIER_TO_ANTHROPIC_MODEL: Record<string, string> = {
+  large: "opus",
+  medium: "sonnet",
+  small: "haiku",
+};
+
+/**
+ * One-time deprecation warning tracker: file paths that have already
+ * received the legacy `model:` warning in this process are recorded here
+ * so the warning fires at most once per file per session.
+ */
+const _legacyWarned = new Set<string>();
+
+/**
+ * Emit the one-time-per-session deprecation warning for a spec file that
+ * still uses the legacy `model:` frontmatter field.
+ */
+function warnLegacyModel(filePath: string, modelValue: string): void {
+  if (_legacyWarned.has(filePath)) return;
+  _legacyWarned.add(filePath);
+  console.warn(
+    `[convert-agents] Agent spec \`${filePath}\` uses legacy \`model: ${modelValue}\` frontmatter. ` +
+      `Please migrate to \`model_tier:\`. Support for \`model:\` will be removed in v0.7.`,
+  );
+}
+
 export interface AgentFrontmatter {
   name: string;
   description: string;
+  /**
+   * Resolved Anthropic short-name (e.g. "opus", "sonnet", "haiku").
+   * Always populated — derived from `model_tier` if the source spec uses the
+   * new field, or from the legacy `model:` field after bw-compat normalisation.
+   */
   model: string;
+  /**
+   * Vendor-agnostic capability tier.  Present when the source spec uses the
+   * new frontmatter shape.  Absent when only the legacy `model:` field was
+   * present (after normalisation `model` is populated from the legacy value).
+   */
+  model_tier?: string;
   tools: string[];
   // Software Teams-only fields (preserved on input, dropped on output)
   category?: string;
@@ -147,7 +199,6 @@ export interface AgentFrontmatter {
 const REQUIRED_FIELDS: readonly string[] = [
   "name",
   "description",
-  "model",
   "tools",
 ];
 
@@ -181,6 +232,14 @@ function parseAgentFile(content: string, filePath: string): ParsedAgentFile {
 
 /**
  * Validate that the parsed frontmatter contains every Claude-Code-required field.
+ * Accepts both the legacy `model:` field and the new `model_tier:` field (bw-compat).
+ *
+ * Normalisation rules (applied before validation):
+ *   1. `model_tier` present → derive `model` from TIER_TO_ANTHROPIC_MODEL.
+ *   2. `model_tier` absent, `model` present (legacy) → emit deprecation warning;
+ *      derive `model_tier` from LEGACY_MODEL_TO_TIER.
+ *   3. Neither present → `model` is added to `missing[]` and validation fails.
+ *
  * Throws an Error listing all missing or malformed fields with the file path.
  */
 export function validateAgentFrontmatter(
@@ -188,6 +247,38 @@ export function validateAgentFrontmatter(
   filePath: string,
 ): asserts frontmatter is AgentFrontmatter {
   const missing: string[] = [];
+
+  // ── Model tier bw-compat normalisation ───────────────────────────────────
+  const hasModelTier =
+    frontmatter["model_tier"] !== undefined && frontmatter["model_tier"] !== null;
+  const hasLegacyModel =
+    frontmatter["model"] !== undefined && frontmatter["model"] !== null;
+
+  if (hasModelTier) {
+    // New shape: translate tier → Anthropic short-name for the output.
+    const tier = String(frontmatter["model_tier"]).trim();
+    const anthropicName = TIER_TO_ANTHROPIC_MODEL[tier];
+    if (!anthropicName) {
+      throw new Error(
+        `convert-agents: ${filePath} has an unknown model_tier '${tier}'. Expected: large, medium, small.`,
+      );
+    }
+    // Populate (or overwrite) the resolved `model` so downstream code is unchanged.
+    frontmatter["model"] = anthropicName;
+  } else if (hasLegacyModel) {
+    // Legacy shape: emit deprecation warning, translate model → tier in memory.
+    const legacyModel = String(frontmatter["model"]).trim();
+    warnLegacyModel(filePath, legacyModel);
+    const tier = LEGACY_MODEL_TO_TIER[legacyModel];
+    if (!tier) {
+      throw new Error(
+        `convert-agents: ${filePath} has an unknown legacy model '${legacyModel}'. Expected: opus, sonnet, haiku.`,
+      );
+    }
+    frontmatter["model_tier"] = tier;
+    // `model` is already set correctly (the legacy value IS the Anthropic short-name).
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   for (const field of REQUIRED_FIELDS) {
     const value = frontmatter[field];
@@ -204,6 +295,11 @@ export function validateAgentFrontmatter(
     } else if (typeof value !== "string" || value.trim() === "") {
       missing.push(`${field} (must be a non-empty string)`);
     }
+  }
+
+  // Always require at least one of model / model_tier to be resolvable.
+  if (!frontmatter["model"]) {
+    missing.push("model or model_tier (at least one is required)");
   }
 
   if (missing.length > 0) {

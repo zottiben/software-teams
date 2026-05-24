@@ -1,7 +1,7 @@
 ---
 name: software-teams-producer
 description: Orchestrates plans, sprints, risk and scope across Software Teams agents
-model: opus
+model_tier: large
 tools:
   - Bash
   - Edit

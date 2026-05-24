@@ -1,7 +1,7 @@
 ---
 name: software-teams-backend
 description: Backend engineer for API design, data layer, and server-side implementation
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

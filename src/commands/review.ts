@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 import { resolve } from "node:path";
 import { exec } from "../utils/git";
-import { spawnClaude } from "../utils/claude";
+import { spawnAgent } from "../utils/agent";
 import { buildReviewPrompt, gatherPromptContext } from "../utils/prompt-builder";
 
 export const reviewCommand = defineCommand({
@@ -76,7 +76,7 @@ export const reviewCommand = defineCommand({
     } else if (args.print) {
       console.log(prompt);
     } else {
-      const { exitCode } = await spawnClaude(prompt, { cwd: process.cwd() });
+      const { exitCode } = await spawnAgent({ agent: "verifier", prompt, cwd: process.cwd() });
       if (exitCode !== 0) {
         consola.error(`Claude exited with code ${exitCode}`);
         process.exit(exitCode);

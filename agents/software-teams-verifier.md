@@ -1,7 +1,7 @@
 ---
 name: software-teams-verifier
 description: Goal-backward verification with three-level artifact checking
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Glob

@@ -1,7 +1,7 @@
 ---
 name: software-teams-codebase-mapper
 description: Analyses and documents codebase architecture, patterns, and concerns
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

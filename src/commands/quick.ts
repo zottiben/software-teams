@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { resolve } from "node:path";
-import { spawnClaude } from "../utils/claude";
+import { spawnAgent } from "../utils/agent";
 import { gatherPromptContext, buildQuickPrompt, applyDryRunMode } from "../utils/prompt-builder";
 
 export const quickCommand = defineCommand({
@@ -46,7 +46,7 @@ export const quickCommand = defineCommand({
       console.log(prompt);
     } else {
       const allowedTools = args["dry-run"] ? ["Read", "Glob", "Grep", "Bash"] : undefined;
-      const { exitCode } = await spawnClaude(prompt, { cwd, allowedTools });
+      const { exitCode } = await spawnAgent({ agent: "programmer", prompt, cwd, allowedTools });
       if (exitCode !== 0) {
         consola.error(`Claude exited with code ${exitCode}`);
         process.exit(exitCode);

@@ -3,7 +3,7 @@ import { consola } from "consola";
 import { resolve } from "node:path";
 import { detectProjectType } from "../../utils/detect-project";
 import { readAdapter } from "../../utils/adapter";
-import { spawnClaude } from "../../utils/claude";
+import { spawnAgent } from "../../utils/agent";
 import { createStorage } from "../../storage";
 import { loadPersistedState, savePersistedState } from "../../utils/storage-lifecycle";
 import { extractClickUpId, fetchClickUpTicket, formatTicketAsContext } from "../../utils/clickup";
@@ -363,7 +363,9 @@ export const runCommand = defineCommand({
       let success = true;
       let fullResponse = "";
       try {
-        const { exitCode, response } = await spawnClaude(prompt, {
+        const { exitCode, response } = await spawnAgent({
+          agent: "planner",
+          prompt,
           cwd,
           permissionMode: "acceptEdits",
         });
@@ -832,7 +834,9 @@ export const runCommand = defineCommand({
     let success = true;
     let fullResponse = "";
     try {
-      const { exitCode, response } = await spawnClaude(prompt, {
+      const { exitCode, response } = await spawnAgent({
+        agent: "producer",
+        prompt,
         cwd,
         permissionMode: "acceptEdits",
         allowedTools: intent.dryRun ? ["Read", "Glob", "Grep", "Bash"] : undefined,
@@ -865,7 +869,9 @@ export const runCommand = defineCommand({
           `Follow the implement-plan orchestration.`,
         ].join("\n");
 
-        const implResult = await spawnClaude(implementPrompt, {
+        const implResult = await spawnAgent({
+          agent: "programmer",
+          prompt: implementPrompt,
           cwd,
           permissionMode: "acceptEdits",
         });

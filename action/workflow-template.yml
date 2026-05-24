@@ -2,8 +2,16 @@
 # Copy this file to .github/workflows/software-teams.yml in your repository
 #
 # Prerequisites:
-#   1. Set ANTHROPIC_API_KEY secret in your repo settings
+#   1. Set the API key secret for your chosen provider (default: Anthropic)
 #   2. That's it — Software Teams bootstraps everything else automatically
+#
+# Provider selection (optional — defaults to anthropic):
+#   Set the SOFTWARE_TEAMS_PROVIDER repo variable to one of:
+#     anthropic  (default) — requires ANTHROPIC_API_KEY secret
+#     openai               — requires OPENAI_API_KEY secret
+#     xai                  — requires XAI_API_KEY secret
+#     moonshot             — requires MOONSHOT_API_KEY secret
+#   See action/README.md for per-provider setup instructions.
 #
 # Optional:
 #   - Set CLICKUP_API_TOKEN secret for ClickUp ticket integration
@@ -156,7 +164,15 @@ jobs:
           REPO: ${{ github.repository }}
           SOFTWARE_TEAMS_AUTH_ENABLED: ${{ vars.SOFTWARE_TEAMS_AUTH_ENABLED || '' }}
           ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
+          # Provider selection: set SOFTWARE_TEAMS_PROVIDER repo variable to anthropic|openai|xai|moonshot.
+          # Defaults to anthropic. Only the key for the active provider needs to be set;
+          # GitHub Actions treats undefined secrets as empty strings — the runtime fail-fast
+          # check will surface a clear error if the provider key is missing.
+          SOFTWARE_TEAMS_PROVIDER: ${{ vars.SOFTWARE_TEAMS_PROVIDER || 'anthropic' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
 
@@ -232,7 +248,15 @@ jobs:
           REPO: ${{ github.repository }}
           SOFTWARE_TEAMS_AUTH_ENABLED: ${{ vars.SOFTWARE_TEAMS_AUTH_ENABLED || '' }}
           ALLOWED_USERS: ${{ vars.SOFTWARE_TEAMS_ALLOWED_USERS || '' }}
+          # Provider selection: set SOFTWARE_TEAMS_PROVIDER repo variable to anthropic|openai|xai|moonshot.
+          # Defaults to anthropic. Only the key for the active provider needs to be set;
+          # GitHub Actions treats undefined secrets as empty strings — the runtime fail-fast
+          # check will surface a clear error if the provider key is missing.
+          SOFTWARE_TEAMS_PROVIDER: ${{ vars.SOFTWARE_TEAMS_PROVIDER || 'anthropic' }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
           CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
           GH_TOKEN: ${{ github.token }}
 

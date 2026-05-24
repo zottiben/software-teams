@@ -1,7 +1,7 @@
 ---
 name: software-teams-debugger
 description: Systematic root cause analysis and debugging with hypothesis-driven investigation
-model: haiku
+model_tier: small
 tools:
   - Bash
   - Edit

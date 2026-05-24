@@ -1,7 +1,7 @@
 ---
 name: software-teams-perf-analyst
 description: Profiles performance, tracks budgets, detects regressions and recommends optimisations
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Glob

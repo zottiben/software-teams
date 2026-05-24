@@ -1,7 +1,7 @@
 ---
 name: software-teams-feedback-learner
 description: Analyses PR review comments to extract new rules and update the team's rules files
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

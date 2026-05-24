@@ -1,7 +1,7 @@
 ---
 name: software-teams-product-lead
 description: Requirements decomposition, acceptance criteria, delivery tracking, and requirement validation
-model: opus
+model_tier: large
 tools:
   - Bash
   - Glob

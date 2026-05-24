@@ -1,7 +1,7 @@
 ---
 name: software-teams-plan-checker
 description: Validates plans before execution to catch issues early
-model: opus
+model_tier: large
 tools:
   - Bash
   - Glob

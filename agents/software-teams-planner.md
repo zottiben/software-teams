@@ -1,7 +1,7 @@
 ---
 name: software-teams-planner
 description: Creates executable phase plans with task breakdown and dependency mapping
-model: opus
+model_tier: large
 tools:
   - Bash
   - Edit

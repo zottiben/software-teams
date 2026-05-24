@@ -1,7 +1,7 @@
 ---
 name: software-teams-frontend
 description: Frontend engineer for UI components, state management, and client-side implementation
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

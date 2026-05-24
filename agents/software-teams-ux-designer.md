@@ -1,7 +1,7 @@
 ---
 name: software-teams-ux-designer
 description: Design system expert who bridges design tools and component engineering
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit

@@ -1,7 +1,7 @@
 ---
 name: software-teams-security
 description: Reviews code for vulnerabilities, designs secure architecture, audits dependencies and secrets
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Glob

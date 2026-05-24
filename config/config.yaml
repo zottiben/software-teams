@@ -35,6 +35,49 @@ agents:
 # ─────────────────────────────────────────────────────────────────────────────
 # Model Routing
 # ─────────────────────────────────────────────────────────────────────────────
+#
+# EXTENDED PROFILE SHAPE (multi-provider, introduced in T4)
+# ──────────────────────────────────────────────────────────
+# Profile entries accept TWO shapes (both are valid for at least one minor version):
+#
+#   Legacy bare string (backward-compatible):
+#     planner: opus        # → { provider: anthropic, model_tier: large }
+#     verifier: sonnet     # → { provider: anthropic, model_tier: medium }
+#     researcher: haiku    # → { provider: anthropic, model_tier: small }
+#
+#   New object form (multi-provider):
+#     planner:
+#       provider: openai
+#       model_tier: large  # → gpt-4o
+#     programmer:
+#       provider: xai
+#       model_tier: medium # → grok-3-mini-beta
+#     researcher:
+#       provider: moonshot
+#       model_tier: large  # → kimi-k2.6
+#
+# Supported providers : anthropic | openai | xai | moonshot
+# Model tiers         : large (frontier) | medium (balanced) | small (fast/cheap)
+#
+# Tier → concrete model mapping (current as of 2026-05):
+#   anthropic : large=claude-opus-4-7 / medium=claude-sonnet-4-5 / small=claude-haiku-3-5
+#   openai    : large=gpt-4o          / medium=gpt-4o-mini        / small=gpt-4o-mini (alias)
+#   xai       : large=grok-4.3        / medium=grok-3-mini-beta   / small=grok-3-mini-beta (alias)
+#   moonshot  : large=kimi-k2.6       / medium=kimi-k2.5          / small=kimi-k2.5 (alias)
+#
+# Required env vars per provider:
+#   anthropic → ANTHROPIC_API_KEY (already set for existing users)
+#   openai    → OPENAI_API_KEY
+#   xai       → XAI_API_KEY
+#   moonshot  → MOONSHOT_API_KEY
+#
+# Overrides section: set an agent to a non-null value to override its profile entry.
+#   overrides:
+#     planner: { provider: openai, model_tier: large }
+#
+# The existing balanced/quality/budget profiles below are UNCHANGED — existing
+# Anthropic users see zero behaviour change (R-01 invariant).
+# ──────────────────────────────────────────────────────────
 models:
   # Active profile: quality | balanced | budget
   profile: balanced

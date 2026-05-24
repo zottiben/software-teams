@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { resolve } from "node:path";
-import { spawnClaude } from "../utils/claude";
+import { spawnAgent } from "../utils/agent";
 import { readState } from "../utils/state";
 import { createStorage } from "../storage";
 import { savePersistedState } from "../utils/storage-lifecycle";
@@ -78,7 +78,7 @@ export const implementCommand = defineCommand({
       await transitionToExecuting(cwd);
 
       const allowedTools = args["dry-run"] ? ["Read", "Glob", "Grep", "Bash"] : undefined;
-      const { exitCode } = await spawnClaude(prompt, { cwd, allowedTools });
+      const { exitCode } = await spawnAgent({ agent: "programmer", prompt, cwd, allowedTools });
 
       await transitionToComplete(cwd);
 

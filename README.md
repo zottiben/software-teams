@@ -145,6 +145,52 @@ Both prefixes invoke the same skills — pick by how you installed.
 
 ---
 
+## Provider Configuration
+
+Software Teams supports four LLM providers: **Anthropic** (default), **OpenAI**,
+**xAI** (Grok), and **Moonshot** (Kimi). By default every agent routes to
+Anthropic — no config change is needed for existing users. To route specific
+agents to other providers, add a `models.profiles` block to
+`.software-teams/config/config.yaml`. Provider selection is per-agent, so you
+can keep tool-using specialists on Anthropic while routing cheaper text-only
+work (planning, research, verification) to other providers.
+
+**Minimal config snippet** (both legacy and extended shapes work):
+
+```yaml
+models:
+  profile: balanced
+  profiles:
+    balanced:
+      planner: { provider: openai, model_tier: large }      # new object form
+      researcher: { provider: xai, model_tier: medium }
+      programmer: { provider: anthropic, model_tier: large } # legacy: opus
+      verifier: opus                                          # legacy bare string
+```
+
+**Env vars — set only the key for the provider(s) you use:**
+
+| Provider | Env var |
+|----------|---------|
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `xai` | `XAI_API_KEY` |
+| `moonshot` | `MOONSHOT_API_KEY` |
+
+**Backward compatibility:** Legacy bare strings (`planner: opus`, `verifier: sonnet`,
+`researcher: haiku`) continue to work — they resolve to the Anthropic large /
+medium / small tiers respectively. Removal is scheduled for v0.7.x.
+
+**v1 limitation:** Tool execution (file edits, bash calls) is supported only on
+the Anthropic provider in v1. Keep tool-using agents (`programmer`, `debugger`,
+`backend`, `frontend`) on Anthropic. Route text-only agents (`planner`,
+`researcher`, `verifier`) to other providers.
+
+Full per-provider reference — SDK, model names, quirks, migration guide, and
+troubleshooting — is in [`docs/providers.md`](docs/providers.md).
+
+---
+
 ## GitHub Actions setup
 
 ```bash

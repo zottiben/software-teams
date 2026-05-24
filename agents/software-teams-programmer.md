@@ -1,7 +1,7 @@
 ---
 name: software-teams-programmer
 description: Executes plan tasks with atomic commits, deviation handling, and progress tracking
-model: sonnet
+model_tier: medium
 tools:
   - Bash
   - Edit
