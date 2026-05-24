@@ -14,11 +14,22 @@
 #
 # ─── EXEMPTIONS ────────────────────────────────────────────────────────────
 #
-#   Calls originating from a Task-spawned subagent are always allowed. The
-#   hook detects this via the `agent_id` field, which Claude Code adds to the
-#   payload only inside subagent contexts. This matches the directive in
-#   .claude/orchestrator-mode.md: the restriction is meant for the MAIN
-#   thread; specialists are expected to mutate freely.
+#   The restriction is meant for the MAIN Claude Code thread only. Two kinds
+#   of delegated context are exempted:
+#
+#   1. Task-spawned subagents. Detected via the `agent_id` field, which
+#      Claude Code adds to the hook payload only inside subagent contexts.
+#
+#   2. Teammate sessions (Agent Teams / TeamCreate / `claude agents`).
+#      These are full Claude Code processes spawned in tmux panes; they
+#      load the project's `.claude/settings.json` (so they inherit this
+#      hook) but they have no `agent_id` in the payload. Detect them via
+#      the env vars Claude Code itself sets on background-spawned sessions:
+#        CLAUDE_BG_SOURCE / CLAUDE_BG_BACKEND / CLAUDE_BG_ISOLATION /
+#        CLAUDE_CODE_SESSION_NAME / CLAUDE_BG_SESSION_PERMISSION_RULES.
+#      Bash hooks inherit the parent process env, so any one of these
+#      being set means the call originated inside a teammate process and
+#      must be allowed through.
 #
 # ─── DENY PATTERN SET (canonical — audit here, not in the regex blocks) ────
 #
@@ -87,6 +98,22 @@ fi
 # Allow unconditionally when agent_id is present.
 agent_id=$(printf '%s' "$payload" | jq -r '.agent_id // empty')
 if [[ -n "$agent_id" ]]; then
+  exit 0
+fi
+
+# ── Teammate exemption ──────────────────────────────────────────────────────
+# Agent Teams (TeamCreate / `claude agents`) spawn full Claude Code processes
+# in tmux panes. They load the project's .claude/settings.json — so they
+# inherit this hook — but they are NOT Task subagents, so no agent_id is set.
+# Claude Code marks teammate processes via the env vars below; bash hooks
+# inherit the parent process env, so we can detect the case here. The same
+# detection set is used inside the Claude Code binary to recognise
+# background-spawned sessions.
+if [[ -n "${CLAUDE_BG_SOURCE:-}" \
+   || -n "${CLAUDE_BG_BACKEND:-}" \
+   || -n "${CLAUDE_BG_ISOLATION:-}" \
+   || -n "${CLAUDE_CODE_SESSION_NAME:-}" \
+   || -n "${CLAUDE_BG_SESSION_PERMISSION_RULES:-}" ]]; then
   exit 0
 fi
 

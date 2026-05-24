@@ -641,8 +641,16 @@ describe("orchestrator-deny-bash.sh", () => {
 
   const runDenyScript = async (
     payload: Record<string, unknown>,
+    envOverrides: Record<string, string> = {},
   ): Promise<{ exitCode: number; stderr: string }> => {
     const payloadJson = JSON.stringify(payload);
+    const baseEnv = { ...process.env };
+    delete baseEnv.CLAUDE_BG_SOURCE;
+    delete baseEnv.CLAUDE_BG_BACKEND;
+    delete baseEnv.CLAUDE_BG_ISOLATION;
+    delete baseEnv.CLAUDE_CODE_SESSION_NAME;
+    delete baseEnv.CLAUDE_BG_SESSION_PERMISSION_RULES;
+    const env = { ...baseEnv, ...envOverrides };
     const proc = Bun.spawn(
       [
         "bash",
@@ -652,6 +660,7 @@ describe("orchestrator-deny-bash.sh", () => {
         stdin: "pipe",
         stdout: "pipe",
         stderr: "pipe",
+        env,
       },
     );
 
@@ -771,6 +780,43 @@ describe("orchestrator-deny-bash.sh", () => {
       tool_name: "Edit",
       tool_input: { file_path: "file.ts", old_string: "x", new_string: "y" },
       agent_id: "",
+    });
+
+    expect(exitCode).toBe(2);
+  });
+
+  // Teammate exemption — full Claude Code processes spawned via TeamCreate
+  // inherit this hook through .claude/settings.json but must NOT be blocked.
+  // Detection is via env vars Claude Code sets on teammate sessions.
+  skip("Edit from a teammate process (CLAUDE_BG_SOURCE set) is allowed", async () => {
+    const { exitCode, stderr } = await runDenyScript(
+      {
+        tool_name: "Edit",
+        tool_input: { file_path: "file.ts", old_string: "x", new_string: "y" },
+      },
+      { CLAUDE_BG_SOURCE: "shell" },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+  });
+
+  skip("Otherwise-denied Bash from a teammate (CLAUDE_CODE_SESSION_NAME set) is allowed", async () => {
+    const { exitCode } = await runDenyScript(
+      {
+        tool_name: "Bash",
+        tool_input: { command: "git commit -m 'test'" },
+      },
+      { CLAUDE_CODE_SESSION_NAME: "agent-001" },
+    );
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Main-thread Edit (no env vars, no agent_id) is still blocked", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Edit",
+      tool_input: { file_path: "file.ts", old_string: "x", new_string: "y" },
     });
 
     expect(exitCode).toBe(2);
