@@ -77,7 +77,7 @@ describe("init — scaffolding layout", () => {
     expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(false);
   });
 
-  test("init generates 24 .claude/agents/software-teams-*.md files (from package source)", async () => {
+  test("init generates 32 .claude/agents/software-teams-*.md files (from package source)", async () => {
     const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
@@ -93,7 +93,7 @@ describe("init — scaffolding layout", () => {
     expect(existsSync(agentsDir)).toBe(true);
 
     const agentFiles = readdirSync(agentsDir).filter((f) => f.endsWith(".md"));
-    expect(agentFiles.length).toBe(24);
+    expect(agentFiles.length).toBe(32);
 
     // Spot-check representative agent names
     expect(agentFiles.some((f) => f === "software-teams-planner.md")).toBe(true);

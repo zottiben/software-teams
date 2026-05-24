@@ -51,7 +51,7 @@ describe("convertAgents — output shape", () => {
 
     const targetDir = join(cwd, ".claude", "agents");
     const files = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
-    expect(files.length).toBe(24);
+    expect(files.length).toBe(32);
 
     for (const file of files) {
       const content = await readFile(join(targetDir, file), "utf-8");
@@ -129,8 +129,8 @@ describe("convertAgents — dryRun", () => {
     const cwd = await makeFixtureCwd();
     const result = await convertAgents({ cwd, dryRun: true });
     expect(result.errors).toEqual([]);
-    // 24 agents + AGENTS.md + RULES.md
-    expect(result.written.length).toBe(26);
+    // 32 agents + AGENTS.md + RULES.md
+    expect(result.written.length).toBe(34);
 
     // Nothing on disk under .claude
     const claudeDir = join(cwd, ".claude");
@@ -198,7 +198,7 @@ tools: [Read]
 });
 
 describe("convertAgents — AGENTS.md catalogue", () => {
-  test("lists all 24 agents alphabetically with correct model column", async () => {
+  test("lists all 32 agents alphabetically with correct model column", async () => {
     const cwd = await makeFixtureCwd();
     await convertAgents({ cwd });
 
@@ -208,7 +208,7 @@ describe("convertAgents — AGENTS.md catalogue", () => {
     // Extract data rows (skip header + separator).
     const lines = agentsMd.split("\n");
     const rowLines = lines.filter((l) => /^\| software-teams-/.test(l));
-    expect(rowLines.length).toBe(24);
+    expect(rowLines.length).toBe(32);
 
     // Names should be alphabetical.
     const names = rowLines.map((l) => l.split("|")[1].trim());
@@ -246,21 +246,21 @@ describe("convertAgents — RULES.md", () => {
 });
 
 describe("convertAgents — wave-1 rebrand glob verification", () => {
-  test("glob discovers exactly 24 files matching software-teams-*.md", async () => {
+  test("glob discovers exactly 32 files matching software-teams-*.md", async () => {
     const sourceDir = REAL_SOURCE;
     const files = readdirSync(sourceDir).filter((f) => /^software-teams-.+\.md$/.test(f));
-    expect(files.length).toBe(24);
+    expect(files.length).toBe(32);
     expect(files.every((f) => f.startsWith("software-teams-"))).toBe(true);
   });
 
-  test("convertAgents produces 24 agent entries (glob success)", async () => {
+  test("convertAgents produces 32 agent entries (glob success)", async () => {
     const cwd = await makeFixtureCwd();
     const result = await convertAgents({ cwd });
     expect(result.errors).toEqual([]);
 
     const targetDir = join(cwd, ".claude", "agents");
     const agentFiles = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
-    expect(agentFiles.length).toBe(24);
+    expect(agentFiles.length).toBe(32);
 
     // Spot-check representative agent names.
     expect(agentFiles.some((f) => f === "software-teams-planner.md")).toBe(true);

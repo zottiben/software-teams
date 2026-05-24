@@ -9,7 +9,7 @@
  *
  * Manual smoke procedure:
  *   1. Run `bun run dev sync-agents` (or `software-teams sync-agents`) in this
- *      repo so `.claude/agents/` is populated with the 24 native specs.
+ *      repo so `.claude/agents/` is populated with the 32 native specs.
  *   2. From a Claude Code session in this repo, dispatch a Task call with
  *      `subagent_type="software-teams-status"` and `prompt="echo OK"` (or any registered
  *      Software Teams subagent + a sentinel prompt).
