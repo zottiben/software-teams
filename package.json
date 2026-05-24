@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/software-teams",
-  "version": "0.5.48",
+  "version": "0.5.49",
   "description": "Software Teams -  Skills and Agents to help with Software Development",
   "type": "module",
   "bin": {
@@ -18,7 +18,7 @@
   "dependencies": {
     "citty": "^0.1.6",
     "consola": "^3.4.0",
-    "yaml": "^2.7.0"
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/bun": "latest",

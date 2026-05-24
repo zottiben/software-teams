@@ -52,6 +52,14 @@ Researcher roles need outbound web access and write research reports.
 | software-teams-devops             | sonnet | implementation        |
 | software-teams-feedback-learner   | sonnet | implementation        |
 | software-teams-frontend           | sonnet | implementation        |
+| software-teams-game-ai-engineer   | sonnet | implementation        |
+| software-teams-game-art-pipeline  | sonnet | implementation        |
+| software-teams-game-designer      | opus   | planning/file-writing |
+| software-teams-game-devops        | sonnet | implementation        |
+| software-teams-game-engineer      | sonnet | implementation        |
+| software-teams-game-producer      | opus   | planning/file-writing |
+| software-teams-game-qa            | sonnet | implementation        |
+| software-teams-game-tech-artist   | sonnet | implementation        |
 | software-teams-head-engineering   | opus   | read-only advisor     |
 | software-teams-perf-analyst       | sonnet | read-only advisor     |
 | software-teams-phase-researcher   | sonnet | researcher (full)     |
@@ -79,3 +87,4 @@ Notes:
   skips file writes by behaviour, not by tool restriction.
 - `software-teams-security` is read-only by design — it recommends and audits, it
   never patches code. Pair with `software-teams-programmer` for fixes.
+- The eight game-* specialists are gameplay/Unity/AI-art-pipeline/store-cert/production roles for game development projects; they follow the same model/role-class conventions as the other agents.

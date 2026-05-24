@@ -52,14 +52,14 @@ async function readNativeSubagentsFlag(cwd: string): Promise<boolean> {
 }
 
 describe("sync-agents — convertAgents flow", () => {
-  test("default run writes 24 agents + AGENTS.md + RULES.md", async () => {
+  test("default run writes 32 agents + AGENTS.md + RULES.md", async () => {
     const cwd = await makeFixtureCwd();
     const result = await convertAgents({ cwd });
     expect(result.errors).toEqual([]);
 
     const targetDir = join(cwd, ".claude", "agents");
     const agentFiles = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
-    expect(agentFiles.length).toBe(24);
+    expect(agentFiles.length).toBe(32);
     expect(existsSync(join(cwd, ".claude", "AGENTS.md"))).toBe(true);
     expect(existsSync(join(cwd, ".claude", "RULES.md"))).toBe(true);
   });
@@ -147,11 +147,11 @@ describe("sync-agents — command flow", () => {
     const out = await runSyncAgentsLike(cwd, { dryRun: true });
     expect(out.exitCode).toBe(0);
     expect(out.skipped).toBe(false);
-    expect(out.written).toBe(26); // 24 agents + AGENTS.md + RULES.md (planned, not written)
+    expect(out.written).toBe(34); // 32 agents + AGENTS.md + RULES.md (planned, not written)
     expect(existsSync(join(cwd, ".claude"))).toBe(false);
   });
 
-  test("equivalent to `software-teams sync-agents`: exits 0, writes 24 + AGENTS.md + RULES.md", async () => {
+  test("equivalent to `software-teams sync-agents`: exits 0, writes 32 + AGENTS.md + RULES.md", async () => {
     const cwd = await makeFixtureCwd();
     const out = await runSyncAgentsLike(cwd);
     expect(out.exitCode).toBe(0);
@@ -159,7 +159,7 @@ describe("sync-agents — command flow", () => {
 
     const targetDir = join(cwd, ".claude", "agents");
     const files = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
-    expect(files.length).toBe(24);
+    expect(files.length).toBe(32);
     expect(existsSync(join(cwd, ".claude", "AGENTS.md"))).toBe(true);
     expect(existsSync(join(cwd, ".claude", "RULES.md"))).toBe(true);
   });
