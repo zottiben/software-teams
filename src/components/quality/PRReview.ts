@@ -112,13 +112,37 @@ Rule-based findings should use the same severity classification as other finding
 
 Apply @ST:PRReview:Checklist to analyse each change. Include rule violations alongside standard checklist findings.
 
+### Step 6b: Verify Comparative References (MANDATORY)
+
+Comparative findings — anything that says "other files do X", "the convention here is Y", "inconsistent with Z", "all sibling configs use W", or that cites a specific file/path as a counter-example — are **invalid unless backed by evidence you read in this session**.
+
+For every comparative finding, you MUST:
+
+1. **Read the referenced file in full with the Read tool** (not Grep, not the file name alone, not memory) before the finding is allowed into the output list.
+2. **Cite the exact \`path:line\` you read** that backs the claim, and the quoted snippet showing the supposed convention.
+3. If the file you read **does NOT** confirm the claim, **delete the finding entirely**. Do not soften it, do not rephrase it as a question, do not keep it "in case". A confidently wrong finding is worse than a missing one.
+
+This step exists because of a real failure: a reviewer fabricated an "inconsistency with sibling configs" finding by pattern-matching on a filename without ever reading the sibling file — and the sibling file used the exact same pattern as the PR under review. Pattern-matching on a name is not reading.
+
+Apply the same rule to **convention claims that don't name a specific file**: "the convention is X" is still a comparative claim. Either find a documented rule (cite the rule file:line) or two or more concrete examples (cite each one), or delete the finding.
+
 ### Step 7: Categorise Findings (Internal)
 
-Categorise using @ST:PRReview:SeverityGuide. Build internal list with: file path, line number, severity, title, explanation, suggested fix. Do NOT output detailed findings yet.
+Categorise using @ST:PRReview:SeverityGuide. Build internal list with: file path, line number, severity, title, explanation, suggested fix, **evidence** (list of \`path:line\` references read in-session that back the claim — required for comparative findings, recommended for all findings). Do NOT output detailed findings yet.
+
+### Step 7b: Self-Audit & Drop List (MANDATORY)
+
+Before any finding is shown to the user, run a final audit on the internal list. For each finding, ask:
+
+1. **Does it cite another file, sibling, convention, or "other code" pattern?** If yes, is there an \`evidence:\` entry with at least one \`path:line\` that you read with the Read tool in this session? If not, **drop the finding**.
+2. **Does the explanation use the words** "other", "convention", "consistent", "inconsistent", "sibling", "all", "every", "elsewhere", or name a specific file path? If yes, the same evidence test applies — drop if unbacked.
+3. **Did you ever soften the language** ("might be inconsistent", "appears to differ", "could violate")? Hedging is a tell. Either pin it down with evidence or drop it.
+
+Output the **drop list** in the checkpoint summary: titles of findings you removed and why ("no evidence — claim referenced \`X\` but file was never read"). Transparency about what you dropped is part of the gate; silently dropping findings hides reviewer-quality problems and prevents the user from spotting systemic hallucination patterns.
 
 ### Step 8: Review Checkpoint
 
-Output finding counts by severity, total line comments, and review state (APPROVE | REQUEST_CHANGES).
+Output finding counts by severity, total line comments, review state (APPROVE | REQUEST_CHANGES), and the **drop list** from Step 7b.
 
 If \`post="false"\`: note output will go to \`.software-teams/reviews/PR-[number]-review.md\`.
 
@@ -205,9 +229,11 @@ gh repo view --json owner,name --jq '"\\(.owner.login)/\\(.name)"'
   "path": "[exact_file_path]",
   "line": [line_number],
   "side": "RIGHT",
-  "body": "[severity emoji] **[title]**\\n\\n[explanation]\\n\\n**Suggested fix:**\\n\`\`\`[language]\\n[code]\\n\`\`\`\\n\\n- AI Ben"
+  "body": "[severity emoji] **[title]**\\n\\n[explanation]\\n\\n**Suggested fix:**\\n\`\`\`[language]\\n[code]\\n\`\`\`\\n\\n**Evidence:** [path:line references read in-session that back the claim — REQUIRED if the finding compares to another file or cites a convention; omit only when the finding is self-contained to the changed lines]\\n\\n- AI Ben"
 }
 \`\`\`
+
+> **Comparative-claim guard:** before serialising any comment whose body uses the words "other", "convention", "consistent", "inconsistent", "sibling", "all", "every", "elsewhere", or names a specific file path you did not read — STOP. Either populate \`Evidence\` with \`path:line\` references you actually opened with Read in this session, or drop the comment. Do not post the finding to GitHub without backing evidence.
 
 ### Submit Review (SINGLE ATOMIC POST)
 

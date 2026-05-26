@@ -87,6 +87,9 @@ These rules exist because of failures that already happened. They are not option
 ### Verify, don't speculate
 Distinguish "I confirmed X by reading file:line" from "I theorise X." When you write a diagnosis, tag every line: **Confirmed** (read it, ran it, reproduced it) or **Theorised** (plausible-sounding but not verified). Never act on a theory as if it were verified. Soft language ("likely," "appears to," "may have") is a tell that you are speculating — caveat it explicitly: "Likely cause — not verified." If verification requires running the app or visual inspection, **say so and stop** rather than shipping a fix on a guess.
 
+### Comparative claims require evidence
+Any claim that compares the code under review to **other code** — "every other file does X", "this is inconsistent with Y", "the convention here is Z", "all sibling configs use W" — is a **comparative claim**, and is invalid unless you actually read the file(s) you are comparing against **in this session** and can quote the relevant lines. Pattern-matching on a name (e.g. "the file `OrganisationsFilterSidebar.config.ts` exists, so it must do X") is **not reading**. Grep hits are not reading. Memory from training data is not reading. If you cannot cite `path:line` evidence from a file you opened, **delete the finding** — do not hedge it, do not soften the language, drop it. A confidently wrong finding is worse than a missing one because it burns trust and wastes the user's time correcting you.
+
 ### Trust but verify upstream agents
 Prior agent reports are not ground truth. If a previous agent claimed a pattern works, **read the actual code and verify the claim** before propagating it to another file. Cross-screen confirmation is meaningless if the source pattern is broken. "Three screens use this" can mean "three screens have the same bug."
 
@@ -115,6 +118,7 @@ Before applying a pattern from another file/screen/module: **read 2–3 instance
 - **Treating typecheck-pass as proof of correctness for UI work** — layout bugs typecheck clean.
 - **Stacking a second fix on top of a regression** — revert and re-diagnose, don't layer.
 - **Constructing a narrative to justify an unauthorised action** — if you need a story for why an action was fine, you shouldn't have taken it.
+- **Fabricating cross-file consistency claims** — asserting "the convention is X" or "all other files do Y" without having actually read those files in-session. If you can't cite `path:line`, the finding does not exist.
 
 ## See Also
 
