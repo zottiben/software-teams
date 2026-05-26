@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, chmodSync, s
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { copyFrameworkFiles } from "../copy-framework";
+import { readFile } from "node:fs/promises";
 
 // All fixtures live in tmpdir. We pass `frameworkDirOverride` to
 // copyFrameworkFiles so it never touches the real src/ tree (which would be
@@ -48,6 +49,7 @@ function makePackageFixture(): { packageRoot: string } {
   writeFileSync(join(packageRoot, "rules", "general.md"), "# General Rules");
   writeFileSync(join(packageRoot, "agents", "software-teams-planner.md"), "# Planner");
   writeFileSync(join(packageRoot, "commands", "create-plan.md"), "# Create Plan");
+  writeFileSync(join(packageRoot, "commands", "create-dev-plan.md"), "# Create Dev Plan");
 
   return { packageRoot };
 }
@@ -212,5 +214,16 @@ describe("copyFrameworkFiles", () => {
     expect(existsSync(dest)).toBe(true);
     expect(await Bun.file(dest).text()).toBe("#!/usr/bin/env bash\nexit 0\n");
     expect(statSync(dest).mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test("copies create-dev-plan skill stub to .claude/commands/st/", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    const stubPath = join(dir, ".claude", "commands", "st", "create-dev-plan.md");
+    expect(existsSync(stubPath)).toBe(true);
+    const content = await readFile(stubPath, "utf-8");
+    expect(content).toBe("# Create Dev Plan");
   });
 });

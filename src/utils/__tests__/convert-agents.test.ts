@@ -51,7 +51,7 @@ describe("convertAgents — output shape", () => {
 
     const targetDir = join(cwd, ".claude", "agents");
     const files = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
-    expect(files.length).toBe(32);
+    expect(files.length).toBe(33);
 
     for (const file of files) {
       const content = await readFile(join(targetDir, file), "utf-8");
@@ -129,8 +129,8 @@ describe("convertAgents — dryRun", () => {
     const cwd = await makeFixtureCwd();
     const result = await convertAgents({ cwd, dryRun: true });
     expect(result.errors).toEqual([]);
-    // 32 agents + AGENTS.md + RULES.md
-    expect(result.written.length).toBe(34);
+    // 33 agents + AGENTS.md + RULES.md
+    expect(result.written.length).toBe(35);
 
     // Nothing on disk under .claude
     const claudeDir = join(cwd, ".claude");
@@ -198,7 +198,7 @@ tools: [Read]
 });
 
 describe("convertAgents — AGENTS.md catalogue", () => {
-  test("lists all 32 agents alphabetically with correct model column", async () => {
+  test("lists all 33 agents alphabetically with correct model column", async () => {
     const cwd = await makeFixtureCwd();
     await convertAgents({ cwd });
 
@@ -208,7 +208,7 @@ describe("convertAgents — AGENTS.md catalogue", () => {
     // Extract data rows (skip header + separator).
     const lines = agentsMd.split("\n");
     const rowLines = lines.filter((l) => /^\| software-teams-/.test(l));
-    expect(rowLines.length).toBe(32);
+    expect(rowLines.length).toBe(33);
 
     // Names should be alphabetical.
     const names = rowLines.map((l) => l.split("|")[1].trim());
@@ -246,21 +246,21 @@ describe("convertAgents — RULES.md", () => {
 });
 
 describe("convertAgents — wave-1 rebrand glob verification", () => {
-  test("glob discovers exactly 32 files matching software-teams-*.md", async () => {
+  test("glob discovers exactly 33 files matching software-teams-*.md", async () => {
     const sourceDir = REAL_SOURCE;
     const files = readdirSync(sourceDir).filter((f) => /^software-teams-.+\.md$/.test(f));
-    expect(files.length).toBe(32);
+    expect(files.length).toBe(33);
     expect(files.every((f) => f.startsWith("software-teams-"))).toBe(true);
   });
 
-  test("convertAgents produces 32 agent entries (glob success)", async () => {
+  test("convertAgents produces 33 agent entries (glob success)", async () => {
     const cwd = await makeFixtureCwd();
     const result = await convertAgents({ cwd });
     expect(result.errors).toEqual([]);
 
     const targetDir = join(cwd, ".claude", "agents");
     const agentFiles = readdirSync(targetDir).filter((f) => f.endsWith(".md"));
-    expect(agentFiles.length).toBe(32);
+    expect(agentFiles.length).toBe(33);
 
     // Spot-check representative agent names.
     expect(agentFiles.some((f) => f === "software-teams-planner.md")).toBe(true);
@@ -448,6 +448,79 @@ End.
 
     // Use Bun's built-in snapshot testing
     expect(content).toMatchSnapshot();
+  });
+});
+
+describe("convertAgents — software-teams-dev-planner agent", () => {
+  test("source file parses with the four required frontmatter fields", async () => {
+    const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
+    const source = await readFile(
+      join(REPO_ROOT, "agents", "software-teams-dev-planner.md"),
+      "utf-8",
+    );
+    const { fm } = parseFrontmatter(source);
+    expect(Object.keys(fm).sort()).toEqual([
+      "description",
+      "model",
+      "name",
+      "tools",
+    ]);
+    expect(fm.name).toBe("software-teams-dev-planner");
+    expect(fm.model).toBe("sonnet");
+    expect(Array.isArray(fm.tools)).toBe(true);
+    expect((fm.tools as string[]).includes("Write")).toBe(true);
+    expect((fm.tools as string[]).includes("Edit")).toBe(true);
+  });
+
+  test("description includes the routing-collision guards (human-readable + NOT for agent-orchestration plans)", async () => {
+    const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
+    const source = await readFile(
+      join(REPO_ROOT, "agents", "software-teams-dev-planner.md"),
+      "utf-8",
+    );
+    const { fm } = parseFrontmatter(source);
+    const desc = fm.description as string;
+    // R-2 mitigation: description MUST scope the agent to single-file
+    // human guide work and explicitly disclaim agent-orchestration
+    // planning (which is software-teams-planner's job).
+    expect(desc).toContain("human-readable");
+    expect(desc).toContain("NOT for agent-orchestration plans");
+  });
+
+  test("converted artefact in .claude/agents/ has banner + Write+Edit tools", async () => {
+    const cwd = await makeFixtureCwd();
+    const result = await convertAgents({ cwd });
+    expect(result.errors).toEqual([]);
+
+    const out = await readFile(
+      join(cwd, ".claude", "agents", "software-teams-dev-planner.md"),
+      "utf-8",
+    );
+    const { fm, body } = parseFrontmatter(out);
+
+    // Banner is first non-empty body line.
+    const firstLine = body.split("\n").find((l) => l.trim().length > 0);
+    expect(firstLine).toMatch(/^<!--\s*AUTO-GENERATED by software-teams sync-agents/);
+
+    // Tools include Write + Edit (R-5 mitigation).
+    const tools = fm.tools as string[];
+    expect(tools.includes("Write")).toBe(true);
+    expect(tools.includes("Edit")).toBe(true);
+    expect(tools.includes("Task")).toBe(false); // R-7 mitigation
+  });
+
+  test("body contains the DO NOT spawn guard and One file no YAML envelope clause", async () => {
+    const cwd = await makeFixtureCwd();
+    await convertAgents({ cwd });
+    const out = await readFile(
+      join(cwd, ".claude", "agents", "software-teams-dev-planner.md"),
+      "utf-8",
+    );
+    // R-3 + R-7 mitigation: the agent prose must enforce single-file
+    // output AND must not spawn sub-agents.
+    expect(out).toContain("DO NOT spawn");
+    expect(out).toContain("One file, no YAML envelope");
+    expect(out).toContain(".software-teams/human-plans/");
   });
 });
 
