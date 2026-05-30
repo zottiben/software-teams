@@ -80,11 +80,59 @@ export async function transitionToPlanReady(
   await updateSessionActivity(cwd, state);
 }
 
+export interface PlanReviewVerdict {
+  oneShotReady: boolean;
+  score?: number | null;
+  status?: "pending" | "gaps_found" | "satisfied";
+  planName?: string | null;
+  revision?: number | null;
+}
+
+/**
+ * Record a plan-review quality verdict and mark the user as on the
+ * review-plan approval path. The approval gate in transitionToApproved
+ * reads quality_gate.one_shot_ready.
+ */
+export async function recordPlanReview(cwd: string, verdict: PlanReviewVerdict): Promise<void> {
+  const state = (await readState(cwd)) ?? {};
+  const now = new Date().toISOString();
+  state.review = {
+    ...state.review,
+    path: "review-plan",
+    quality_gate: {
+      status: verdict.status ?? (verdict.oneShotReady ? "satisfied" : "gaps_found"),
+      one_shot_ready: verdict.oneShotReady,
+      score: verdict.score ?? null,
+      plan_name: verdict.planName ?? state.position?.plan_name ?? null,
+      revision: verdict.revision ?? state.review?.revision ?? null,
+      last_reviewed_at: now,
+    },
+  } as any;
+  await updateSessionActivity(cwd, state);
+}
+
 /**
  * Transition state to "approved" after plan approval.
+ *
+ * Quality gate: if the user entered the review-plan path
+ * (review.path === "review-plan"), approval is refused until the quality
+ * agent has marked the plan one-shot ready — unless `force` is passed.
  */
-export async function transitionToApproved(cwd: string): Promise<void> {
-  const state = await readState(cwd) ?? {};
+export async function transitionToApproved(
+  cwd: string,
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  const state = (await readState(cwd)) ?? {};
+  if (
+    opts.force !== true &&
+    state.review?.path === "review-plan" &&
+    state.review?.quality_gate?.one_shot_ready !== true
+  ) {
+    throw new Error(
+      "Cannot approve: a plan review is in progress and the quality gate is not satisfied yet. " +
+        "Run /st:review-plan to finish the review, or pass --force to override.",
+    );
+  }
   state.position = {
     ...state.position,
     status: "approved",

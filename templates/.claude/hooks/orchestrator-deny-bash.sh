@@ -33,39 +33,35 @@
 #
 # ─── DENY PATTERN SET (canonical — audit here, not in the regex blocks) ────
 #
+#   Orchestrator-Only Mode keeps the MAIN thread free to MANAGE and DELIVER
+#   the work via Bash — commit, push, open PRs, install deps, run builds and
+#   tests, etc. What it must NOT do is AUTHOR or DESTROY code directly; that
+#   is delegated to specialists via the Task tool. So this hook blocks only
+#   the tools/commands that write, overwrite, delete, move, or revert source.
+#
 #   Non-Bash tools (always blocked when this hook is installed):
 #     Edit, Write, NotebookEdit
 #
-#   Bash deny patterns:
-#     git commit\b
-#     git push\b
+#   Bash deny patterns — destroy/revert tree state, or write file content in
+#   place (i.e. editing code through the shell):
 #     git reset --hard\b
 #     git checkout -- (space — distinguishes from "git checkout main")
 #     git restore \. (dot — distinguishes from "git restore --staged foo")
 #     git clean -f\b
-#     git branch -D\b
-#     git rebase\b
 #     (^|[^a-zA-Z_])rm \b
 #     (^|[^a-zA-Z_])mv \b
 #     (^|[^a-zA-Z_])cp \b  [NOTE: always denied — no reliable read-only cp detection]
 #     (^|[^a-zA-Z_])tee \b
 #     sed -i\b
-#     > [non-slash non-space char] AND NOT > /dev/null  (output redirect)
+#     > [non-slash, non-& char] AND NOT > /dev/null  (file redirect; fd
+#       duplications like 2>&1 / >&2 / >&- pass through)
+#     >& <file> / &> <file>  (csh-style redirect to a file)
 #     >>  (append redirect — always denied)
-#     npm install\b
-#     npm i\b
-#     bun install\b
-#     bun add\b
-#     bun remove\b
-#     pnpm install\b
-#     yarn add\b
-#     (^|[^a-zA-Z_])make \b
-#     gh pr create\b
-#     gh pr edit\b
-#     gh issue create\b
-#     gh issue close\b
-#     gh issue edit\b
-#     (^|[^a-zA-Z_])sudo\b
+#
+#   Explicitly ALLOWED — delivery / management plumbing, NOT blocked:
+#     git commit, git push, git rebase, git branch -D, git status/log/diff
+#     npm/bun/pnpm/yarn install|add|remove, make, gh pr|issue *, sudo, and
+#     any other Bash command not in the deny set above.
 #
 # FALSE-POSITIVE RISK (R-2): The rm/mv/cp/tee patterns use a negative
 # look-behind character class to avoid matching "form", "chmod", etc., but
@@ -129,57 +125,43 @@ case "$tool" in
 
     deny() {
       local pattern="$1"
-      printf "orchestrator-mode: Bash command matched deny pattern '%s'.\nRun:\n  /st:orchestrator-mode off\nto disable, or delegate to a specialist via the Task tool.\n" "$pattern" >&2
+      printf "orchestrator-mode: Bash command matched deny pattern '%s'.\nThis writes or destroys code directly — delegate it to a specialist via the\nTask tool, or run:\n  /st:orchestrator-mode off\nto disable the hook. (Delivery commands — git commit/push, installs, make,\ngh, read-only git — are allowed.)\n" "$pattern" >&2
       exit 2
     }
 
-    # git mutations
-    [[ "$command" =~ git[[:space:]]+commit[[:space:]] ]] && deny 'git commit\b'
-    [[ "$command" =~ git[[:space:]]+commit$ ]] && deny 'git commit\b'
-    [[ "$command" =~ git[[:space:]]+push([[:space:]]|$) ]] && deny 'git push\b'
+    # git mutations that DESTROY or REVERT tree state. Delivery-oriented git —
+    # commit, push, rebase, branch -D — is ALLOWED: the orchestrator owns
+    # shipping the outcome.
     [[ "$command" =~ git[[:space:]]+reset[[:space:]]+--hard([[:space:]]|$) ]] && deny 'git reset --hard\b'
     [[ "$command" =~ git[[:space:]]+checkout[[:space:]]--[[:space:]] ]] && deny 'git checkout -- '
     [[ "$command" =~ git[[:space:]]+restore[[:space:]]\. ]] && deny 'git restore \.'
     [[ "$command" =~ git[[:space:]]+clean[[:space:]]+-f([[:space:]]|$) ]] && deny 'git clean -f\b'
-    [[ "$command" =~ git[[:space:]]+branch[[:space:]]+-D([[:space:]]|$) ]] && deny 'git branch -D\b'
-    [[ "$command" =~ git[[:space:]]+rebase([[:space:]]|$) ]] && deny 'git rebase\b'
 
-    # file system mutations
+    # file system mutations — deleting, moving, copying, or writing file
+    # content in place is "editing code" and must be delegated.
     [[ "$command" =~ (^|[^a-zA-Z_])rm[[:space:]] ]] && deny '(^|[^a-zA-Z_])rm \b'
     [[ "$command" =~ (^|[^a-zA-Z_])mv[[:space:]] ]] && deny '(^|[^a-zA-Z_])mv \b'
     [[ "$command" =~ (^|[^a-zA-Z_])cp[[:space:]] ]] && deny '(^|[^a-zA-Z_])cp \b'
     [[ "$command" =~ (^|[^a-zA-Z_])tee[[:space:]] ]] && deny '(^|[^a-zA-Z_])tee \b'
     [[ "$command" =~ sed[[:space:]]+-i([[:space:]]|$) ]] && deny 'sed -i\b'
 
-    # redirect mutations
-    if [[ "$command" =~ \>[[:space:]]*[^/[:space:]] ]] && [[ ! "$command" =~ \>[[:space:]]*/dev/null ]]; then
-      deny '> [non-/dev/null redirect]'
+    # redirect mutations — `> file` / `>> file` writes file content directly.
+    # Allow fd duplications (2>&1, >&2, >&-) and redirects to /dev/null or
+    # absolute paths; still block writes to a (relative) file, including the
+    # csh-style `>& file` / `&> file` forms. These regexes contain `&`, which
+    # must be held in a variable so bash does not parse it as a shell operator.
+    file_redirect_re='>[[:space:]]*[^/&[:space:]]'
+    fd_to_file_re='(>&|&>)[[:space:]]*[^-/0-9[:space:]]'
+    if [[ "$command" =~ $file_redirect_re ]] && [[ ! "$command" =~ \>[[:space:]]*/dev/null ]]; then
+      deny '> [file redirect]'
+    fi
+    if [[ "$command" =~ $fd_to_file_re ]]; then
+      deny '>& [file redirect]'
     fi
     [[ "$command" =~ \>\> ]] && deny '>>'
 
-    # package manager mutations
-    [[ "$command" =~ npm[[:space:]]+install([[:space:]]|$) ]] && deny 'npm install\b'
-    [[ "$command" =~ npm[[:space:]]+i([[:space:]]|$) ]] && deny 'npm i\b'
-    [[ "$command" =~ bun[[:space:]]+install([[:space:]]|$) ]] && deny 'bun install\b'
-    [[ "$command" =~ bun[[:space:]]+add([[:space:]]|$) ]] && deny 'bun add\b'
-    [[ "$command" =~ bun[[:space:]]+remove([[:space:]]|$) ]] && deny 'bun remove\b'
-    [[ "$command" =~ pnpm[[:space:]]+install([[:space:]]|$) ]] && deny 'pnpm install\b'
-    [[ "$command" =~ yarn[[:space:]]+add([[:space:]]|$) ]] && deny 'yarn add\b'
-
-    # build / CI mutations
-    [[ "$command" =~ (^|[^a-zA-Z_])make[[:space:]] ]] && deny '(^|[^a-zA-Z_])make \b'
-
-    # GitHub CLI mutations
-    [[ "$command" =~ gh[[:space:]]+pr[[:space:]]+create([[:space:]]|$) ]] && deny 'gh pr create\b'
-    [[ "$command" =~ gh[[:space:]]+pr[[:space:]]+edit([[:space:]]|$) ]] && deny 'gh pr edit\b'
-    [[ "$command" =~ gh[[:space:]]+issue[[:space:]]+create([[:space:]]|$) ]] && deny 'gh issue create\b'
-    [[ "$command" =~ gh[[:space:]]+issue[[:space:]]+close([[:space:]]|$) ]] && deny 'gh issue close\b'
-    [[ "$command" =~ gh[[:space:]]+issue[[:space:]]+edit([[:space:]]|$) ]] && deny 'gh issue edit\b'
-
-    # privilege escalation
-    [[ "$command" =~ (^|[^a-zA-Z_])sudo([[:space:]]|$) ]] && deny '(^|[^a-zA-Z_])sudo\b'
-
-    # No pattern matched — allow
+    # No pattern matched — allow (delivery/management Bash falls through here:
+    # git commit/push/rebase, npm/bun/pnpm/yarn installs, make, gh, sudo, …)
     exit 0
     ;;
 
@@ -194,5 +176,5 @@ esac
 #   printf '{"tool_name":"Bash","tool_input":{"command":"git status"}}' | ./templates/.claude/hooks/orchestrator-deny-bash.sh; echo $?
 #   → prints nothing, exits 0
 # Deny case:
-#   printf '{"tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | ./templates/.claude/hooks/orchestrator-deny-bash.sh; echo $?
+#   printf '{"tool_name":"Bash","tool_input":{"command":"rm -rf build"}}' | ./templates/.claude/hooks/orchestrator-deny-bash.sh; echo $?
 #   → prints deny message to stderr, exits 2

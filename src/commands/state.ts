@@ -6,6 +6,7 @@ import {
   transitionToExecuting,
   transitionToComplete,
   advanceTask,
+  recordPlanReview,
 } from "../utils/state-handlers";
 import { readState } from "../utils/state";
 import { findProjectRoot } from "../utils/find-root";
@@ -61,10 +62,57 @@ const approvedCommand = defineCommand({
     name: "approved",
     description: "Transition state after plan approval",
   },
-  async run() {
+  args: {
+    force: {
+      type: "boolean",
+      description: "Override the plan-review quality gate",
+      default: false,
+    },
+  },
+  async run({ args }) {
     const root = resolveRootOrExit();
-    await transitionToApproved(root);
+    try {
+      await transitionToApproved(root, { force: args.force === true });
+    } catch (err) {
+      consola.error((err as Error).message);
+      process.exit(1);
+    }
     consola.success("State → approved");
+  },
+});
+
+const planReviewedCommand = defineCommand({
+  meta: {
+    name: "plan-reviewed",
+    description: "Record a plan-review quality verdict (sets the review-plan path)",
+  },
+  args: {
+    "one-shot-ready": {
+      type: "boolean",
+      description: "Quality agent judged the plan ready to one-shot",
+      default: false,
+    },
+    score: { type: "string", description: "Quality score 0-100", required: false },
+    "plan-name": { type: "string", description: "Plan name reviewed", required: false },
+    revision: { type: "string", description: "Plan revision reviewed", required: false },
+    status: {
+      type: "string",
+      description: "pending | gaps_found | satisfied",
+      required: false,
+    },
+  },
+  async run({ args }) {
+    const root = resolveRootOrExit();
+    await recordPlanReview(root, {
+      oneShotReady: args["one-shot-ready"] === true,
+      score: args.score != null ? Number(args.score) : null,
+      planName: (args["plan-name"] as string | undefined) ?? null,
+      revision: args.revision != null ? Number(args.revision) : null,
+      status: args.status as "pending" | "gaps_found" | "satisfied" | undefined,
+    });
+    consola.success(
+      `State → plan-reviewed (one_shot_ready=${args["one-shot-ready"] === true})`,
+    );
   },
 });
 
@@ -244,6 +292,7 @@ export const stateCommand = defineCommand({
   subCommands: {
     "plan-ready": planReadyCommand,
     approved: approvedCommand,
+    "plan-reviewed": planReviewedCommand,
     executing: executingCommand,
     complete: completeCommand,
     "advance-task": advanceTaskCommand,

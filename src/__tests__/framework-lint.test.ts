@@ -538,6 +538,32 @@ describe("wave-3 three-tier templates", () => {
   });
 });
 
+describe("review-plan command lint", () => {
+  test("commands/review-plan.md exists with required frontmatter and body", () => {
+    const content = readFrameworkFile("commands/review-plan.md");
+    const m = content.match(/^---\n([\s\S]*?)\n---/);
+    expect(m, "commands/review-plan.md missing frontmatter").toBeTruthy();
+    const fm = m![1]!;
+    expect(fm).toContain("name: review-plan");
+    expect(fm).toMatch(/allowed-tools:.*Task/);
+    expect(fm).toMatch(/argument-hint:/);
+    expect(content).toMatch(/subagent_type\s*[=:]\s*"software-teams-quality"/);
+    expect(content).toContain("software-teams state plan-reviewed");
+    expect(content).toContain("software-teams state approved");
+  });
+
+  test("agents/software-teams-quality.md documents plan-review mode and one_shot_ready", () => {
+    const content = readFrameworkFile("agents/software-teams-quality.md");
+    expect(content).toMatch(/plan[- ]review mode/i);
+    expect(content).toContain("one_shot_ready");
+  });
+
+  test("commands/create-plan.md references /st:review-plan", () => {
+    const content = readFrameworkFile("commands/create-plan.md");
+    expect(content).toContain("/st:review-plan");
+  });
+});
+
 describe("wave-2 per-command native subagent presence", () => {
   const MIGRATED_COMMANDS = [
     "commit.md",
@@ -546,6 +572,7 @@ describe("wave-2 per-command native subagent presence", () => {
     "implement-plan.md",
     "pr-feedback.md",
     "pr-review.md",
+    "review-plan.md",
   ];
 
   test("each migrated command file references at least one subagent_type=\"software-teams-...\" OR invokes via Skill tool", () => {
@@ -656,5 +683,10 @@ describe("orchestrator-mode framework lint", () => {
 
     const content = readFileSync(fullPath, "utf-8");
     expect(content).toContain("/st:orchestrator-mode on");
+  });
+
+  test("commands/build.md surfaces /st:review-plan in onboarding", () => {
+    const content = readFrameworkFile("commands/build.md");
+    expect(content).toContain("/st:review-plan");
   });
 });

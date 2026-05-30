@@ -9,6 +9,7 @@ import {
   advanceTask,
   transitionToExecuting,
   transitionToComplete,
+  recordPlanReview,
 } from "../state-handlers";
 
 let tempDir: string;
@@ -485,6 +486,126 @@ describe("transitionToComplete roadmap advancement", () => {
     const state = await readState(dir);
     // Should not crash — status should still be set to complete
     expect(state!.position?.status).toBe("complete");
+  });
+});
+
+describe("recordPlanReview and plan-review quality gate", () => {
+  test("recordPlanReview sets review.path and populates quality_gate", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      `position:\n  plan_name: "My Plan"\n  status: planning\n`,
+    );
+
+    await recordPlanReview(dir, {
+      oneShotReady: true,
+      score: 92,
+      planName: "My Plan",
+      revision: 2,
+      status: "satisfied",
+    });
+
+    const state = await readState(dir);
+    expect(state!.review?.path).toBe("review-plan");
+    expect(state!.review?.quality_gate?.status).toBe("satisfied");
+    expect(state!.review?.quality_gate?.one_shot_ready).toBe(true);
+    expect(state!.review?.quality_gate?.score).toBe(92);
+    expect(state!.review?.quality_gate?.last_reviewed_at).toBeTruthy();
+    expect(new Date(state!.review!.quality_gate!.last_reviewed_at!).getTime()).not.toBeNaN();
+  });
+
+  test("recordPlanReview derives status from oneShotReady when status not provided", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      `position:\n  status: planning\n`,
+    );
+
+    await recordPlanReview(dir, { oneShotReady: false });
+
+    const state = await readState(dir);
+    expect(state!.review?.quality_gate?.status).toBe("gaps_found");
+    expect(state!.review?.quality_gate?.one_shot_ready).toBe(false);
+  });
+
+  test("transitionToApproved throws when review-plan path and gate not satisfied", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      [
+        "review:",
+        '  path: "review-plan"',
+        "  quality_gate:",
+        '    one_shot_ready: false',
+        '    status: "gaps_found"',
+      ].join("\n"),
+    );
+
+    await expect(transitionToApproved(dir)).rejects.toThrow(/quality gate is not satisfied/);
+  });
+
+  test("transitionToApproved succeeds when one_shot_ready is true", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      [
+        "review:",
+        '  path: "review-plan"',
+        "  quality_gate:",
+        "    one_shot_ready: true",
+        '    status: "satisfied"',
+      ].join("\n"),
+    );
+
+    await transitionToApproved(dir);
+
+    const state = await readState(dir);
+    expect(state!.review?.status).toBe("approved");
+  });
+
+  test("transitionToApproved succeeds with force even when gate unsatisfied", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      [
+        "review:",
+        '  path: "review-plan"',
+        "  quality_gate:",
+        "    one_shot_ready: false",
+        '    status: "gaps_found"',
+      ].join("\n"),
+    );
+
+    await transitionToApproved(dir, { force: true });
+
+    const state = await readState(dir);
+    expect(state!.review?.status).toBe("approved");
+  });
+
+  test("transitionToApproved succeeds when review.path is undefined (gate does not apply)", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      `review:\n  status: in_review\n  scope: plan\n`,
+    );
+
+    await transitionToApproved(dir);
+
+    const state = await readState(dir);
+    expect(state!.review?.status).toBe("approved");
+  });
+
+  test("transitionToApproved succeeds when review.path is direct (gate does not apply)", async () => {
+    const dir = makeTempDir();
+    await Bun.write(
+      join(dir, ".software-teams", "config", "state.yaml"),
+      `review:\n  path: direct\n  status: in_review\n`,
+    );
+
+    await transitionToApproved(dir);
+
+    const state = await readState(dir);
+    expect(state!.review?.status).toBe("approved");
   });
 });
 

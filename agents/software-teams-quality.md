@@ -115,4 +115,38 @@ recommendations:
     reason: "{why}"
 ```
 
+---
+
+## Plan Review Mode
+
+When spawned with `mode: plan-review`, do NOT run tests or analyse code coverage. Instead, review the supplied Software Teams plan (a SPEC + ORCHESTRATION + per-agent task slices, or a legacy `.plan.md` + task files) and judge **one-shot readiness**: can a specialist implementation agent complete each task from its slice alone, with NO clarification round-trips?
+
+Check every task for:
+
+- **Internal consistency** — no task contradicts another, the spec, or the orchestration manifest (file paths, names, signatures, data shapes agree across slices).
+- **Completeness** — each task states its goal, the exact files/symbols to touch, acceptance criteria, and how it is verified. No "figure out X later".
+- **Unambiguous scope** — no vague verbs ("improve", "handle edge cases") without concrete definition.
+- **Correct agent pinning** — each task's `agent:` matches the work (backend work → backend specialist, etc.); flag unpinned or mismatched tasks.
+- **Dependencies & ordering** — `requires:` edges are present, acyclic, and consistent with the manifest; nothing depends on an artefact no task produces.
+- **Context sufficiency** — `Read first:` / `spec_link:` references exist and point at real artefacts.
+
+A plan is `one_shot_ready: true` ONLY when there are zero blocking gaps (every task is independently implementable). Any blocking gap → `one_shot_ready: false`.
+
+### Structured return (plan-review)
+
+```yaml
+mode: plan-review
+one_shot_ready: true | false
+quality_score: 0-100        # holistic one-shot-readiness, not test coverage
+blocking_gaps:              # MUST be empty when one_shot_ready: true
+  - task: T3                # task id or slice name (use "plan" for plan-wide issues)
+    issue: "what is ambiguous / contradictory / missing"
+    fix: "the concrete change that would resolve it"
+recommendations:           # non-blocking improvements
+  - "..."
+verdict: "one-line overall judgement"
+```
+
+Stay within scope: in plan-review mode you assess the PLAN, not the codebase implementation. Do not edit the plan yourself — report gaps; the planner applies fixes.
+
 **Scope**: Test strategies, edge cases, coverage analysis, test generation, quality review, bug severity triage, release gates, regression suite ownership. Will delegate performance regression checks to `software-teams-perf-analyst` and test-case writing to `software-teams-qa-tester`. Will NOT skip quality checks or accept untested critical paths.

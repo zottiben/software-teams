@@ -49,6 +49,7 @@ Planning and implementation are **separate human-gated phases**. NEVER auto-proc
 
 - When the user says "approved" / "lgtm" / "looks good" to a **plan**: this means the plan is finalised. It does NOT mean "go implement it." Finalise the plan review, output _"Plan approved and locked in. Let me know when you want to implement."_, then **STOP**.
 - When the user provides refinement feedback on a plan, ONLY update the plan files in `.software-teams/plans/`. Do NOT implement code.
+- Plan quality review ("review the plan", "check the plan", "is the plan ready") → `/st:review-plan` — spawns `software-teams-quality` to judge one-shot readiness; re-runnable until it passes, then auto-approves. Strongly recommended after `/st:create-plan` but optional.
 - Implementation ONLY happens when the user explicitly requests it: "implement", "build", "execute", or `/st:implement-plan`.
 
 ## State Management

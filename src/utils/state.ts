@@ -44,6 +44,15 @@ export interface SoftwareTeamsState {
       requested_at: string;
     }>;
     approved_at: string | null;
+    path?: "direct" | "review-plan";
+    quality_gate?: {
+      status: "pending" | "gaps_found" | "satisfied";
+      one_shot_ready: boolean;
+      score: number | null;
+      plan_name: string | null;
+      revision: number | null;
+      last_reviewed_at: string | null;
+    };
   };
   [key: string]: unknown;
 }

@@ -16,26 +16,32 @@ tool are unaffected.
 - `/st:orchestrator-mode on` — enable. Creates `.claude/orchestrator-mode.md`,
   appends `@.claude/orchestrator-mode.md` to `.claude/CLAUDE.md`, and
   installs a PreToolUse hook in `.claude/settings.json` that blocks Edit,
-  Write, NotebookEdit, and mutating Bash with exit 2.
+  Write, NotebookEdit, and the narrow set of code-mutating Bash commands
+  with exit 2.
 - `/st:orchestrator-mode off` — disable. Removes all three artefacts.
 - `/st:orchestrator-mode status` — report per-artefact state and detect drift.
 
 ## What gets blocked when on
 
-- `Edit`, `Write`, `NotebookEdit` — always blocked.
-- Mutating Bash — `git commit`, `git push`, `git reset --hard`,
-  `git checkout -- `, `git restore .`, `git clean -f`, `git branch -D`,
-  `git rebase`, `rm `, `mv `, `cp `, `tee `, `sed -i`, `> ` redirect to
-  real files, `>>`, `npm install`, `npm i`, `bun install`, `bun add`,
-  `bun remove`, `pnpm install`, `yarn add`, `make `, `gh pr create`,
-  `gh pr edit`, `gh issue create`, `gh issue close`, `gh issue edit`,
-  `sudo`. Exact list lives in `.claude/hooks/orchestrator-deny-bash.sh`.
-- Read-only Bash (`git log`, `git status`, `git diff`, `cat`, `grep`,
-  `find`, `ls`, `wc`, `head`, `tail`) passes through.
+The orchestrator is the head of the team: it manages and ships the work,
+but it must not author or destroy code directly. Only the following are
+blocked on the main thread:
 
-## What still works
+- `Edit`, `Write`, `NotebookEdit` — always blocked (they author file content).
+- Code-mutating Bash — `sed -i`, `tee `, `> ` redirect to real files, `>>`,
+  `rm `, `mv `, `cp `, `git reset --hard`, `git checkout -- `,
+  `git restore .`, `git clean -f`. These write file content in place or
+  destroy/revert the tree. Exact list lives in
+  `.claude/hooks/orchestrator-deny-bash.sh`.
+
+## What still works (manage and deliver freely)
 
 - `Read`, `Glob`, `Grep`, `Task` — always allowed.
+- **Delivery & management Bash** — `git commit`, `git push`, `git rebase`,
+  `git branch -D`, `npm/bun/pnpm/yarn install|add|remove`, `make`,
+  `gh pr create|edit`, `gh issue create|close|edit`, `sudo`, and all
+  read-only Bash (`git log`, `git status`, `git diff`, `cat`, `grep`,
+  `find`, `ls`, …). Running the team's pipeline is the orchestrator's job.
 - All specialist agents spawned via Task — their edits run in subagent
   processes and are NOT subject to the main-thread hook.
 

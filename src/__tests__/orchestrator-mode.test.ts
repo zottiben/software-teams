@@ -697,10 +697,46 @@ describe("orchestrator-deny-bash.sh", () => {
     expect(stderr).toBe("");
   });
 
-  skip("Bash with git commit is denied with exit 2", async () => {
+  skip("Bash with git commit is allowed (delivery command)", async () => {
     const { exitCode } = await runDenyScript({
       tool_name: "Bash",
       tool_input: { command: "git commit -m 'test'" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with git push is allowed (delivery command)", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "git push origin main" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with npm install is allowed (management command)", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "npm install" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with gh pr create is allowed (delivery command)", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "gh pr create --fill" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with git reset --hard is denied (destructive)", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "git reset --hard HEAD~1" },
     });
 
     expect(exitCode).toBe(2);
@@ -742,6 +778,42 @@ describe("orchestrator-deny-bash.sh", () => {
     expect(exitCode).toBe(0);
   });
 
+  skip("Bash with 2>&1 fd-duplication is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "bun test 2>&1" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with >&2 fd-duplication is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "echo err >&2" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with > /dev/null 2>&1 is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "make build > /dev/null 2>&1" },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("Bash with csh-style >& file redirect is denied", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: "ls >& out.txt" },
+    });
+
+    expect(exitCode).toBe(2);
+  });
+
   // Subagent exemption — Task-spawned subagents must NOT be blocked.
   skip("Edit from a subagent (agent_id present) is allowed", async () => {
     const { exitCode, stderr } = await runDenyScript({
@@ -768,7 +840,7 @@ describe("orchestrator-deny-bash.sh", () => {
   skip("Otherwise-denied Bash from a subagent (agent_id present) is allowed", async () => {
     const { exitCode } = await runDenyScript({
       tool_name: "Bash",
-      tool_input: { command: "git commit -m 'test'" },
+      tool_input: { command: "rm file.txt" },
       agent_id: "agent_abc123",
     });
 
@@ -805,7 +877,7 @@ describe("orchestrator-deny-bash.sh", () => {
     const { exitCode } = await runDenyScript(
       {
         tool_name: "Bash",
-        tool_input: { command: "git commit -m 'test'" },
+        tool_input: { command: "rm file.txt" },
       },
       { CLAUDE_CODE_SESSION_NAME: "agent-001" },
     );

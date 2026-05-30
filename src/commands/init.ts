@@ -199,6 +199,7 @@ export const initCommand = defineCommand({
       consola.info("");
       consola.info("Get started:");
       consola.info("  /st:create-plan \"your feature\"");
+      consola.info("  /st:review-plan          (quality-check a plan before approving)");
       consola.info("  /st:quick \"small fix\"");
     }
   },

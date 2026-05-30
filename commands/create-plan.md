@@ -198,6 +198,7 @@ Present the plan summary using the **fixed shape** below. Do NOT free-form. Do N
 2. **Task manifest table** — `ID | Task | Agent | Priority | Requires`. Nothing else.
 3. **Open questions** — bulleted list of questions the planner surfaced, or the literal word `none`.
 4. **Files written** — bulleted paths grouped by tier (SPEC / ORCHESTRATION / per-agent slices, or single-tier index + slices).
+5. **Recommended next step** — one line: `` Run `/st:review-plan` for a quality check on one-shot readiness before approving (recommended, not required). ``
 
 **Hard caps:**
 
@@ -207,14 +208,15 @@ Present the plan summary using the **fixed shape** below. Do NOT free-form. Do N
 
 End with the EXACT prompt and STOP:
 
-> _"Provide feedback to refine, or say **approved** to finalise."_
+> _"Strongly recommended: run `/st:review-plan` to have `software-teams-quality` check this plan for one-shot readiness before approving. You can also provide feedback to refine, or say **approved** to finalise directly."_
 
 **Wait for the user's answer. Do not advance state. Do not invoke any other skill. Do not begin implementation.**
 
 ### 10. Review Loop
 
 - **Feedback:** apply the requested changes in place (edit existing plan files, increment revision counter in frontmatter), re-present the summary, and ask the same question again.
-- **Approval** (user says "approved", "lgtm", "looks good", or equivalent): run `software-teams state approved`, output the completion message, and STOP.
+- **Approval** (user says "approved", "lgtm", "looks good", or equivalent): run `software-teams state approved`. If that command exits non-zero with a quality-gate message (the user had started `/st:review-plan` but it has not yet passed), relay the message and offer either `/st:review-plan` to finish the review or `software-teams state approved --force` to override — do NOT silently force. Otherwise output the completion message and STOP.
+- **Quality review** (user says "review the plan", "review-plan", or similar): point them at `/st:review-plan` — do not attempt the review inline.
 
 **Never loop back to step 5.** Feedback refines; it does not restart.
 

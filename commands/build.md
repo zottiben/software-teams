@@ -40,6 +40,7 @@ If EITHER is true, the user is returning. Short-circuit the onboarding flow with
 > "Looks like you're already set up — phase **{phase}** ({phase_name}), plan **{plan}** ({plan_name}), status **{status}**. Want to pick up where you left off?
 >
 > - `/st:create-plan "<feature>"` — start a new plan
+> - `/st:review-plan` — quality-check the current plan for one-shot readiness before approving (recommended after planning)
 > - `/st:implement-plan` — continue executing the current plan
 > - `/st:status` — show full state"
 
@@ -132,6 +133,8 @@ Once the user has chosen their next step, print it as a single line they can cop
 
 > "Next step: `/st:{chosen-command} "<args>"`"
 
+If the chosen step is `/st:create-plan`, add one line noting the recommended flow: _"After the plan is drafted, `/st:review-plan` quality-checks it for one-shot readiness before `/st:implement-plan` (recommended, not required)."_
+
 Then **STOP**. The `/st:build` skill's job is done.
 
 ---
@@ -146,7 +149,7 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 | User picks A but existing source code is present (`src/`, `lib/`, `app/` with files) | Mention what you found: "I noticed there's already code in `{path}`. Did you mean D (existing work)?" Let them re-pick. |
 | Discovery shows returning user but state is in `failed` or unknown status | Surface the status and let the user decide: "Your plan is in status `{status}`. Want to resume, reset, or start fresh?" Do NOT auto-resume. |
 | User's situation doesn't fit any option | Listen to their description, then map it to the closest option or ask a clarifying question. The 4 options are starting points, not a prison. |
-| User tries to skip straight to implementation ("just build X for me") | Redirect to the gate: "Implementation goes through `/st:create-plan` first — it lets us agree on scope before writing code. Want me to help you phrase the plan prompt?" |
+| User tries to skip straight to implementation ("just build X for me") | Redirect to the gate: "Implementation goes through `/st:create-plan` first (optionally `/st:review-plan` to quality-check it) — it lets us agree on scope before writing code. Want me to help you phrase the plan prompt?" |
 | `.software-teams/` directory doesn't exist at all | The project hasn't been initialised. Recommend `/st:init` first, then return to `/st:build`. Do NOT attempt to create scaffolding yourself — that's `/st:init`'s job. |
 | User asks what Software Teams is | Give a one-paragraph explanation: "Software Teams is a context-efficient AI development framework that structures work into phases, plans, and tasks. You work with it through slash commands." Then return to the 4-option gate. |
 

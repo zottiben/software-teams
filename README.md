@@ -134,6 +134,7 @@ Both prefixes invoke the same skills — pick by how you installed.
 |---|---|---|---|
 | `init` | `/st:init` | `/software-teams:init` | One-time setup in the current project |
 | `create-plan` | `/st:create-plan` | `/software-teams:create-plan` | Plan a feature (three-tier by default) |
+| `review-plan` | `/st:review-plan` | `/software-teams:review-plan` | Review a plan for one-shot readiness (consistency, contradictions, quality) via `software-teams-quality`; defaults to the current plan, `[plan-name] [plan-part]` to target one. Re-runnable until it passes, then auto-approves. Recommended by `create-plan` but not required. |
 | `implement-plan` | `/st:implement-plan` | `/software-teams:implement-plan` | Execute the current plan |
 | `quick` | `/st:quick` | `/software-teams:quick` | One-shot focused change, no orchestration |
 | `pr-review` | `/st:pr-review` | `/software-teams:pr-review` | Review a PR and post line comments |
@@ -142,7 +143,7 @@ Both prefixes invoke the same skills — pick by how you installed.
 | `generate-pr` | `/st:generate-pr` | `/software-teams:generate-pr` | Open a pull request |
 | `worktree` | `/st:worktree` | `/software-teams:worktree` | Create an isolated worktree |
 | `status` | `/st:status` | `/software-teams:status` | Show current state and next action |
-| `orchestrator-mode` | `/st:orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate; `Edit`, `Write`, `NotebookEdit`, and mutating Bash are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Task` are unaffected. Per-project only. |
+| `orchestrator-mode` | `/st:orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate **code changes** while still letting it manage and ship the work (commit, push, install, build, open PRs); `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash (`sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, destructive git) are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Task` are unaffected. Per-project only. |
 | `ask-questions` | `/st:ask-questions` | `/software-teams:ask-questions` | Toggle the Ask Clarifying Questions policy (`on\|off\|status`) — overrides the Claude Code harness's hardcoded auto-mode reminder that tells Claude to "work without stopping for clarifying questions." When `on`, Claude and sub-agents are told to ask substantive questions about ambiguous architectural/scope decisions even in auto permission mode. No hooks — pure prompt-layer policy. Per-project only. |
 
 ---
