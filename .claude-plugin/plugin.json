@@ -7,10 +7,7 @@
     "url": "https://github.com/zottiben"
   },
   "homepage": "https://github.com/zottiben/software-teams",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/zottiben/software-teams.git"
-  },
+  "repository": "https://github.com/zottiben/software-teams.git",
   "keywords": [
     "claude-code",
     "ai-agents",
