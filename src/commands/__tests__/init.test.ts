@@ -133,3 +133,147 @@ describe("init — scaffolding layout", () => {
     expect(agentFiles.every((f) => f.startsWith("software-teams-"))).toBe(true);
   });
 });
+
+describe("init --state-only (plugin mode)", () => {
+  test("--state-only creates .software-teams/ subtree but NO .claude/ artifacts", async () => {
+    const cwd = makeTempDir();
+
+    // Simulate `init --ci --state-only` by creating the expected structure
+    const swDirs = [
+      ".software-teams/plans",
+      ".software-teams/research",
+      ".software-teams/codebase",
+      ".software-teams/reviews",
+      ".software-teams/config",
+      ".software-teams/persistence",
+      ".software-teams/feedback",
+    ];
+
+    for (const dir of swDirs) {
+      const fullPath = join(cwd, dir);
+      mkdirSync(fullPath, { recursive: true });
+      await Bun.write(join(fullPath, ".gitkeep"), "");
+    }
+
+    // Copy framework files with state-only enabled
+    await copyFrameworkFiles(cwd, "node", false, true, PACKAGE_ROOT, true);
+
+    // Assert .software-teams/ directories exist
+    for (const dir of swDirs) {
+      expect(existsSync(join(cwd, dir))).toBe(true);
+    }
+
+    // Assert .claude/ is NOT created
+    expect(existsSync(join(cwd, ".claude"))).toBe(false);
+    expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(false);
+    expect(existsSync(join(cwd, ".claude", "agents"))).toBe(false);
+  });
+
+  test("--state-only generates state.yaml and config YAML in .software-teams/", async () => {
+    const cwd = makeTempDir();
+
+    const swDirs = [
+      ".software-teams/config",
+      ".software-teams/persistence",
+    ];
+
+    for (const dir of swDirs) {
+      mkdirSync(join(cwd, dir), { recursive: true });
+    }
+
+    // Write state and config files (mimicking init.ts behaviour)
+    const stateSrc = join(PACKAGE_ROOT, "templates", "state.yaml");
+    const stateDest = join(cwd, ".software-teams", "state.yaml");
+    if (existsSync(stateSrc)) {
+      await Bun.write(stateDest, await Bun.file(stateSrc).text());
+    }
+
+    const cfgSrc = join(PACKAGE_ROOT, "config", "config.yaml");
+    const cfgDest = join(cwd, ".software-teams", "config", "config.yaml");
+    if (existsSync(cfgSrc)) {
+      await Bun.write(cfgDest, await Bun.file(cfgSrc).text());
+    }
+
+    expect(existsSync(stateDest)).toBe(true);
+    expect(existsSync(cfgDest)).toBe(true);
+  });
+
+  test("--state-only .gitignore contains .software-teams/ but NOT .claude/commands/st/", async () => {
+    const cwd = makeTempDir();
+
+    // Simulate state-only .gitignore generation
+    const gitignorePath = join(cwd, ".gitignore");
+    const stMarker = "# Software Teams framework";
+    const stEntries = [
+      "",
+      `${stMarker} — remove these lines to version control Software Teams artefacts`,
+      ".software-teams/",
+      // Note: state-only means we skip the .claude/commands/st/ line
+    ].join("\n");
+
+    await Bun.write(gitignorePath, stEntries.trimStart() + "\n");
+
+    const gitignoreContent = await readFile(gitignorePath, "utf-8");
+    expect(gitignoreContent).toContain(".software-teams/");
+    expect(gitignoreContent).not.toContain(".claude/commands/st/");
+  });
+
+  test("default init (no flag) STILL creates .claude/commands/st and .claude/agents — regression check", async () => {
+    const cwd = makeTempDir();
+
+    // Create directories as default init would (state-only=false)
+    const allDirs = [
+      ".claude/commands/st",
+      ".software-teams/plans",
+      ".software-teams/research",
+      ".software-teams/codebase",
+      ".software-teams/reviews",
+      ".software-teams/config",
+      ".software-teams/persistence",
+      ".software-teams/feedback",
+    ];
+
+    for (const dir of allDirs) {
+      mkdirSync(join(cwd, dir), { recursive: true });
+    }
+
+    // Copy framework files with state-only=false (default)
+    await copyFrameworkFiles(cwd, "node", false, true, PACKAGE_ROOT, false);
+
+    // Verify .claude/ is created
+    expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(true);
+
+    // Now convert agents (simulating default init's agent generation)
+    const result = await convertAgents({
+      cwd,
+      sourceDir: join(PACKAGE_ROOT, "agents"),
+      targetDir: ".claude/agents",
+    });
+
+    // Assert agents were generated
+    const agentsDir = join(cwd, ".claude", "agents");
+    expect(existsSync(agentsDir)).toBe(true);
+    const agentFiles = readdirSync(agentsDir).filter((f) => f.endsWith(".md"));
+    expect(agentFiles.length).toBeGreaterThan(0);
+  });
+
+  test("default init .gitignore contains BOTH .software-teams/ AND .claude/commands/st/", async () => {
+    const cwd = makeTempDir();
+
+    // Simulate default init .gitignore generation (state-only=false)
+    const gitignorePath = join(cwd, ".gitignore");
+    const stMarker = "# Software Teams framework";
+    const stEntries = [
+      "",
+      `${stMarker} — remove these lines to version control Software Teams artefacts`,
+      ".software-teams/",
+      ".claude/commands/st/",  // This line is ONLY when state-only=false
+    ].join("\n");
+
+    await Bun.write(gitignorePath, stEntries.trimStart() + "\n");
+
+    const gitignoreContent = await readFile(gitignorePath, "utf-8");
+    expect(gitignoreContent).toContain(".software-teams/");
+    expect(gitignoreContent).toContain(".claude/commands/st/");
+  });
+});

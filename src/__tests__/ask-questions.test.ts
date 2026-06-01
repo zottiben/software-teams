@@ -241,9 +241,11 @@ describe("ask-questions framework lint", () => {
     expect(content).not.toContain("@.claude/ask-questions.md");
   });
 
-  // init.md mentions the toggle so new projects know it exists.
-  test("commands/init.md mentions /st:ask-questions on", () => {
-    const fullPath = join(repoRoot, "commands", "init.md");
+  // The toggle is documented in its own command doc. Plugin init.md was
+  // slimmed (plan 01-01 plugin-cli-bundling) and no longer carries onboarding
+  // pointers, so discoverability lives in the canonical command doc.
+  test("commands/ask-questions.md documents the /st:ask-questions on toggle", () => {
+    const fullPath = join(repoRoot, "commands", "ask-questions.md");
     expect(existsSync(fullPath)).toBe(true);
 
     const content = readFileSync(fullPath, "utf-8");

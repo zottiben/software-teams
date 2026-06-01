@@ -548,8 +548,8 @@ describe("review-plan command lint", () => {
     expect(fm).toMatch(/allowed-tools:.*Task/);
     expect(fm).toMatch(/argument-hint:/);
     expect(content).toMatch(/subagent_type\s*[=:]\s*"software-teams-quality"/);
-    expect(content).toContain("software-teams state plan-reviewed");
-    expect(content).toContain("software-teams state approved");
+    expect(content).toContain("$ST_CLI state plan-reviewed");
+    expect(content).toContain("$ST_CLI state approved");
   });
 
   test("agents/software-teams-quality.md documents plan-review mode and one_shot_ready", () => {
@@ -676,10 +676,12 @@ describe("orchestrator-mode framework lint", () => {
     expect(content).not.toContain("@.claude/orchestrator-mode.md");
   });
 
-  // AC8 — init.md mentions /st:orchestrator-mode on
-  test("commands/init.md mentions /st:orchestrator-mode on", () => {
-    const fullPath = resolveFrameworkPath("commands/init.md");
-    expect(existsSync(fullPath), `commands/init.md does not exist`).toBe(true);
+  // AC8 — the orchestrator-mode toggle is documented in its own command doc.
+  // Plugin init.md was slimmed (plan 01-01 plugin-cli-bundling) and no longer
+  // carries onboarding pointers, so discoverability lives in the canonical doc.
+  test("commands/orchestrator-mode.md documents the /st:orchestrator-mode on toggle", () => {
+    const fullPath = resolveFrameworkPath("commands/orchestrator-mode.md");
+    expect(existsSync(fullPath), `commands/orchestrator-mode.md does not exist`).toBe(true);
 
     const content = readFileSync(fullPath, "utf-8");
     expect(content).toContain("/st:orchestrator-mode on");
