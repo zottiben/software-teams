@@ -52,17 +52,20 @@ Pick one of two install paths.
 
 Then in your project: `/software-teams:init`.
 
-**Option B — npm CLI** (recommended if you also want the terminal commands and GitHub Actions runtime):
+> **Self-contained** — the plugin ships with a bundled CLI (`dist/index.js`, Bun-native). No global install needed; everything runs inside the plugin. Plugin init uses `--state-only` mode: it scaffolds `.software-teams/` only and generates no `.claude/` artifacts — the plugin already supplies all skills and agents natively.
+
+**Option B — Standalone CLI** (recommended if you also want the terminal commands and GitHub Actions runtime):
 
 ```bash
-bun install -g @websitelabs/software-teams
-# (or: npm install -g @websitelabs/software-teams)
+bun add -g @websitelabs/software-teams
+# or:
+npm i -g @websitelabs/software-teams
 
 cd ~/code/your-project
 software-teams init
 ```
 
-Either path sets up `.software-teams/` (state, plans, rules), `.claude/agents/` (24 specialists), and a CLAUDE.md routing block.
+The **plugin** path sets up `.software-teams/` (state, plans, rules) only — the plugin supplies skills and agents natively. The **CLI** path sets up `.software-teams/`, `.claude/agents/` (24 specialists), and a CLAUDE.md routing block. Pass `--state-only` to any `init` call to scaffold `.software-teams/` without generating `.claude/` artifacts.
 
 Now from inside Claude Code in that project:
 
