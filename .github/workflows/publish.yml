@@ -28,21 +28,35 @@ jobs:
       - name: Build
         run: bun run build
 
-      # Release rule: dist/index.js must always be built and committed together
-      # with a version bump. If the committed bundle is stale or missing, this
-      # step fails the PR before it can reach publish/tag.
-      - name: Dist lockstep guard (committed bundle must match freshly built bundle)
+      # Release rule: dist/index.js must be built and committed together with a
+      # version bump. We validate the COMMITTED bundle rather than byte-comparing
+      # it against a fresh build: bun's bundler emits platform-specific output,
+      # so a Linux CI rebuild never byte-matches a bundle committed from another
+      # platform (e.g. macOS). npm publish rebuilds dist on CI anyway; the
+      # committed bundle only needs to be a functional, current-version build for
+      # plugin (git-clone) users. Checks: tracked, embeds the current version,
+      # plausible size, no empty-object stubs.
+      - name: Dist guard (committed bundle present, current, not a stub)
         run: |
           if ! git ls-files --error-unmatch dist/index.js > /dev/null 2>&1; then
             echo "::error::dist/index.js is not committed. Run 'bun run build' and commit dist/index.js alongside the version bump before opening a release PR."
             exit 1
           fi
-          if [ -n "$(git status --porcelain dist/index.js)" ]; then
-            echo "::error::Committed dist/index.js is out of sync with the freshly built bundle. Run 'bun run build', commit the updated dist/index.js, and push again."
-            git diff --stat dist/index.js
+          VERSION=$(grep -m1 '"version"' package.json | sed -E 's/.*"version" *: *"([^"]+)".*/\1/')
+          COMMITTED=$(git show HEAD:dist/index.js)
+          if ! printf '%s' "$COMMITTED" | grep -q "$VERSION"; then
+            echo "::error::Committed dist/index.js does not embed version $VERSION — run 'bun run build' and commit it in the same commit as the version bump."
             exit 1
           fi
-          echo "dist/index.js is committed and in sync with the freshly built bundle."
+          if printf '%s' "$COMMITTED" | grep -q '= (() => ({}))'; then
+            echo "::error::Committed dist/index.js contains empty-object stubs — rebuild with 'bun run build' and recommit."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$COMMITTED" | wc -c)" -lt 100000 ]; then
+            echo "::error::Committed dist/index.js is implausibly small — likely a broken build."
+            exit 1
+          fi
+          echo "Committed dist/index.js present, embeds version $VERSION, not a stub."
 
       - uses: actions/setup-node@v6
         with:
@@ -101,23 +115,34 @@ jobs:
       - run: bun run build
         if: steps.version.outputs.changed == 'true'
 
-      # Release rule: dist/index.js must always be built and committed together
-      # with a version bump. CI catches any case where the committed bundle is
-      # stale or missing before publish/tag runs. To comply: run 'bun run build'
-      # and commit dist/index.js in the same commit as the version bump.
-      - name: Dist lockstep guard (committed bundle must match freshly built bundle)
+      # Release rule: dist/index.js must be built and committed together with a
+      # version bump. We validate the COMMITTED bundle rather than byte-comparing
+      # it against a fresh build (bun emits platform-specific output, so a Linux
+      # CI rebuild never byte-matches a bundle committed from macOS). npm publish
+      # rebuilds dist on CI; the committed bundle only needs to be a functional,
+      # current-version build for plugin (git-clone) users.
+      - name: Dist guard (committed bundle present, current, not a stub)
         if: steps.version.outputs.changed == 'true'
         run: |
           if ! git ls-files --error-unmatch dist/index.js > /dev/null 2>&1; then
             echo "::error::dist/index.js is not committed. Run 'bun run build' and commit dist/index.js alongside the version bump — refusing to publish."
             exit 1
           fi
-          if [ -n "$(git status --porcelain dist/index.js)" ]; then
-            echo "::error::Committed dist/index.js is out of sync with the freshly built bundle — refusing to publish. Run 'bun run build', commit the updated dist/index.js, and push again."
-            git diff --stat dist/index.js
+          VERSION=$(grep -m1 '"version"' package.json | sed -E 's/.*"version" *: *"([^"]+)".*/\1/')
+          COMMITTED=$(git show HEAD:dist/index.js)
+          if ! printf '%s' "$COMMITTED" | grep -q "$VERSION"; then
+            echo "::error::Committed dist/index.js does not embed version $VERSION — refusing to publish. Run 'bun run build' and commit it with the version bump."
             exit 1
           fi
-          echo "dist/index.js is committed and in sync with the freshly built bundle."
+          if printf '%s' "$COMMITTED" | grep -q '= (() => ({}))'; then
+            echo "::error::Committed dist/index.js contains empty-object stubs — refusing to publish. Rebuild and recommit."
+            exit 1
+          fi
+          if [ "$(printf '%s' "$COMMITTED" | wc -c)" -lt 100000 ]; then
+            echo "::error::Committed dist/index.js is implausibly small — refusing to publish."
+            exit 1
+          fi
+          echo "Committed dist/index.js present, embeds version $VERSION, not a stub."
 
       - name: Bundle stub-detector (block broken bundle from publish)
         if: steps.version.outputs.changed == 'true'
