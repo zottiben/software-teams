@@ -37,6 +37,12 @@ export async function copyFrameworkFiles(
    * dirs.
    */
   packageRootOverride?: string,
+  /**
+   * When true, skip all `.claude/` writes (commands, settings, hooks, CLAUDE.md).
+   * Used by `init --state-only` for plugin users who already have native
+   * commands/agents and do not want `.claude/` artifacts generated.
+   */
+  stateOnly: boolean = false,
 ): Promise<void> {
   // `import.meta.dir` resolves to `<package>/dist/` when running the bundled
   // CLI and `<package>/src/utils/` when running uncompiled. The bundle is
@@ -72,59 +78,61 @@ export async function copyFrameworkFiles(
   // `convertAgents()` (invoked from `init` after this step, and standalone
   // via `software-teams sync-agents`).
 
-  // Copy command stubs to .claude/commands/st/ from the plugin commands/ tree.
-  const commandsDir = join(packageRoot, "commands");
-  const commandsDest = join(cwd, ".claude", "commands", "st");
-  if (existsSync(commandsDir)) {
-    const commandGlob = new Bun.Glob("*.md");
-    for await (const file of commandGlob.scan({ cwd: commandsDir })) {
-      const src = join(commandsDir, file);
-      const dest = join(commandsDest, file);
+  if (!stateOnly) {
+    // Copy command stubs to .claude/commands/st/ from the plugin commands/ tree.
+    const commandsDir = join(packageRoot, "commands");
+    const commandsDest = join(cwd, ".claude", "commands", "st");
+    if (existsSync(commandsDir)) {
+      const commandGlob = new Bun.Glob("*.md");
+      for await (const file of commandGlob.scan({ cwd: commandsDir })) {
+        const src = join(commandsDir, file);
+        const dest = join(commandsDest, file);
 
-      if (!force && existsSync(dest)) continue;
+        if (!force && existsSync(dest)) continue;
 
-      const dir = dirname(dest);
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        const dir = dirname(dest);
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-      const content = await Bun.file(src).text();
-      await Bun.write(dest, content);
-    }
-  }
-
-  // Copy the declarative `.claude/settings.json` template into the project root.
-  // This defines the scoped tool allowlist for spawned Claude sessions.
-  // Do NOT clobber an existing settings.json unless --force was passed.
-  const settingsTemplate = join(packageRoot, "templates", ".claude", "settings.json");
-  if (existsSync(settingsTemplate)) {
-    const settingsDest = join(cwd, ".claude", "settings.json");
-    const destDir = dirname(settingsDest);
-    if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
-    if (force || !existsSync(settingsDest)) {
-      const content = await Bun.file(settingsTemplate).text();
-      await Bun.write(settingsDest, content);
-    }
-  }
-
-  // Copy the declarative `.claude/hooks/` directory into the project root.
-  // Hooks are shell scripts invoked by PreToolUse / PostToolUse / etc.
-  // Used by Orchestrator-Only Mode (templates/.claude/hooks/orchestrator-deny-bash.sh).
-  // Do NOT clobber existing consumer hooks unless --force was passed.
-  const hooksTemplateDir = join(packageRoot, "templates", ".claude", "hooks");
-  if (existsSync(hooksTemplateDir)) {
-    const hooksDestDir = join(cwd, ".claude", "hooks");
-    if (!existsSync(hooksDestDir)) mkdirSync(hooksDestDir, { recursive: true });
-    const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isFile()) continue;
-      const src = join(hooksTemplateDir, entry.name);
-      const dst = join(hooksDestDir, entry.name);
-      if (force || !existsSync(dst)) {
         const content = await Bun.file(src).text();
-        await Bun.write(dst, content);
-        // Preserve the executable bit from the template.
-        const srcStat = await stat(src);
-        if (srcStat.mode & 0o111) {
-          await chmod(dst, srcStat.mode);
+        await Bun.write(dest, content);
+      }
+    }
+
+    // Copy the declarative `.claude/settings.json` template into the project root.
+    // This defines the scoped tool allowlist for spawned Claude sessions.
+    // Do NOT clobber an existing settings.json unless --force was passed.
+    const settingsTemplate = join(packageRoot, "templates", ".claude", "settings.json");
+    if (existsSync(settingsTemplate)) {
+      const settingsDest = join(cwd, ".claude", "settings.json");
+      const destDir = dirname(settingsDest);
+      if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
+      if (force || !existsSync(settingsDest)) {
+        const content = await Bun.file(settingsTemplate).text();
+        await Bun.write(settingsDest, content);
+      }
+    }
+
+    // Copy the declarative `.claude/hooks/` directory into the project root.
+    // Hooks are shell scripts invoked by PreToolUse / PostToolUse / etc.
+    // Used by Orchestrator-Only Mode (templates/.claude/hooks/orchestrator-deny-bash.sh).
+    // Do NOT clobber existing consumer hooks unless --force was passed.
+    const hooksTemplateDir = join(packageRoot, "templates", ".claude", "hooks");
+    if (existsSync(hooksTemplateDir)) {
+      const hooksDestDir = join(cwd, ".claude", "hooks");
+      if (!existsSync(hooksDestDir)) mkdirSync(hooksDestDir, { recursive: true });
+      const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const src = join(hooksTemplateDir, entry.name);
+        const dst = join(hooksDestDir, entry.name);
+        if (force || !existsSync(dst)) {
+          const content = await Bun.file(src).text();
+          await Bun.write(dst, content);
+          // Preserve the executable bit from the template.
+          const srcStat = await stat(src);
+          if (srcStat.mode & 0o111) {
+            await chmod(dst, srcStat.mode);
+          }
         }
       }
     }
@@ -140,7 +148,10 @@ export async function copyFrameworkFiles(
     await Bun.write(dest, content);
   }
 
-  // Write CLAUDE.md — CI mode gets full framework instructions, local mode gets skill routing
+  // Write CLAUDE.md — skipped under --state-only (no .claude/ artifacts).
+  if (stateOnly) return;
+
+  // CI mode gets full framework instructions, local mode gets skill routing
   const claudeMdPath = join(cwd, ".claude", "CLAUDE.md");
   const claudeDir = join(cwd, ".claude");
   if (!existsSync(claudeDir)) mkdirSync(claudeDir, { recursive: true });

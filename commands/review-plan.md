@@ -90,14 +90,14 @@ verdict: "one-line summary"
 
 If the returned YAML is malformed, empty, or missing the `mode: plan-review` key, STOP immediately — report the raw return to the user and do NOT record any state. Do not guess at a verdict from prose output.
 
-Record via the state CLI (NEVER hand-edit `state.yaml`):
+Resolve the CLI per `commands/_shared/cli-invocation.md`. Record via the state CLI (NEVER hand-edit `state.yaml`):
 
-- **If ready:** `software-teams state plan-reviewed --one-shot-ready --score {quality_score} --plan-name "{plan name}" --revision {revision-if-known}`
-- **If gaps:** `software-teams state plan-reviewed --score {quality_score} --plan-name "{plan name}"` (omit `--one-shot-ready`)
+- **If ready:** `$ST_CLI state plan-reviewed --one-shot-ready --score {quality_score} --plan-name "{plan name}" --revision {revision-if-known}`
+- **If gaps:** `$ST_CLI state plan-reviewed --score {quality_score} --plan-name "{plan name}"` (omit `--one-shot-ready`)
 
 ### 6. Branch on the Verdict
 
-**`one_shot_ready: true` →** AUTO-APPROVE: run `software-teams state approved`. Then print exactly:
+**`one_shot_ready: true` →** AUTO-APPROVE: run `$ST_CLI state approved` (resolve per `commands/_shared/cli-invocation.md`). Then print exactly:
 
 > _"Plan is one-shot ready (quality score {n}/100). Plan approved and locked in. Let me know when you want to implement."_
 
@@ -134,7 +134,7 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 | `{plan-part}` matches nothing | STOP and list the parts found (task IDs, agent names, headings). |
 | Quality agent returns malformed or empty YAML | STOP, report the raw output, do NOT record a false "ready" result. |
 | Quality agent returns prose without the `mode: plan-review` key | Treat as malformed — same response as above. |
-| `software-teams state` CLI missing or errors | Run `software-teams init` to initialise the state machine, then retry. |
+| `$ST_CLI state` CLI missing or errors (resolve per `commands/_shared/cli-invocation.md`) | Run `$ST_CLI init` to initialise the state machine, then retry. |
 | User asks to implement during review | Remind them of the gate: "Review and implementation are separate phases. The plan must pass the quality review before implementation can begin." Do NOT auto-advance. |
 | Auto-refine loop exceeds 3 iterations without reaching `one_shot_ready: true` | Surface the remaining gaps to the user with a recommendation to stop and refine manually. Ask via `AskUserQuestion` whether to continue looping or stop. |
 

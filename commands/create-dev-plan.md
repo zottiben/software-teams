@@ -96,7 +96,7 @@ scripted response rather than improvising.
 | Situation | Response |
 |-----------|----------|
 | `$ARGUMENTS` is empty | Print usage and STOP. Do not spawn the agent. |
-| `.software-teams/` does not exist | Print "Run `software-teams init` first — this skill needs the `.software-teams/` scaffold to exist." and STOP. |
+| `.software-teams/` does not exist | Resolve the CLI per `commands/_shared/cli-invocation.md`, then print "Run `$ST_CLI init` first — this skill needs the `.software-teams/` scaffold to exist." and STOP. |
 | The agent's output already exists at the target path | Overwrite is the contract. Inform the user in the completion message: "Overwrote existing guide." |
 | The agent wrote zero files | STOP, report the contract violation. Do not retry automatically — the user re-invokes. |
 | The agent wrote a file with YAML frontmatter | STOP, report AC4 violation. Tell the user the agent produced the wrong shape; they should re-invoke or open an issue. |

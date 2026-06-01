@@ -37,7 +37,7 @@ Before writing code or authoring assets for any task:
 ## Stack Loading
 
 On activation:
-1. Run `software-teams project tech-stack` (returns the tech_stack block).
+1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` (returns the tech_stack block).
 2. If `tech_stack.backend` or a game-engine identifier resolves to `unity-csharp`, load `.software-teams/framework/stacks/unity-csharp.md` for engine-specific verification commands.
 3. If no convention file exists, apply the expertise and conventions below.
 

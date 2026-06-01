@@ -26,7 +26,7 @@ You own game-specific test strategy, performance-budget enforcement, crash-repor
 ## Stack Loading
 
 On activation:
-1. Run `software-teams project tech-stack` to identify the stack identifiers.
+1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` to identify the stack identifiers.
 2. Load `.software-teams/framework/stacks/unity-csharp.md` for Unity-specific test commands and conventions.
 3. If `.software-teams/rules/game-qa.md` exists, load it for project-specific overrides.
 

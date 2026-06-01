@@ -90,7 +90,7 @@ Enumerate available agents in this order (earlier roots override later ones on n
 
 Store the merged catalogue as `AVAILABLE_AGENTS`. If none of the roots exist, set `AVAILABLE_AGENTS = []`. Do NOT fail.
 
-> **Why source matters:** Software Teams specialists (`software-teams-backend`, `software-teams-frontend`, etc.) are converted from `framework/agents/` into `.claude/agents/` by `software-teams sync-agents`, so once that has run they are spawned natively by name (`subagent_type="software-teams-backend"`). The `source:` field still distinguishes specialists shipped with Software Teams (`source: software-teams`) from user-added Claude Code subagents (`source: claude-code`) for routing decisions. See `framework/software-teams.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
+> **Why source matters:** Software Teams specialists (`software-teams-backend`, `software-teams-frontend`, etc.) are converted from `framework/agents/` into `.claude/agents/` by `$ST_CLI sync-agents` (resolve per `commands/_shared/cli-invocation.md`), so once that has run they are spawned natively by name (`subagent_type="software-teams-backend"`). The `source:` field still distinguishes specialists shipped with Software Teams (`source: software-teams`) from user-added Claude Code subagents (`source: claude-code`) for routing decisions. See `framework/software-teams.md` Critical Constraints and `framework/components/meta/AgentRouter.md` §4.
 
 See `framework/components/meta/AgentRouter.md` §1 for the full discovery + routing rules the planner will apply.
 
@@ -158,7 +158,7 @@ After the planner returns, read the structured return's `tier:` field and verify
 - SPEC file `{slug}.spec.md` exists at `spec_path`
 - ORCHESTRATION file `{slug}.orchestration.md` exists at `orchestration_path`
 - Every per-agent slice listed in `task_files:` exists on disk
-- ORCHESTRATION frontmatter contains `available_agents:` matching what you passed in, `primary_agent:`, AND `task_files:` (every per-agent slice path). If `task_files:` is missing or empty, STOP — `software-teams state plan-ready` reads this list to populate `current_plan.tasks`, so an absent list will leave the state machine with an empty tasks array.
+- ORCHESTRATION frontmatter contains `available_agents:` matching what you passed in, `primary_agent:`, AND `task_files:` (every per-agent slice path). If `task_files:` is missing or empty, STOP — `$ST_CLI state plan-ready` (resolve per `commands/_shared/cli-invocation.md`) reads this list to populate `current_plan.tasks`, so an absent list will leave the state machine with an empty tasks array.
 - Every per-agent slice's frontmatter contains `agent:`, `tier: per-agent`, `spec_link:`, `orchestration_link:` (unless `AVAILABLE_AGENTS` was empty — then `agent:` may be `general-purpose`)
 - Every per-agent slice's body opens with `**Why this slice:**` and `**Read first:**` headers (token-efficiency contract)
 - Legacy `{slug}.plan.md` is OPTIONAL — do not error if it is absent.
@@ -179,13 +179,13 @@ The planner creates files directly (spawned under `acceptEdits` with a scoped `a
 
 ### 8. Update State
 
-Run the state CLI — do NOT manually edit `.software-teams/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
+Resolve the CLI per `commands/_shared/cli-invocation.md`. Run the state CLI — do NOT manually edit `.software-teams/state.yaml`. The `--plan-path` argument is the **canonical index** for the chosen tier:
 
 - **Three-tier:** pass the orchestration file path (`{slug}.orchestration.md`) — that is the canonical manifest in three-tier mode.
 - **Single-tier:** pass the index file path (`{slug}.plan.md`) — legacy behaviour.
 
 ```bash
-software-teams state plan-ready --plan-path ".software-teams/plans/{canonical-index-file}" --plan-name "{plan name}"
+$ST_CLI state plan-ready --plan-path ".software-teams/plans/{canonical-index-file}" --plan-name "{plan name}"
 ```
 
 ### 9. Present Summary
@@ -215,7 +215,7 @@ End with the EXACT prompt and STOP:
 ### 10. Review Loop
 
 - **Feedback:** apply the requested changes in place (edit existing plan files, increment revision counter in frontmatter), re-present the summary, and ask the same question again.
-- **Approval** (user says "approved", "lgtm", "looks good", or equivalent): run `software-teams state approved`. If that command exits non-zero with a quality-gate message (the user had started `/st:review-plan` but it has not yet passed), relay the message and offer either `/st:review-plan` to finish the review or `software-teams state approved --force` to override — do NOT silently force. Otherwise output the completion message and STOP.
+- **Approval** (user says "approved", "lgtm", "looks good", or equivalent): resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI state approved`. If that command exits non-zero with a quality-gate message (the user had started `/st:review-plan` but it has not yet passed), relay the message and offer either `/st:review-plan` to finish the review or `$ST_CLI state approved --force` to override — do NOT silently force. Otherwise output the completion message and STOP.
 - **Quality review** (user says "review the plan", "review-plan", or similar): point them at `/st:review-plan` — do not attempt the review inline.
 
 **Never loop back to step 5.** Feedback refines; it does not restart.
@@ -228,7 +228,7 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 
 | Situation | Response |
 |-----------|----------|
-| Scaffolding files missing (`.software-teams/project.yaml` etc.) | Run `software-teams init` (or, if you only need a single scaffold, copy the YAML template from the package root). The planner does NOT read from `.software-teams/templates/` — that path no longer exists post-Phase D. Do NOT ask the user for values the template's defaults cover. |
+| Scaffolding files missing (`.software-teams/project.yaml` etc.) | Run `$ST_CLI init` (resolve per `commands/_shared/cli-invocation.md`; or, if you only need a single scaffold, copy the YAML template from the package root). The planner does NOT read from `.software-teams/templates/` — that path no longer exists post-Phase D. Do NOT ask the user for values the template's defaults cover. |
 | `.claude/agents/` empty on both levels | Set `AVAILABLE_AGENTS = []`, note in summary, and proceed. The planner falls back to tech-stack defaults. |
 | Feature description is vague ("improve X") | Steps 4a + 4b handle this: the researcher discovers codebase decision points, and the InteractiveGate surfaces ambiguity questions via AskUserQuestion. Do not waste a planner invocation on an underspecified prompt. |
 | Pre-plan researcher returns zero questions | Skip step 4b if surface-level analysis also yields zero questions. Proceed directly to step 5. This is expected for clear features. |

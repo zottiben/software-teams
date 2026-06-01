@@ -30,6 +30,12 @@ export const initCommand = defineCommand({
       type: "string",
       description: "Storage base path (default: .software-teams/persistence/)",
     },
+    "state-only": {
+      type: "boolean",
+      description:
+        "Scaffold only `.software-teams/` — skip all `.claude/` command and agent generation (intended for plugin users who already have native commands/agents).",
+      default: false,
+    },
   },
   async run({ args }) {
     const cwd = process.cwd();
@@ -42,7 +48,7 @@ export const initCommand = defineCommand({
 
     // Create directory structure
     const dirs = [
-      ".claude/commands/st",
+      ...(!args["state-only"] ? [".claude/commands/st"] : []),
       ".software-teams/plans",
       ".software-teams/research",
       ".software-teams/codebase",
@@ -62,7 +68,8 @@ export const initCommand = defineCommand({
     const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
 
     // Copy doctrine subtrees (templates, rules) to .software-teams/<sub>/.
-    await copyFrameworkFiles(cwd, projectType, args.force, args.ci);
+    // The stateOnly flag suppresses all .claude/ writes inside copyFrameworkFiles.
+    await copyFrameworkFiles(cwd, projectType, args.force, args.ci, undefined, args["state-only"]);
 
     // Seed config from the package's config/ dir and state from templates/.
     // The consumer-side layout is `.software-teams/config/config.yaml` and
@@ -81,7 +88,8 @@ export const initCommand = defineCommand({
 
     // Generate Claude Code native subagents from canonical agent specs.
     // Behind a feature flag (`features.native_subagents`, default true).
-    {
+    // Skipped entirely when --state-only is set.
+    if (!args["state-only"]) {
       const { parse: parseYaml } = await import("yaml");
       const cfgPath = join(cwd, ".software-teams", "config", "config.yaml");
       let nativeSubagentsEnabled = true;
@@ -150,7 +158,7 @@ export const initCommand = defineCommand({
       "",
       `${stMarker} — remove these lines to version control Software Teams artefacts`,
       ".software-teams/",
-      ".claude/commands/st/",
+      ...(!args["state-only"] ? [".claude/commands/st/"] : []),
     ].join("\n");
 
     let existingGitignore = "";
@@ -194,6 +202,9 @@ export const initCommand = defineCommand({
         },
       };
       console.log(JSON.stringify(result));
+    } else if (args["state-only"]) {
+      consola.success("Software Teams initialised successfully (state-only)!");
+      consola.info(".software-teams/ scaffolded — use your plugin's native skills to get started.");
     } else {
       consola.success("Software Teams initialised successfully!");
       consola.info("");

@@ -28,6 +28,22 @@ jobs:
       - name: Build
         run: bun run build
 
+      # Release rule: dist/index.js must always be built and committed together
+      # with a version bump. If the committed bundle is stale or missing, this
+      # step fails the PR before it can reach publish/tag.
+      - name: Dist lockstep guard (committed bundle must match freshly built bundle)
+        run: |
+          if ! git ls-files --error-unmatch dist/index.js > /dev/null 2>&1; then
+            echo "::error::dist/index.js is not committed. Run 'bun run build' and commit dist/index.js alongside the version bump before opening a release PR."
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain dist/index.js)" ]; then
+            echo "::error::Committed dist/index.js is out of sync with the freshly built bundle. Run 'bun run build', commit the updated dist/index.js, and push again."
+            git diff --stat dist/index.js
+            exit 1
+          fi
+          echo "dist/index.js is committed and in sync with the freshly built bundle."
+
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -84,6 +100,24 @@ jobs:
 
       - run: bun run build
         if: steps.version.outputs.changed == 'true'
+
+      # Release rule: dist/index.js must always be built and committed together
+      # with a version bump. CI catches any case where the committed bundle is
+      # stale or missing before publish/tag runs. To comply: run 'bun run build'
+      # and commit dist/index.js in the same commit as the version bump.
+      - name: Dist lockstep guard (committed bundle must match freshly built bundle)
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          if ! git ls-files --error-unmatch dist/index.js > /dev/null 2>&1; then
+            echo "::error::dist/index.js is not committed. Run 'bun run build' and commit dist/index.js alongside the version bump — refusing to publish."
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain dist/index.js)" ]; then
+            echo "::error::Committed dist/index.js is out of sync with the freshly built bundle — refusing to publish. Run 'bun run build', commit the updated dist/index.js, and push again."
+            git diff --stat dist/index.js
+            exit 1
+          fi
+          echo "dist/index.js is committed and in sync with the freshly built bundle."
 
       - name: Bundle stub-detector (block broken bundle from publish)
         if: steps.version.outputs.changed == 'true'

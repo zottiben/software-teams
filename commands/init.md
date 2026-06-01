@@ -5,125 +5,63 @@ description: "Software Teams: Initialise Software Teams commands in the current 
 
 # /st:init
 
-Initialise the Software Teams slash commands in the current project.
+Initialise Software Teams in the current project (plugin mode).
 
 ## Direct Execution
 
-### Step 1: Create Directories
+### Step 1: Resolve the CLI
+
+Resolve the CLI per `commands/_shared/cli-invocation.md`. If resolution fails the
+fragment's fail-fast block exits with both install commands — stop here.
+
+After resolution, `$ST_CLI` is available for the steps below.
+
+### Step 2: Run state-only init
 
 ```bash
-mkdir -p .claude/commands/st
-mkdir -p .software-teams/plans .software-teams/research .software-teams/codebase .software-teams/reviews .software-teams/config .software-teams/persistence .software-teams/feedback
+$ST_CLI init --state-only
 ```
 
-### Step 2: Copy Command Stubs
+`--state-only` creates `.software-teams/` scaffolding only. It does **not** write
+any `.claude/commands/st/` stubs or `.claude/agents/` files — the plugin already
+supplies those natively.
 
-Copy all command stubs from the framework to the project. Skip files that already exist and are >500 bytes (unless `--force`).
+### Step 3: Offer lint-fix hook (single prompt)
 
-```bash
-for file in .software-teams/framework/commands/*.md; do
-  dest=".claude/commands/st/$(basename "$file")"
-  if [ ! -f "$dest" ] || [ "$(wc -c < "$dest")" -le 500 ] || [ "$FORCE" = "true" ]; then
-    cp "$file" "$dest"
-  fi
-done
-```
+Ask the user via AskUserQuestion:
 
-> **Do NOT embed command stub content inline.** The source of truth is `.software-teams/framework/commands/`. Copy from there.
+> Would you like to register a `PostToolUse` lint-fix hook in
+> `.claude/settings.local.json`? It runs `bun run lint:fix` asynchronously
+> (non-blocking) after Edit/Write tool calls on frontend files.
+>
+> Answer **yes** to add it, **no** to skip.
 
-### Step 3: Register Claude Code Hooks
+**If yes:** merge the hook entry into `.claude/settings.local.json` (create the
+file and the `.claude/` directory if they do not yet exist). Do NOT overwrite
+unrelated hooks — merge into the existing `hooks` array.
 
-Ensure `PostToolUse` lint-fix hook is in `.claude/settings.local.json` (runs `bun run lint:fix` async after Edit/Write). Merge into existing hooks, don't overwrite.
+**If no:** proceed to Step 4 immediately.
 
-Reference: `.software-teams/framework/hooks/lint-fix-frontend.md`
+This is a **separate, opt-in skill step** — it is not performed by
+`init --state-only`. Writing `.claude/settings.local.json` on an explicit yes
+does not violate `--state-only` semantics (the CLI's flag governs only its own
+scaffolding output).
 
-### Step 4: Register Natural Language Routing
+### Step 4: Completion
 
-Append Software Teams routing block to `.claude/CLAUDE.md` if not already present (check for `## Software Teams Workflow Routing`). Content includes intent→skill mapping and iterative refinement instructions.
+Print a short message, for example:
 
-### Step 5: Update .gitignore
+> Software Teams initialised. Run `software-teams:create-plan` to plan your next
+> feature, or `software-teams:implement-plan` to start building.
+>
+> Skills are available as `software-teams:*` commands — no `/st:*` stubs are
+> generated in plugin mode.
 
-Append Software Teams patterns to the project's `.gitignore` if they aren't already present. This prevents Software Teams artefacts from being committed to version control. Users can remove these entries manually if they want to version control Software Teams files.
-
-Patterns added:
-```
-# Software Teams framework — remove these lines to version control Software Teams artefacts
-.software-teams/
-.claude/commands/st/
-```
-
-Skip if the marker comment `# Software Teams framework` is already in `.gitignore`. Create `.gitignore` if it doesn't exist.
-
-### Step 5.5: Detect and Configure Tech Stack
-
-Detect the project's technology stack by scanning for signature files in the project root.
-
-**Backend detection:**
-- `composer.json` + `artisan` → `php-laravel`
-- `composer.json` (without artisan) → `php`
-- `go.mod` → `go`
-- `requirements.txt` or `pyproject.toml` + `manage.py` → `python-django`
-- `requirements.txt` or `pyproject.toml` (without manage.py) → `python`
-- `Gemfile` + `config/routes.rb` → `ruby-rails`
-- `*.csproj` or `*.sln` → `dotnet`
-- `package.json` with express/fastify/nest in dependencies → `node-express`
-
-**Frontend detection:**
-- `package.json` with `react` in dependencies → `react-typescript` (if also has typescript) or `react`
-- `package.json` with `vue` in dependencies → `vue-typescript` or `vue`
-- `package.json` with `svelte` in dependencies → `svelte`
-- `package.json` with `@angular/core` in dependencies → `angular`
-- `package.json` with `next` in dependencies → `nextjs`
-
-**DevOps detection:**
-- `Dockerfile` + `k8s/` or `kubernetes/` directory → `docker-k8s`
-- `serverless.yml` or `serverless.ts` → `serverless`
-- `Procfile` → `heroku`
-
-**Procedure:**
-1. Run detection heuristics above against the project root
-2. If detection is ambiguous or finds nothing, ask the user: "What backend stack does this project use?" and "What frontend stack?"
-3. Persist detected/chosen values via the CLI — **do NOT edit `project.yaml` with Edit/Write**:
-   ```bash
-   software-teams project set-tech-stack \
-     --backend {backend_id} \
-     --frontend {frontend_id} \
-     --devops {devops_id}
-   ```
-   Pass `--backend none` (or omit the flag) when a tier doesn't apply. The CLI only touches the fields you pass.
-4. Verify matching convention files exist in `.software-teams/framework/stacks/`. If a convention file exists for the detected stack, log it. If not, log: "No convention file found for {stack} — agents will use generic domain principles. You can create one at `.software-teams/framework/stacks/{stack}.md` using `_template.md` as a guide."
-
-### Step 6: Initialise Config Files
-
-```bash
-cp .software-teams/framework/config/state.yaml .software-teams/state.yaml
-cp .software-teams/framework/config/variables.yaml .software-teams/state.yaml
-cp .software-teams/framework/config/software-teams-config.yaml .software-teams/config/software-teams-config.yaml
-```
-
-### Step 7: Generate Markdown Scaffolding
-
-Scaffold project metadata files into `.software-teams/` (only if missing). The `software-teams init` CLI handles this directly — it reads the YAML templates from the installed package's `templates/` directory at the package root and writes:
-- `.software-teams/project.yaml`
-- `.software-teams/requirements.yaml`
-- `.software-teams/roadmap.yaml`
-
-Templates are NOT copied into `.software-teams/templates/` — they are package-internal structural references and are not needed by any runtime agent.
-
-### Step 8: Display Completion
-
-List all available commands and suggest `/st:create-plan "your feature"` to get started.
-
-- Optional: harden the main thread to read/plan/delegate only by running
-  `/st:orchestrator-mode on`. Toggle off with `/st:orchestrator-mode off`.
-  See the skill for details on what's blocked.
-- Optional: counter the auto-mode "skip clarifying questions" reminder by
-  running `/st:ask-questions on`. Tells Claude (and sub-agents) to ask
-  substantive questions about ambiguous work even when auto permission
-  mode is active. Toggle off with `/st:ask-questions off`.
+Do **not** list every available command, do **not** prompt for a tech stack, and
+do **not** run any `--help` calls.
 
 ## Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `--force` | Overwrite existing command files |
+| _(none)_ | Plugin init runs `--state-only` by default; no flags are exposed to the user |

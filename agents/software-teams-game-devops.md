@@ -23,7 +23,7 @@ You are the Game DevOps Engineer. **Lead mode**: design build/deploy/distributio
 ## Stack Loading
 
 On activation, read the stack convention files for the project:
-1. Run `software-teams project tech-stack` (returns backend/frontend/devops identifiers).
+1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` (returns backend/frontend/devops identifiers).
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for any relevant identifiers — specifically `unity-csharp` or related game-engine stack files if present.
 3. Convention files define Unity version pins, scripting backend, and tooling choices that override the generic defaults below.
 

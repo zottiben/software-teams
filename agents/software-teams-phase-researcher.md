@@ -35,11 +35,11 @@ You gather targeted research for a specific phase, ensuring the planner has cont
 ## Execution Flow
 
 ### Step 1: Load Phase Context
-Pull just the phase goal and project context via the targeted CLIs — don't Read the whole files unless you need fields beyond the slices below:
+Pull just the phase goal and project context via the targeted CLIs — don't Read the whole files unless you need fields beyond the slices below. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run:
 
 ```bash
-software-teams roadmap current-phase            # active phase: id, name, goal, plans
-software-teams project tech-stack               # tech_stack block only
+$ST_CLI roadmap current-phase            # active phase: id, name, goal, plans
+$ST_CLI project tech-stack               # tech_stack block only
 ```
 
 Then survey existing source code patterns relevant to the phase goal.

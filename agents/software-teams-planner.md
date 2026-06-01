@@ -84,7 +84,7 @@ If `tier` is passed in the spawn prompt, it overrides the rule. Otherwise apply 
 
 The split format is MANDATORY in both shapes. Each task MUST be a separate `.T{n}.md` file. Index/orchestration files contain ONLY frontmatter and a manifest table — NEVER inline task implementation details.
 
-**Do NOT manually edit `.software-teams/state.yaml`** — state transitions are handled via CLI commands (e.g. `software-teams state plan-ready`).
+**Do NOT manually edit `.software-teams/state.yaml`** — state transitions are handled via CLI commands (e.g. `$ST_CLI state plan-ready` — resolve the CLI per `commands/_shared/cli-invocation.md`).
 
 ## Three-Tier Output Format (DEFAULT for non-trivial plans)
 
@@ -102,7 +102,7 @@ Use this shape when the Tier Decision Rule selects three-tier (i.e. `task_count 
 ### What goes where
 
 - **spec.md** — outcome-only. No implementation steps, no agent assignments, no file paths to edit. A reviewer reads this to decide "should we build this?".
-- **orchestration.md** — the orchestrator's playbook. Frontmatter MUST include `available_agents:`, `primary_agent:`, `spec_link:`, and **`task_files:`** (the list of every per-agent slice path — same shape as the single-tier `plan.md` frontmatter so `software-teams state plan-ready` can populate `current_plan.tasks` without special-casing the tier). Body has the task graph (mermaid), task manifest table (`ID | Name | Agent | Wave | Depends On | Slice`), sequencing rules, quality gates, and the risks block.
+- **orchestration.md** — the orchestrator's playbook. Frontmatter MUST include `available_agents:`, `primary_agent:`, `spec_link:`, and **`task_files:`** (the list of every per-agent slice path — same shape as the single-tier `plan.md` frontmatter so `$ST_CLI state plan-ready` can populate `current_plan.tasks` without special-casing the tier). Body has the task graph (mermaid), task manifest table (`ID | Name | Agent | Wave | Depends On | Slice`), sequencing rules, quality gates, and the risks block.
 - **plan-task-agent.md (per slice)** — what the agent loads when spawned. Frontmatter MUST include:
   - `tier: per-agent`
   - `spec_link: {slug}.spec.md`
@@ -127,7 +127,7 @@ The "Read first" line is the **token-efficiency mechanism** for the whole tier �
 
 1. Derive `slug` per **File Naming** rules (existing) — same rules apply in both tiers.
 2. Write `{slug}.spec.md` — populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
-3. Write `{slug}.orchestration.md` — populate Task Graph, Tasks manifest, Sequencing Rules, Quality Gates, Risks. Frontmatter carries `available_agents`, `primary_agent`, `spec_link`, AND `task_files:` (every per-agent slice path — required so `software-teams state plan-ready` populates `current_plan.tasks`).
+3. Write `{slug}.orchestration.md` — populate Task Graph, Tasks manifest, Sequencing Rules, Quality Gates, Risks. Frontmatter carries `available_agents`, `primary_agent`, `spec_link`, AND `task_files:` (every per-agent slice path — required so `$ST_CLI state plan-ready` populates `current_plan.tasks`).
 4. Write each `{slug}.T{n}.md` per-agent slice — frontmatter has `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body opens with `**Why this slice:**` and `**Read first:**`.
 5. (Optional) Write `{slug}.plan.md` legacy index ONLY if a downstream consumer still requires it. In three-tier mode the orchestration file is canonical.
 6. roadmap.yaml and requirements.yaml updates are unchanged from single-tier (Steps 7b + 7c below still apply).
@@ -194,10 +194,10 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 > **Trust skill pre-discovery:** If the spawning skill passed `PRE_DISCOVERED_CONTEXT`, trust it — do not re-read scaffolding (saves tokens). If not passed, fall back to reading scaffolding directly as usual.
 
-1. Read scaffolding via the targeted CLIs (preferred — returns slices, not whole files):
-   - `software-teams project tech-stack` (tech_stack block from project.yaml)
-   - `software-teams roadmap current-phase` (active phase from roadmap.yaml)
-   - `software-teams requirements list` (requirement ids + descriptions). Use `software-teams requirements get <REQ-ID>` for individual entries you need to expand.
+1. Read scaffolding via the targeted CLIs (preferred — returns slices, not whole files). Resolve the CLI per `commands/_shared/cli-invocation.md`, then:
+   - `$ST_CLI project tech-stack` (tech_stack block from project.yaml)
+   - `$ST_CLI roadmap current-phase` (active phase from roadmap.yaml)
+   - `$ST_CLI requirements list` (requirement ids + descriptions). Use `$ST_CLI requirements get <REQ-ID>` for individual entries you need to expand.
 
    Fall back to `Read .software-teams/{project,roadmap,requirements}.yaml` only if you need fields the slice CLIs don't expose (e.g. archived phases, custom top-level keys).
 2. Read codebase analysis (`.software-teams/codebase/summary.md`, `CONVENTIONS.md`) if available
@@ -370,7 +370,7 @@ Types: `checkpoint:human-verify`, `checkpoint:decision`, `checkpoint:human-actio
 
 ### Step 7: Generate Plan Document and Update Scaffolding (WRITE FILES)
 
-**Do NOT manually edit `.software-teams/state.yaml`** — use `software-teams state` CLI commands for transitions. Only record decisions, deviations, or blockers via `@ST:StateUpdate`.
+**Do NOT manually edit `.software-teams/state.yaml`** — use `$ST_CLI state` CLI commands for transitions (resolve the CLI per `commands/_shared/cli-invocation.md`). Only record decisions, deviations, or blockers via `@ST:StateUpdate`.
 
 #### 7-pre: Update Variables
 Read `.software-teams/state.yaml` (create from template if missing). Update: `feature.name`, `feature.description`, `feature.type`.
@@ -383,7 +383,7 @@ First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output 
 
 1. Derive `slug` from the plan name using File Naming rules above.
 2. Write SPEC to `.software-teams/plans/{phase}-{plan}-{slug}.spec.md` — follow `templates/spec.md`. Populate Problem, Acceptance Criteria, Out of Scope, Glossary, References.
-3. Write ORCHESTRATION to `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `templates/orchestration.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`, AND `task_files:` (every per-agent slice path — required so `software-teams state plan-ready` populates `current_plan.tasks`). Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `requirements.yaml`.
+3. Write ORCHESTRATION to `.software-teams/plans/{phase}-{plan}-{slug}.orchestration.md` — follow `templates/orchestration.md`. Frontmatter carries `available_agents:`, `primary_agent:`, `spec_link:`, AND `task_files:` (every per-agent slice path — required so `$ST_CLI state plan-ready` populates `current_plan.tasks`). Body has the task graph (mermaid), task manifest table, sequencing rules, quality gates, and Risks pulled from `requirements.yaml`.
 4. Write each per-agent slice to `.software-teams/plans/{phase}-{plan}-{slug}.T{n}.md` — follow `templates/plan-task-agent.md`. Frontmatter MUST have `tier: per-agent`, `spec_link`, `orchestration_link`, `agent`, `agent_rationale`. Body MUST open with `**Why this slice:**` and `**Read first:**` (see "Token-Efficiency Headers" above) before the Objective.
 5. If test tasks were generated in Step 5a, include them in the manifest and write their `.T{n}.md` files using the test variant — they still use PLAN-TASK-AGENT format with `tier: per-agent` and `agent: software-teams-qa-tester`.
 6. The legacy `.plan.md` index is OPTIONAL in three-tier mode — skip unless a downstream consumer explicitly requires it. orchestration.md carries the manifest.
@@ -398,10 +398,10 @@ First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output 
 
 #### 7b: Update roadmap.yaml — via CLI (no Edit/Write)
 
-Use the `software-teams roadmap` CLI to add the plan entry. **Do NOT edit `.software-teams/roadmap.yaml` with Edit/Write** — the CLI is faster, deterministic, and avoids burning tokens on YAML round-trips.
+Use the `$ST_CLI roadmap` CLI (resolve per `commands/_shared/cli-invocation.md`) to add the plan entry. **Do NOT edit `.software-teams/roadmap.yaml` with Edit/Write** — the CLI is faster, deterministic, and avoids burning tokens on YAML round-trips.
 
 ```bash
-software-teams roadmap add-plan \
+$ST_CLI roadmap add-plan \
   --phase {phase} \
   --plan {plan} \
   --name "{plan_name}" \
@@ -417,13 +417,13 @@ Pass `--phase-name` and `--phase-goal` only when the phase entry has to be creat
 For each requirement satisfied by the plan, run:
 
 ```bash
-software-teams requirements add-trace \
+$ST_CLI requirements add-trace \
   --phase {phase} \
   --req {REQ-ID} \
   --task {comma_separated_task_ids}
 ```
 
-The CLI merges new task IDs into the requirement's `tasks:` list (no duplicates). To register a new risk introduced by the plan, use `software-teams requirements add-risk --id R-N --description "..." --mitigation "..."`. Again, **do NOT edit `requirements.yaml` with Edit/Write** — only the CLI subcommands.
+The CLI merges new task IDs into the requirement's `tasks:` list (no duplicates). To register a new risk introduced by the plan, use `$ST_CLI requirements add-risk --id R-N --description "..." --mitigation "..."`. Again, **do NOT edit `requirements.yaml` with Edit/Write** — only the CLI subcommands.
 
 ---
 

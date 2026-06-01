@@ -101,7 +101,7 @@ Never embed commands in prose ("now run bun test..."). The developer should be a
 
 ## State machine — DO NOT touch
 
-This agent does NOT call `software-teams state plan-ready`, does NOT call `software-teams state approved`, does NOT edit `.software-teams/state.yaml` in any form. The human guide is informational and ephemeral. The state machine is reserved for agent-orchestration plans produced by `software-teams-planner`.
+This agent does NOT call `$ST_CLI state plan-ready`, does NOT call `$ST_CLI state approved`, does NOT edit `.software-teams/state.yaml` in any form. (The `$ST_CLI` token resolves per `commands/_shared/cli-invocation.md`.) The human guide is informational and ephemeral. The state machine is reserved for agent-orchestration plans produced by `software-teams-planner`.
 
 If you find yourself reaching for a state-machine command, stop. You are operating outside your scope. The human guide stands alone.
 

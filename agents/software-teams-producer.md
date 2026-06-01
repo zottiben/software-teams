@@ -114,7 +114,7 @@ Use the `AskUserQuestion` tool to present strategic decisions as a selectable UI
 - **Make architecture decisions** — delegate to **software-teams-architect**. Producer surfaces the question, architect proposes the design, user decides.
 - **Make product or UX design decisions** — delegate to **software-teams-product-lead** and **software-teams-ux-designer**.
 - **Override domain experts on quality** — delegate to **software-teams-quality**, facilitate the discussion instead.
-- **Mutate `.software-teams/state.yaml` directly** — use `software-teams state` CLI commands.
+- **Mutate `.software-teams/state.yaml` directly** — use `$ST_CLI state` CLI commands (resolve the CLI per `commands/_shared/cli-invocation.md`).
 
 ---
 

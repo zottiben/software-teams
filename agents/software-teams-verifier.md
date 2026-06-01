@@ -43,7 +43,7 @@ You perform goal-backward verification: start from the GOAL, work backward to wh
 ## Execution Flow
 
 ### Step 0: Extract Phase GOAL
-Run `software-teams roadmap current-phase` — returns just the active phase entry (id, name, goal, must_haves, plans). Don't Read the full roadmap.yaml unless you also need archived phases.
+Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI roadmap current-phase` — returns just the active phase entry (id, name, goal, must_haves, plans). Don't Read the full roadmap.yaml unless you also need archived phases.
 
 ### Step 1: Load Verification Context
 Read plan file for success criteria, task deliverables, `provides` from frontmatter.

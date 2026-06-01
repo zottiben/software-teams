@@ -57,10 +57,10 @@ print usage and stop:
 
 Do NOT shell out with an invalid argument.
 
-Once validated, this skill shells out to `software-teams ask-questions <sub>`
-for the actual logic. Run:
+Once validated, this skill shells out for the actual logic. Resolve the CLI
+per `commands/_shared/cli-invocation.md`, then run:
 
-    software-teams ask-questions $ARGUMENTS
+    $ST_CLI ask-questions $ARGUMENTS
 
 and pass the exit code back to the caller. Users developing this repo
 locally who have not installed the published package can substitute:

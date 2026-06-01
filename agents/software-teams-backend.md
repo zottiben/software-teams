@@ -37,7 +37,7 @@ Before writing code for any task:
 ## Stack Loading
 
 On activation, read the backend stack convention file:
-1. Run `software-teams project tech-stack` to read the stack identifiers (returns ~3 lines instead of the whole project.yaml). Pull `tech_stack.backend` for routing.
+1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` to read the stack identifiers (returns ~3 lines instead of the whole project.yaml). Pull `tech_stack.backend` for routing.
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific conventions
 3. If no convention file exists, use generic backend principles below
 4. Convention file content overrides generic defaults

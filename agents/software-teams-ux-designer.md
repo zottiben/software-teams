@@ -19,7 +19,7 @@ tools:
 ## Stack Loading
 
 On activation, read the frontend stack convention file:
-1. Run `software-teams project tech-stack` (returns ~3 lines). Pull `tech_stack.frontend` for routing.
+1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` (returns ~3 lines). Pull `tech_stack.frontend` for routing.
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for UI framework mapping
 3. Convention file identifies the project's component library and design system tooling
 
