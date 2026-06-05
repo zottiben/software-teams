@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { describe, test, expect, mock, beforeEach, afterAll } from "bun:test";
 import { exec, gitDiff, gitDiffNames, gitLog, gitBranch, gitRoot, gitStatus, gitMergeBase, gitCheckoutNewBranch, slugify } from "../git";
 
 // Track all Bun.spawn calls
@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 // Restore after all tests in this file
-process.on("beforeExit", () => {
+afterAll(() => {
   Bun.spawn = originalSpawn;
 });
 

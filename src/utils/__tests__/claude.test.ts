@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { describe, test, expect, mock, beforeEach, afterAll } from "bun:test";
 import { findClaude, spawnClaude, DEFAULT_ALLOWED_TOOLS } from "../claude";
 
 let spawnCalls: Array<{ cmd: string[]; opts: any }> = [];
@@ -40,7 +40,7 @@ beforeEach(() => {
   });
 });
 
-process.on("beforeExit", () => {
+afterAll(() => {
   Bun.spawn = originalSpawn;
   // @ts-expect-error - restoring
   Bun.which = originalWhich;
