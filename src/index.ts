@@ -25,6 +25,10 @@ import { requirementsCommand } from "./commands/requirements";
 import { projectCommand } from "./commands/project";
 import { orchestratorModeCommand } from "./commands/orchestrator-mode";
 import { askQuestionsCommand } from "./commands/ask-questions";
+import { agentTurnCommand } from "./commands/agent-turn";
+import { orchestratorTurnCommand } from "./commands/orchestrator-turn";
+import { ingestCommand } from "./commands/ingest";
+import { outputCommand } from "./commands/output";
 import pkg from "../package.json";
 
 const main = defineCommand({
@@ -59,6 +63,10 @@ const main = defineCommand({
     project: projectCommand,
     "orchestrator-mode": orchestratorModeCommand,
     "ask-questions": askQuestionsCommand,
+    "agent-turn": agentTurnCommand,
+    "orchestrator-turn": orchestratorTurnCommand,
+    ingest: ingestCommand,
+    output: outputCommand,
   },
 });
 
