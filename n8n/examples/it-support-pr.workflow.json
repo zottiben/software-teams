@@ -1,0 +1,189 @@
+{
+  "name": "IT Support: ClickUp → Orchestrator → Agents → Slack HITL → GitHub PR",
+  "nodes": [
+    {
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Trigger Ingestion",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "source": "clickup",
+        "clickupRef": "CU-XXXX",
+        "prompt": "Investigate the reported IT issue described in the context and propose a code fix. If you need clarification from a human, ask your question — it will be routed to Slack.",
+        "agentId": "software-teams-researcher"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Replace CU-XXXX with the ClickUp task URL or ID. To fire automatically, prepend a native n8n ClickUp Trigger node and feed its task URL into the ClickUp Task Ref parameter via an expression."
+    },
+    {
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Orchestrator",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsOrchestrator",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "epic": "={{ $json.input.prompt }}",
+        "correlationId": "={{ $json.correlationId }}",
+        "model": "claude-sonnet-4-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Agent: Researcher",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsAgent",
+      "typeVersion": 1,
+      "position": [750, 200],
+      "parameters": {
+        "specialist": "software-teams-researcher",
+        "prompt": "={{ $json.input.prompt }}",
+        "model": "claude-sonnet-4-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "Agent: Programmer",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsAgent",
+      "typeVersion": 1,
+      "position": [1000, 200],
+      "parameters": {
+        "specialist": "software-teams-programmer",
+        "prompt": "={{ $json.input.prompt }}",
+        "model": "claude-sonnet-4-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Slack HITL",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsSlackHitl",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "parameters": {
+        "slackChannel": "#ai-questions",
+        "waitTimeoutHours": 24
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Set WEBHOOK_URL env var to your n8n public FQDN (e.g. https://n8n.acme.com) so the Slack resume URL is externally reachable."
+    },
+    {
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "GitHub PR Output",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsOutput",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "parameters": {
+        "mode": "pr",
+        "targetRepo": "REPLACE_WITH_OWNER/REPLACE_WITH_REPO",
+        "baseBranch": "main",
+        "title": ""
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Replace targetRepo with owner/repo format, e.g. acme/myapp. The GitHub token in the credential must have repo + PR write scopes."
+    }
+  ],
+  "connections": {
+    "Trigger Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Agent: Researcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Researcher": {
+      "main": [
+        [
+          {
+            "node": "Agent: Programmer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Programmer": {
+      "main": [
+        [
+          {
+            "node": "Slack HITL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack HITL": {
+      "main": [
+        [
+          {
+            "node": "GitHub PR Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "software-teams-example"
+  },
+  "tags": [
+    { "name": "software-teams" },
+    { "name": "it-support" },
+    { "name": "example" }
+  ]
+}
