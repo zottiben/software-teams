@@ -19,6 +19,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
     "dev": "bun run src/index.ts",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "test": "bun test"
   },
   "dependencies": {
@@ -27,8 +29,11 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.29.0",
     "@types/bun": "latest",
-    "typescript": "^5.8.0"
+    "eslint": "9.29.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0"
   },
   "files": [
     "dist",
