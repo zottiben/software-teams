@@ -53,8 +53,8 @@ import {
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 
 // ---------------------------------------------------------------------------
-// runAgentTurn — lazy require (single-turn.ts uses Bun-specific APIs that
-// cannot be statically imported under the n8n tsconfig — see SoftwareTeamsAgent)
+// runAgentTurn — lazy require. single-turn.ts uses Bun-specific APIs that
+// cannot be statically imported under the n8n tsconfig (see SoftwareTeamsAgent).
 // ---------------------------------------------------------------------------
 type RunAgentTurnFn = (input: NodeEnvelope) => Promise<NodeEnvelope>;
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
@@ -64,8 +64,8 @@ const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
 };
 
 // ---------------------------------------------------------------------------
-// conversation-state helpers — lazy require (keeps node Bun-free, consistent
-// with the single-turn pattern)
+// conversation-state helpers — lazy require; keeps node Bun-free, consistent
+// with the single-turn pattern.
 // ---------------------------------------------------------------------------
 interface ConversationState {
   correlationId: string;
@@ -85,7 +85,7 @@ const convState = require(CONV_STATE_MODULE) as {
 };
 
 // ---------------------------------------------------------------------------
-// Slack helpers — lazy require
+// Slack helpers — lazy require; consistent with the single-turn/conv-state pattern.
 // ---------------------------------------------------------------------------
 interface PostQuestionResult {
   ts: string;
@@ -135,7 +135,6 @@ export class SoftwareTeamsSlackHitl implements INodeType {
     outputs: [NodeConnectionTypes.Main],
     credentials: [{ name: 'softwareTeamsApi', required: true }],
     properties: [
-      // ── Slack Channel ──────────────────────────────────────────────────────
       {
         displayName: 'Slack Channel',
         name: 'slackChannel',
@@ -147,7 +146,6 @@ export class SoftwareTeamsSlackHitl implements INodeType {
           'the agent question will be posted. The workflow pauses until a human ' +
           'replies via the Slack interactivity handler.',
       },
-      // ── Wait timeout ───────────────────────────────────────────────────────
       {
         displayName: 'Wait Timeout (Hours)',
         name: 'waitTimeoutHours',
@@ -166,7 +164,7 @@ export class SoftwareTeamsSlackHitl implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials (R-02) ────────────────────────────────────────────────────
+    // ── Credentials (R-02: NEVER written to output) ──────────────────────────
     const credentials = await this.getCredentials('softwareTeamsApi');
     const slackToken = credentials['slackBotToken'] as string | undefined;
     const slackChannel = this.getNodeParameter('slackChannel', 0, '') as string;
@@ -180,17 +178,15 @@ export class SoftwareTeamsSlackHitl implements INodeType {
       );
     }
 
-    // Process each incoming item (typically 1 at a time on the main chain)
+    // Use at least one iteration even when upstream sends zero items.
     const itemCount = items.length > 0 ? items.length : 1;
 
     for (let i = 0; i < itemCount; i++) {
       try {
       const data = (items[i]?.json ?? {}) as Record<string, unknown>;
 
-      // ── RESUME MODE ─────────────────────────────────────────────────────────
-      // Detected when the resume webhook payload contains `hitlAnswer` +
-      // `correlationId` (set by the Slack interactivity handler that POSTs to
-      // the n8n resume URL: { hitlAnswer: "…", correlationId: "…" }).
+      // ── RESUME MODE — resume webhook payload contains `hitlAnswer` + `correlationId`
+      // (set by the Slack interactivity handler that POSTs to the n8n resume URL).
       if (
         typeof data['hitlAnswer'] === 'string' &&
         typeof data['correlationId'] === 'string'
@@ -198,7 +194,6 @@ export class SoftwareTeamsSlackHitl implements INodeType {
         const hitlAnswer = data['hitlAnswer'] as string;
         const correlationId = data['correlationId'] as string;
 
-        // Load stored conversation state
         const state = convState.loadState(correlationId);
         if (!state) {
           throw new NodeOperationError(
@@ -210,7 +205,7 @@ export class SoftwareTeamsSlackHitl implements INodeType {
           );
         }
 
-        // Post a threaded acknowledgement to Slack (non-fatal if it fails)
+        // Non-fatal Slack acknowledgement — ack failure must not block agent resume.
         try {
           await slackHelpers.postThreadReply(
             slackToken,
@@ -219,10 +214,9 @@ export class SoftwareTeamsSlackHitl implements INodeType {
             `✅ Reply received: _"${hitlAnswer}"_ — resuming agent...`,
           );
         } catch {
-          // Non-fatal: ack failure should not block agent resume
+          // intentionally swallowed
         }
 
-        // Merge the human's answer into the original context as a `hitl` block
         const originalContext = state.originalEnvelope.input.context;
         const mergedContext: Record<string, unknown> = {
           ...(typeof originalContext === 'object' &&
@@ -246,11 +240,8 @@ export class SoftwareTeamsSlackHitl implements INodeType {
           result: { text: '' },
         };
 
-        // Re-invoke runAgentTurn directly (T3 adapter, Task tool disabled — AC2)
-        let agentResult: NodeEnvelope;
-        try {
-          agentResult = await runAgentTurn(resumeEnvelope);
-        } catch (err) {
+        // Re-invoke runAgentTurn directly (T3 adapter, Task tool disabled — AC2).
+        const agentResult = await runAgentTurn(resumeEnvelope).catch((err: unknown) => {
           throw new NodeOperationError(
             this.getNode(),
             `HITL resume: runAgentTurn failed: ${
@@ -258,13 +249,13 @@ export class SoftwareTeamsSlackHitl implements INodeType {
             }`,
             { itemIndex: i },
           );
-        }
+        });
 
-        // Clean up persisted state after successful resume (idempotent)
+        // Clean up persisted state after successful resume (idempotent, non-fatal).
         try {
           convState.deleteState(correlationId);
         } catch {
-          // Non-fatal: stale state is benign
+          // stale state is benign
         }
 
         returnData.push({
@@ -274,12 +265,11 @@ export class SoftwareTeamsSlackHitl implements INodeType {
         continue;
       }
 
-      // ── ASK MODE ─────────────────────────────────────────────────────────────
-      // Detected when the upstream NodeEnvelope has status 'needs-input'.
+      // ── ASK MODE — upstream NodeEnvelope has status 'needs-input' ───────────
       const envelope = data as unknown as NodeEnvelope;
 
       if (envelope.status !== 'needs-input') {
-        // PASS-THROUGH for 'ok' / 'error' envelopes — not ours to handle
+        // PASS-THROUGH for 'ok' / 'error' envelopes.
         returnData.push({ json: data as IDataObject, pairedItem: { item: i } });
         continue;
       }
@@ -287,36 +277,23 @@ export class SoftwareTeamsSlackHitl implements INodeType {
       const question = envelope.result.text;
       const correlationId = envelope.correlationId;
 
-      // Get the signed n8n resume URL (unique per execution, cryptographically signed).
       // IMPORTANT: WEBHOOK_URL env var must be set to the public FQDN of this n8n
       // instance so the URL is reachable from Slack's servers (not localhost:5678).
       const resumeUrl = this.getSignedResumeUrl();
 
-      // Post question to Slack (Block Kit, correlationId in button value)
-      let slackTs: string;
-      let resolvedChannel: string;
-      try {
-        const result = await slackHelpers.postQuestion(
-          slackToken,
-          slackChannel,
-          question,
-          correlationId,
-          resumeUrl,
-        );
-        slackTs = result.ts;
-        resolvedChannel = result.channel;
-      } catch (err) {
-        throw new NodeOperationError(
-          this.getNode(),
-          `Failed to post agent question to Slack: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-          { itemIndex: i },
-        );
-      }
+      const { ts: slackTs, channel: resolvedChannel } = await slackHelpers
+        .postQuestion(slackToken, slackChannel, question, correlationId, resumeUrl)
+        .catch((err: unknown) => {
+          throw new NodeOperationError(
+            this.getNode(),
+            `Failed to post agent question to Slack: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+            { itemIndex: i },
+          );
+        });
 
       // Persist conversation state to disk (survives worker restarts — R-05).
-      // The Slack interactivity handler looks up `resumeUrl` here by `correlationId`.
       convState.saveState({
         correlationId,
         originalEnvelope: envelope,
@@ -327,14 +304,9 @@ export class SoftwareTeamsSlackHitl implements INodeType {
         createdAt: Date.now(),
       });
 
-      // Pause execution until the Slack reply arrives.
-      // n8n serialises the execution state to its DB — survives worker restarts.
       const waitTill = new Date(Date.now() + waitTimeoutHours * 60 * 60 * 1000);
       await this.putExecutionToWait(waitTill);
 
-      // Emit a waiting envelope carrying the HITL state block.
-      // When the Slack interactivity handler calls the resumeUrl, n8n resumes
-      // the execution and re-enters this node in RESUME MODE above.
       returnData.push({
         json: {
           ...envelope,

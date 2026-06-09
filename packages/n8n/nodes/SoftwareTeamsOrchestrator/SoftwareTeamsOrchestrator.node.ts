@@ -21,9 +21,9 @@ import {
 // runAgentTurn loader — break the static import chain to Bun-specific code
 // ---------------------------------------------------------------------------
 // single-turn.ts uses `import.meta.dir` and `Bun.*` APIs that don't compile
-// under the n8n tsconfig (module: commonjs, no Bun types).  A `string`-typed
+// under the n8n tsconfig (module: commonjs, no Bun types). A `string`-typed
 // require argument prevents TypeScript from resolving the module statically, so
-// the Bun import chain is never type-checked here.  The orchestration core
+// the Bun import chain is never type-checked here. The orchestration core
 // (run-state.ts) is Bun-free and IS imported statically above; the adapter is
 // injected into `planEpic`, keeping that logic runtime-agnostic and testable.
 
@@ -36,7 +36,7 @@ const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
 };
 
 // ---------------------------------------------------------------------------
-// Model options (mirror the Agent node — per-node model selection, R-03)
+// Model options — mirrors the Agent node; per-node model selection (R-03).
 // ---------------------------------------------------------------------------
 
 const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
@@ -89,7 +89,6 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     outputs: [NodeConnectionTypes.Main],
     credentials: [{ name: 'softwareTeamsApi', required: true }],
     properties: [
-      // ── Epic / goal ──────────────────────────────────────────────────────
       {
         displayName: 'Epic / Sprint Goal',
         name: 'epic',
@@ -102,8 +101,6 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           'plan. Supports n8n expressions — e.g. pull it from an upstream ' +
           "trigger with {{ $json.input.prompt }}.",
       },
-
-      // ── Correlation id ───────────────────────────────────────────────────
       {
         displayName: 'Correlation ID',
         name: 'correlationId',
@@ -114,8 +111,6 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           'as the run-state / Slack-resume key (R-05). Leave blank to generate ' +
           'one. Reuse an upstream envelope\'s correlationId to continue its run.',
       },
-
-      // ── Model ────────────────────────────────────────────────────────────
       {
         displayName: 'Planner Model',
         name: 'model',
@@ -135,19 +130,15 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials ────────────────────────────────────────────────────────
-    // Injected for the claude CLI child process only; NEVER written to output (R-02).
+    // ── Credentials (R-02: NEVER written to output) ────────────────────────
     const credentials = await this.getCredentials('softwareTeamsApi');
     process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
 
     // Persisted run state lives on the workflow's static data (survives across
     // executions → resumable runs, R-05).
     const staticData = this.getWorkflowStaticData('node') as IDataObject;
-    let runs = staticData['runs'] as Record<string, unknown> | undefined;
-    if (!runs) {
-      runs = {};
-      staticData['runs'] = runs;
-    }
+    const runs = (staticData['runs'] as Record<string, unknown> | undefined) ?? {};
+    staticData['runs'] = runs;
 
     // At least one iteration even when upstream sends zero items.
     const itemCount = items.length > 0 ? items.length : 1;
@@ -155,8 +146,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     for (let i = 0; i < itemCount; i++) {
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
 
-      // ── Bubble a sub-agent needs-input up for the Slack HITL flow (T10) ────
-      // Pass the envelope through UNCHANGED so a downstream Switch can route it.
+      // Bubble needs-input up for the Slack HITL flow (T10) — pass UNCHANGED.
       if (isNodeEnvelope(upstream) && upstream.status === 'needs-input') {
         returnData.push({
           json: upstream as unknown as IDataObject,
@@ -165,7 +155,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         continue;
       }
 
-      // ── Short-circuit a sub-agent error (R-05): surface, do not re-plan ────
+      // Short-circuit a sub-agent error (R-05): surface, do not re-plan.
       if (isNodeEnvelope(upstream) && upstream.status === 'error') {
         returnData.push({
           json: upstream as unknown as IDataObject,
@@ -174,7 +164,6 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         continue;
       }
 
-      // ── Resolve parameters ─────────────────────────────────────────────────
       const epic = (this.getNodeParameter('epic', i) as string)?.trim();
       if (!epic) {
         throw new NodeOperationError(
@@ -214,7 +203,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         );
       }
 
-      // ── Planner itself needs human input → bubble up for T10 ────────────────
+      // Planner itself needs human input → bubble up for T10.
       if (plan.plannerNeedsInput) {
         returnData.push({
           json: plan.plannerNeedsInput as unknown as IDataObject,
@@ -223,26 +212,23 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         continue;
       }
 
-      // ── Persist run state keyed by correlationId (R-05) ─────────────────────
+      // Persist run state keyed by correlationId (R-05).
       runs[correlationId] = serialiseRunState(plan.state);
       const summary = summarise(plan.state);
 
-      // ── Emit one output item per wave-task envelope, in wave/dep order ──────
+      // Emit one output item per wave-task envelope, in wave/dep order.
       // ARCHITECTURE.md §"Decision C" is the authority for this item-emission
-      // contract. Run-state context (taskCount/summary) rides on each item so a
-      // downstream Merge/Switch can gate per wave and re-drive on partial failure.
-      for (const env of plan.envelopes) {
+      // contract. Run-state context rides on each item so a downstream
+      // Merge/Switch can gate per wave and re-drive on partial failure.
+      plan.envelopes.forEach((env) => {
         returnData.push({
           json: {
             ...(env as unknown as IDataObject),
-            run: {
-              correlationId,
-              taskCount: summary.total,
-            },
+            run: { correlationId, taskCount: summary.total },
           },
           pairedItem: { item: i },
         });
-      }
+      });
     }
 
     return [returnData];

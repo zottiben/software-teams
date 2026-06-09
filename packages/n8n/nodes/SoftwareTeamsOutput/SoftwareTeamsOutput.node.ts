@@ -66,7 +66,6 @@ export class SoftwareTeamsOutput implements INodeType {
       },
     ],
     properties: [
-      // ── Output mode ────────────────────────────────────────────────────────
       {
         displayName: 'Output Mode',
         name: 'mode',
@@ -90,8 +89,6 @@ export class SoftwareTeamsOutput implements INodeType {
         noDataExpression: true,
         description: 'Whether to create a GitHub PR or an issue as the workflow output',
       },
-
-      // ── Target repository ──────────────────────────────────────────────────
       {
         displayName: 'Target Repository',
         name: 'targetRepo',
@@ -103,8 +100,6 @@ export class SoftwareTeamsOutput implements INodeType {
           'GitHub repository in owner/repo format (e.g. acme/myapp). ' +
           'The GitHub token must have repo + PR write scopes for this repository.',
       },
-
-      // ── Base branch (PR only) ──────────────────────────────────────────────
       {
         displayName: 'Base Branch',
         name: 'baseBranch',
@@ -117,8 +112,6 @@ export class SoftwareTeamsOutput implements INodeType {
         },
         description: 'The target branch the pull request will merge into',
       },
-
-      // ── Title (optional) ──────────────────────────────────────────────────
       {
         displayName: 'Title',
         name: 'title',
@@ -129,8 +122,6 @@ export class SoftwareTeamsOutput implements INodeType {
           'Title for the PR or issue. ' +
           'Defaults to "[Software Teams] {correlationId}" when blank.',
       },
-
-      // ── Issue labels (issue mode only) ────────────────────────────────────
       {
         displayName: 'Issue Labels',
         name: 'issueLabels',
@@ -154,7 +145,7 @@ export class SoftwareTeamsOutput implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials — GitHub token (R-02: never a node param) ─────────────
+    // ── Credentials (R-02: NEVER a node param) ────────────────────────────
     const credentials = await this.getCredentials('softwareTeamsApi');
     const githubToken = typeof credentials.githubToken === 'string'
       ? credentials.githubToken.trim()
@@ -169,12 +160,10 @@ export class SoftwareTeamsOutput implements INodeType {
       );
     }
 
-    // ── Per-item execution ─────────────────────────────────────────────────
     for (let i = 0; i < items.length; i++) {
       try {
       const envelope = items[i].json as unknown as NodeEnvelope;
 
-      // Validate envelope shape (guard against mis-wired nodes)
       if (!envelope || typeof envelope.correlationId !== 'string') {
         throw new NodeOperationError(
           this.getNode(),
@@ -184,7 +173,6 @@ export class SoftwareTeamsOutput implements INodeType {
         );
       }
 
-      // ── Node parameters ──────────────────────────────────────────────────
       const mode = this.getNodeParameter('mode', i) as string;
       const rawRepo = (this.getNodeParameter('targetRepo', i) as string).trim();
       const baseBranch =
@@ -207,86 +195,32 @@ export class SoftwareTeamsOutput implements INodeType {
       const title = titleParam || `[Software Teams] ${envelope.correlationId}`;
       const body = buildPrIssueBody(envelope);
 
-      let outputUrl: string;
-      let outputType: 'pr' | 'issue';
+      const outputRef = await resolveOutputRef({
+        mode,
+        envelope,
+        owner,
+        repo,
+        title,
+        body,
+        baseBranch,
+        issueLabelsParam,
+        githubToken,
+      });
 
-      if (mode === 'pr') {
-        // ── PR mode ─────────────────────────────────────────────────────────
-        // Look for a branch artifact from an upstream agent node.
-        const branchArtifact = envelope.artifacts.find((a) => a.type === 'branch');
-        const headBranch = extractBranchName(branchArtifact?.url);
-
-        if (!headBranch) {
-          // No branch — fall back to an issue with a note (rather than hard error)
-          const fallbackBody =
-            `> **⚠ Fallback:** PR mode was selected but no \`branch\` artifact was ` +
-            `found in the envelope. An issue has been opened instead.\n\n` +
-            body;
-
-          const ref = await createIssue({
-            owner,
-            repo,
-            title,
-            body: fallbackBody,
-            token: githubToken,
-          });
-          outputUrl = ref.url;
-          outputType = 'issue';
-        } else {
-          try {
-            const ref = await createPullRequest({
-              owner,
-              repo,
-              title,
-              body,
-              head: headBranch,
-              base: baseBranch,
-              token: githubToken,
-            });
-            outputUrl = ref.url;
-            outputType = 'pr';
-          } catch (err) {
-            // PR creation failed (no diff, existing PR, scope error, etc.)
-            // Emit an error-status envelope rather than throwing, so the
-            // canvas error branch / orchestrator (R-05) can handle it.
-            const errMsg =
-              err instanceof Error ? err.message : String(err);
-            const errorEnvelope: NodeEnvelope = {
-              ...envelope,
-              status: 'error',
-              result: { text: `GitHub PR creation failed: ${errMsg}` },
-            };
-            returnData.push({
-              json: errorEnvelope as unknown as IDataObject,
-              pairedItem: { item: i },
-            });
-            continue;
-          }
-        }
-      } else {
-        // ── Issue mode ───────────────────────────────────────────────────────
-        const labels = issueLabelsParam
-          ? issueLabelsParam.split(',').map((l) => l.trim()).filter(Boolean)
-          : [];
-
-        const ref = await createIssue({
-          owner,
-          repo,
-          title,
-          body,
-          labels,
-          token: githubToken,
+      if (outputRef.errorEnvelope) {
+        returnData.push({
+          json: outputRef.errorEnvelope as unknown as IDataObject,
+          pairedItem: { item: i },
         });
-        outputUrl = ref.url;
-        outputType = 'issue';
+        continue;
       }
 
-      // ── Append artifact — CONTRACT.md §2: artifacts accrete ──────────────
+      // Append artifact — CONTRACT.md §2: artifacts accrete.
       const updatedEnvelope: NodeEnvelope = {
         ...envelope,
         artifacts: [
           ...envelope.artifacts,
-          { type: outputType, url: outputUrl },
+          { type: outputRef.outputType, url: outputRef.outputUrl },
         ],
       };
 
@@ -318,44 +252,123 @@ export class SoftwareTeamsOutput implements INodeType {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+interface OutputRefResult {
+  outputUrl: string;
+  outputType: 'pr' | 'issue';
+  errorEnvelope?: NodeEnvelope;
+}
+
+interface ResolveOutputRefParams {
+  mode: string;
+  envelope: NodeEnvelope;
+  owner: string;
+  repo: string;
+  title: string;
+  body: string;
+  baseBranch: string;
+  issueLabelsParam: string;
+  githubToken: string;
+}
+
+/**
+ * Resolve the GitHub output reference (PR or issue) for the given envelope.
+ * Returns an error envelope when PR creation fails so the caller can surface it
+ * via the canvas error branch (R-05) rather than throwing.
+ */
+async function resolveOutputRef(p: ResolveOutputRefParams): Promise<OutputRefResult> {
+  if (p.mode === 'pr') {
+    const branchArtifact = p.envelope.artifacts.find((a) => a.type === 'branch');
+    const headBranch = extractBranchName(branchArtifact?.url);
+
+    if (!headBranch) {
+      const fallbackBody =
+        `> **⚠ Fallback:** PR mode was selected but no \`branch\` artifact was ` +
+        `found in the envelope. An issue has been opened instead.\n\n` +
+        p.body;
+
+      const ref = await createIssue({
+        owner: p.owner,
+        repo: p.repo,
+        title: p.title,
+        body: fallbackBody,
+        token: p.githubToken,
+      });
+      return { outputUrl: ref.url, outputType: 'issue' };
+    }
+
+    try {
+      const ref = await createPullRequest({
+        owner: p.owner,
+        repo: p.repo,
+        title: p.title,
+        body: p.body,
+        head: headBranch,
+        base: p.baseBranch,
+        token: p.githubToken,
+      });
+      return { outputUrl: ref.url, outputType: 'pr' };
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      return {
+        outputUrl: '',
+        outputType: 'pr',
+        errorEnvelope: {
+          ...p.envelope,
+          status: 'error',
+          result: { text: `GitHub PR creation failed: ${errMsg}` },
+        },
+      };
+    }
+  }
+
+  const labels = p.issueLabelsParam
+    ? p.issueLabelsParam.split(',').map((l) => l.trim()).filter(Boolean)
+    : [];
+
+  const ref = await createIssue({
+    owner: p.owner,
+    repo: p.repo,
+    title: p.title,
+    body: p.body,
+    labels,
+    token: p.githubToken,
+  });
+  return { outputUrl: ref.url, outputType: 'issue' };
+}
+
 /**
  * Build a Markdown body for the PR or issue from the NodeEnvelope.
- * Includes the agent result text, correlation ID, agent identity, and any
- * upstream artifacts for traceability.
+ * Includes agent result text, correlation ID, agent identity, and upstream artifacts.
  */
 function buildPrIssueBody(envelope: NodeEnvelope): string {
-  const lines: string[] = [];
-
-  lines.push('## Software Teams result');
-  lines.push('');
-  lines.push(`**Agent:** \`${envelope.agentId}\``);
-  lines.push(`**Correlation ID:** \`${envelope.correlationId}\``);
-  lines.push(`**Status:** ${envelope.status}`);
-  lines.push('');
-
-  if (envelope.result.text) {
-    lines.push('### Result');
-    lines.push('');
-    lines.push(envelope.result.text);
-    lines.push('');
-  }
-
   const priorArtifacts = envelope.artifacts.filter((a) => a.type !== 'pr' && a.type !== 'issue');
-  if (priorArtifacts.length > 0) {
-    lines.push('### Artifacts');
-    lines.push('');
-    for (const a of priorArtifacts) {
-      const link = a.url ? `[${a.url}](${a.url})` : '(no URL)';
-      lines.push(`- **${a.type}**: ${link}`);
-    }
-    lines.push('');
-  }
+  const artifactLines = priorArtifacts.length > 0
+    ? [
+        '### Artifacts',
+        '',
+        ...priorArtifacts.map((a) => {
+          const link = a.url ? `[${a.url}](${a.url})` : '(no URL)';
+          return `- **${a.type}**: ${link}`;
+        }),
+        '',
+      ]
+    : [];
 
-  lines.push('---');
-  lines.push(
+  const resultLines = envelope.result.text
+    ? ['### Result', '', envelope.result.text, '']
+    : [];
+
+  return [
+    '## Software Teams result',
+    '',
+    `**Agent:** \`${envelope.agentId}\``,
+    `**Correlation ID:** \`${envelope.correlationId}\``,
+    `**Status:** ${envelope.status}`,
+    '',
+    ...resultLines,
+    ...artifactLines,
+    '---',
     '*Generated by [@websitelabs/n8n-nodes-software-teams]' +
       '(https://github.com/websitelabs/software-teams/tree/main/n8n)*',
-  );
-
-  return lines.join('\n');
+  ].join('\n');
 }

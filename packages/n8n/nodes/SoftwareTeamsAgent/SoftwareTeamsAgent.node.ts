@@ -14,7 +14,7 @@ import type { NodeEnvelope } from '@websitelabs/software-teams';
 // runAgentTurn loader — break the static import chain to Bun-specific code
 // ---------------------------------------------------------------------------
 // single-turn.ts uses `import.meta.dir` and `Bun.*` APIs that don't compile
-// under the n8n tsconfig (module: commonjs, no Bun types).  Using a `string`-
+// under the n8n tsconfig (module: commonjs, no Bun types). Using a `string`-
 // typed variable as the `require()` argument prevents TypeScript from resolving
 // the module statically, so the Bun import chain is never type-checked here.
 // The type is manually declared to match T3's implementation exactly.
@@ -28,8 +28,8 @@ const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
 };
 
 // ---------------------------------------------------------------------------
-// Specialist options — statically sourced from agents/*.md filenames
-// (Do NOT shell out at load time; n8n loads node descriptors synchronously)
+// Specialist options — statically sourced from agents/*.md filenames.
+// Do NOT shell out at load time; n8n loads node descriptors synchronously.
 // ---------------------------------------------------------------------------
 
 const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
@@ -69,7 +69,7 @@ const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
 ];
 
 // ---------------------------------------------------------------------------
-// Model options
+// Model options — mirrors the credential-injected model selection (R-03).
 // ---------------------------------------------------------------------------
 
 const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
@@ -119,7 +119,6 @@ export class SoftwareTeamsAgent implements INodeType {
       { name: 'softwareTeamsApi', required: true },
     ],
     properties: [
-      // ── Specialist ─────────────────────────────────────────────────────────
       {
         displayName: 'Specialist',
         name: 'specialist',
@@ -132,8 +131,6 @@ export class SoftwareTeamsAgent implements INodeType {
           'The Software Teams specialist to invoke for this turn. ' +
           'Matches a name in agents/*.md.',
       },
-
-      // ── Prompt ─────────────────────────────────────────────────────────────
       {
         displayName: 'Prompt',
         name: 'prompt',
@@ -145,8 +142,6 @@ export class SoftwareTeamsAgent implements INodeType {
           'The task instruction for this specialist turn (the `input.prompt` ' +
           'field of the NodeEnvelope). Supports n8n expressions.',
       },
-
-      // ── Context (first-node only) ──────────────────────────────────────────
       {
         displayName: 'Context (JSON)',
         name: 'context',
@@ -158,8 +153,6 @@ export class SoftwareTeamsAgent implements INodeType {
           'Ignored when an upstream NodeEnvelope is present (handoff nodes ' +
           'inherit context from the upstream result automatically).',
       },
-
-      // ── Model ──────────────────────────────────────────────────────────────
       {
         displayName: 'Model',
         name: 'model',
@@ -179,26 +172,19 @@ export class SoftwareTeamsAgent implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials ──────────────────────────────────────────────────────────
+    // ── Credentials (R-02: NEVER written to returnData) ──────────────────────
     const credentials = await this.getCredentials('softwareTeamsApi');
-    const anthropicApiKey = credentials.anthropicApiKey as string;
+    process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
 
-    // Inject API key for the claude CLI child process.
-    // Credentials are NEVER written to returnData (R-02).
-    process.env['ANTHROPIC_API_KEY'] = anthropicApiKey;
-
-    // ── Process each item ─────────────────────────────────────────────────────
     // Use at least one iteration even when upstream sends zero items.
     const itemCount = items.length > 0 ? items.length : 1;
 
     for (let i = 0; i < itemCount; i++) {
-      // Node parameters
       const specialist = this.getNodeParameter('specialist', i) as string;
       const prompt = this.getNodeParameter('prompt', i) as string;
       const contextRaw = this.getNodeParameter('context', i, '') as string;
       const model = this.getNodeParameter('model', i, 'claude-sonnet-4-5') as string;
 
-      // Inject model env hint for the Claude CLI
       if (model) {
         process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
       }
@@ -212,53 +198,9 @@ export class SoftwareTeamsAgent implements INodeType {
         typeof upstream['agentId'] === 'string' &&
         typeof upstream['status'] === 'string';
 
-      let envelope: NodeEnvelope;
-
-      if (isUpstreamEnvelope) {
-        // ── A→B handoff (CONTRACT.md §3) ────────────────────────────────────
-        // Fold upstream result + artifacts into input.context.
-        // correlationId is carried UNCHANGED; agentId is rewritten to this node's specialist.
-        const up = upstream as unknown as NodeEnvelope;
-        envelope = {
-          correlationId: up.correlationId,
-          agentId: specialist,
-          status: 'ok',
-          input: {
-            prompt,
-            context: {
-              from: up.agentId,
-              upstreamStatus: up.status,
-              result: up.result,
-              artifacts: up.artifacts,
-            },
-          },
-          result: { text: '' },
-          artifacts: Array.isArray(up.artifacts) ? [...up.artifacts] : [],
-        };
-      } else {
-        // ── First node: construct fresh envelope ─────────────────────────────
-        let parsedContext: unknown = null;
-        if (contextRaw && contextRaw.trim()) {
-          try {
-            parsedContext = JSON.parse(contextRaw);
-          } catch {
-            // Treat as plain string context if not valid JSON
-            parsedContext = contextRaw;
-          }
-        }
-
-        envelope = {
-          correlationId: randomUUID(),
-          agentId: specialist,
-          status: 'ok',
-          input: {
-            prompt,
-            context: parsedContext,
-          },
-          result: { text: '' },
-          artifacts: [],
-        };
-      }
+      const envelope: NodeEnvelope = isUpstreamEnvelope
+        ? buildHandoffEnvelope(upstream as unknown as NodeEnvelope, specialist, prompt)
+        : buildFreshEnvelope(specialist, prompt, contextRaw);
 
       // ── Run agent turn ───────────────────────────────────────────────────────
       let result: NodeEnvelope;
@@ -281,8 +223,6 @@ export class SoftwareTeamsAgent implements INodeType {
         );
       }
 
-      // ── Emit output envelope ─────────────────────────────────────────────────
-      // The full NodeEnvelope is the output item's `json` payload.
       // A downstream Switch node can route on `{{ $json.status }}` to handle
       // the 'needs-input' branch for Slack HITL (T10).
       returnData.push({
@@ -293,4 +233,66 @@ export class SoftwareTeamsAgent implements INodeType {
 
     return [returnData];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Envelope builders
+// ---------------------------------------------------------------------------
+
+/**
+ * Build an A→B handoff envelope (CONTRACT.md §3).
+ * Folds upstream result + artifacts into input.context; correlationId is
+ * carried unchanged, agentId is rewritten to this node's specialist.
+ */
+function buildHandoffEnvelope(
+  up: NodeEnvelope,
+  specialist: string,
+  prompt: string,
+): NodeEnvelope {
+  return {
+    correlationId: up.correlationId,
+    agentId: specialist,
+    status: 'ok',
+    input: {
+      prompt,
+      context: {
+        from: up.agentId,
+        upstreamStatus: up.status,
+        result: up.result,
+        artifacts: up.artifacts,
+      },
+    },
+    result: { text: '' },
+    artifacts: Array.isArray(up.artifacts) ? [...up.artifacts] : [],
+  };
+}
+
+/**
+ * Build a fresh first-node envelope with a new correlationId.
+ * `contextRaw` is parsed as JSON if possible, otherwise treated as a plain string.
+ */
+function buildFreshEnvelope(
+  specialist: string,
+  prompt: string,
+  contextRaw: string,
+): NodeEnvelope {
+  const parsedContext: unknown =
+    contextRaw && contextRaw.trim()
+      ? (() => {
+          try {
+            return JSON.parse(contextRaw);
+          } catch {
+            return contextRaw;
+          }
+        })()
+      : null;
+
+  return {
+    correlationId: randomUUID(),
+    agentId: specialist,
+    status: 'ok',
+    input: { prompt, context: parsedContext },
+    result: { text: '' },
+    artifacts: [],
+  };
 }

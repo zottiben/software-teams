@@ -91,7 +91,6 @@ export class SoftwareTeamsTrigger implements INodeType {
       },
     ],
     properties: [
-      // ── Source selector ────────────────────────────────────────────────────
       {
         displayName: "Source",
         name: "source",
@@ -107,8 +106,6 @@ export class SoftwareTeamsTrigger implements INodeType {
           "The integration source to fetch context from. " +
           "Determines which credential fields and ref format are used.",
       },
-
-      // ── ClickUp task ref (shown only when source = clickup) ────────────────
       {
         displayName: "ClickUp Task Ref",
         name: "clickupRef",
@@ -122,8 +119,6 @@ export class SoftwareTeamsTrigger implements INodeType {
           "ClickUp task URL (e.g. https://app.clickup.com/t/team123/NDP-456) or bare " +
           "task ID. Supports n8n expressions to pull the ref from upstream trigger data.",
       },
-
-      // ── Datadog issue URL (shown only when source = datadog) ──────────────
       {
         displayName: "Datadog Issue URL",
         name: "datadogRef",
@@ -138,8 +133,6 @@ export class SoftwareTeamsTrigger implements INodeType {
           "(e.g. https://app.datadoghq.com/error-tracking?…issueId…). " +
           "Supports n8n expressions.",
       },
-
-      // ── Initial workflow prompt ────────────────────────────────────────────
       {
         displayName: "Workflow Prompt",
         name: "prompt",
@@ -151,8 +144,6 @@ export class SoftwareTeamsTrigger implements INodeType {
           "The initial task prompt placed on the envelope for the first downstream " +
           "Software Teams Agent node to act on.",
       },
-
-      // ── First agent ID ─────────────────────────────────────────────────────
       {
         displayName: "First Agent ID",
         name: "agentId",
@@ -189,65 +180,14 @@ export class SoftwareTeamsTrigger implements INodeType {
       };
 
       // ── Fetch context ─────────────────────────────────────────────────────
-      let context: unknown = null;
-
-      if (source === "clickup") {
-        const refStr = (this.getNodeParameter("clickupRef", i) as string).trim();
-
-        // Try to parse as a URL first; fall back to treating the whole string
-        // as a bare task ID (e.g. "abc123" or "NDP-456").
-        const ref = extractClickUpRef(refStr) ?? { taskId: refStr };
-
-        if (ref.taskId) {
-          context = await buildClickUpContext(ref, clickupCreds);
-          if (!context) {
-            this.logger.info(
-              `SoftwareTeamsTrigger: ClickUp context unavailable for ref "${refStr}" — ` +
-                "proceeding with empty context. Check that clickupApiKey is set in " +
-                "the softwareTeamsApi credential and the task ref is valid.",
-            );
-          }
-        } else {
-          this.logger.info(
-            `SoftwareTeamsTrigger: Could not parse ClickUp ref "${refStr}" — ` +
-              "proceeding with empty context.",
-          );
-        }
-      } else {
-        // source === 'datadog'
-        const refStr = (this.getNodeParameter("datadogRef", i) as string).trim();
-        const parsed = extractDatadogIssue(refStr);
-
-        if (parsed) {
-          context = await buildDatadogContext(
-            parsed.issueId,
-            parsed.apiBase,
-            datadogCreds,
-          );
-          if (!context) {
-            this.logger.info(
-              `SoftwareTeamsTrigger: Datadog context unavailable for issue "${parsed.issueId}" — ` +
-                "proceeding with empty context. Check that datadogApiKey and datadogAppKey " +
-                "are set in the softwareTeamsApi credential.",
-            );
-          }
-        } else {
-          this.logger.info(
-            `SoftwareTeamsTrigger: Could not parse Datadog issue URL "${refStr}" — ` +
-              "proceeding with empty context.",
-          );
-        }
-      }
+      const context = await fetchContext(source, i, this, clickupCreds, datadogCreds);
 
       // ── Build INITIAL envelope (CONTRACT.md §1) ───────────────────────────
       const envelope: NodeEnvelope = {
         correlationId: newCorrelationId(source),
         agentId,
         status: "ok",
-        input: {
-          prompt,
-          context,
-        },
+        input: { prompt, context },
         result: { text: "" },
         artifacts: [],
       };
@@ -271,4 +211,63 @@ export class SoftwareTeamsTrigger implements INodeType {
 
     return [output];
   }
+}
+
+// ---------------------------------------------------------------------------
+// Context fetchers
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch PII-scrubbed context for the given source and item index.
+ * Returns null when the ref is unparseable or the external API is unreachable
+ * (graceful degradation per spec AC5).
+ */
+async function fetchContext(
+  source: "clickup" | "datadog",
+  i: number,
+  node: IExecuteFunctions,
+  clickupCreds: { clickupApiKey: string },
+  datadogCreds: { datadogApiKey: string; datadogAppKey: string },
+): Promise<unknown> {
+  if (source === "clickup") {
+    const refStr = (node.getNodeParameter("clickupRef", i) as string).trim();
+    const ref = extractClickUpRef(refStr) ?? { taskId: refStr };
+
+    if (!ref.taskId) {
+      node.logger.info(
+        `SoftwareTeamsTrigger: Could not parse ClickUp ref "${refStr}" — proceeding with empty context.`,
+      );
+      return null;
+    }
+
+    const ctx = await buildClickUpContext(ref, clickupCreds);
+    if (!ctx) {
+      node.logger.info(
+        `SoftwareTeamsTrigger: ClickUp context unavailable for ref "${refStr}" — ` +
+          "proceeding with empty context. Check that clickupApiKey is set in " +
+          "the softwareTeamsApi credential and the task ref is valid.",
+      );
+    }
+    return ctx ?? null;
+  }
+
+  const refStr = (node.getNodeParameter("datadogRef", i) as string).trim();
+  const parsed = extractDatadogIssue(refStr);
+
+  if (!parsed) {
+    node.logger.info(
+      `SoftwareTeamsTrigger: Could not parse Datadog issue URL "${refStr}" — proceeding with empty context.`,
+    );
+    return null;
+  }
+
+  const ctx = await buildDatadogContext(parsed.issueId, parsed.apiBase, datadogCreds);
+  if (!ctx) {
+    node.logger.info(
+      `SoftwareTeamsTrigger: Datadog context unavailable for issue "${parsed.issueId}" — ` +
+        "proceeding with empty context. Check that datadogApiKey and datadogAppKey " +
+        "are set in the softwareTeamsApi credential.",
+    );
+  }
+  return ctx ?? null;
 }

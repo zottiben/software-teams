@@ -16,10 +16,6 @@ export class SoftwareTeamsApi implements ICredentialType {
   name = 'softwareTeamsApi';
   displayName = 'Software Teams API';
   icon = 'file:softwareTeamsApi.svg' as const;
-  /**
-   * Verify the Anthropic API key by listing available models.
-   * A 200 response confirms the key is valid.
-   */
   test: ICredentialTestRequest = {
     request: {
       baseURL: 'https://api.anthropic.com',
@@ -34,8 +30,6 @@ export class SoftwareTeamsApi implements ICredentialType {
     'https://github.com/websitelabs/software-teams/tree/main/n8n#self-hosted-constraint';
 
   properties: INodeProperties[] = [
-    // ── Required ──────────────────────────────────────────────────────────────
-
     {
       displayName: 'Anthropic API Key',
       name: 'anthropicApiKey',
@@ -48,11 +42,6 @@ export class SoftwareTeamsApi implements ICredentialType {
         'Injected into the claude CLI process via ANTHROPIC_API_KEY — ' +
         'never passed as a CLI argument or written to node output.',
     },
-
-    // ── Optional integrations ─────────────────────────────────────────────────
-    // Each token is optional; nodes that require a specific integration
-    // should document which field they read. All are masked (password: true)
-    // to prevent accidental exposure in n8n's execution log.
 
     {
       displayName: 'ClickUp API Token',
