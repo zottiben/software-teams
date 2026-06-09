@@ -57,7 +57,7 @@ describe("action run command prompt invariants", () => {
 
   describe("implement case - rules", () => {
     test("implement case uses buildRulesBlock", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/prompt-assembly.ts", import.meta.url).pathname).text();
       expect(source).toContain("buildRulesBlock");
     });
 
@@ -69,17 +69,17 @@ describe("action run command prompt invariants", () => {
 
   describe("label-trigger path", () => {
     test("source defines --event-type arg in citty args block", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/command.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/"event-type":\s*\{/);
     });
 
     test("source defines ALLOWED_EVENT_TYPES allow-list with 'issue_labeled'", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/constants.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/ALLOWED_EVENT_TYPES\s*=\s*new\s+Set\(\["issue_labeled"\]\)/);
     });
 
     test("source validates event-type against allow-list and exits non-zero on unknown value", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/command.ts", import.meta.url).pathname).text();
       // Check for validation logic that rejects unknown event types
       expect(source).toMatch(/ALLOWED_EVENT_TYPES\.has\(args\["event-type"\]\)/);
       // Check that it calls process.exit(1) on validation failure
@@ -87,12 +87,12 @@ describe("action run command prompt invariants", () => {
     });
 
     test("source contains branch for args['event-type'] === 'issue_labeled'", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/command.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/args\["event-type"\]\s*===\s*"issue_labeled"/);
     });
 
     test("label-triggered branch calls fetchIssueTitleAndBody", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/label-path.ts", import.meta.url).pathname).text();
       // Verify the function is imported
       expect(source).toMatch(/fetchIssueTitleAndBody/);
       // Verify it's called (looking for the actual invocation)
@@ -100,7 +100,7 @@ describe("action run command prompt invariants", () => {
     });
 
     test("label-triggered branch calls sanitizeUserInput on the synthetic description", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/label-path.ts", import.meta.url).pathname).text();
       // Check that sanitizeUserInput is called after the fetch
       expect(source).toMatch(/sanitizeUserInput\(/);
     });
@@ -114,7 +114,7 @@ describe("action run command prompt invariants", () => {
     });
 
     test("source imports fetchIssueTitleAndBody from github utils", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/label-path.ts", import.meta.url).pathname).text();
       expect(source).toContain("fetchIssueTitleAndBody");
       expect(source).toMatch(/from\s+["'].*\/utils\/github["']/);
     });
@@ -122,13 +122,13 @@ describe("action run command prompt invariants", () => {
 
   describe("parent-Claude model pin (cost control)", () => {
     test("defines ACTION_MODEL backed by SOFTWARE_TEAMS_MODEL env var", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/constants.ts", import.meta.url).pathname).text();
       // Constant lives at module scope so all three spawnClaude call sites share it.
       expect(source).toMatch(/const\s+ACTION_MODEL\s*=\s*process\.env\.SOFTWARE_TEAMS_MODEL\s*\|\|\s*["']claude-sonnet-4-6["']/);
     });
 
     test("every spawnClaude call in the action runner threads model: ACTION_MODEL", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/spawner.ts", import.meta.url).pathname).text();
       const spawnCalls = source.match(/await\s+spawnClaude\([\s\S]*?\)\s*;/g) ?? [];
       expect(spawnCalls.length).toBeGreaterThanOrEqual(3); // label plan, comment-driven, full-flow impl
       for (const call of spawnCalls) {
@@ -143,19 +143,19 @@ describe("action run command prompt invariants", () => {
       // via source text. The `software[\s-]?teams` segment accepts both
       // "Hey Software Teams" (user-friendly spaced form) and
       // "Hey software-teams" (legacy hyphenated form).
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/intent-parser.ts", import.meta.url).pathname).text();
       const re = source.match(/hey\\s\+software\[\\s-\]\?teams\\s\+\(\.\+\)/);
       expect(re).not.toBeNull();
     });
 
     test("thinking placeholder uses the chat-like header, not the legacy brand format", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/command.ts", import.meta.url).pathname).text();
       expect(source).toContain("🧠 Working on it...");
       expect(source).not.toMatch(/🧠 Software Teams <sup>thinking<\/sup>/);
     });
 
     test("approval message points users to the 'Hey Software Teams' trigger", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/approval-ping.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/Hey Software Teams implement/);
     });
   });
@@ -170,14 +170,14 @@ describe("action run command prompt invariants", () => {
     // silently drops one of those.
 
     test("loadExternalContexts helper aggregates ClickUp + Datadog blocks", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/external-contexts.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/async function loadExternalContexts\(searchText: string\)/);
       expect(source).toContain("extractClickUpRef(searchText)");
       expect(source).toContain("extractDatadogIssue(searchText)");
     });
 
     test("comment-triggered path scans BOTH the comment AND the issue/PR body for URLs", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/command.ts", import.meta.url).pathname).text();
       // Look for the aggregation pattern: corpus starts as the
       // comment description, then appends the issue title + body.
       expect(source).toMatch(/let externalSearchCorpus = intent\.description/);
@@ -185,7 +185,7 @@ describe("action run command prompt invariants", () => {
     });
 
     test("label-triggered path also runs the external-context lookup against the synthetic issue text", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/label-path.ts", import.meta.url).pathname).text();
       // The label-triggered path's `intent.description` is already
       // `${title}\n\n${body}`, so loadExternalContexts is called
       // directly on it.
@@ -287,7 +287,7 @@ describe("action run command prompt invariants", () => {
 
   describe("feature branch naming (no brand leak, no command-verb duplication)", () => {
     test("`prepareIssueFeatureBranch` uses `issue-<N>-<slug>` (no `software-teams/` prefix)", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/feature-branch.ts", import.meta.url).pathname).text();
       // The branch builder must NOT prefix with `software-teams/` anymore —
       // PR titles auto-derive from branch names and we don't want the
       // brand leaking there.
@@ -299,21 +299,21 @@ describe("action run command prompt invariants", () => {
       // For inputs like "implement the plan" / "quick fix the X", strip
       // the leading verb so the slug isn't duplicated with the command
       // word (avoids the old "implement-implement-the-plan" doubling).
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/feature-branch.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/replace\(\/\^\\s\*\(implement\|quick\|plan\|do\|the\)\\s\+\/i, ""\)/);
     });
   });
 
   describe("pre-plan discovery gate (phase C)", () => {
     test("runner exposes a `runDiscoveryAndGate` helper that aborts on questions", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/discovery-gate.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/async function runDiscoveryAndGate/);
       expect(source).toMatch(/parseResearcherQuestions/);
       expect(source).toMatch(/formatQuestionsCommentBody/);
     });
 
     test("all three plan entry points route through runDiscoveryAndGate", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/prompt-assembly.ts", import.meta.url).pathname).text();
       const calls = source.match(/await runDiscoveryAndGate\(/g) ?? [];
       // Label-triggered plan, comment-driven `case "plan"`, and the
       // follow-up branch when no plan exists yet — three sites.
@@ -321,7 +321,7 @@ describe("action run command prompt invariants", () => {
     });
 
     test("isFeedback follow-up checks for existing orchestration before routing", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/prompt-assembly.ts", import.meta.url).pathname).text();
       // The branch reroutes to discovery-gate when no plan exists for the
       // current issue. Source-grep guards lock that invariant.
       expect(source).toMatch(/answer-to-pre-plan-questions/);
@@ -329,7 +329,7 @@ describe("action run command prompt invariants", () => {
     });
 
     test("aborted gate returns early — no planner spawn after questions are posted", async () => {
-      const source = await Bun.file(new URL("../run.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../run/prompt-assembly.ts", import.meta.url).pathname).text();
       // Every gate call must guard against aborted state. Accept both
       // `if (gateResult.aborted) return;` and the brace form
       // `if (gateResult.aborted) { ... return; }` used in the label path.

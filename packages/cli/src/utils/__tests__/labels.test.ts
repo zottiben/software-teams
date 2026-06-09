@@ -44,15 +44,18 @@ describe("runner call sites use the lifecycle labels", () => {
   });
 
   test("each lifecycle label has a setLifecycleLabel call site in run.ts", async () => {
-    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
-    expect(source).toContain('setLifecycleLabel(opts.repo, opts.issueNumber, "questions-pending")');
-    expect(source).toContain('setLifecycleLabel(repo, issueNumber, "plan-ready")');
-    expect(source).toContain('setLifecycleLabel(repo, issueNumber, "plan-approved")');
-    expect(source).toContain('setLifecycleLabel(repo, prNumber, "ready-to-review")');
+    const discoveryGate = await Bun.file(new URL("../../commands/action/run/discovery-gate.ts", import.meta.url).pathname).text();
+    const approvalPing = await Bun.file(new URL("../../commands/action/run/approval-ping.ts", import.meta.url).pathname).text();
+    const labelPath = await Bun.file(new URL("../../commands/action/run/label-path.ts", import.meta.url).pathname).text();
+    const executeAndPost = await Bun.file(new URL("../../commands/action/run/execute-and-post.ts", import.meta.url).pathname).text();
+    expect(discoveryGate).toContain('setLifecycleLabel(opts.repo, opts.issueNumber, "questions-pending")');
+    expect(labelPath).toContain('setLifecycleLabel(repo, issueNumber, "plan-ready")');
+    expect(approvalPing).toContain('setLifecycleLabel(repo, issueNumber, "plan-approved")');
+    expect(executeAndPost).toContain('setLifecycleLabel(repo, prNumber, "ready-to-review")');
   });
 
   test("the implement labelling branch also flips the originating issue when prNumber !== issueNumber", async () => {
-    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    const source = await Bun.file(new URL("../../commands/action/run/execute-and-post.ts", import.meta.url).pathname).text();
     expect(source).toMatch(/prNumber !== issueNumber/);
     expect(source).toMatch(/setLifecycleLabel\(repo, issueNumber, "ready-to-review"\)/);
   });
@@ -65,7 +68,7 @@ describe("runner call sites use the lifecycle labels", () => {
     // looked at `intent.command === "plan"` and applied plan-ready
     // — wrong, no plan was produced. Post-fix, this case is
     // included in `isCodePushFlow` and gets ready-to-review.
-    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    const source = await Bun.file(new URL("../../commands/action/run/execute-and-post.ts", import.meta.url).pathname).text();
     expect(source).toMatch(/const isPostImplFeedback = intent\.isFeedback && isPostImplementation/);
     expect(source).toMatch(/isCodePushFlow =/);
     expect(source).toMatch(/isPostImplFeedback/);
@@ -75,14 +78,14 @@ describe("runner call sites use the lifecycle labels", () => {
     // Companion guard for the previous test: the plan-ready branch
     // must explicitly exclude isPostImplementation, otherwise a
     // post-impl iteration on a refined plan would double-label.
-    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    const source = await Bun.file(new URL("../../commands/action/run/execute-and-post.ts", import.meta.url).pathname).text();
     expect(source).toMatch(/isPlanProducingFlow =\s*\n\s*intent\.command === "plan" && !isPostImplementation/);
   });
 
   test("quick command (which also pushes code) is in the code-push flow", async () => {
     // Quick fixes also push a new branch + PR — should label
     // ready-to-review, not plan-ready.
-    const source = await Bun.file(new URL("../../commands/action/run.ts", import.meta.url).pathname).text();
+    const source = await Bun.file(new URL("../../commands/action/run/execute-and-post.ts", import.meta.url).pathname).text();
     expect(source).toMatch(/intent\.command === "quick"/);
   });
 });
