@@ -26,7 +26,7 @@ describe("runAgentTurn — single-turn execution adapter (AC2, AC3, AC9)", () =>
       // constant which omits "Task" from the allowed tools list.
 
       // Import and check the constant directly
-      const { SINGLE_TURN_ALLOWED_TOOLS } = await import("../../../../src/utils/claude");
+      const { SINGLE_TURN_ALLOWED_TOOLS } = await import("../../../../cli/src/utils/claude");
       expect(SINGLE_TURN_ALLOWED_TOOLS.includes("Task")).toBeFalse();
       expect(SINGLE_TURN_ALLOWED_TOOLS).toContain("Read");
       expect(SINGLE_TURN_ALLOWED_TOOLS).toContain("Write");

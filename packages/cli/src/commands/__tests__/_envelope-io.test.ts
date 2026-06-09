@@ -18,7 +18,10 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import { join } from "node:path";
+import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+
+const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 import {
   readInputEnvelope,
   writeResult,
@@ -364,7 +367,7 @@ describe("stderrLog — must never throw at runtime", () => {
 describe("subprocess — exit-2 input-error path (byte-for-byte)", () => {
   test("malformed stdin + --json → exit 2, empty stdout, diagnostic on stderr", async () => {
     const proc = Bun.spawn({
-      cmd: ["bun", "src/index.ts", "ingest", "--source", "clickup", "--json"],
+      cmd: ["bun", CLI_ENTRY, "ingest", "--source", "clickup", "--json"],
       stdin: Buffer.from("not-json{{{"),
       stdout: "pipe",
       stderr: "pipe",

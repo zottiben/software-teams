@@ -13,7 +13,7 @@ lib/
 lib-esm/
 
 # n8n community node build outputs (reproducible from source)
-n8n/dist/
+packages/n8n/dist/
 *.tsbuildinfo
 
 # Test output artifacts

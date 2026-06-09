@@ -36,7 +36,10 @@
  */
 
 import { describe, test, expect } from "bun:test";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import { join } from "node:path";
+import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+
+const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -82,7 +85,7 @@ async function spawnVerb(opts: {
   env?: Record<string, string | undefined>;
 }): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn({
-    cmd: ["bun", "src/index.ts", opts.verb, ...(opts.args ?? [])],
+    cmd: ["bun", CLI_ENTRY, opts.verb, ...(opts.args ?? [])],
     stdin: opts.stdinData !== undefined ? Buffer.from(opts.stdinData) : undefined,
     stdout: "pipe",
     stderr: "pipe",

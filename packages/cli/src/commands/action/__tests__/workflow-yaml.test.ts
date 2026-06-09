@@ -14,31 +14,31 @@ describe("workflow YAML structure", () => {
     let parsed: any;
 
     test("workflow file parses as valid YAML", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       expect(parsed).toBeDefined();
     });
 
     test("on.issues.types includes both 'opened' and 'labeled'", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       expect(parsed.on.issues.types).toEqual(expect.arrayContaining(["opened", "labeled"]));
     });
 
     test("on.issues.types equals exactly ['opened', 'labeled', 'closed']", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       expect(parsed.on.issues.types).toEqual(["opened", "labeled", "closed"]);
     });
 
     test("software-teams-issue-label job exists", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       expect(parsed.jobs["software-teams-issue-label"]).toBeDefined();
     });
 
     test("software-teams-issue-label if condition includes github.event_name == 'issues'", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const ifCondition = parsed.jobs["software-teams-issue-label"].if;
       expect(ifCondition).toMatch(/github\.event_name\s*==\s*['"]issues['"]/);
@@ -54,7 +54,7 @@ describe("workflow YAML structure", () => {
       // is to listen only on `labeled` — GitHub emits a labeled event
       // for every label present at creation as well as labels added
       // later, so one branch covers both cases without duplication.
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const ifCondition = parsed.jobs["software-teams-issue-label"].if as string;
       // Must NOT branch on `opened` — that re-introduces the double-fire.
@@ -64,21 +64,21 @@ describe("workflow YAML structure", () => {
     });
 
     test("software-teams-issue-label if condition includes 'labeled' trigger", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const ifCondition = parsed.jobs["software-teams-issue-label"].if;
       expect(ifCondition).toMatch(/labeled/);
     });
 
     test("software-teams-issue-label if condition includes 'software-teams' label check", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const ifCondition = parsed.jobs["software-teams-issue-label"].if;
       expect(ifCondition).toMatch(/software-teams/);
     });
 
     test("Run Software Teams step passes --event-type issue_labeled", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const runStep = parsed.jobs["software-teams-issue-label"].steps.find((s: any) => s.name === "Run Software Teams");
       expect(runStep).toBeDefined();
@@ -86,7 +86,7 @@ describe("workflow YAML structure", () => {
     });
 
     test("Run Software Teams step does NOT pass --pr-number", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const runStep = parsed.jobs["software-teams-issue-label"].steps.find((s: any) => s.name === "Run Software Teams");
       expect(runStep).toBeDefined();
@@ -94,28 +94,28 @@ describe("workflow YAML structure", () => {
     });
 
     test("existing software-teams comment job if condition still references issue_comment", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const commentJob = parsed.jobs["software-teams"];
       expect(commentJob.if).toMatch(/issue_comment/);
     });
 
     test("existing software-teams comment job if condition still references pull_request_review_comment", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const commentJob = parsed.jobs["software-teams"];
       expect(commentJob.if).toMatch(/pull_request_review_comment/);
     });
 
     test("existing software-teams comment job if condition still references pull_request_review", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const commentJob = parsed.jobs["software-teams"];
       expect(commentJob.if).toMatch(/pull_request_review/);
     });
 
     test("all setup-bun steps pin bun-version 1.3.7", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const allSteps: any[] = [];
       for (const job of Object.values(parsed.jobs)) {
@@ -131,7 +131,7 @@ describe("workflow YAML structure", () => {
     });
 
     test("software-teams-issue-close job exists and gates on closed + label", async () => {
-      const content = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const content = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       parsed = yaml.parse(content);
       const job = parsed.jobs["software-teams-issue-close"];
       expect(job).toBeDefined();
@@ -203,7 +203,7 @@ describe("workflow YAML structure", () => {
 
   describe("cross-file equivalence (ignoring header comments)", () => {
     test("both workflow files are byte-identical except for header comments", async () => {
-      const canonicalContent = await Bun.file(resolve(import.meta.dir, "../../../../.github/workflows/software-teams.yml")).text();
+      const canonicalContent = await Bun.file(resolve(import.meta.dir, "../../../../../../.github/workflows/software-teams.yml")).text();
       const templateContent = await Bun.file(resolve(import.meta.dir, "../../../../action/workflow-template.yml")).text();
 
       // Strip leading # comments and blank lines from both
@@ -231,7 +231,7 @@ describe("workflow YAML structure", () => {
     // "no-run_id-primary-key" cache entries that caused the original
     // poisoning.
     for (const file of [
-      "../../../../.github/workflows/software-teams.yml",
+      "../../../../../../.github/workflows/software-teams.yml",
       "../../../../action/workflow-template.yml",
     ]) {
       test(`${file.split("/").pop()} restores via actions/cache/restore (the sub-action) not the bare composite`, async () => {

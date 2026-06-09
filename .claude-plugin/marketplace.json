@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "software-teams",
-      "source": "./",
+      "source": "./packages/cli",
       "description": "Software Teams - Skills and Agents to help with Software Development"
     }
   ]

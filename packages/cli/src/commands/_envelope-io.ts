@@ -16,7 +16,7 @@
  * flagged as a justified deviation in the T2 report.
  */
 
-import type { NodeEnvelope } from "../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
 import { consola, createConsola } from "consola";
 
 // ─── stderr-only diagnostic logger ───────────────────────────────────────────

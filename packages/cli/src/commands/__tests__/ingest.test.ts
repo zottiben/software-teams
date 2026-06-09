@@ -22,7 +22,10 @@
  */
 
 import { describe, test, expect, mock, beforeEach, afterAll } from "bun:test";
-import type { ClickUpContext, DatadogContext } from "../../../n8n/src/ingestion/context";
+import { join } from "node:path";
+import type { ClickUpContext, DatadogContext } from "../../../../n8n/src/ingestion/context";
+
+const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 
 // ─── Adapter mock functions ───────────────────────────────────────────────────
 //
@@ -67,7 +70,7 @@ const mockBuildDatadogContext = mock(
 
 // ─── Register module mocks BEFORE loading ingest.ts ──────────────────────────
 
-mock.module("../../../n8n/src/ingestion/context", () => ({
+mock.module("../../../../n8n/src/ingestion/context", () => ({
   buildClickUpContext: mockBuildClickUpContext,
   buildDatadogContext: mockBuildDatadogContext,
 }));
@@ -86,9 +89,9 @@ afterAll(async () => {
   // module registry allocates a new entry for this import rather than returning
   // the mock. We then re-register the original path with the real exports.
   const realModule = await import(
-    `../../../n8n/src/ingestion/context?real=${Date.now()}`
-  ) as typeof import("../../../n8n/src/ingestion/context");
-  mock.module("../../../n8n/src/ingestion/context", () => ({
+    `../../../../n8n/src/ingestion/context?real=${Date.now()}`
+  ) as typeof import("../../../../n8n/src/ingestion/context");
+  mock.module("../../../../n8n/src/ingestion/context", () => ({
     buildClickUpContext: realModule.buildClickUpContext,
     buildDatadogContext: realModule.buildDatadogContext,
   }));
@@ -466,7 +469,7 @@ describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () 
     const proc = Bun.spawn({
       cmd: [
         "bun",
-        "src/index.ts",
+        CLI_ENTRY,
         "ingest",
         "--source",
         "invalid-source",
@@ -488,7 +491,7 @@ describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () 
 
   test("missing --source → exit 2 with clear message", async () => {
     const proc = Bun.spawn({
-      cmd: ["bun", "src/index.ts", "ingest", "--url", "https://example.com", "--json"],
+      cmd: ["bun", CLI_ENTRY, "ingest", "--url", "https://example.com", "--json"],
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -501,7 +504,7 @@ describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () 
 
   test("malformed stdin JSON → exit 2, no JSON on stdout", async () => {
     const proc = Bun.spawn({
-      cmd: ["bun", "src/index.ts", "ingest", "--source", "clickup", "--json"],
+      cmd: ["bun", CLI_ENTRY, "ingest", "--source", "clickup", "--json"],
       stdin: Buffer.from("not-valid-json{{{"),
       stdout: "pipe",
       stderr: "pipe",

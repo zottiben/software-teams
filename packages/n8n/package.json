@@ -18,6 +18,7 @@
     "dev": "n8n-node dev",
     "lint": "n8n-node lint",
     "lint:fix": "n8n-node lint --fix",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "n8n": {
@@ -38,7 +39,7 @@
   },
   "devDependencies": {
     "@n8n/node-cli": "latest",
-    "@websitelabs/software-teams": "file:..",
+    "@websitelabs/software-teams": "workspace:*",
     "eslint": "9.29.0",
     "n8n-workflow": "^2.16.0",
     "typescript": "^5.9.3"
@@ -49,6 +50,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/websitelabs/software-teams.git",
-    "directory": "n8n"
+    "directory": "packages/n8n"
   }
 }

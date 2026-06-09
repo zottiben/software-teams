@@ -16,7 +16,7 @@
  */
 
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
 
 // ── Mock `runAgentTurn` before importing the module under test ────────────────
 // `mock.module` is hoisted by Bun's test runner before ESM imports, ensuring
@@ -29,7 +29,7 @@ const mockRunAgentTurn = mock(async (env: NodeEnvelope): Promise<NodeEnvelope> =
   result: { text: "mocked agent response" },
 }));
 
-mock.module("../../../n8n/src/execution/single-turn", () => ({
+mock.module("../../../../n8n/src/execution/single-turn", () => ({
   runAgentTurn: mockRunAgentTurn,
   SINGLE_TURN_ALLOWED_TOOLS: [],
 }));

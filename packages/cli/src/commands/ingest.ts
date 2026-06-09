@@ -18,11 +18,11 @@
  */
 import { defineCommand } from "citty";
 import { randomUUID } from "crypto";
-import type { NodeEnvelope } from "../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
 import { extractClickUpRef } from "../utils/clickup";
 import { extractDatadogIssue } from "../utils/datadog";
-import { buildClickUpContext, buildDatadogContext } from "../../n8n/src/ingestion/context";
-import type { ClickUpContext, DatadogContext } from "../../n8n/src/ingestion/context";
+import { buildClickUpContext, buildDatadogContext } from "../../../n8n/src/ingestion/context";
+import type { ClickUpContext, DatadogContext } from "../../../n8n/src/ingestion/context";
 import {
   readInputEnvelope,
   writeResult,

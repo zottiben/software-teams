@@ -21,7 +21,7 @@
     "shared/**/*.ts"
   ],
   "references": [
-    { "path": "../tsconfig.node.json" }
+    { "path": "../cli/tsconfig.node.json" }
   ],
   "exclude": [
     "node_modules",

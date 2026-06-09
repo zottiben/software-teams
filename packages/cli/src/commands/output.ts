@@ -20,13 +20,13 @@ import {
   createIssue,
   extractBranchName,
   slugify,
-} from "../../n8n/src/output/github";
+} from "../../../n8n/src/output/github";
 import type {
   CreatePrInput,
   CreateIssueInput,
   GitHubCreatedRef,
-} from "../../n8n/src/output/github";
-import type { NodeEnvelope } from "../../n8n/src/contract/envelope";
+} from "../../../n8n/src/output/github";
+import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
 
 // ---------------------------------------------------------------------------
 // Test stub support (env-gated, subprocess-level purity testing)

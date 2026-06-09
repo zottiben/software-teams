@@ -28,9 +28,9 @@ import {
   planEpic as realPlanEpic,
   serialiseRunState,
   type AgentTurnAdapter,
-} from "../../n8n/src/orchestration/run-state";
-import { runAgentTurn } from "../../n8n/src/execution/single-turn";
-import type { NodeEnvelope } from "../../n8n/src/contract/envelope";
+} from "../../../n8n/src/orchestration/run-state";
+import { runAgentTurn } from "../../../n8n/src/execution/single-turn";
+import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
 
 // ─── Test stub support (env-gated, subprocess-level purity testing) ─────────
 //

@@ -22,7 +22,10 @@
  */
 
 import { describe, test, expect, mock } from "bun:test";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import { join } from "node:path";
+import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+
+const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 import { runOutputEngine, type OutputDeps, type OutputEngineArgs } from "../output";
 import { statusToExitCode } from "../_envelope-io";
 
@@ -693,7 +696,7 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
     const proc = Bun.spawn({
       cmd: [
         "bun",
-        "src/index.ts",
+        CLI_ENTRY,
         "output",
         "--mode",
         "pr",
@@ -725,7 +728,7 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
     const proc = Bun.spawn({
       cmd: [
         "bun",
-        "src/index.ts",
+        CLI_ENTRY,
         "output",
         "--mode",
         "pr",
@@ -762,7 +765,7 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
     };
 
     const proc = Bun.spawn({
-      cmd: ["bun", "src/index.ts", "output", "--mode", "pr", "--json"],
+      cmd: ["bun", CLI_ENTRY, "output", "--mode", "pr", "--json"],
       stdin: Buffer.from(JSON.stringify(inputEnv)),
       stdout: "pipe",
       stderr: "pipe",
