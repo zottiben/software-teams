@@ -1,0 +1,307 @@
+{
+  "name": "Software Teams -- Manual Recipe (ingest -> agent-turn -> output, built-in nodes only)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0001-4001-8001-000000000001",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "notes": "Start here. Update 'Set (Configure)' below with your ticket URL and GitHub details."
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-01",
+              "name": "source",
+              "value": "clickup",
+              "type": "string"
+            },
+            {
+              "id": "cfg-02",
+              "name": "ticketUrl",
+              "value": "https://app.clickup.com/t/YOUR_TASK_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-03",
+              "name": "githubOwner",
+              "value": "your-org",
+              "type": "string"
+            },
+            {
+              "id": "cfg-04",
+              "name": "githubRepo",
+              "value": "your-repo",
+              "type": "string"
+            },
+            {
+              "id": "cfg-05",
+              "name": "githubBase",
+              "value": "main",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4001-8001-000000000002",
+      "name": "Set (Configure)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        240,
+        300
+      ],
+      "notes": "Replace source/ticketUrl with your ticket. Set githubOwner/githubRepo for the output verb."
+    },
+    {
+      "parameters": {
+        "command": "software-teams ingest --source {{ $json.source }} --ref {{ $json.ticketUrl }} --json"
+      },
+      "id": "a1b2c3d4-0003-4001-8001-000000000003",
+      "name": "Execute: ingest",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ],
+      "notes": "Fetches the ticket and emits an initial NodeEnvelope on stdout.\nRequires CLICKUP_API_KEY (or DATADOG_API_KEY/DATADOG_APP_KEY) as worker env vars.\nThe --source flag is a closed enum (safe); --ref is a canvas-configured URL (workflow-author trust boundary per R-07)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse ingest JSON stdout; write envelope to temp file (safe-by-construction stdin pipe, R-08).\n// Envelope content (which may contain shell metacharacters) never touches the command string.\nconst stdout = $input.first().json.stdout;\nif (!stdout || !stdout.trim()) {\n  throw new Error('ingest returned no stdout -- check CLICKUP_API_KEY/DATADOG_API_KEY env vars on worker');\n}\nlet envelope;\ntry {\n  envelope = JSON.parse(stdout.trim());\n} catch (e) {\n  throw new Error('ingest stdout is not valid JSON: ' + e.message);\n}\nif (envelope.status === 'error') {\n  throw new Error('ingest failed: ' + envelope.result.text);\n}\n// Write to temp file so agent-turn can read it from stdin without shell interpolation.\nconst fs = require('fs');\nconst tmpPath = '/tmp/st-at-' + Date.now() + '.json';\nfs.writeFileSync(tmpPath, JSON.stringify(envelope));\nconst cfg = $('Set (Configure)').first().json;\nreturn [{\n  json: {\n    tmpPath: tmpPath,\n    githubOwner: cfg.githubOwner,\n    githubRepo: cfg.githubRepo,\n    githubBase: cfg.githubBase\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0004-4001-8001-000000000004",
+      "name": "Code: Prep agent-turn",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "notes": "Parses ingest stdout -> writes envelope to temp file for safe stdin piping (R-08)."
+    },
+    {
+      "parameters": {
+        "command": "cat {{ $json.tmpPath }} | software-teams agent-turn --json ; rm -f {{ $json.tmpPath }}"
+      },
+      "id": "a1b2c3d4-0005-4001-8001-000000000005",
+      "name": "Execute: agent-turn",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        960,
+        300
+      ],
+      "notes": "Runs one specialist turn via the existing engine.\nRequires: claude binary on worker PATH + ANTHROPIC_API_KEY env var.\nSelf-hosted n8n only (n8n Cloud cannot run the claude binary -- AC9/R-01).\nThe envelope is piped via stdin (temp file), never interpolated into the command string (R-08)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse agent-turn JSON stdout; write envelope to temp file for output verb stdin.\n// Exit code 0 covers both 'ok' AND 'needs-input' (AC7) -- route downstream on status field.\nconst stdout = $input.first().json.stdout;\nif (!stdout || !stdout.trim()) {\n  throw new Error('agent-turn returned no stdout -- is the claude binary installed on the worker?');\n}\nlet envelope;\ntry {\n  envelope = JSON.parse(stdout.trim());\n} catch (e) {\n  throw new Error('agent-turn stdout is not valid JSON: ' + e.message);\n}\n// Write envelope to temp file for safe stdin piping (R-08).\nconst fs = require('fs');\nconst tmpPath = '/tmp/st-out-' + Date.now() + '.json';\nfs.writeFileSync(tmpPath, JSON.stringify(envelope));\nconst prev = $('Code: Prep agent-turn').first().json;\nreturn [{\n  json: {\n    tmpPath: tmpPath,\n    envelopeStatus: envelope.status,\n    githubOwner: prev.githubOwner,\n    githubRepo: prev.githubRepo,\n    githubBase: prev.githubBase\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0006-4001-8001-000000000006",
+      "name": "Code: Prep output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ],
+      "notes": "Parses agent-turn stdout, routes on status field, writes envelope to temp file for output verb."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "if-cond-01",
+              "leftValue": "={{ $json.envelopeStatus }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0007-4001-8001-000000000007",
+      "name": "IF: status ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1440,
+        300
+      ],
+      "notes": "True (top) branch: status='ok' -> proceed to GitHub output.\nFalse (bottom) branch: status='needs-input' (HITL) or 'error'.\nnote: both ok and needs-input exit code 0 per AC7 -- use the status field to distinguish."
+    },
+    {
+      "parameters": {
+        "command": "cat {{ $json.tmpPath }} | software-teams output --mode pr --owner {{ $json.githubOwner }} --repo {{ $json.githubRepo }} --base {{ $json.githubBase }} --json ; rm -f {{ $json.tmpPath }}"
+      },
+      "id": "a1b2c3d4-0008-4001-8001-000000000008",
+      "name": "Execute: output (PR)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        200
+      ],
+      "notes": "Creates a GitHub PR from the completed envelope.\nRequires GITHUB_TOKEN or GH_TOKEN as worker env vars.\nThe envelope is piped via stdin (R-08 safe pattern). Only owner/repo/base (canvas-configured) are interpolated."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse output verb result and extract the created PR or issue URL from artifacts.\nconst stdout = $input.first().json.stdout;\nif (!stdout || !stdout.trim()) {\n  throw new Error('output verb returned no stdout');\n}\nlet envelope;\ntry {\n  envelope = JSON.parse(stdout.trim());\n} catch (e) {\n  throw new Error('output verb stdout is not valid JSON: ' + e.message);\n}\nconst artifact = envelope.artifacts.find(function(a) { return a.type === 'pr' || a.type === 'issue'; });\nreturn [{\n  json: {\n    status: envelope.status,\n    prUrl: artifact ? artifact.url : null,\n    resultText: envelope.result.text,\n    correlationId: envelope.correlationId\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0009-4001-8001-000000000009",
+      "name": "Code: Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        200
+      ],
+      "notes": "Parses output verb result. prUrl contains the created GitHub PR URL."
+    },
+    {
+      "parameters": {
+        "jsCode": "// The agent asked a clarifying question (status: 'needs-input').\n// result.text contains the question text. Extend this branch to:\n//   - Post the question to Slack with n8n's Slack node\n//   - Wait for a response via Slack HITL or webhook\n//   - Feed the answer back into a new agent-turn invocation\nconst prev = $('Code: Prep output').first().json;\nreturn [{\n  json: {\n    status: 'needs-input',\n    message: 'Agent needs human input -- extend this branch for HITL handling',\n    tmpPath: prev.tmpPath\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0010-4001-8001-000000000010",
+      "name": "Code: HITL / error branch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        420
+      ],
+      "notes": "Handles needs-input (HITL) and error statuses.\nExtend this branch with a Slack node to ask the human the agent's question,\nwait for a response, and loop back to Execute: agent-turn."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set (Configure)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set (Configure)": {
+      "main": [
+        [
+          {
+            "node": "Execute: ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute: ingest": {
+      "main": [
+        [
+          {
+            "node": "Code: Prep agent-turn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Prep agent-turn": {
+      "main": [
+        [
+          {
+            "node": "Execute: agent-turn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute: agent-turn": {
+      "main": [
+        [
+          {
+            "node": "Code: Prep output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Prep output": {
+      "main": [
+        [
+          {
+            "node": "IF: status ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: status ok?": {
+      "main": [
+        [
+          {
+            "node": "Execute: output (PR)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code: HITL / error branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute: output (PR)": {
+      "main": [
+        [
+          {
+            "node": "Code: Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a1b2c3d4-cafe-4001-beef-000000000000",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "replace-with-your-instance-id"
+  }
+}

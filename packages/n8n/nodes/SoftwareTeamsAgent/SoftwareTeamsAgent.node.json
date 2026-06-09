@@ -1,0 +1,17 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsAgent",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI", "Development"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/n8n"
+      }
+    ]
+  },
+  "alias": ["agent", "specialist", "claude", "software teams", "ai"],
+  "subcategories": {
+    "AI": ["Agents"]
+  }
+}

@@ -1,0 +1,70 @@
+import { defineCommand } from "citty";
+import { consola } from "consola";
+import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { readState, writeState } from "../utils/state";
+
+export const planApproveCommand = defineCommand({
+  meta: {
+    name: "plan-approve",
+    description: "Approve the current plan for implementation",
+  },
+  args: {
+    plan: {
+      type: "positional",
+      description: "Path to plan file (defaults to current plan from state)",
+      required: false,
+    },
+  },
+  async run({ args }) {
+    const cwd = process.cwd();
+    const state = await readState(cwd);
+
+    if (!state) {
+      consola.error("No Software Teams state found. Run `software-teams init` first.");
+      return;
+    }
+
+    const planPath = args.plan
+      ? resolve(cwd, args.plan as string)
+      : state.current_plan?.path
+      ? resolve(cwd, state.current_plan.path as string)
+      : null;
+    if (!planPath) {
+      consola.error("No plan to approve. Run `software-teams plan` first.");
+      return;
+    }
+
+    if (!existsSync(planPath)) {
+      consola.error(`Plan not found: ${planPath}`);
+      return;
+    }
+
+    // Check if already approved
+    if (state.review?.status === "approved" && state.review?.approved_at) {
+      consola.info(`Plan already approved at ${state.review.approved_at}.`);
+      return;
+    }
+
+    // Approve
+    const now = new Date().toISOString();
+    const revision = (state.review?.revision as number) ?? 1;
+    const planName = (state.position?.plan_name as string) ?? "current plan";
+
+    state.review = {
+      ...state.review,
+      status: "approved" as const,
+      revision: (state.review?.revision as number) ?? 1,
+      scope: (state.review?.scope as "plan" | "implementation") ?? "plan",
+      feedback_history: state.review?.feedback_history ?? [],
+      approved_at: now,
+    };
+    if (state.position) {
+      state.position.status = "approved";
+    }
+    await writeState(cwd, state);
+
+    consola.success(`Plan '${planName}' approved (revision ${revision}).`);
+    consola.info("Say 'implement this' in Claude Code or run `/st:implement-plan` to execute.");
+  },
+});

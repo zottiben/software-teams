@@ -1,44 +1,15 @@
 {
-  "name": "@websitelabs/software-teams",
-  "version": "0.5.57",
-  "description": "Software Teams -  Skills and Agents to help with Software Development",
-  "type": "module",
-  "bin": {
-    "software-teams": "./dist/index.js"
-  },
-  "exports": {
-    ".": "./dist/index.js",
-    "./storage": "./src/storage/index.ts"
-  },
+  "private": true,
+  "workspaces": ["packages/*"],
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target=bun",
-    "dev": "bun run src/index.ts",
-    "test": "bun test"
-  },
-  "dependencies": {
-    "citty": "^0.1.6",
-    "consola": "^3.4.0",
-    "yaml": "^2.9.0"
+    "build": "bun run --cwd packages/cli build",
+    "test": "bun run --cwd packages/cli test && bun run --cwd packages/n8n test",
+    "typecheck": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli typecheck && bun run --cwd packages/n8n typecheck",
+    "lint": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli lint && bun run --cwd packages/n8n lint",
+    "dev": "bun run --cwd packages/cli dev"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.8.0"
-  },
-  "files": [
-    "dist",
-    "action",
-    "agents",
-    "commands",
-    "templates",
-    "rules",
-    "config"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/zottiben/software-teams.git"
-  },
-  "license": "MIT",
-  "engines": {
-    "node": ">=18"
   }
 }

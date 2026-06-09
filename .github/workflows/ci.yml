@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Activates the BENCH_ASSERT-gated test in
-      # src/benchmarks/component-cost.test.ts which checks the most recent
+      # packages/cli/src/benchmarks/component-cost.test.ts which checks the most recent
       # `from-resolved` benchmark entry against the projected 42,009-token
       # ceiling within ±5%. Flipped on as part of plan 4-01-T5 once the
       # post-audit measurement was confirmed inside the soft-fail band.
@@ -25,6 +25,12 @@ jobs:
 
       - run: bun install
 
+      - name: Typecheck (CLI + n8n)
+        run: bun run typecheck
+
+      - name: Lint (CLI + n8n)
+        run: bun run lint
+
       - run: bun run build
 
       - name: Bundle stub-detector
@@ -33,9 +39,9 @@ jobs:
         # node:* imports. The stubs typecheck fine and tests pass, but every
         # CLI command crashes at runtime. Fail CI loudly if any stub appears.
         run: |
-          if grep -qE '= \(\(\) => \(\{\}\)\)' dist/index.js; then
+          if grep -qE '= \(\(\) => \(\{\}\)\)' packages/cli/dist/index.js; then
             echo "::error::Bundle contains empty-object stubs from a bundler regression."
-            grep -n '= (() => ({}))' dist/index.js | head -10
+            grep -n '= (() => ({}))' packages/cli/dist/index.js | head -10
             exit 1
           fi
 
@@ -47,13 +53,13 @@ jobs:
           set -e
           tmp=$(mktemp -d)
           cd "$tmp"
-          bun "$GITHUB_WORKSPACE/dist/index.js" init --ci
+          bun "$GITHUB_WORKSPACE/packages/cli/dist/index.js" init --ci
           if find . -name '*.md' -exec sh -c 'xxd "$1" | grep -q "c3a2 c286"' _ {} \; -print | grep .; then
             echo "::error::Generated files contain UTF-8 mojibake (double-encoded characters)."
             exit 1
           fi
 
-      - run: bun test
+      - run: bun run test
 
   component-validate:
     # Validates the @ST: component registry: every section's `requires`
@@ -73,4 +79,4 @@ jobs:
       - run: bun run build
 
       - name: Component registry validation
-        run: bun run dist/index.js component validate
+        run: bun run packages/cli/dist/index.js component validate

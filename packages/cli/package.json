@@ -1,0 +1,57 @@
+{
+  "name": "@websitelabs/software-teams",
+  "version": "0.5.57",
+  "description": "Software Teams -  Skills and Agents to help with Software Development",
+  "type": "module",
+  "bin": {
+    "software-teams": "./dist/index.js"
+  },
+  "main": "./lib/n8n-api.js",
+  "types": "./lib/n8n-api.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/n8n-api.js",
+      "import": "./src/n8n-api.ts",
+      "types": "./lib/n8n-api.d.ts"
+    },
+    "./storage": "./src/storage/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
+    "build:lib": "tsc -b tsconfig.node.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "bun run src/index.ts",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "citty": "^0.1.6",
+    "consola": "^3.4.0",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "@types/bun": "latest",
+    "eslint": "9.29.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0"
+  },
+  "files": [
+    "dist",
+    "action",
+    "agents",
+    "commands",
+    "templates",
+    "rules",
+    "config"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zottiben/software-teams.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}

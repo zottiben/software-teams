@@ -7,3 +7,14 @@ bun.lockb
 .software-teams/
 /.claude/commands/st/
 dist-test/
+
+# TypeScript declaration outputs (separate from Bun dist bundle)
+lib/
+lib-esm/
+
+# n8n community node build outputs (reproducible from source)
+packages/n8n/dist/
+*.tsbuildinfo
+
+# Test output artifacts
+.st_test_out.txt
