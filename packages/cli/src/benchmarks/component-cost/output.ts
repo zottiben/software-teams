@@ -6,7 +6,7 @@ import { measureScenarioResolved, measureScenario, projectPerPlan, SCENARIOS } f
 
 const PROJECTED_CEILING_TOKENS = 42009;
 const PROJECTED_CEILING_TOOL_CALLS = 19;
-const MODE: "from-resolved" = "from-resolved";
+const MODE = "from-resolved" as const;
 
 export function formatTable(rows: string[][]) {
   const widths = rows[0].map((_, c) => Math.max(...rows.map((r) => r[c].length)));
@@ -65,9 +65,12 @@ export function main() {
   console.log(formatTable(summary));
   console.log();
 
-  const planScenario = scenarios.find((s) => s.name.startsWith("implement-plan"))!;
-  const backendScenario = scenarios.find((s) => s.name.startsWith("software-teams-backend"))!;
-  const qaScenario = scenarios.find((s) => s.name.startsWith("software-teams-qa-tester"))!;
+  const planScenario = scenarios.find((s) => s.name.startsWith("implement-plan"));
+  const backendScenario = scenarios.find((s) => s.name.startsWith("software-teams-backend"));
+  const qaScenario = scenarios.find((s) => s.name.startsWith("software-teams-qa-tester"));
+  if (!planScenario || !backendScenario || !qaScenario) {
+    throw new Error("Benchmark: required scenario(s) not found in results");
+  }
 
   const planTotal = {
     tokens:

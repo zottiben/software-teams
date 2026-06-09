@@ -6,7 +6,7 @@ export {
   buildAutoCommitBlock,
   buildRulesBlock,
 } from "./prompt-builder/context";
-export { readAgentSpecBody, _resetAgentSpecCache } from "./prompt-builder/agent-spec";
+export { readAgentSpecBody, resetAgentSpecCache } from "./prompt-builder/agent-spec";
 export {
   buildPlanPrompt,
   detectPlanTier,

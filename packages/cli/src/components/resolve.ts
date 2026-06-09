@@ -217,7 +217,8 @@ export function getComponent(name: string, section?: string): string {
 
   const pairs = collectDeps(name, section, visited, colours, path);
 
-  const bodies = pairs.map((p) => bodyOf(p.name, p.section!));
+  // section is always populated by collectDeps (items come from sectionKeys: string[])
+  const bodies = pairs.map((p) => bodyOf(p.name, p.section as string));
   const resolved = bodies.join("\n\n");
 
   _cache.set(cacheKey, resolved);
@@ -271,6 +272,6 @@ export function tryResolve(ref: SectionRef): string | null {
  * Expose the internal cache for testing purposes only.
  * @internal
  */
-export function _resetCache(): void {
+export function resetCache(): void {
   _cache.clear();
 }

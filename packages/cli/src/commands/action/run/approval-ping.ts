@@ -21,7 +21,9 @@ async function readInstalledVersion(
       const pkg = JSON.parse(await Bun.file(pkgPath).text());
       return pkg.version as string;
     }
-  } catch {}
+  } catch {
+    // Package version unreadable — return "unknown"
+  }
   return "unknown";
 }
 

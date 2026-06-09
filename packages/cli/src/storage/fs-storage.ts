@@ -10,7 +10,7 @@ export class FsStorage implements SoftwareTeamsStorage {
   }
 
   private resolveKey(key: string): string {
-    const sanitized = key.replace(/[\/\\]/g, "_").replace(/\.\./g, "_");
+    const sanitized = key.replace(/[/\\]/g, "_").replace(/\.\./g, "_");
     const filePath = join(this.basePath, `${sanitized}.md`);
     const resolved = resolve(filePath);
     if (!resolved.startsWith(resolve(this.basePath) + "/")) {

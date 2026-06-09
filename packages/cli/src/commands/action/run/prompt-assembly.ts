@@ -311,7 +311,7 @@ export async function buildLabelPathPrompt(opts: {
   const routerCtx: ActionContext = {
     flow: { kind: "plan" },
     userRequest: intent.description,
-    repo: repo!,
+    repo: repo,
     issueNumber,
     conversationHistory: "",
     projectLines,

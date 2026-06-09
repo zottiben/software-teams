@@ -50,7 +50,7 @@ export function readAgentSpecBody(cwd: string, agentName: string): string | null
   }
 }
 
-export function _resetAgentSpecCache(): void {
+export function resetAgentSpecCache(): void {
   _agentSpecCache.clear();
 }
 

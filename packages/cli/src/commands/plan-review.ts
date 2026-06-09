@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { resolve, join } from "node:path";
+import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { readState, writeState } from "../utils/state";
 

@@ -112,7 +112,7 @@ export function mergeHooks(
 ): Settings {
   return additions.reduce<Settings>((result, { event, matcher, command }) => {
     const hooks: NonNullable<Settings["hooks"]> = result.hooks ? { ...result.hooks } : {};
-    const eventArray: PreToolUseHook[] = hooks[event] ? [...hooks[event]!] : [];
+    const eventArray: PreToolUseHook[] = hooks[event] ? [...(hooks[event] ?? [])] : [];
     hooks[event] = eventArray;
 
     const matcherIdx = eventArray.findIndex((h) => h.matcher === matcher);
@@ -120,7 +120,8 @@ export function mergeHooks(
     if (matcherIdx === -1) {
       eventArray.push({ matcher, hooks: [{ type: "command", command }] });
     } else {
-      const matchingEntry = eventArray[matcherIdx]!;
+      const matchingEntry = eventArray[matcherIdx];
+      if (!matchingEntry) return { ...result, hooks }; // should not happen after findIndex check
       const hookEntries = [...matchingEntry.hooks];
       if (!hookEntries.some((e) => e.command === command)) {
         hookEntries.push({ type: "command", command });
@@ -159,11 +160,13 @@ export function removeHooks(
   return removals.reduce<Settings>((result, { event, matcher, command }) => {
     if (!result.hooks?.[event]) return result;
 
-    const eventArray = result.hooks[event]!;
+    const eventArray = result.hooks[event];
+    if (!eventArray) return result;
     const matcherIdx = eventArray.findIndex((h) => h.matcher === matcher);
     if (matcherIdx === -1) return result;
 
-    const matchingEntry = eventArray[matcherIdx]!;
+    const matchingEntry = eventArray[matcherIdx];
+    if (!matchingEntry) return result;
     const filteredHookEntries = matchingEntry.hooks.filter((e) => e.command !== command);
 
     const newEventArray = filteredHookEntries.length === 0
@@ -178,6 +181,7 @@ export function removeHooks(
     }
 
     if (Object.keys(newHooks).length === 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructuring excludes hooks from rest spread
       const { hooks: _hooks, ...rest } = result;
       return rest as Settings;
     }

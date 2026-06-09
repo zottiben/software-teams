@@ -47,7 +47,7 @@ export async function parseOrchestration(filePath: string): Promise<ParsedOrches
     const section = nextHeader >= 0 ? after.slice(0, nextHeader) : after;
     const lines = section.split("\n").filter((l) => /^\s*\|/.test(l));
     if (lines.length > 0) {
-      const header = lines[0]!.split("|").map((c) => c.trim().toLowerCase()).filter(Boolean);
+      const header = lines[0].split("|").map((c) => c.trim().toLowerCase()).filter(Boolean);
       const required = ["id", "name", "agent", "wave", "depends on", "slice"];
       for (const col of required) {
         if (!header.includes(col)) {

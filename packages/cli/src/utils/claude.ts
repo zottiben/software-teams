@@ -119,11 +119,13 @@ export async function spawnClaude(
   });
 
   if (useStdin) {
-    proc.stdin!.write(prompt);
-    proc.stdin!.end();
+    if (!proc.stdin) throw new Error("Expected proc.stdin to be writable (stdin: \"pipe\")");
+    proc.stdin.write(prompt);
+    proc.stdin.end();
   }
 
-  const reader = proc.stdout!.getReader();
+  if (!proc.stdout) throw new Error("Expected proc.stdout to be readable (stdout: \"pipe\")");
+  const reader = proc.stdout.getReader();
   const decoder = new TextDecoder();
   const formatStreamEvent = makeStreamFormatter();
   const streamState = { buffer: "", lastTextResponse: "" };

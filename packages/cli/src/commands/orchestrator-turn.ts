@@ -44,6 +44,7 @@ function getPlanEpicFn() {
     return async (
       epic: string,
       correlationId: string,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub function matches realPlanEpic signature; adapter intentionally unused in test mode
       _adapter: AgentTurnAdapter,
     ) => ({
       correlationId,
@@ -179,7 +180,7 @@ export async function runOrchestratorTurn(
   ];
   for (const wave of waves) {
     lines.push(`Wave ${wave}:`);
-    for (const task of tasksByWave.get(wave)!) {
+    for (const task of (tasksByWave.get(wave) ?? [])) {
       const deps =
         task.dependsOn.length > 0
           ? ` (deps: ${task.dependsOn.join(", ")})`

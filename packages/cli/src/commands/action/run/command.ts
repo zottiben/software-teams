@@ -123,7 +123,7 @@ export const runCommand = defineCommand({
     }
 
     if (commentAuthor && (allowedUsers || process.env.SOFTWARE_TEAMS_AUTH_ENABLED)) {
-      const authResult = await checkAuthorization(repo!, commentAuthor, allowedUsers || undefined);
+      const authResult = await checkAuthorization(repo ?? "", commentAuthor, allowedUsers || undefined);
       if (!authResult.authorized) {
         consola.warn(`Auth denied: ${authResult.reason}`);
         if (repo && commentId) {
@@ -138,7 +138,11 @@ export const runCommand = defineCommand({
     }
 
     if (args["event-type"] === "issue_labeled") {
-      await runLabelTriggeredPath({ cwd, repo: repo!, issueNumber });
+      if (!repo) {
+        consola.error("issue_labeled event requires a repo (--repo or GITHUB_REPOSITORY)");
+        process.exit(1);
+      }
+      await runLabelTriggeredPath({ cwd, repo, issueNumber });
       return;
     }
 

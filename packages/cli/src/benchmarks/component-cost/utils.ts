@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, basename } from "node:path";
-import type { TagRef, ComponentResolution, ScenarioResult } from "./types";
+import type { TagRef, ComponentResolution } from "./types";
 
 const REPO_ROOT = process.cwd();
 const CHARS_PER_TOKEN = 4;
@@ -76,7 +76,7 @@ export function extractSection(content: string, sectionName: string): string | n
 
   const { idx: startIdx, depth: startDepth } = startEntry;
   const endIdx = lines.findIndex(
-    (line, i) => i > startIdx && /^(#{2,6})\s+/.test(line) && (line.match(/^(#{2,6})/)![1].length <= startDepth),
+    (line, i) => i > startIdx && /^(#{2,6})\s+/.test(line) && ((line.match(/^(#{2,6})/)?.[1]?.length ?? 0) <= startDepth),
   );
   return lines.slice(startIdx, endIdx < 0 ? lines.length : endIdx).join("\n").trim();
 }

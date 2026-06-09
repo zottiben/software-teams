@@ -11,7 +11,9 @@ export async function detectProjectType(cwd: string): Promise<ProjectType> {
       if (composer.require?.["laravel/framework"]) {
         return "laravel";
       }
-    } catch {}
+    } catch {
+      // Not a Laravel project — continue detection
+    }
   }
 
   // Next.js: next.config.* files

@@ -56,8 +56,8 @@ export default tseslint.config(
       },
     },
   },
-  // __tests__ override: exempt from type-strictness rules (RQ-01)
-  // Structural rules (naming, no-var) still apply; no-any and prefer-const are relaxed.
+  // __tests__ override: exempt from type-strictness and test-scaffolding rules (RQ-01)
+  // Naming/no-var structural rules still apply.
   {
     files: ['**/__tests__/**/*.ts'],
     rules: {
@@ -65,6 +65,11 @@ export default tseslint.config(
       'prefer-const': 'off',
       'no-restricted-syntax': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-regex-spaces': 'off',
+      'no-useless-escape': 'off',
     },
   },
 );

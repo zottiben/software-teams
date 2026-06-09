@@ -53,9 +53,9 @@ const CLICKUP_URL_PATTERNS_WITH_TEAM = [
   /clickup\.com\/t\/(\d+)\/([A-Za-z0-9_-]+)/,
 ];
 const CLICKUP_URL_PATTERNS_SIMPLE = [
-  /app\.clickup\.com\/t\/([a-z0-9]+)(?![\/\w-])/i,
-  /sharing\.clickup\.com\/t\/([a-z0-9]+)(?![\/\w-])/i,
-  /clickup\.com\/t\/([a-z0-9]+)(?![\/\w-])/i,
+  /app\.clickup\.com\/t\/([a-z0-9]+)(?![/\w-])/i,
+  /sharing\.clickup\.com\/t\/([a-z0-9]+)(?![/\w-])/i,
+  /clickup\.com\/t\/([a-z0-9]+)(?![/\w-])/i,
 ];
 
 export function extractClickUpRef(text: string): ClickUpRef | null {

@@ -7,7 +7,8 @@ import selfReferenceStyleFragment from "../../../../commands/_shared/self-refere
 import prTemplateConcisenessFragment from "../../../../commands/_shared/pr-template-conciseness.md" with { type: "text" };
 
 function buildPerSliceBrief(ctx: ActionContext, slice: { slicePath: string; agentType: string }, sliceIndex: number): string {
-  const orch = ctx.orchestration!;
+  if (!ctx.orchestration) throw new Error("buildPerSliceBrief called without orchestration context");
+  const orch = ctx.orchestration;
   const lines: string[] = [];
   lines.push(`TASK_FILE: ${slice.slicePath}`);
   if (orch.specPath) lines.push(`SPEC: ${orch.specPath}`);
@@ -37,7 +38,8 @@ function buildPerSliceBrief(ctx: ActionContext, slice: { slicePath: string; agen
 }
 
 function buildOrchestratorPrompt(ctx: ActionContext): string {
-  const orch = ctx.orchestration!;
+  if (!ctx.orchestration) throw new Error("buildOrchestratorPrompt called without orchestration context");
+  const orch = ctx.orchestration;
   const fb = ctx.featureBranch;
   const prCompareUrl = fb
     ? `https://github.com/${ctx.repo}/compare/${fb.defaultBranch}...${fb.branchName}`

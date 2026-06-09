@@ -8,8 +8,6 @@ export function detectType(files: string[]): string {
   if (files.every((f) => f.endsWith(".md"))) return "docs";
   if (files.every((f) => f.includes("Dockerfile") || f.includes(".yml") || f.includes(".yaml") || f.includes(".github/"))) return "ci";
 
-  // Check status to see if files are new
-  const hasNew = files.length > 0; // simplified; refined below in run()
   return "feat";
 }
 
@@ -22,7 +20,7 @@ export function detectScope(files: string[]): string | null {
   }).filter(Boolean);
 
   const unique = [...new Set(dirs)];
-  if (unique.length === 1) return unique[0]!;
+  if (unique.length === 1) return unique[0] ?? null;
   return null;
 }
 
@@ -73,8 +71,6 @@ export const commitCommand = defineCommand({
       }
     }
 
-    const statusOut = await gitStatus();
-    const newFiles = statusOut.split("\n").filter((l) => l.startsWith("??") || l.startsWith("A ")).map((l) => l.slice(3).trim());
 
     const type = stagedFiles.every((f) => f.startsWith("test") || f.includes("__tests__") || f.includes(".test.") || f.includes(".spec."))
       ? "test"
