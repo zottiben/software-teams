@@ -25,7 +25,7 @@ describe("action run command prompt invariants", () => {
   // the SPLIT-format and task-file instructions.
   describe("plan case - plan-format references", () => {
     test("router-prompts source drives the planner toward three-tier (canonical Software Teams plan shape)", async () => {
-      const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../router-prompts/brief-builders.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/three-tier/i);
       // The canonical three-tier artifacts contract now lives in the shared
       // fragment imported here — verify the import is present and the
@@ -49,7 +49,7 @@ describe("action run command prompt invariants", () => {
 
   describe("refinement case - in-place plan edits", () => {
     test("router-prompts source keeps refinement → in-place edit + tier-preservation guidance", async () => {
-      const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../router-prompts/brief-builders.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/update them in place/i);
       expect(source).toMatch(/do NOT switch tiers/);
     });
@@ -109,7 +109,7 @@ describe("action run command prompt invariants", () => {
       // After phase 5 cleanup the action runner no longer builds prompts
       // directly — every per-flow prompt lives in router-prompts.ts, which is
       // where `fenceUserInput("user-request", …)` now belongs.
-      const source = await Bun.file(new URL("../router-prompts.ts", import.meta.url).pathname).text();
+      const source = await Bun.file(new URL("../router-prompts/brief-builders.ts", import.meta.url).pathname).text();
       expect(source).toMatch(/fenceUserInput\("user-request"/);
     });
 
