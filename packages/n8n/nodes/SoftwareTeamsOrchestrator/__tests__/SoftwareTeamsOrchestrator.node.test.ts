@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { SoftwareTeamsOrchestrator } from "../SoftwareTeamsOrchestrator.node";
-import type { NodeEnvelope } from "../../src/contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 
 /**
  * SoftwareTeamsOrchestrator node test suite (T9 - AC4, R-04, R-05)

@@ -18,7 +18,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
-import type { NodeEnvelope } from '../contract/envelope';
+import type { NodeEnvelope } from '@websitelabs/software-teams';
 
 // --------------------------------------------------------------------------
 // Types

@@ -1,4 +1,4 @@
-import type { NodeEnvelope } from "../../contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 
 // ---------------------------------------------------------------------------
 // Task shape — mirrors `OrchestrationTask` in src/utils/parse-orchestration.ts.

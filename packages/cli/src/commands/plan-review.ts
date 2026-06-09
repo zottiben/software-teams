@@ -94,6 +94,9 @@ export const planReviewCommand = defineCommand({
       state.review = {
         ...state.review,
         status: "approved" as const,
+        revision: (state.review?.revision as number) ?? revision,
+        scope: (state.review?.scope as "plan" | "implementation") ?? "plan",
+        feedback_history: state.review?.feedback_history ?? [],
         approved_at: now,
       };
       if (state.position) {

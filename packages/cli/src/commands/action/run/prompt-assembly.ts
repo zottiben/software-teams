@@ -260,9 +260,11 @@ export async function buildCommentPrompt(opts: {
       return buildRouterPrompt(routerCtx);
     }
 
-    // Note: `ping` is handled earlier in the function and never reaches
-    // this switch. TypeScript narrows it out of `intent.command` by the
-    // time we get here.
+    case "ping":
+      // `ping` is handled earlier in the function (before this switch) and
+      // never reaches here. This case satisfies the exhaustiveness check.
+      throw new Error("Unreachable: ping is handled before the switch");
+
     default: {
       // Exhaustiveness — every command in SoftwareTeamsCommand must have
       // a case above. If TypeScript complains here, add the missing case.

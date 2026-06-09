@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { NodeEnvelope, ArtifactRef } from "../envelope";
+import type { NodeEnvelope, ArtifactRef } from "@websitelabs/software-teams";
 
 describe("NodeEnvelope contract (AC3, drift guard per n8n/CONTRACT.md §1)", () => {
   describe("envelope shape — all six fields present and typed correctly", () => {

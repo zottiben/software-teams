@@ -26,7 +26,7 @@ import type {
   CreateIssueInput,
   GitHubCreatedRef,
 } from "../../../n8n/src/output/github";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../contract/envelope";
 
 // ---------------------------------------------------------------------------
 // Test stub support (env-gated, subprocess-level purity testing)

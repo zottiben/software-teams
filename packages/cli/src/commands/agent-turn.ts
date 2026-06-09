@@ -23,7 +23,7 @@
 import { defineCommand } from "citty";
 import { runVerb } from "./_envelope-io";
 import { runAgentTurn } from "../../../n8n/src/execution/single-turn";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../contract/envelope";
 
 // ─── Test stub support (env-gated, subprocess-level purity testing) ─────────
 //

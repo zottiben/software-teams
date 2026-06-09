@@ -14,7 +14,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { join } from 'node:path';
 import { existsSync, unlinkSync } from 'node:fs';
-import type { NodeEnvelope } from '../../contract/envelope';
+import type { NodeEnvelope } from '@websitelabs/software-teams';
 import {
   saveState,
   loadState,

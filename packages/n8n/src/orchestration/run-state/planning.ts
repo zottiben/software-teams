@@ -1,4 +1,4 @@
-import type { NodeEnvelope } from "../../contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 import type { AgentTurnAdapter, OrchestrationTask, PlanResult } from "./shapes";
 import { orderTasks, tasksToEnvelopes } from "./ordering";
 import { initRunState } from "./transitions";

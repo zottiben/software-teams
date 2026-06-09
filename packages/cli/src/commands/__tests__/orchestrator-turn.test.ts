@@ -21,7 +21,7 @@
  */
 
 import { describe, test, expect } from "bun:test";
-import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../contract/envelope";
 import type { AgentTurnAdapter } from "../../../../n8n/src/orchestration/run-state";
 import { runOrchestratorTurn } from "../orchestrator-turn";
 

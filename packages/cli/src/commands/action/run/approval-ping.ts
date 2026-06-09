@@ -41,6 +41,9 @@ export async function runApprovalHandler(opts: {
   state.review = {
     ...state.review,
     status: "approved" as const,
+    revision: (state.review?.revision as number) ?? 1,
+    scope: (state.review?.scope as "plan" | "implementation") ?? "plan",
+    feedback_history: state.review?.feedback_history ?? [],
     approved_at: new Date().toISOString(),
   };
   await writeState(cwd, state);

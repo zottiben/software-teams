@@ -19,7 +19,7 @@
 
 import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
 import { join } from "node:path";
-import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../contract/envelope";
 
 const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 import {
@@ -203,7 +203,6 @@ describe("writeResult — --json mode (stdout purity gate)", () => {
   beforeEach(() => {
     capturedStdout = "";
     originalWrite = process.stdout.write.bind(process.stdout);
-    // @ts-expect-error — override for test capture
     process.stdout.write = (chunk: Buffer | string) => {
       capturedStdout += typeof chunk === "string" ? chunk : chunk.toString();
       return true;
@@ -259,7 +258,6 @@ describe("writeResult — human mode (stdout must be empty)", () => {
   beforeEach(() => {
     stdoutWritten = false;
     originalWrite = process.stdout.write.bind(process.stdout);
-    // @ts-expect-error — override for test detection
     process.stdout.write = (_chunk: Buffer | string) => {
       stdoutWritten = true;
       return true;
@@ -331,7 +329,6 @@ describe("redirectConsolaToStderr — R-09 stdout purity", () => {
 
     let stdoutHit = false;
     const orig = process.stdout.write.bind(process.stdout);
-    // @ts-expect-error — temporary spy
     process.stdout.write = (_chunk: Buffer | string) => {
       stdoutHit = true;
       return true;

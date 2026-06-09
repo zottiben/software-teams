@@ -38,7 +38,7 @@ import {
   NodeOperationError,
 } from "n8n-workflow";
 
-import type { NodeEnvelope } from "../../src/contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 import {
   buildClickUpContext,
   buildDatadogContext,

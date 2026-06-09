@@ -18,7 +18,7 @@
 
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
-import type { NodeEnvelope } from "../contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 // Security: input sanitisation primitives and the Task-disabled allowed-tools
 // list are consumed from the communal CLI surface (single source of truth) via
 // the @websitelabs/software-teams workspace dependency — no copy-paste here.

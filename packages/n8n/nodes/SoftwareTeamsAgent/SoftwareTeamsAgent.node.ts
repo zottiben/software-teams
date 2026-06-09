@@ -8,7 +8,7 @@ import {
   NodeOperationError,
 } from 'n8n-workflow';
 import { randomUUID } from 'node:crypto';
-import type { NodeEnvelope } from '../../src/contract/envelope';
+import type { NodeEnvelope } from '@websitelabs/software-teams';
 
 // ---------------------------------------------------------------------------
 // runAgentTurn loader — break the static import chain to Bun-specific code

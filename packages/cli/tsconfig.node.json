@@ -15,6 +15,7 @@
   },
   "include": [
     "src/n8n-api.ts",
+    "src/contract/envelope.ts",
     "src/utils/clickup.ts",
     "src/utils/datadog.ts",
     "src/utils/pii-scrubber.ts",

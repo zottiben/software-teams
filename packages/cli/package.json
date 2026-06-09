@@ -18,6 +18,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "dev": "bun run src/index.ts",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",

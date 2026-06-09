@@ -50,7 +50,7 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
-import type { NodeEnvelope } from '../../src/contract/envelope';
+import type { NodeEnvelope } from '@websitelabs/software-teams';
 
 // ---------------------------------------------------------------------------
 // runAgentTurn — lazy require (single-turn.ts uses Bun-specific APIs that

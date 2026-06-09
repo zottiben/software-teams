@@ -28,9 +28,10 @@ import {
   planEpic as realPlanEpic,
   serialiseRunState,
   type AgentTurnAdapter,
+  type PlanResult,
 } from "../../../n8n/src/orchestration/run-state";
 import { runAgentTurn } from "../../../n8n/src/execution/single-turn";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../contract/envelope";
 
 // ─── Test stub support (env-gated, subprocess-level purity testing) ─────────
 //
@@ -46,7 +47,7 @@ function getPlanEpicFn() {
       correlationId: string,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars -- stub function matches realPlanEpic signature; adapter intentionally unused in test mode
       _adapter: AgentTurnAdapter,
-    ) => ({
+    ): Promise<PlanResult> => ({
       correlationId,
       tasks: [
         {

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { NodeEnvelope } from "../src/contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 import { isNodeEnvelope } from "../src/orchestration/run-state";
 
 /**

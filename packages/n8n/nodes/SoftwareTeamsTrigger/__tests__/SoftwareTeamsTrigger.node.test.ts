@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { SoftwareTeamsTrigger } from "../SoftwareTeamsTrigger.node";
-import type { NodeEnvelope } from "../../src/contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 
 /**
  * SoftwareTeamsTrigger node test suite (T6 - AC5)

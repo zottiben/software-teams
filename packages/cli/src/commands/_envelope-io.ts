@@ -1,4 +1,4 @@
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../contract/envelope";
 import { consola, createConsola } from "consola";
 
 export const stderrLog = createConsola({

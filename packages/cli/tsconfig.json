@@ -7,9 +7,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "lib-esm",
-    "rootDir": "src",
     "declaration": true,
-    "composite": true,
     "types": ["@types/bun"]
   },
   "include": ["src/**/*"]

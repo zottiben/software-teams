@@ -35,3 +35,5 @@ export {
 } from "./shared/agent-tools";
 
 export { slugify } from "./shared/slugify";
+
+export type { NodeEnvelope, ArtifactRef } from "./contract/envelope";

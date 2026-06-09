@@ -23,7 +23,7 @@
 
 import { describe, test, expect, mock } from "bun:test";
 import { join } from "node:path";
-import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../contract/envelope";
 
 const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 import { runOutputEngine, type OutputDeps, type OutputEngineArgs } from "../output";

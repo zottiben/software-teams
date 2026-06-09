@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { runAgentTurn } from "../single-turn";
-import type { NodeEnvelope } from "../../contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 
 describe("runAgentTurn — single-turn execution adapter (AC2, AC3, AC9)", () => {
   let testEnvelope: NodeEnvelope;

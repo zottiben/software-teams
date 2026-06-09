@@ -1,4 +1,4 @@
-import type { NodeEnvelope } from "../../contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 import type { RunState } from "./shapes";
 
 // ---------------------------------------------------------------------------

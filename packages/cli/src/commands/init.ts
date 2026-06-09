@@ -96,7 +96,7 @@ export const initCommand = defineCommand({
         try {
           const cfgContent = await Bun.file(cfgPath).text();
           const cfg = (parseYaml(cfgContent) ?? {}) as Record<string, unknown>;
-          return !(cfg.features && typeof cfg.features === "object" && cfg.features.native_subagents === false);
+          return !(cfg.features && typeof cfg.features === "object" && (cfg.features as Record<string, unknown>).native_subagents === false);
         } catch {
           return true;
         }

@@ -16,7 +16,7 @@
  */
 
 import { describe, test, expect, mock, beforeEach } from "bun:test";
-import type { NodeEnvelope } from "../../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../../contract/envelope";
 
 // ── Mock `runAgentTurn` before importing the module under test ────────────────
 // `mock.module` is hoisted by Bun's test runner before ESM imports, ensuring

@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from "bun:test";
 import { SoftwareTeamsAgent } from "../SoftwareTeamsAgent.node";
-import type { NodeEnvelope } from "../../src/contract/envelope";
+import type { NodeEnvelope } from "@websitelabs/software-teams";
 
 /**
  * SoftwareTeamsAgent node test suite (T5 - AC1, AC2, AC3)

@@ -24,6 +24,7 @@
 import { describe, test, expect, mock, beforeEach, afterAll } from "bun:test";
 import { join } from "node:path";
 import type { ClickUpContext, DatadogContext } from "../../../../n8n/src/ingestion/context";
+import type { NodeEnvelope } from "../../contract/envelope";
 
 const CLI_ENTRY = join(import.meta.dir, "..", "..", "index.ts");
 

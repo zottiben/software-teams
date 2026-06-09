@@ -1,10 +1,16 @@
 import { defineCommand } from "citty";
 import { randomUUID } from "crypto";
-import type { NodeEnvelope } from "../../../n8n/src/contract/envelope";
+import type { NodeEnvelope } from "../contract/envelope";
 import { extractClickUpRef } from "../utils/clickup";
 import { extractDatadogIssue } from "../utils/datadog";
 import { buildClickUpContext, buildDatadogContext } from "../../../n8n/src/ingestion/context";
-import type { ClickUpContext, DatadogContext } from "../../../n8n/src/ingestion/context";
+import type {
+  ClickUpContext,
+  DatadogContext,
+  ClickUpContextCredentials,
+  DatadogContextCredentials,
+} from "../../../n8n/src/ingestion/context";
+import type { ClickUpRef } from "../utils/clickup";
 import {
   readInputEnvelope,
   writeResult,
@@ -15,30 +21,41 @@ import {
 
 const DEFAULT_AGENT = "software-teams-researcher";
 
-function getIngestAdapters(source: "clickup" | "datadog") {
+interface ClickUpAdapters {
+  buildContext: (ref: ClickUpRef, creds: ClickUpContextCredentials) => Promise<ClickUpContext | null>;
+}
+interface DatadogAdapters {
+  buildContext: (issueId: string, apiBase: string, creds: DatadogContextCredentials) => Promise<DatadogContext | null>;
+}
+
+function getIngestAdapters(source: "clickup"): ClickUpAdapters;
+function getIngestAdapters(source: "datadog"): DatadogAdapters;
+function getIngestAdapters(source: "clickup" | "datadog"): ClickUpAdapters | DatadogAdapters {
   if (process.env.ST_CLI_TEST_STUB === "1") {
     if (source === "clickup") {
-      return {
-        buildContext: async (): Promise<ClickUpContext | null> => ({
+      const clickUpStub: ClickUpAdapters = {
+        buildContext: async () => ({
           source: "clickup",
           ticketId: "TEST-123",
           summary: "## ClickUp Ticket (sanitised): Test Task\n_PII patterns have been replaced._",
         }),
       };
+      return clickUpStub;
     } else {
-      return {
-        buildContext: async (): Promise<DatadogContext | null> => ({
+      const datadogStub: DatadogAdapters = {
+        buildContext: async () => ({
           source: "datadog",
           issueId: "test-issue-uuid",
           summary: "## Datadog Error Context (sanitised)\n_PII has been replaced._",
         }),
       };
+      return datadogStub;
     }
   }
-  return {
-    buildContext:
-      source === "clickup" ? buildClickUpContext : buildDatadogContext,
-  };
+  if (source === "clickup") {
+    return { buildContext: buildClickUpContext };
+  }
+  return { buildContext: buildDatadogContext };
 }
 
 export interface IngestEngineOptions {

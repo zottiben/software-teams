@@ -15,7 +15,6 @@ beforeEach(() => {
   mockWhichResult = "/usr/local/bin/claude";
   mockStdout = "";
 
-  // @ts-expect-error - mocking Bun.which
   Bun.which = mock((_name: string) => mockWhichResult);
 
   // @ts-expect-error - mocking Bun.spawn
@@ -42,7 +41,6 @@ beforeEach(() => {
 
 afterAll(() => {
   Bun.spawn = originalSpawn;
-  // @ts-expect-error - restoring
   Bun.which = originalWhich;
 });
 
