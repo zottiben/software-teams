@@ -25,6 +25,12 @@ jobs:
 
       - run: bun install
 
+      - name: Typecheck (CLI + n8n)
+        run: bun run typecheck
+
+      - name: Lint (CLI + n8n)
+        run: bun run lint
+
       - run: bun run build
 
       - name: Bundle stub-detector
