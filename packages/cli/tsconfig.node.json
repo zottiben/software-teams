@@ -18,6 +18,8 @@
     "src/utils/clickup.ts",
     "src/utils/datadog.ts",
     "src/utils/pii-scrubber.ts",
-    "src/utils/sanitize.ts"
+    "src/utils/sanitize.ts",
+    "src/shared/agent-tools.ts",
+    "src/shared/slugify.ts"
   ]
 }

@@ -19,40 +19,21 @@
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import type { NodeEnvelope } from "../contract/envelope";
-// Security: input sanitisation primitives reused from the shared API surface (T13).
+// Security: input sanitisation primitives and the Task-disabled allowed-tools
+// list are consumed from the communal CLI surface (single source of truth) via
+// the @websitelabs/software-teams workspace dependency — no copy-paste here.
 // sanitizeUserInput strips prompt-injection patterns and bounds length;
 // fenceUserInput wraps untrusted content in XML tags with a model-facing warning.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { sanitizeUserInput, fenceUserInput } = require("@websitelabs/software-teams") as {
+const sharedApi = require("@websitelabs/software-teams") as {
   sanitizeUserInput: (text: string, maxLength?: number) => string;
   fenceUserInput: (tag: string, content: string) => string;
+  SINGLE_TURN_ALLOWED_TOOLS: readonly string[];
 };
 
-// --------------------------------------------------------------------------
-// Tool constants — mirrors src/utils/claude.ts (duplicated here so this
-// module has no compile-time dependency on Bun-only code)
-// --------------------------------------------------------------------------
+const { sanitizeUserInput, fenceUserInput, SINGLE_TURN_ALLOWED_TOOLS } = sharedApi;
 
-const DEFAULT_ALLOWED_TOOLS: readonly string[] = [
-  "Read",
-  "Write",
-  "Edit",
-  "MultiEdit",
-  "Glob",
-  "Grep",
-  "Task",
-  "Bash(bun:*)",
-  "Bash(git:*)",
-  "Bash(gh:*)",
-  "Bash(npm:*)",
-  "Bash(npx:*)",
-  "Bash(mkdir:*)",
-  "Bash(rm:*)",
-  "Bash(software-teams:*)",
-];
-
-export const SINGLE_TURN_ALLOWED_TOOLS: readonly string[] =
-  DEFAULT_ALLOWED_TOOLS.filter((t) => t !== "Task");
+export { SINGLE_TURN_ALLOWED_TOOLS };
 
 // --------------------------------------------------------------------------
 // Marker detection — CONTRACT.md §5

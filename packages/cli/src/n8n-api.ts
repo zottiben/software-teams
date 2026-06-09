@@ -28,3 +28,10 @@ export type { DatadogIssue, DatadogStackFrame } from "./utils/datadog";
 export { scrubPII } from "./utils/pii-scrubber";
 
 export { sanitizeUserInput, fenceUserInput } from "./utils/sanitize";
+
+export {
+  DEFAULT_ALLOWED_TOOLS,
+  SINGLE_TURN_ALLOWED_TOOLS,
+} from "./shared/agent-tools";
+
+export { slugify } from "./shared/slugify";

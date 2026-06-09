@@ -6,30 +6,24 @@
  * it is NEVER accepted as a node parameter or written to logs/output.
  *
  * Reuse notes (T7 contract):
- *  - `slugify` pure function inlined from src/utils/git.ts (Bun-free copy).
- *  - `gitCheckoutNewBranch` / `exec` from src/utils/git.ts are NOT needed here:
- *    the output node reads the branch name from the upstream envelope's artifacts;
- *    the branch is already pushed by the agent that created it.
+ *  - `slugify` delegates to the communal CLI transform via the workspace
+ *    dependency (single source of truth); this node keeps its own maxLength=50
+ *    default. No `gitCheckoutNewBranch` / `exec` are needed: the output node
+ *    reads the branch name from the upstream envelope's artifacts; the branch is
+ *    already pushed by the agent that created it.
  *  - PR/issue creation is net-new — src/utils/github.ts has no such helper and
  *    the GHA runner explicitly forbids `gh pr create` in its own context.
  */
 
+import { slugify as slugifyShared } from "@websitelabs/software-teams";
+
 // ---------------------------------------------------------------------------
-// slugify — inlined from src/utils/git.ts (pure, Bun-free)
+// slugify — communal transform; this node defaults maxLength to 50
 // ---------------------------------------------------------------------------
 
-/**
- * Convert a free-text string to a URL-safe slug.
- * Identical logic to `slugify` in src/utils/git.ts — kept in sync manually.
- */
+/** Convert a free-text string to a URL-safe slug (default maxLength 50). */
 export function slugify(input: string, maxLength = 50): string {
-  const slug = (input ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, maxLength)
-    .replace(/-+$/, "");
-  return slug || "task";
+  return slugifyShared(input, maxLength);
 }
 
 // ---------------------------------------------------------------------------

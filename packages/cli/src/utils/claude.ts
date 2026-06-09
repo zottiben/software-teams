@@ -1,5 +1,15 @@
 import { consola } from "consola";
 
+// Canonical source of truth lives in the communal `shared/` module so the n8n
+// package can consume the same constants via the workspace dependency without
+// pulling in this Bun-coupled module. Re-exported here to preserve the public
+// `utils/claude` import path used by callers and tests.
+export {
+  DEFAULT_ALLOWED_TOOLS,
+  SINGLE_TURN_ALLOWED_TOOLS,
+} from "../shared/agent-tools";
+import { DEFAULT_ALLOWED_TOOLS } from "../shared/agent-tools";
+
 export interface SpawnClaudeOptions {
   cwd?: string;
   allowedTools?: string[];
@@ -8,44 +18,6 @@ export interface SpawnClaudeOptions {
 }
 
 const PROMPT_LENGTH_THRESHOLD = 100_000;
-
-/**
- * Default allowed tools for spawned Claude sessions.
- *
- * This mirrors (and narrows) what `bypassPermissions` implicitly granted.
- * The declarative equivalent lives in `.claude/settings.json` at the project
- * root; callers that need different scope should pass their own list.
- */
-export const DEFAULT_ALLOWED_TOOLS: readonly string[] = [
-  "Read",
-  "Write",
-  "Edit",
-  "MultiEdit",
-  "Glob",
-  "Grep",
-  "Task",
-  "Bash(bun:*)",
-  "Bash(git:*)",
-  "Bash(gh:*)",
-  "Bash(npm:*)",
-  "Bash(npx:*)",
-  "Bash(mkdir:*)",
-  "Bash(rm:*)",
-  "Bash(software-teams:*)",
-];
-
-/**
- * Allowed tools for single-turn n8n node execution (Task-disabled).
- *
- * Identical to DEFAULT_ALLOWED_TOOLS with `"Task"` omitted — enforces the
- * AC2 constraint that each n8n Agent node runs exactly ONE specialist turn
- * with no internal sub-agent spawning. Agent-to-agent collaboration flows
- * over the n8n canvas (NodeEnvelope handoff) instead of Claude's Task tool.
- *
- * Used by `n8n/src/execution/single-turn.ts` → `runAgentTurn`.
- */
-export const SINGLE_TURN_ALLOWED_TOOLS: readonly string[] =
-  DEFAULT_ALLOWED_TOOLS.filter((t) => t !== "Task");
 
 export async function findClaude(): Promise<string> {
   const path = Bun.which("claude");

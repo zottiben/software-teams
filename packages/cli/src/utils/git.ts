@@ -1,3 +1,5 @@
+import { slugify as slugifyShared } from "../shared/slugify";
+
 export async function exec(
   cmd: string[],
   cwd?: string,
@@ -70,11 +72,5 @@ export async function gitCheckoutNewBranch(
 }
 
 export function slugify(input: string, maxLength = 30): string {
-  const slug = (input ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, maxLength)
-    .replace(/-+$/, "");
-  return slug || "task";
+  return slugifyShared(input, maxLength);
 }
