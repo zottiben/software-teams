@@ -33,13 +33,14 @@ export function parseAgentFile(content: string, filePath: string): ParsedAgentFi
       `convert-agents: ${filePath} is missing YAML frontmatter (expected leading '---' block)`,
     );
   }
-  let frontmatter: Record<string, unknown>;
-  try {
-    frontmatter = (parseYaml(match[1]) ?? {}) as Record<string, unknown>;
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    throw new Error(`convert-agents: failed to parse frontmatter in ${filePath}: ${reason}`);
-  }
+  const frontmatter = (() => {
+    try {
+      return (parseYaml(match[1]) ?? {}) as Record<string, unknown>;
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(`convert-agents: failed to parse frontmatter in ${filePath}: ${reason}`);
+    }
+  })();
   return { frontmatter, body: match[2] ?? "" };
 }
 

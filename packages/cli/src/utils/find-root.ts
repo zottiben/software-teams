@@ -1,15 +1,16 @@
 import { join, dirname, resolve } from "node:path";
 import { existsSync } from "node:fs";
 
-/**
- * Walk up from `startDir` looking for a directory that contains a
- * Software Teams state file (`.software-teams/state.yaml`; legacy installs
- * may have it at `.software-teams/config/state.yaml`). Returns the absolute
- * path of that directory.
- *
- * Throws a descriptive error if no such directory is found before reaching
- * the filesystem root.
- */
+const isStateDir = (dir: string) =>
+  existsSync(join(dir, ".software-teams", "state.yaml")) ||
+  existsSync(join(dir, ".software-teams", "config", "state.yaml"));
+
+function walkUp(dir: string): string | null {
+  if (isStateDir(dir)) return dir;
+  const parent = dirname(dir);
+  return parent === dir ? null : walkUp(parent);
+}
+
 export function findProjectRoot(startDir: string): string {
   const root = findProjectRootOrNull(startDir);
   if (root == null) {
@@ -20,25 +21,6 @@ export function findProjectRoot(startDir: string): string {
   return root;
 }
 
-/**
- * Non-throwing variant of {@link findProjectRoot}. Returns `null` when no Software Teams
- * project root can be located from `startDir` upward.
- */
 export function findProjectRootOrNull(startDir: string): string | null {
-  let current = resolve(startDir);
-  while (true) {
-    // Current install layout.
-    if (existsSync(join(current, ".software-teams", "state.yaml"))) {
-      return current;
-    }
-    // Legacy install layout (pre-rebrand).
-    if (existsSync(join(current, ".software-teams", "config", "state.yaml"))) {
-      return current;
-    }
-    const parent = dirname(current);
-    if (parent === current) {
-      return null;
-    }
-    current = parent;
-  }
+  return walkUp(resolve(startDir));
 }

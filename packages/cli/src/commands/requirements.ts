@@ -58,8 +58,7 @@ const addTraceCommand = defineCommand({
     }
 
     const existing = Array.isArray(req.tasks) ? (req.tasks as string[]) : [];
-    let merged = existing;
-    for (const t of newTasks) merged = uniquePush(merged, t);
+    const merged = newTasks.reduce((acc, t) => uniquePush(acc, t), existing);
     req.tasks = merged;
 
     if (!("last_updated" in data)) data.last_updated = "";

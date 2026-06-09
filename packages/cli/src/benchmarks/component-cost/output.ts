@@ -4,25 +4,19 @@ import type { ScenarioResult } from "./types";
 import { REPO_ROOT, CHARS_PER_TOKEN, TOOL_CALL_OVERHEAD_TOKENS } from "./utils";
 import { measureScenarioResolved, measureScenario, projectPerPlan, SCENARIOS } from "./scenarios";
 
-// Projected best-case inlined ceiling from the baseline benchmark design doc.
-// Used for assertion in --from-resolved mode.
 const PROJECTED_CEILING_TOKENS = 42009;
 const PROJECTED_CEILING_TOOL_CALLS = 19;
-
-// Default and only supported mode post-3-02.
 const MODE: "from-resolved" = "from-resolved";
 
 export function formatTable(rows: string[][]) {
   const widths = rows[0].map((_, c) => Math.max(...rows.map((r) => r[c].length)));
   const sep = "─".repeat(widths.reduce((s, w) => s + w + 3, 1));
-  const out: string[] = [sep];
-  for (let r = 0; r < rows.length; r++) {
-    const cells = rows[r].map((cell, c) => cell.padEnd(widths[c]));
-    out.push("│ " + cells.join(" │ ") + " │");
-    if (r === 0) out.push(sep);
-  }
-  out.push(sep);
-  return out.join("\n");
+  const body = rows.flatMap((row, r) => {
+    const cells = row.map((cell, c) => cell.padEnd(widths[c]));
+    const line = "│ " + cells.join(" │ ") + " │";
+    return r === 0 ? [line, sep] : [line];
+  });
+  return [sep, ...body, sep].join("\n");
 }
 
 export function classifyDelta(deltaPercent: number): "pass" | "soft-fail" | "hard-fail" {
@@ -71,7 +65,6 @@ export function main() {
   console.log(formatTable(summary));
   console.log();
 
-  // Projection: typical implement-plan run = 1 skill load + 8 backend spawns + 10 qa-tester spawns.
   const planScenario = scenarios.find((s) => s.name.startsWith("implement-plan"))!;
   const backendScenario = scenarios.find((s) => s.name.startsWith("software-teams-backend"))!;
   const qaScenario = scenarios.find((s) => s.name.startsWith("software-teams-qa-tester"))!;
@@ -91,13 +84,15 @@ export function main() {
   console.log(`  Total tokens:     ${planTotal.tokens}`);
   console.log(`  Total tool calls: ${planTotal.toolCalls}`);
 
-  let assertionResult: "pass" | "soft-fail" | "hard-fail" | "n/a" = "n/a";
-  let tokenDeltaPct = 0;
+  const tokenDeltaPct = MODE === "from-resolved"
+    ? ((planTotal.tokens - PROJECTED_CEILING_TOKENS) / PROJECTED_CEILING_TOKENS) * 100
+    : 0;
+  const assertionResult: "pass" | "soft-fail" | "hard-fail" | "n/a" = MODE === "from-resolved"
+    ? classifyDelta(tokenDeltaPct)
+    : "n/a";
 
   if (MODE === "from-resolved") {
-    tokenDeltaPct = ((planTotal.tokens - PROJECTED_CEILING_TOKENS) / PROJECTED_CEILING_TOKENS) * 100;
     const callDelta = planTotal.toolCalls - PROJECTED_CEILING_TOOL_CALLS;
-    assertionResult = classifyDelta(tokenDeltaPct);
 
     console.log();
     console.log("--- Assertion vs projected ceiling ---");
@@ -117,7 +112,6 @@ export function main() {
     console.log();
   }
 
-  // Persist — APPEND to JSONL, never overwrite.
   const outDir = join(REPO_ROOT, ".software-teams", "persistence");
   mkdirSync(outDir, { recursive: true });
   const outFile = join(outDir, "component-bench.jsonl");

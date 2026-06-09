@@ -98,8 +98,7 @@ function resolvePlan(slugOrPath: string): PlanFiles | null {
   const dir = plansDir();
   if (!existsSync(dir)) return null;
 
-  // Derive slug. If caller passed a full path, strip dir + suffix.
-  let slug = basename(slugOrPath)
+  const rawSlug = basename(slugOrPath)
     .replace(/\.orchestration\.md$/i, "")
     .replace(/\.spec\.md$/i, "")
     .replace(/\.plan\.md$/i, "")
@@ -107,12 +106,10 @@ function resolvePlan(slugOrPath: string): PlanFiles | null {
     .replace(/\.md$/i, "");
 
   const known = listPlanSlugs();
-  // Allow short forms — e.g. `1-02` matches `1-02-some-feature`.
-  if (!known.includes(slug)) {
-    const partial = known.find((s) => s.startsWith(slug + "-") || s === slug);
-    if (partial) slug = partial;
-    else return null;
-  }
+  const slug = known.includes(rawSlug)
+    ? rawSlug
+    : known.find((s) => s.startsWith(rawSlug + "-") || s === rawSlug) ?? null;
+  if (!slug) return null;
 
   const candidate = (suffix: string) => {
     const p = join(dir, `${slug}${suffix}`);
@@ -156,37 +153,33 @@ async function resolveActivePlan(): Promise<PlanFiles | null> {
  * caller to Read the whole file.
  */
 function splitMarkdownByH2(content: string): Array<{ heading: string; body: string; slug: string }> {
-  // Strip leading frontmatter so it doesn't get treated as a section.
   const stripped = content.replace(/^---\n[\s\S]*?\n---\n?/, "");
   const lines = stripped.split("\n");
-  const sections: Array<{ heading: string; body: string; slug: string }> = [];
-  let currentHeading: string | null = null;
-  let currentLines: string[] = [];
   const slugify = (h: string) =>
     h.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-  const flush = () => {
-    if (currentHeading != null) {
-      sections.push({
-        heading: currentHeading,
-        body: currentLines.join("\n").trimEnd(),
-        slug: slugify(currentHeading),
-      });
-    }
-  };
+  type Acc = { sections: Array<{ heading: string; body: string; slug: string }>; heading: string | null; bodyLines: string[] };
 
-  for (const line of lines) {
-    const m = line.match(/^##\s+(.+?)\s*$/);
-    if (m) {
-      flush();
-      currentHeading = m[1];
-      currentLines = [];
-    } else if (currentHeading != null) {
-      currentLines.push(line);
-    }
-  }
-  flush();
-  return sections;
+  const { sections, heading: finalHeading, bodyLines: finalBodyLines } = lines.reduce<Acc>(
+    (acc, line) => {
+      const m = line.match(/^##\s+(.+?)\s*$/);
+      if (m) {
+        const flushed = acc.heading != null
+          ? [...acc.sections, { heading: acc.heading, body: acc.bodyLines.join("\n").trimEnd(), slug: slugify(acc.heading) }]
+          : acc.sections;
+        return { sections: flushed, heading: m[1], bodyLines: [] };
+      }
+      if (acc.heading != null) {
+        return { ...acc, bodyLines: [...acc.bodyLines, line] };
+      }
+      return acc;
+    },
+    { sections: [], heading: null, bodyLines: [] },
+  );
+
+  return finalHeading != null
+    ? [...sections, { heading: finalHeading, body: finalBodyLines.join("\n").trimEnd(), slug: slugify(finalHeading) }]
+    : sections;
 }
 
 const listCommand = defineCommand({

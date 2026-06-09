@@ -1,9 +1,5 @@
 import { consola } from "consola";
 
-// Canonical source of truth lives in the communal `shared/` module so the n8n
-// package can consume the same constants via the workspace dependency without
-// pulling in this Bun-coupled module. Re-exported here to preserve the public
-// `utils/claude` import path used by callers and tests.
 export {
   DEFAULT_ALLOWED_TOOLS,
   SINGLE_TURN_ALLOWED_TOOLS,
@@ -33,45 +29,41 @@ export async function findClaude(): Promise<string> {
   );
 }
 
-let lastEventType = "";
+function makeStreamFormatter() {
+  const state = { lastEventType: "" };
 
-function formatStreamEvent(event: any): string | null {
-  // Assistant text content
-  if (event.type === "assistant" && event.message?.content) {
-    const parts: string[] = [];
-    for (const block of event.message.content) {
-      if (block.type === "text" && block.text) {
-        // Add a newline before text only if the previous event was a tool call
-        const prefix = lastEventType === "tool" ? "\n" : "";
-        parts.push(prefix + block.text.trim());
-        lastEventType = "text";
-      } else if (block.type === "tool_use") {
-        const name = block.name ?? "tool";
-        const input = block.input;
-        let detail = "";
-        if (input?.file_path) {
-          // Shorten paths — show only last 3 segments
-          const segments = input.file_path.split("/");
-          detail = ` → ${segments.slice(-3).join("/")}`;
-        } else if (name === "Bash" && input?.command) {
-          detail = ` → ${input.command.slice(0, 60)}`;
-        } else if (input?.pattern) {
-          detail = ` → ${input.pattern}`;
+  return function formatStreamEvent(event: any): string | null {
+    if (event.type === "assistant" && event.message?.content) {
+      const parts: string[] = [];
+      for (const block of event.message.content) {
+        if (block.type === "text" && block.text) {
+          const prefix = state.lastEventType === "tool" ? "\n" : "";
+          parts.push(prefix + block.text.trim());
+          state.lastEventType = "text";
+        } else if (block.type === "tool_use") {
+          const name = block.name ?? "tool";
+          const input = block.input;
+          const detail = input?.file_path
+            ? ` → ${(input.file_path as string).split("/").slice(-3).join("/")}`
+            : name === "Bash" && input?.command
+              ? ` → ${(input.command as string).slice(0, 60)}`
+              : input?.pattern
+                ? ` → ${input.pattern}`
+                : "";
+          parts.push(`  ⚡ ${name}${detail}`);
+          state.lastEventType = "tool";
         }
-        parts.push(`  ⚡ ${name}${detail}`);
-        lastEventType = "tool";
       }
+      if (parts.length > 0) return parts.join("\n") + "\n";
     }
-    if (parts.length > 0) return parts.join("\n") + "\n";
-  }
 
-  // Result event
-  if (event.type === "result" && event.subtype === "error_tool_result") {
-    lastEventType = "error";
-    return "  ❌ Tool error\n";
-  }
+    if (event.type === "result" && event.subtype === "error_tool_result") {
+      state.lastEventType = "error";
+      return "  ❌ Tool error\n";
+    }
 
-  return null;
+    return null;
+  };
 }
 
 export async function spawnClaude(
@@ -117,73 +109,52 @@ export async function spawnClaude(
     proc.stdin!.end();
   }
 
-  // Stream and parse JSON events in real time, capturing final text response
   const reader = proc.stdout!.getReader();
   const decoder = new TextDecoder();
-  let buffer = "";
-  let lastTextResponse = "";
+  const formatStreamEvent = makeStreamFormatter();
+  const streamState = { buffer: "", lastTextResponse: "" };
+
+  const processChunk = (raw: string) => {
+    try {
+      const event = JSON.parse(raw);
+      const output = formatStreamEvent(event);
+      if (output) process.stdout.write(output);
+      if (event.type === "assistant" && event.message?.content) {
+        for (const block of event.message.content) {
+          if (block.type === "text" && block.text) {
+            streamState.lastTextResponse = block.text;
+          }
+        }
+      }
+      if (event.type === "result" && event.result) {
+        streamState.lastTextResponse = event.result;
+      }
+    } catch {
+      // skip non-JSON lines
+    }
+  };
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
+      streamState.buffer += decoder.decode(value, { stream: true });
+      const lines = streamState.buffer.split("\n");
+      streamState.buffer = lines.pop() ?? "";
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          const event = JSON.parse(trimmed);
-          const output = formatStreamEvent(event);
-          if (output) process.stdout.write(output);
-
-          // Capture the last assistant text as the final response
-          if (event.type === "assistant" && event.message?.content) {
-            for (const block of event.message.content) {
-              if (block.type === "text" && block.text) {
-                lastTextResponse = block.text;
-              }
-            }
-          }
-          // Also capture result text
-          if (event.type === "result" && event.result) {
-            lastTextResponse = event.result;
-          }
-        } catch {
-          // Not valid JSON, skip
-        }
+        if (trimmed) processChunk(trimmed);
       }
     }
 
-    // Process remaining buffer
-    if (buffer.trim()) {
-      try {
-        const event = JSON.parse(buffer.trim());
-        const output = formatStreamEvent(event);
-        if (output) process.stdout.write(output);
-
-        if (event.type === "assistant" && event.message?.content) {
-          for (const block of event.message.content) {
-            if (block.type === "text" && block.text) {
-              lastTextResponse = block.text;
-            }
-          }
-        }
-        if (event.type === "result" && event.result) {
-          lastTextResponse = event.result;
-        }
-      } catch {
-        // skip
-      }
-    }
+    if (streamState.buffer.trim()) processChunk(streamState.buffer.trim());
   } catch {
     // Stream ended
   }
 
   const exitCode = await proc.exited;
   process.stdout.write("\n");
-  return { exitCode, response: lastTextResponse };
+  return { exitCode, response: streamState.lastTextResponse };
 }

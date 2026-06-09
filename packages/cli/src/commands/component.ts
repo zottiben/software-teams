@@ -47,14 +47,12 @@ const getCommand = defineCommand({
     const name = args.name as string;
     const section = args.section as string | undefined;
 
-    let body: string;
-    try {
-      body = getComponent(name, section);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      consola.error(message);
-      process.exit(1);
-    }
+    const bodyResult = (() => {
+      try { return { ok: true as const, body: getComponent(name, section) }; }
+      catch (err: unknown) { return { ok: false as const, message: err instanceof Error ? err.message : String(err) }; }
+    })();
+    if (!bodyResult.ok) { consola.error(bodyResult.message); process.exit(1); }
+    const body = bodyResult.body;
 
     if (args.json) {
       const component = registry[name];

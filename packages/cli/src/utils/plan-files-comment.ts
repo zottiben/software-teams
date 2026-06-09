@@ -101,13 +101,13 @@ export function formatPlanFilesSection(entries: PlanFileEntry[]): string {
     Math.floor(SOFT_BUDGET_CHARS / readable.length),
   );
 
-  const blocks: string[] = [];
-  let used = 0;
-  for (const entry of entries) {
-    const block = formatEntry(entry, Math.min(targetPerFile, SOFT_BUDGET_CHARS - used));
-    blocks.push(block);
-    used += block.length;
-  }
+  const blocks = entries.reduce<{ blocks: string[]; used: number }>(
+    (acc, entry) => {
+      const block = formatEntry(entry, Math.min(targetPerFile, SOFT_BUDGET_CHARS - acc.used));
+      return { blocks: [...acc.blocks, block], used: acc.used + block.length };
+    },
+    { blocks: [], used: 0 },
+  ).blocks;
 
   return [
     ``,

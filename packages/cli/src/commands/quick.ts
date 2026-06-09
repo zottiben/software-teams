@@ -34,10 +34,8 @@ export const quickCommand = defineCommand({
     const cwd = process.cwd();
     const ctx = await gatherPromptContext(cwd);
 
-    let prompt = buildQuickPrompt(ctx, args.description);
-    if (args["dry-run"]) {
-      prompt = applyDryRunMode(prompt);
-    }
+    const basePrompt = buildQuickPrompt(ctx, args.description);
+    const prompt = args["dry-run"] ? applyDryRunMode(basePrompt) : basePrompt;
 
     if (args.output) {
       await Bun.write(resolve(cwd, args.output), prompt);

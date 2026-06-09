@@ -51,56 +51,41 @@ export const prCommand = defineCommand({
       return;
     }
 
-    // Get commit log since divergence
     const mergeBase = await gitMergeBase(base);
     const log = mergeBase ? await gitLog(`${mergeBase.slice(0, 8)}..HEAD`) : await gitLog();
 
-    // Read state and plan for richer context
     const state = await readState(cwd);
-    let planContext = "";
-    let planName = state?.position?.plan_name ?? "";
-    let verificationChecks: string[] = [];
 
-    // Read the plan file for task list and verification criteria
-    const planPath = state?.current_plan?.path;
-    if (planPath) {
+    const planContext = await (async () => {
+      const planPath = state?.current_plan?.path;
+      if (!planPath) return { context: "", name: state?.position?.plan_name ?? "", checks: [] as string[] };
       const fullPlanPath = join(cwd, planPath);
-      if (existsSync(fullPlanPath)) {
-        try {
-          const planContent = await Bun.file(fullPlanPath).text();
+      if (!existsSync(fullPlanPath)) return { context: "", name: state?.position?.plan_name ?? "", checks: [] as string[] };
+      const planContent = await Bun.file(fullPlanPath).text().catch(() => null);
+      if (!planContent) return { context: "", name: state?.position?.plan_name ?? "", checks: [] as string[] };
 
-          // Extract plan name from first heading
-          const nameMatch = planContent.match(/^#\s+(.+)/m);
-          if (nameMatch) planName = nameMatch[1];
+      const nameMatch = planContent.match(/^#\s+(.+)/m);
+      const resolvedName = nameMatch ? nameMatch[1] : (state?.position?.plan_name ?? "");
 
-          // Extract task list (lines matching "| T\d+ |")
-          const taskLines = planContent
-            .split("\n")
-            .filter((l) => /^\|\s*T\d+\s*\|/.test(l));
-          if (taskLines.length > 0) {
-            planContext = `\n**Tasks:**\n${taskLines.map((l) => `- ${l.split("|").slice(2, 3).join("").trim()}`).join("\n")}`;
-          }
+      const taskLines = planContent.split("\n").filter((l) => /^\|\s*T\d+\s*\|/.test(l));
+      const ctx = taskLines.length > 0
+        ? `\n**Tasks:**\n${taskLines.map((l) => `- ${l.split("|").slice(2, 3).join("").trim()}`).join("\n")}`
+        : "";
 
-          // Extract verification items (lines matching "- [ ]" or "- [x]")
-          const verifySection = planContent.split(/###?\s*Verification/i)[1];
-          if (verifySection) {
-            verificationChecks = verifySection
-              .split("\n")
-              .filter((l) => /^-\s*\[[ x]\]/.test(l.trim()))
-              .map((l) => l.trim());
-          }
-        } catch {
-          // Plan read failed, continue with basic context
-        }
-      }
-    }
+      const verifySection = planContent.split(/###?\s*Verification/i)[1];
+      const checks = verifySection
+        ? verifySection.split("\n").filter((l) => /^-\s*\[[ x]\]/.test(l.trim())).map((l) => l.trim())
+        : [];
 
-    // Check for PR template
-    let template = "";
-    const templatePath = join(cwd, ".github", "pull_request_template.md");
-    if (existsSync(templatePath)) {
-      template = await Bun.file(templatePath).text();
-    }
+      return { context: ctx, name: resolvedName, checks };
+    })();
+
+    const planName = planContext.name;
+    const verificationChecks = planContext.checks;
+
+    const template = existsSync(join(cwd, ".github", "pull_request_template.md"))
+      ? await Bun.file(join(cwd, ".github", "pull_request_template.md")).text()
+      : "";
 
     // Generate title from branch name
     const title = branch
@@ -121,7 +106,7 @@ export const prCommand = defineCommand({
       planName ? `**Plan:** ${planName}` : "",
       ``,
       commits,
-      planContext,
+      planContext.context,
       ``,
       `## Test Plan`,
       ...(verificationChecks.length > 0

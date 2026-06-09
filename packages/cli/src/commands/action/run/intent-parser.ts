@@ -42,52 +42,22 @@ function stripFollowUpSalutation(comment: string): string {
   const SALUTATION_RE =
     /^(?:hey|hi|hello|yo|@?software[-\s]?teams\b)(?:[,\s]+(?:@?[\w-]{1,40}))?[,\s]*/i;
   const FILLER_RE = /^(?:please|ok|okay)[,\s]+/i;
-  let s = comment.replace(SALUTATION_RE, "").trim();
-  s = s.replace(FILLER_RE, "").trim();
-  return s;
+  return comment.replace(SALUTATION_RE, "").trim().replace(FILLER_RE, "").trim();
 }
 
 export function parseComment(
   comment: string,
   isFollowUp: boolean,
 ): ParsedIntent | null {
-  // Detect --dry-run flag in comment body
   const hasDryRun = /--dry-run/i.test(comment);
   const cleanComment = comment.replace(/--dry-run/gi, "").trim();
-
-  // Strip "Hey Software Teams" trigger prefix (case-insensitive; accepts
-  // both spaced and hyphenated forms). Repos that configure a different
-  // `trigger_phrase` on the action input still pass through this branch
-  // when the user types our default phrase — and pass through the
-  // looseSalutation fallback below when they type the configured one
-  // (e.g. "Hey AI implement the plan").
   const match = cleanComment.match(/hey\s+software[\s-]?teams\s+(.+)/is);
-
-  // `body` is the comment with the salutation removed — that's what we
-  // run command-keyword checks against. Two ways to get one:
-  //   1. The official trigger regex matched — use the captured tail.
-  //   2. Trigger failed AND this is a follow-up reply — strip any
-  //      generic salutation ("Hey <bot>", "Hi <bot>", "@<bot>", "yo <bot>")
-  //      so we can still recognise explicit command keywords like
-  //      "implement" / "approve" / "review". This is the regression fix
-  //      for "Hey AI implement the plan" (and any variant where a
-  //      casual or per-repo-configured salutation drops the comment out
-  //      of the strict regex). Without it, every follow-up gets routed
-  //      to feedback even when the user clearly asked for a different
-  //      action.
-  let body: string | null = null;
-  if (match) {
-    body = match[1].trim();
-  } else if (isFollowUp) {
-    body = stripFollowUpSalutation(cleanComment);
-  }
+  const body = match ? match[1].trim() : isFollowUp ? stripFollowUpSalutation(cleanComment) : null;
   if (body === null) return null;
 
-  // Extract ClickUp URL if present
   const clickUpMatch = body.match(/(https?:\/\/[^\s]*clickup\.com\/t\/[a-z0-9]+)/i);
   const clickUpUrl = clickUpMatch ? clickUpMatch[1] : null;
 
-  // Remove the URL from the body for cleaner description
   const description = body
     .replace(/(https?:\/\/[^\s]*clickup\.com\/t\/[a-z0-9]+)/i, "")
     .replace(/\s+/g, " ")
@@ -97,13 +67,10 @@ export function parseComment(
 
   const base = { clickUpUrl, fullFlow: false, isFeedback: false, isApproval: false, dryRun: hasDryRun };
 
-  // "approved" / "lgtm" / "looks good" — explicit approval (does NOT trigger implementation)
-  // Must be checked BEFORE command prefixes so "plan approved" is treated as approval, not a new plan.
   if (/\b(approved?|lgtm|looks?\s*good|ship\s*it)\b/i.test(lower)) {
     return { ...base, command: "plan", description: body, clickUpUrl: null, isFeedback: true, isApproval: true };
   }
 
-  // Explicit commands always start a new workflow
   if (lower.startsWith("ping") || lower.startsWith("status")) {
     return { ...base, command: "ping", description: "", clickUpUrl: null };
   }

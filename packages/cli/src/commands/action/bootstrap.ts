@@ -3,13 +3,6 @@ import { consola } from "consola";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-/**
- * Ensure the Software Teams framework is initialized.
- * Checks for Phase B layout (`.software-teams/state.yaml`) or legacy layout
- * (`.software-teams/config/state.yaml`). If neither exists, runs
- * `bunx @websitelabs/software-teams@latest init --ci`.
- * Also ensures `.software-teams/persistence/` exists.
- */
 export function ensureFramework(cwd: string): void {
   const phaseBState = join(cwd, ".software-teams/state.yaml");
   const legacyState = join(cwd, ".software-teams/config/state.yaml");
@@ -29,14 +22,9 @@ export function ensureFramework(cwd: string): void {
   mkdirSync(join(cwd, ".software-teams/persistence"), { recursive: true });
 }
 
-/**
- * Clear stale plan state from a previous branch.
- * Removes all files in `.software-teams/plans/` and writes a fresh `state.yaml`.
- */
 export function clearStaleState(cwd: string): void {
   const plansDir = join(cwd, ".software-teams/plans");
   if (existsSync(plansDir)) {
-    // Remove all files inside plans dir
     for (const entry of readdirSync(plansDir)) {
       rmSync(join(plansDir, entry), { recursive: true, force: true });
     }
@@ -46,13 +34,11 @@ export function clearStaleState(cwd: string): void {
 
   const configDir = join(cwd, ".software-teams/config");
   mkdirSync(configDir, { recursive: true });
-  // Copy the canonical state template from the framework
   const templatePath = join(cwd, ".software-teams", "framework", "config", "state.yaml");
   if (existsSync(templatePath)) {
     const template = readFileSync(templatePath, "utf-8");
     writeFileSync(join(configDir, "state.yaml"), template);
   } else {
-    // Minimal valid state matching the SoftwareTeamsState interface
     writeFileSync(
       join(configDir, "state.yaml"),
       [
@@ -83,30 +69,22 @@ export function clearStaleState(cwd: string): void {
   consola.info("Cache miss or fallback — cleared plan state");
 }
 
-/**
- * Ensure `.software-teams/` and `.claude/` are in `.git/info/exclude` (idempotent).
- */
 export function setupGitExclude(cwd: string): void {
   const excludeDir = join(cwd, ".git/info");
   mkdirSync(excludeDir, { recursive: true });
   const excludePath = join(excludeDir, "exclude");
 
-  let content = "";
-  if (existsSync(excludePath)) {
-    content = readFileSync(excludePath, "utf-8");
-  }
+  const existingContent = existsSync(excludePath) ? readFileSync(excludePath, "utf-8") : "";
 
   const patterns = [".software-teams/", ".claude/"];
-  for (const pattern of patterns) {
-    // Check for exact line match
-    const lines = content.split("\n");
-    if (!lines.some((line) => line === pattern)) {
-      content = content.endsWith("\n") || content === "" ? content : content + "\n";
-      content += pattern + "\n";
-    }
-  }
+  const finalContent = patterns.reduce((acc, pattern) => {
+    const lines = acc.split("\n");
+    if (lines.some((line) => line === pattern)) return acc;
+    const base = acc.endsWith("\n") || acc === "" ? acc : acc + "\n";
+    return base + pattern + "\n";
+  }, existingContent);
 
-  writeFileSync(excludePath, content);
+  writeFileSync(excludePath, finalContent);
 }
 
 export const bootstrapCommand = defineCommand({
@@ -130,12 +108,6 @@ export const bootstrapCommand = defineCommand({
 
     ensureFramework(cwd);
 
-    // Continuity rule:
-    //   - matched-key non-empty → cache restored something (exact or prefix).
-    //     Preserve plans / state — the next agent run continues prior work.
-    //   - matched-key empty → no cache match. Fresh start; wipe plans.
-    //   - For back-compat: if --matched-key is absent (older workflow YAML),
-    //     fall back to the legacy --cache-hit check.
     const matchedKey = args["matched-key"] ?? "";
     const cacheHit = args["cache-hit"] ?? "";
     const hasContinuity = matchedKey

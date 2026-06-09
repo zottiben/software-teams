@@ -66,24 +66,12 @@ export async function runLabelTriggeredPath(opts: {
     dryRun: false,
   };
 
-  // No comment thread or comment ID on this path — conversation history
-  // is passed empty to the router brief.
   consola.info("Parsed intent: plan (label-triggered)");
 
-  // No eyes reaction — there is no comment to react to
-  // Post a thinking placeholder comment
-  let placeholderCommentId: number | null = null;
-  if (repo && issueNumber) {
-    const thinkingBody = `${ASSISTANT_COMMENT_MARKER}\n<h3>🧠 Working on it...</h3>\n\n---\n\n_Reviewing your request..._`;
-    placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
-  }
+  const placeholderCommentId: number | null = (repo && issueNumber)
+    ? await postGitHubComment(repo, issueNumber, `${ASSISTANT_COMMENT_MARKER}\n<h3>🧠 Working on it...</h3>\n\n---\n\n_Reviewing your request..._`).catch(() => null)
+    : null;
 
-  // ── Delegate to the shared planner-prompt path ──────────────────────────
-  // Re-use all the prompt-building and execution logic that follows the
-  // comment-parsing block. We jump there by falling through into the shared
-  // variable scope below — but since the async run() function is a single
-  // block, we extract the shared logic via an IIFE-style inline call.
-  // Simpler: duplicate only the load + prompt-build + execute + post steps.
   const storage = await createStorage(cwd);
   const { rulesPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
 
@@ -106,40 +94,31 @@ export async function runLabelTriggeredPath(opts: {
     `- Working directory: ${cwd}`,
   ];
 
-  // Scan the synthesised issue text (title + body) for external
-  // context URLs (ClickUp tickets, Datadog Error Tracking issues)
-  // and append their sanitised context blocks. The synthetic
-  // description IS `${title}\n\n${body}` for this path.
   const externalBlocks = await loadExternalContexts(intent.description);
   for (const block of externalBlocks) {
     workspaceLines.push("", block);
   }
 
-  // Build plan prompt (runs discovery gate — returns null when gate aborted)
   const prompt = await buildLabelPathPrompt({
     cwd, repo, issueNumber, intent, projectLines, workspaceLines,
     placeholderCommentId, storage,
   });
-  if (prompt === null) {
-    // Researcher surfaced pre-plan questions — comment posted, no
-    // plan written. Wait for the user to reply; the next run picks
-    // up their answers via the conversation history bridge.
-    return;
-  }
+  if (prompt === null) return;
 
-  let success = true;
-  let fullResponse = "";
-  try {
-    const { exitCode, response } = await spawnRouter({ prompt, cwd });
-    fullResponse = response;
-    if (exitCode !== 0) {
-      success = false;
-      consola.error(`Claude exited with code ${exitCode}`);
+  const executionResult = await (async () => {
+    try {
+      const { exitCode, response } = await spawnRouter({ prompt, cwd });
+      if (exitCode !== 0) {
+        consola.error(`Claude exited with code ${exitCode}`);
+        return { success: false, fullResponse: response };
+      }
+      return { success: true, fullResponse: response };
+    } catch (err) {
+      consola.error("Execution failed:", err);
+      return { success: false, fullResponse: "" };
     }
-  } catch (err) {
-    success = false;
-    consola.error("Execution failed:", err);
-  }
+  })();
+  const { success, fullResponse } = executionResult;
 
   const saved = await savePersistedState(cwd, storage);
   if (saved.rulesSaved) consola.info("Rules persisted to storage");
@@ -147,27 +126,22 @@ export async function runLabelTriggeredPath(opts: {
 
   if (repo && issueNumber) {
     const actionLabel = "plan";
-    let commentBody: string;
-    if (success && fullResponse) {
-      // Embed the just-written plan files into the comment so the
-      // user can actually read them before approving. The runner
-      // owns this section (not the planner's text) — see
-      // `utils/plan-files-comment.ts` for the rationale.
-      let planFilesBlock = "";
-      try {
-        const writtenOrch = await findActiveOrchestration(cwd, issueNumber);
-        if (writtenOrch) {
-          planFilesBlock = formatPlanFilesSection(readPlanFiles(cwd, writtenOrch));
-        }
-      } catch (err) {
-        consola.warn("Failed to build plan-files comment block:", err);
-      }
-      commentBody = formatSoftwareTeamsComment(actionLabel, fullResponse + planFilesBlock);
-    } else if (!success) {
-      commentBody = formatErrorComment(actionLabel, "Check workflow logs for details.");
-    } else {
-      commentBody = formatSoftwareTeamsComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
-    }
+    const planFilesBlock = (success && fullResponse)
+      ? await (async () => {
+          try {
+            const writtenOrch = await findActiveOrchestration(cwd, issueNumber);
+            return writtenOrch ? formatPlanFilesSection(readPlanFiles(cwd, writtenOrch)) : "";
+          } catch (err) {
+            consola.warn("Failed to build plan-files comment block:", err);
+            return "";
+          }
+        })()
+      : "";
+    const commentBody = success && fullResponse
+      ? formatSoftwareTeamsComment(actionLabel, fullResponse + planFilesBlock)
+      : !success
+      ? formatErrorComment(actionLabel, "Check workflow logs for details.")
+      : formatSoftwareTeamsComment(actionLabel, `Executed \`${actionLabel}\` successfully.`);
 
     if (placeholderCommentId) {
       await updateGitHubComment(repo, placeholderCommentId, commentBody).catch((err) => {

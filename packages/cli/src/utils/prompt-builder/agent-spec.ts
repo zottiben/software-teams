@@ -17,13 +17,11 @@ function resolveAgentSpecPath(cwd: string, agentName: string): string | null {
 
 function stripSpecFrontmatter(content: string): string {
   const fmMatch = content.match(/^---\n[\s\S]*?\n---\n?/);
-  let body = fmMatch ? content.slice(fmMatch[0].length) : content;
-  // Drop the AUTO-GENERATED banner if convert-agents added one.
-  body = body.replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "");
-  // Drop the "canonical frontmatter" comment that lives at the top of the
-  // canonical (un-synced) source files.
-  body = body.replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "");
-  return body.trim();
+  const rawBody = fmMatch ? content.slice(fmMatch[0].length) : content;
+  return rawBody
+    .replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "")
+    .replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "")
+    .trim();
 }
 
 // Module-load cache. Spec body is read once per process — subsequent calls

@@ -260,17 +260,22 @@ async function slackApiCall(
         res.on('data', (chunk: Buffer) => chunks.push(chunk));
         res.on('end', () => {
           const raw = Buffer.concat(chunks).toString('utf8');
-          let parsed: Record<string, unknown>;
-          try {
-            parsed = JSON.parse(raw) as Record<string, unknown>;
-          } catch (e) {
+          const parseResult = (() => {
+            try {
+              return { ok: true as const, parsed: JSON.parse(raw) as Record<string, unknown> };
+            } catch (e) {
+              return { ok: false as const, err: e };
+            }
+          })();
+          if (!parseResult.ok) {
             reject(
               new Error(
-                `Slack API ${method}: failed to parse response — ${String(e)}\nBody: ${raw.slice(0, 200)}`,
+                `Slack API ${method}: failed to parse response — ${String(parseResult.err)}\nBody: ${raw.slice(0, 200)}`,
               ),
             );
             return;
           }
+          const parsed = parseResult.parsed;
           if (!parsed['ok']) {
             reject(
               new Error(

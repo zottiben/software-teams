@@ -105,19 +105,15 @@ function collectDeps(
   const component = registry[name];
   if (component === undefined) throwUnknownComponent(name);
 
-  // Determine which sections to process.
-  let sectionKeys: string[];
-  if (section !== undefined) {
-    if (!(section in component.sections)) {
-      throwUnknownSection(component, section);
-    }
-    sectionKeys = [section];
-  } else {
-    sectionKeys =
-      component.defaultOrder !== undefined
+  if (section !== undefined && !(section in component.sections)) {
+    throwUnknownSection(component, section);
+  }
+  const sectionKeys: string[] =
+    section !== undefined
+      ? [section]
+      : component.defaultOrder !== undefined
         ? [...component.defaultOrder]
         : Object.keys(component.sections);
-  }
 
   const result: Array<{ name: string; section: string | undefined }> = [];
 

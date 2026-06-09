@@ -37,21 +37,19 @@ export async function transitionToPlanReady(
     );
   }
 
-  // Read plan file and extract frontmatter
   const fullPlanPath = planPath.startsWith("/") ? planPath : join(cwd, planPath);
-  let phase: number | undefined;
-  let planNumber: string | undefined;
-  let taskFiles: string[] = [];
-
-  if (existsSync(fullPlanPath)) {
+  const planMeta = await (async () => {
+    if (!existsSync(fullPlanPath)) return { phase: undefined as number | undefined, planNumber: undefined as string | undefined, taskFiles: [] as string[] };
     const content = await Bun.file(fullPlanPath).text();
     const fm = parseFrontmatter(content);
-    if (fm) {
-      if (fm.phase != null) phase = Number(fm.phase);
-      if (fm.plan != null) planNumber = String(fm.plan);
-      if (Array.isArray(fm.task_files)) taskFiles = fm.task_files as string[];
-    }
-  }
+    if (!fm) return { phase: undefined as number | undefined, planNumber: undefined as string | undefined, taskFiles: [] as string[] };
+    return {
+      phase: fm.phase != null ? Number(fm.phase) : undefined,
+      planNumber: fm.plan != null ? String(fm.plan) : undefined,
+      taskFiles: Array.isArray(fm.task_files) ? (fm.task_files as string[]) : [],
+    };
+  })();
+  const { phase, planNumber, taskFiles } = planMeta;
 
   state.position = {
     ...state.position,

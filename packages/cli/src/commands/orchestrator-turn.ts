@@ -136,27 +136,24 @@ export async function runOrchestratorTurn(
     `orchestrator-turn: planning epic (correlationId=${correlationId})`,
   );
 
-  // Inject the existing adapter — do NOT re-author planEpic / orderTasks / parseBreakdown.
-  // Use the stub or the real function depending on ST_CLI_TEST_STUB.
   const planEpic = getPlanEpicFn();
-  let planResult;
-  try {
-    planResult = await planEpic(epic, correlationId, adapter);
-  } catch (err) {
-    // planEpic throws on planner `error` status or unparseable breakdown.
+  const planResultOrError = await planEpic(epic, correlationId, adapter).catch((err) => ({
+    _error: err instanceof Error ? err.message : String(err),
+  }));
+  if ("_error" in planResultOrError) {
     return {
       correlationId,
       agentId: inputEnvelope.agentId,
       status: "error",
       input: inputEnvelope.input,
       result: {
-        text: err instanceof Error ? err.message : String(err),
+        text: planResultOrError._error,
       },
       artifacts: [...inputEnvelope.artifacts],
     };
   }
+  const planResult = planResultOrError;
 
-  // Planner asked for human input — park for HITL (exit 0 per AC7).
   if (planResult.plannerNeedsInput) {
     return {
       correlationId,

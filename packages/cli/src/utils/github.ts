@@ -244,40 +244,27 @@ export function buildConversationContext(
   thread: ThreadComment[],
   currentCommentId: number,
 ): { history: string; previousRuns: number; isFollowUp: boolean; isPostImplementation: boolean } {
-  // Filter to only assistant-related comments (commands, responses, feedback between them).
-  const segments: ThreadComment[] = [];
-  let inConversation = false;
+  const currentIdx = thread.findIndex((c) => c.id === currentCommentId);
+  const relevantComments = currentIdx < 0 ? thread : thread.slice(0, currentIdx);
 
-  for (const comment of thread) {
-    // Don't include the current triggering comment
-    if (comment.id === currentCommentId) break;
-
-    // Two ways to start "inConversation" mode:
-    //   1. A user comment with the legacy or current trigger phrase.
-    //   2. An assistant comment (detected via the invisible marker or
-    //      legacy "Software Teams <sup>" header). Phase C posts
-    //      "🔮 A few questions before I plan" — discreet mode means
-    //      that body never contains the literal trigger phrase, so
-    //      anchoring on assistant-marker comments is the only way the
-    //      bridge captures Q&A threads.
-    const matchesTriggerPhrase = /hey\s+software[\s-]?teams/i.test(comment.body);
-    if (matchesTriggerPhrase || comment.isSoftwareTeams) {
-      inConversation = true;
-      segments.push(comment);
-    } else if (inConversation) {
-      // Include any user follow-ups once the conversation has started.
-      segments.push(comment);
-    }
-  }
+  const segments = relevantComments.reduce<{ result: ThreadComment[]; active: boolean }>(
+    (acc, comment) => {
+      const matchesTriggerPhrase = /hey\s+software[\s-]?teams/i.test(comment.body);
+      if (matchesTriggerPhrase || comment.isSoftwareTeams) {
+        return { result: [...acc.result, comment], active: true };
+      }
+      if (acc.active) {
+        return { result: [...acc.result, comment], active: true };
+      }
+      return acc;
+    },
+    { result: [], active: false },
+  ).result;
 
   const previousRuns = segments.filter((c) => c.isSoftwareTeams).length;
 
-  // Determine if this is a follow-up to an existing conversation
   const isFollowUp = previousRuns > 0;
 
-  // Detect if implementation has already happened (assistant posted an
-  // implement response). The new headers don't include the command name
-  // verbatim — match against both new and legacy forms.
   const isPostImplementation = segments.some(
     (c) =>
       c.isSoftwareTeams &&
@@ -288,20 +275,16 @@ export function buildConversationContext(
     return { history: "", previousRuns: 0, isFollowUp: false, isPostImplementation: false };
   }
 
-  // Format as conversation log. The role label "AI assistant" stays
-  // generic — never expose the internal "Software Teams" brand to the
-  // subagent's conversation history either.
-  const lines: string[] = ["## Previous Conversation", ""];
-  for (const comment of segments) {
-    const role = comment.isSoftwareTeams ? "AI assistant" : `@${comment.author}`;
-    let body = comment.body;
-    if (comment.isSoftwareTeams && body.length > 2000) {
-      body = body.slice(0, 2000) + "\n\n... (truncated)";
-    }
-    lines.push(`**${role}** (${comment.createdAt}):`);
-    lines.push(body);
-    lines.push("");
-  }
+  const lines = segments.reduce<string[]>(
+    (acc, comment) => {
+      const role = comment.isSoftwareTeams ? "AI assistant" : `@${comment.author}`;
+      const body = comment.isSoftwareTeams && comment.body.length > 2000
+        ? comment.body.slice(0, 2000) + "\n\n... (truncated)"
+        : comment.body;
+      return [...acc, `**${role}** (${comment.createdAt}):`, body, ""];
+    },
+    ["## Previous Conversation", ""],
+  );
 
   return { history: lines.join("\n"), previousRuns, isFollowUp, isPostImplementation };
 }

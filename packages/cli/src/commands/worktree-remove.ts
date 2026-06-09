@@ -33,29 +33,27 @@ export const worktreeRemoveCommand = defineCommand({
       return;
     }
 
-    // Determine which worktree to remove
-    let name = args.name as string | undefined;
-    let worktreePath: string;
-
-    if (name) {
-      worktreePath = `${root}/.worktrees/${name}`;
-    } else {
-      // Try state.yaml
+    const resolvedWorktree = await (async () => {
+      const nameArg = args.name as string | undefined;
+      if (nameArg) return { name: nameArg, path: `${root}/.worktrees/${nameArg}` };
       const state = await readState(root);
       if (state?.worktree?.active && state.worktree.path && state.worktree.branch) {
-        name = state.worktree.branch;
-        worktreePath = state.worktree.path;
-      } else {
-        // List worktrees and let user see
-        const { stdout } = await exec(["git", "worktree", "list"]);
-        consola.info("Active worktrees:");
-        consola.info(stdout);
-        consola.info("\nSpecify a worktree name: software-teams worktree-remove <name>");
-        return;
+        return { name: state.worktree.branch as string, path: state.worktree.path as string };
       }
+      return null;
+    })();
+
+    if (!resolvedWorktree) {
+      const { stdout } = await exec(["git", "worktree", "list"]);
+      consola.info("Active worktrees:");
+      consola.info(stdout);
+      consola.info("\nSpecify a worktree name: software-teams worktree-remove <name>");
+      return;
     }
 
-    // Confirm
+    const name = resolvedWorktree.name;
+    const worktreePath = resolvedWorktree.path;
+
     if (!args.force) {
       const confirmed = await consola.prompt(`Remove worktree "${name}" at ${worktreePath}?`, {
         type: "confirm",

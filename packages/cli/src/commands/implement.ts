@@ -48,26 +48,23 @@ export const implementCommand = defineCommand({
   async run({ args }) {
     const cwd = process.cwd();
 
-    // Auto-discover plan from state if not provided
-    let planPath: string | undefined = args.plan;
-    if (!planPath) {
+    const resolvedPlanPath = args.plan ?? await (async () => {
       const state = await readState(cwd);
-      planPath = state?.current_plan?.path ?? undefined;
-      if (!planPath) {
+      const path = state?.current_plan?.path ?? undefined;
+      if (!path) {
         consola.error("No plan specified and no current plan found in state. Run `software-teams plan` first or provide a plan path.");
         process.exit(1);
       }
-      consola.info(`Using current plan: ${planPath}`);
-    }
+      consola.info(`Using current plan: ${path}`);
+      return path;
+    })();
 
     const ctx = await gatherPromptContext(cwd);
     const overrideFlag = args.team ? "--team (force Agent Teams mode)" :
       args.single ? "--single (force single-agent mode)" : undefined;
 
-    let prompt = buildImplementPrompt(ctx, planPath, overrideFlag);
-    if (args["dry-run"]) {
-      prompt = applyDryRunMode(prompt);
-    }
+    const basePrompt = buildImplementPrompt(ctx, resolvedPlanPath, overrideFlag);
+    const prompt = args["dry-run"] ? applyDryRunMode(basePrompt) : basePrompt;
 
     if (args.output) {
       await Bun.write(resolve(cwd, args.output), prompt);

@@ -10,11 +10,21 @@ import {
 import { setLifecycleLabel } from "../../../utils/labels";
 import type { ParsedIntent } from "./types";
 
-/**
- * Handle the approval fast-path — no Claude invocation needed.
- * Updates state.yaml, posts the confirmation comment, and sets the
- * plan-approved lifecycle label. Returns after posting.
- */
+async function readInstalledVersion(
+  cwd: string,
+  existsSync: (p: string) => boolean,
+  join: (...parts: string[]) => string,
+): Promise<string> {
+  try {
+    const pkgPath = join(cwd, "node_modules/@websitelabs/software-teams/package.json");
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(await Bun.file(pkgPath).text());
+      return pkg.version as string;
+    }
+  } catch {}
+  return "unknown";
+}
+
 export async function runApprovalHandler(opts: {
   cwd: string;
   repo: string | undefined;
@@ -25,7 +35,6 @@ export async function runApprovalHandler(opts: {
 }): Promise<void> {
   const { cwd, repo, issueNumber, commentId, placeholderCommentId } = opts;
 
-  // Update state.yaml using proper YAML parser
   const state = await readState(cwd) ?? {};
   state.review = {
     ...state.review,
@@ -52,16 +61,11 @@ export async function runApprovalHandler(opts: {
   if (repo && commentId) {
     await reactToComment(repo, commentId, "+1").catch(() => {});
   }
-  // Lifecycle label: plan locked in, awaiting `Hey Software Teams implement`.
   if (repo && issueNumber) {
     await setLifecycleLabel(repo, issueNumber, "plan-approved").catch(() => {});
   }
 }
 
-/**
- * Handle the ping fast-path — framework status check, no Claude invocation.
- * Posts a status table comment and returns.
- */
 export async function runPingHandler(opts: {
   cwd: string;
   repo: string | undefined;
@@ -79,14 +83,7 @@ export async function runPingHandler(opts: {
   const stateExists = existsSync(join(cwd, ".software-teams/config/state.yaml"));
   const rulesExists = existsSync(join(cwd, ".software-teams/rules"));
 
-  let version = "unknown";
-  try {
-    const pkgPath = join(cwd, "node_modules/@websitelabs/software-teams/package.json");
-    if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(await Bun.file(pkgPath).text());
-      version = pkg.version;
-    }
-  } catch {}
+  const version = await readInstalledVersion(cwd, existsSync, join);
 
   const statusBody = [
     `**Framework Status**`,
@@ -119,5 +116,4 @@ export async function runPingHandler(opts: {
   }
 }
 
-// Re-export so command.ts can use buildRulesBlock without an extra import
 export { buildRulesBlock };

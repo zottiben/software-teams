@@ -143,16 +143,17 @@ async function status(): Promise<number> {
     (await readFile(absClaudeMd, "utf8")).split("\n").includes(IMPORT_LINE);
 
   const absSettings = join(process.cwd(), SETTINGS_PATH);
-  let hasHookEntry = false;
-  if (existsSync(absSettings)) {
-    const settings = await readSettings(absSettings);
-    const preToolUse = settings.hooks?.PreToolUse ?? [];
-    hasHookEntry = preToolUse.some(
-      (entry) =>
-        entry.matcher === HOOK_MATCHER &&
-        entry.hooks.some((h) => h.command === HOOK_COMMAND_VALUE),
-    );
-  }
+  const hasHookEntry = existsSync(absSettings)
+    ? await (async () => {
+        const settings = await readSettings(absSettings);
+        const preToolUse = settings.hooks?.PreToolUse ?? [];
+        return preToolUse.some(
+          (entry) =>
+            entry.matcher === HOOK_MATCHER &&
+            entry.hooks.some((h) => h.command === HOOK_COMMAND_VALUE),
+        );
+      })()
+    : false;
 
   const fmt = (v: boolean) => (v ? "present" : "missing");
 

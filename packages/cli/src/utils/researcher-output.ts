@@ -123,21 +123,20 @@ export function parseResearcherQuestions(response: string): PrePlanQuestions {
  */
 function extractOpeningSummary(preamble: string): string {
   const lines = preamble.split("\n");
-  const summaryLines: string[] = [];
-  let sawAttribution = false;
+  const attrIdx = lines.findIndex((l) => /^\s*\*\*The Research Agent\*\*/i.test(l));
+  if (attrIdx < 0) return "";
 
-  for (const line of lines) {
-    if (/^\s*\*\*The Research Agent\*\*/i.test(line)) {
-      sawAttribution = true;
-      continue;
-    }
-    if (!sawAttribution) continue;
-    if (line.trim().length === 0) {
-      if (summaryLines.length > 0) break;
-      continue;
-    }
-    summaryLines.push(line);
-  }
+  const afterAttr = lines.slice(attrIdx + 1);
+  const summaryLines = afterAttr.reduce<{ lines: string[]; done: boolean }>(
+    (acc, line) => {
+      if (acc.done) return acc;
+      if (line.trim().length === 0) {
+        return acc.lines.length > 0 ? { lines: acc.lines, done: true } : acc;
+      }
+      return { lines: [...acc.lines, line], done: false };
+    },
+    { lines: [], done: false },
+  ).lines;
 
   return summaryLines.join("\n").trim();
 }

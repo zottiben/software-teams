@@ -110,50 +110,26 @@ export function mergeHooks(
   existing: Settings,
   additions: HookSpec[],
 ): Settings {
-  // Start with a shallow clone of the top-level settings so we never mutate
-  // the caller's object.
-  let result: Settings = { ...existing };
-
-  for (const addition of additions) {
-    const { event, matcher, command } = addition;
-
-    // Clone hooks object (or create it) so we don't mutate the parent.
-    const hooks: NonNullable<Settings["hooks"]> = result.hooks
-      ? { ...result.hooks }
-      : {};
-    result = { ...result, hooks };
-
-    // Clone the event array (or create it).
-    const eventArray: PreToolUseHook[] = hooks[event]
-      ? [...hooks[event]!]
-      : [];
+  return additions.reduce<Settings>((result, { event, matcher, command }) => {
+    const hooks: NonNullable<Settings["hooks"]> = result.hooks ? { ...result.hooks } : {};
+    const eventArray: PreToolUseHook[] = hooks[event] ? [...hooks[event]!] : [];
     hooks[event] = eventArray;
 
-    // Find an existing PreToolUseHook with the same matcher.
     const matcherIdx = eventArray.findIndex((h) => h.matcher === matcher);
 
     if (matcherIdx === -1) {
-      // No existing entry for this matcher — push a new one.
-      eventArray.push({
-        matcher,
-        hooks: [{ type: "command", command }],
-      });
+      eventArray.push({ matcher, hooks: [{ type: "command", command }] });
     } else {
-      // Clone the matching PreToolUseHook so we don't mutate it.
-      const existing = eventArray[matcherIdx]!;
-      const hookEntries = [...existing.hooks];
-
-      // Check for an existing identical HookEntry (idempotent).
-      const alreadyPresent = hookEntries.some((e) => e.command === command);
-      if (!alreadyPresent) {
+      const matchingEntry = eventArray[matcherIdx]!;
+      const hookEntries = [...matchingEntry.hooks];
+      if (!hookEntries.some((e) => e.command === command)) {
         hookEntries.push({ type: "command", command });
       }
-
-      eventArray[matcherIdx] = { ...existing, hooks: hookEntries };
+      eventArray[matcherIdx] = { ...matchingEntry, hooks: hookEntries };
     }
-  }
 
-  return result;
+    return { ...result, hooks };
+  }, { ...existing });
 }
 
 /**
@@ -180,60 +156,31 @@ export function removeHooks(
   existing: Settings,
   removals: HookSpec[],
 ): Settings {
-  let result: Settings = { ...existing };
-
-  for (const removal of removals) {
-    const { event, matcher, command } = removal;
-
-    if (!result.hooks?.[event]) {
-      // Event key absent — no-op.
-      continue;
-    }
+  return removals.reduce<Settings>((result, { event, matcher, command }) => {
+    if (!result.hooks?.[event]) return result;
 
     const eventArray = result.hooks[event]!;
     const matcherIdx = eventArray.findIndex((h) => h.matcher === matcher);
-
-    if (matcherIdx === -1) {
-      // Matcher absent — no-op.
-      continue;
-    }
+    if (matcherIdx === -1) return result;
 
     const matchingEntry = eventArray[matcherIdx]!;
-    const filteredHookEntries = matchingEntry.hooks.filter(
-      (e) => e.command !== command,
-    );
+    const filteredHookEntries = matchingEntry.hooks.filter((e) => e.command !== command);
 
-    // Build the new event array.
-    let newEventArray: PreToolUseHook[];
-    if (filteredHookEntries.length === 0) {
-      // Remove the whole PreToolUseHook.
-      newEventArray = eventArray.filter((_, i) => i !== matcherIdx);
-    } else {
-      newEventArray = [...eventArray];
-      newEventArray[matcherIdx] = {
-        ...matchingEntry,
-        hooks: filteredHookEntries,
-      };
-    }
+    const newEventArray = filteredHookEntries.length === 0
+      ? eventArray.filter((_, i) => i !== matcherIdx)
+      : Object.assign([...eventArray], { [matcherIdx]: { ...matchingEntry, hooks: filteredHookEntries } });
 
-    // Clone the hooks object.
     const newHooks: NonNullable<Settings["hooks"]> = { ...result.hooks };
-
     if (newEventArray.length === 0) {
-      // Remove the event key entirely.
       delete newHooks[event];
     } else {
       newHooks[event] = newEventArray;
     }
 
-    // If hooks is now empty, remove it from result.
     if (Object.keys(newHooks).length === 0) {
       const { hooks: _hooks, ...rest } = result;
-      result = rest as Settings;
-    } else {
-      result = { ...result, hooks: newHooks };
+      return rest as Settings;
     }
-  }
-
-  return result;
+    return { ...result, hooks: newHooks };
+  }, { ...existing });
 }

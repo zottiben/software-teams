@@ -92,18 +92,15 @@ export const initCommand = defineCommand({
     if (!args["state-only"]) {
       const { parse: parseYaml } = await import("yaml");
       const cfgPath = join(cwd, ".software-teams", "config", "config.yaml");
-      let nativeSubagentsEnabled = true;
-      if (existsSync(cfgPath)) {
+      const nativeSubagentsEnabled = !existsSync(cfgPath) || await (async () => {
         try {
           const cfgContent = await Bun.file(cfgPath).text();
           const cfg = (parseYaml(cfgContent) ?? {}) as Record<string, any>;
-          if (cfg.features && typeof cfg.features === "object" && cfg.features.native_subagents === false) {
-            nativeSubagentsEnabled = false;
-          }
+          return !(cfg.features && typeof cfg.features === "object" && cfg.features.native_subagents === false);
         } catch {
-          // Treat parse failure as "flag not set" — default to enabled.
+          return true;
         }
-      }
+      })();
 
       if (!nativeSubagentsEnabled) {
         if (!args.ci) {
@@ -161,10 +158,7 @@ export const initCommand = defineCommand({
       ...(!args["state-only"] ? [".claude/commands/st/"] : []),
     ].join("\n");
 
-    let existingGitignore = "";
-    if (existsSync(gitignorePath)) {
-      existingGitignore = readFileSync(gitignorePath, "utf-8");
-    }
+    const existingGitignore = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf-8") : "";
     if (!existingGitignore.includes(stMarker)) {
       const newContent = existingGitignore
         ? existingGitignore.trimEnd() + "\n" + stEntries + "\n"
@@ -176,11 +170,7 @@ export const initCommand = defineCommand({
     if (args.storage || args["storage-path"]) {
       const { parse, stringify } = await import("yaml");
       const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
-      let config: any = {};
-      try {
-        const existing = await Bun.file(configPath).text();
-        config = parse(existing) ?? {};
-      } catch { /* file may not exist yet */ }
+      const config: any = await Bun.file(configPath).text().then((t) => parse(t) ?? {}).catch(() => ({}));
 
       config.storage = {
         adapter: args.storage ?? "fs",

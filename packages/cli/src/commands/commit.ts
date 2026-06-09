@@ -49,70 +49,47 @@ export const commitCommand = defineCommand({
     },
   },
   async run({ args }) {
-    // Check for staged files first, fall back to unstaged
-    let stagedFiles = await gitDiffNames(true);
-    let needsStaging = false;
+    const initialStagedFiles = await gitDiffNames(true);
+    const needsStaging = initialStagedFiles.length === 0;
+    const stagedFiles = needsStaging
+      ? await (async () => {
+          const unstagedFiles = await gitDiffNames(false);
+          const status = await gitStatus();
+          const untrackedFiles = status.split("\n").filter((l) => l.startsWith("??")).map((l) => l.slice(3));
+          return [...unstagedFiles, ...untrackedFiles];
+        })()
+      : initialStagedFiles;
 
-    if (stagedFiles.length === 0) {
-      const unstagedFiles = await gitDiffNames(false);
-      // Also check untracked files
-      const status = await gitStatus();
-      const untrackedFiles = status
-        .split("\n")
-        .filter((l) => l.startsWith("??"))
-        .map((l) => l.slice(3));
-
-      const allFiles = [...unstagedFiles, ...untrackedFiles];
-
-      if (allFiles.length === 0) {
+    if (needsStaging) {
+      if (stagedFiles.length === 0) {
         consola.warn("No changes to commit.");
         return;
       }
-
       if (!args.all) {
         consola.info("No staged files. Changed files:");
-        for (const f of allFiles) consola.info(`  ${f}`);
+        for (const f of stagedFiles) consola.info(`  ${f}`);
         consola.info("\nUse --all to stage and commit all, or stage files manually.");
         return;
       }
-
-      stagedFiles = allFiles;
-      needsStaging = true;
     }
 
-    // Detect type from file paths
-    const status = await gitStatus();
-    const newFiles = status
-      .split("\n")
-      .filter((l) => l.startsWith("??") || l.startsWith("A "))
-      .map((l) => l.slice(3).trim());
+    const statusOut = await gitStatus();
+    const newFiles = statusOut.split("\n").filter((l) => l.startsWith("??") || l.startsWith("A ")).map((l) => l.slice(3).trim());
 
-    let type: string;
-    if (stagedFiles.every((f) => f.startsWith("test") || f.includes("__tests__") || f.includes(".test.") || f.includes(".spec."))) {
-      type = "test";
-    } else if (stagedFiles.every((f) => f.endsWith(".md"))) {
-      type = "docs";
-    } else if (stagedFiles.every((f) => f.includes("Dockerfile") || f.includes(".yml") || f.includes(".yaml") || f.includes(".github/"))) {
-      type = "ci";
-    } else if (stagedFiles.every((f) => newFiles.includes(f))) {
-      type = "feat";
-    } else {
-      type = "feat";
-    }
+    const type = stagedFiles.every((f) => f.startsWith("test") || f.includes("__tests__") || f.includes(".test.") || f.includes(".spec."))
+      ? "test"
+      : stagedFiles.every((f) => f.endsWith(".md"))
+      ? "docs"
+      : stagedFiles.every((f) => f.includes("Dockerfile") || f.includes(".yml") || f.includes(".yaml") || f.includes(".github/"))
+      ? "ci"
+      : "feat";
 
     const scope = detectScope(stagedFiles);
     const scopePart = scope ? `(${scope})` : "";
 
-    // Build message
-    let commitMsg: string;
-    if (args.message) {
-      commitMsg = args.message;
-    } else {
-      const filesSummary = stagedFiles.length <= 5
-        ? stagedFiles.join(", ")
-        : `${stagedFiles.length} files`;
-      commitMsg = `${type}${scopePart}: update ${filesSummary}`;
-    }
+    const commitMsg = args.message
+      ? args.message
+      : `${type}${scopePart}: update ${stagedFiles.length <= 5 ? stagedFiles.join(", ") : `${stagedFiles.length} files`}`;
 
     // Dry run
     if (args["dry-run"]) {

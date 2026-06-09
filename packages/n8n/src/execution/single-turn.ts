@@ -124,48 +124,39 @@ async function spawnClaude(
       proc.stdin.end();
     }
 
-    let buffer = "";
-    let lastTextResponse = "";
+    const streamState = { buffer: "", lastTextResponse: "" };
 
-    proc.stdout!.on("data", (chunk: Buffer) => {
-      buffer += chunk.toString("utf8");
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        try {
-          const event = JSON.parse(trimmed);
-          if (event.type === "assistant" && event.message?.content) {
-            for (const block of event.message.content) {
-              if (block.type === "text" && block.text) {
-                lastTextResponse = block.text;
-              }
+    const processLine = (trimmed: string) => {
+      try {
+        const event = JSON.parse(trimmed);
+        if (event.type === "assistant" && event.message?.content) {
+          for (const block of event.message.content) {
+            if (block.type === "text" && block.text) {
+              streamState.lastTextResponse = block.text;
             }
           }
-          if (event.type === "result" && event.result) {
-            lastTextResponse = event.result;
-          }
-        } catch {
-          // skip non-JSON lines
         }
+        if (event.type === "result" && event.result) {
+          streamState.lastTextResponse = event.result;
+        }
+      } catch {
+        // skip non-JSON lines
+      }
+    };
+
+    proc.stdout!.on("data", (chunk: Buffer) => {
+      streamState.buffer += chunk.toString("utf8");
+      const lines = streamState.buffer.split("\n");
+      streamState.buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed) processLine(trimmed);
       }
     });
 
     proc.on("close", (code) => {
-      // Process any remaining buffered data
-      if (buffer.trim()) {
-        try {
-          const event = JSON.parse(buffer.trim());
-          if (event.type === "result" && event.result) {
-            lastTextResponse = event.result;
-          }
-        } catch {
-          // skip
-        }
-      }
-      resolve({ exitCode: code ?? 1, response: lastTextResponse });
+      if (streamState.buffer.trim()) processLine(streamState.buffer.trim());
+      resolve({ exitCode: code ?? 1, response: streamState.lastTextResponse });
     });
 
     proc.on("error", reject);
@@ -206,10 +197,11 @@ function resolveAgentSpecPath(agentId: string): string | null {
  */
 function stripSpecFrontmatter(content: string): string {
   const fm = content.match(/^---\n[\s\S]*?\n---\n?/);
-  let body = fm ? content.slice(fm[0].length) : content;
-  body = body.replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "");
-  body = body.replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "");
-  return body.trim();
+  const rawBody = fm ? content.slice(fm[0].length) : content;
+  return rawBody
+    .replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "")
+    .replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "")
+    .trim();
 }
 
 // --------------------------------------------------------------------------
@@ -274,16 +266,13 @@ export async function runAgentTurn(
     );
   }
 
-  // ── 2. Resolve and inline the agent spec ─────────────────────────────────
-  let agentSpecBody = "";
   const specPath = resolveAgentSpecPath(input.agentId);
-  if (specPath) {
-    try {
-      agentSpecBody = stripSpecFrontmatter(readFileSync(specPath, "utf8"));
-    } catch {
-      // Spec unreadable — degrade gracefully
-    }
-  }
+  const agentSpecBody = specPath
+    ? (() => {
+        try { return stripSpecFrontmatter(readFileSync(specPath, "utf8")); }
+        catch { return ""; }
+      })()
+    : "";
 
   // ── 3. Assemble the full prompt ──────────────────────────────────────────
   const taskSection = assemblePrompt(input.input);
@@ -291,19 +280,14 @@ export async function runAgentTurn(
     ? `${agentSpecBody}\n\n---\n\n${taskSection}`
     : taskSection;
 
-  // ── 4. Invoke claude -p with Task excluded ────────────────────────────────
-  let exitCode: number;
-  let response: string;
-  try {
-    ({ exitCode, response } = await spawnClaude(fullPrompt, {
-      allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS],
-    }));
-  } catch (err) {
-    return buildErrorEnvelope(
-      input,
-      `Failed to invoke claude CLI: ${err instanceof Error ? err.message : String(err)}`,
-    );
+  const spawnResult = await spawnClaude(fullPrompt, {
+    allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS],
+  }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
+
+  if ("_error" in spawnResult) {
+    return buildErrorEnvelope(input, `Failed to invoke claude CLI: ${spawnResult._error}`);
   }
+  const { exitCode, response } = spawnResult;
 
   // ── 5. Detect needs-input marker (CONTRACT.md §5) ────────────────────────
   const needsInputMatch = NEEDS_INPUT_RE.exec(response);

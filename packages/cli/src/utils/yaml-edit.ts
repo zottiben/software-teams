@@ -59,32 +59,29 @@ export function softwareTeamsPath(...parts: string[]): string {
  * `phases: { 1: { ... } }` round-trips with `1` as a number after parse,
  * so we coerce both sides to strings during lookup.
  */
+const NOT_FOUND = Symbol("not-found");
+
+function stepDown(cursor: YamlValue, seg: string): YamlValue | typeof NOT_FOUND {
+  if (cursor == null || typeof cursor !== "object") return NOT_FOUND;
+  if (Array.isArray(cursor)) {
+    const idx = Number(seg);
+    if (!Number.isInteger(idx) || idx < 0 || idx >= cursor.length) return NOT_FOUND;
+    return cursor[idx] as YamlValue;
+  }
+  const map = cursor as Record<string, YamlValue>;
+  if (seg in map) return map[seg];
+  const numericKey = String(Number(seg));
+  if (numericKey === seg && numericKey in map) return map[numericKey];
+  return NOT_FOUND;
+}
+
 export function dottedGet(obj: YamlValue, path: string): YamlValue {
   const segments = path.split(".").filter((s) => s.length > 0);
-  let cursor: YamlValue = obj;
-  for (const seg of segments) {
-    if (cursor == null || typeof cursor !== "object") return undefined;
-    if (Array.isArray(cursor)) {
-      const idx = Number(seg);
-      if (!Number.isInteger(idx) || idx < 0 || idx >= cursor.length) return undefined;
-      cursor = cursor[idx];
-      continue;
-    }
-    const map = cursor as Record<string, YamlValue>;
-    if (seg in map) {
-      cursor = map[seg];
-    } else {
-      // Try numeric key form (YAML parses `phases: { 1: ... }` as a numeric
-      // key; lookups by `"1"` then need to land on the same slot).
-      const numericKey = String(Number(seg));
-      if (numericKey === seg && numericKey in map) {
-        cursor = map[numericKey];
-      } else {
-        return undefined;
-      }
-    }
-  }
-  return cursor;
+  const result = segments.reduce<YamlValue | typeof NOT_FOUND>(
+    (acc, seg) => (acc === NOT_FOUND ? NOT_FOUND : stepDown(acc as YamlValue, seg)),
+    obj,
+  );
+  return result === NOT_FOUND ? undefined : result as YamlValue;
 }
 
 /**

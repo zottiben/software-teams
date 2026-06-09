@@ -25,6 +25,46 @@ import { runApprovalHandler, runPingHandler } from "./approval-ping";
 import { buildCommentPrompt } from "./prompt-assembly";
 import { executeAndPost } from "./execute-and-post";
 
+async function fetchConversationContext(
+  repo: string | undefined,
+  issueNumber: number,
+  commentId: number | null,
+): Promise<{ conversationHistory: string; isFollowUp: boolean; isPostImplementation: boolean }> {
+  if (!repo || !issueNumber) {
+    return { conversationHistory: "", isFollowUp: false, isPostImplementation: false };
+  }
+
+  const baseThread = await fetchCommentThread(repo, issueNumber);
+  const isPr = await isPullRequest(repo, issueNumber);
+  const thread = isPr
+    ? await (async () => {
+        const linkedIssues = await fetchPrLinkedIssues(repo, issueNumber);
+        const linkedThreads = await Promise.all(
+          linkedIssues.map(async (issueN) => {
+            const linked = await fetchCommentThread(repo, issueN);
+            if (linked.length > 0) {
+              consola.info(`Bridged ${linked.length} comment(s) from linked issue #${issueN}`);
+            }
+            return linked;
+          }),
+        );
+        return [...linkedThreads.flat(), ...baseThread];
+      })()
+    : baseThread;
+
+  const context = buildConversationContext(thread, commentId ?? 0);
+  if (context.isFollowUp) {
+    consola.info(
+      `Continuing conversation (${context.previousRuns} previous assistant run(s))${context.isPostImplementation ? " [post-implementation]" : ""}`,
+    );
+  }
+  return {
+    conversationHistory: sanitizeUserInput(context.history, 50_000),
+    isFollowUp: context.isFollowUp,
+    isPostImplementation: context.isPostImplementation,
+  };
+}
+
 export const runCommand = defineCommand({
   meta: {
     name: "run",
@@ -75,7 +115,6 @@ export const runCommand = defineCommand({
     const commentAuthor = args["comment-author"] ?? process.env.COMMENT_AUTHOR ?? "";
     const allowedUsers = args["allowed-users"] ?? process.env.ALLOWED_USERS ?? "";
 
-    // Fail-closed event-type validation — reject any value not in the allow-list
     if (args["event-type"] !== undefined && !ALLOWED_EVENT_TYPES.has(args["event-type"])) {
       consola.error(
         `Unsupported event-type: "${args["event-type"]}". Allowed values: ${[...ALLOWED_EVENT_TYPES].join(", ")}`,
@@ -83,7 +122,6 @@ export const runCommand = defineCommand({
       process.exit(1);
     }
 
-    // Opt-in authorization gate — only active if SOFTWARE_TEAMS_AUTH_ENABLED or --allowed-users is set
     if (commentAuthor && (allowedUsers || process.env.SOFTWARE_TEAMS_AUTH_ENABLED)) {
       const authResult = await checkAuthorization(repo!, commentAuthor, allowedUsers || undefined);
       if (!authResult.authorized) {
@@ -99,81 +137,33 @@ export const runCommand = defineCommand({
       }
     }
 
-    // ── Label-triggered path (issue_labeled) ──────────────────────────────────
-    // Bypasses comment parsing and thread fetching — the issue title+body IS
-    // the user request. Continues into the existing planner-prompt path below.
     if (args["event-type"] === "issue_labeled") {
       await runLabelTriggeredPath({ cwd, repo: repo!, issueNumber });
       return;
     }
-    // ── End label-triggered path ───────────────────────────────────────────────
 
-    // Fetch comment thread to detect if this is a follow-up conversation.
-    // On PR-context runs, also fetch comments from any issue this PR
-    // closes (via `Closes #N` trailer) so the agent inherits the originating
-    // issue's conversation — otherwise it would start from scratch on the
-    // first PR comment.
-    let conversationHistory = "";
-    let isFollowUp = false;
-    let isPostImplementation = false;
-    if (repo && issueNumber) {
-      let thread = await fetchCommentThread(repo, issueNumber);
+    const { conversationHistory, isFollowUp, isPostImplementation } =
+      await fetchConversationContext(repo, issueNumber, commentId);
 
-      if (await isPullRequest(repo, issueNumber)) {
-        const linkedIssues = await fetchPrLinkedIssues(repo, issueNumber);
-        for (const issueN of linkedIssues) {
-          const linkedThread = await fetchCommentThread(repo, issueN);
-          if (linkedThread.length > 0) {
-            consola.info(
-              `Bridged ${linkedThread.length} comment(s) from linked issue #${issueN}`,
-            );
-            thread = [...linkedThread, ...thread];
-          }
-        }
-      }
-
-      const context = buildConversationContext(
-        thread,
-        commentId ?? 0,
-      );
-      conversationHistory = context.history;
-      isFollowUp = context.isFollowUp;
-      isPostImplementation = context.isPostImplementation;
-
-      if (isFollowUp) {
-        consola.info(
-          `Continuing conversation (${context.previousRuns} previous assistant run(s))${isPostImplementation ? " [post-implementation]" : ""}`,
-        );
-      }
-      // Sanitize conversation history (may contain user-controlled content)
-      conversationHistory = sanitizeUserInput(conversationHistory, 50_000);
-    }
-
-    // Parse intent — pass isFollowUp so ambiguous messages become feedback
     const intent = parseComment(args.comment, isFollowUp);
     if (!intent) {
       consola.error("Could not parse trigger phrase (e.g. 'Hey Software Teams ...') from comment");
       process.exit(1);
     }
 
-    // Sanitize user-controlled input
     intent.description = sanitizeUserInput(intent.description, 10_000);
 
     consola.info(
       `Parsed intent: ${intent.isApproval ? "approval (finalise plan)" : intent.isFeedback ? "refinement feedback" : intent.command}${intent.fullFlow ? " (full flow)" : ""}`,
     );
 
-    // React with eyes to indicate processing
     if (repo && commentId) {
       await reactToComment(repo, commentId, "eyes").catch(() => {});
     }
 
-    // Post a thinking placeholder comment
-    let placeholderCommentId: number | null = null;
-    if (repo && issueNumber) {
-      const thinkingBody = `${ASSISTANT_COMMENT_MARKER}\n<h3>🧠 Working on it...</h3>\n\n---\n\n_Reviewing your request..._`;
-      placeholderCommentId = await postGitHubComment(repo, issueNumber, thinkingBody).catch(() => null);
-    }
+    const placeholderCommentId: number | null = (repo && issueNumber)
+      ? await postGitHubComment(repo, issueNumber, `${ASSISTANT_COMMENT_MARKER}\n<h3>🧠 Working on it...</h3>\n\n---\n\n_Reviewing your request..._`).catch(() => null)
+      : null;
 
     // Approval: lightweight confirmation — no Claude invocation needed
     if (intent.isFeedback && intent.isApproval) {
@@ -187,37 +177,23 @@ export const runCommand = defineCommand({
       return;
     }
 
-    // Load persisted state via storage
     const storage = await createStorage(cwd);
     const { rulesPath, codebaseIndexPath } = await loadPersistedState(cwd, storage);
 
-    // Load external-context blocks (ClickUp tickets, Datadog Error
-    // Tracking issues). URLs are searched in BOTH the trigger comment
-    // AND the issue/PR title + body — users often paste the Datadog
-    // link in the issue body itself, with the trigger comment being
-    // just "Hey Software Teams fix this". Each context is sanitised
-    // through the PII scrubber before it lands in the prompt.
-    let externalSearchCorpus = intent.description ?? "";
-    if (repo && issueNumber) {
-      const issueRecord = await fetchIssueTitleAndBody(repo, issueNumber).catch(() => null);
-      if (issueRecord) {
-        externalSearchCorpus += `\n${issueRecord.title}\n${issueRecord.body}`;
-      }
-    }
+    const issueRecord = (repo && issueNumber)
+      ? await fetchIssueTitleAndBody(repo, issueNumber).catch(() => null)
+      : null;
+    const externalSearchCorpus = issueRecord
+      ? `${intent.description ?? ""}\n${issueRecord.title}\n${issueRecord.body}`
+      : (intent.description ?? "");
     const externalBlocks = await loadExternalContexts(externalSearchCorpus);
 
-    // Build project context
     const projectType = await detectProjectType(cwd);
     const adapter = await readAdapter(cwd);
     const techStack = adapter?.tech_stack
       ? Object.entries(adapter.tech_stack).map(([k, v]) => `${k}: ${v}`).join(", ")
       : projectType;
 
-    // Project-identity block. Byte-stable for a given project — placeholders
-    // fill in for absent fields so the same prefix appears on every action
-    // invocation. Runtime-varying bits (cwd, ticket context, conversation
-    // history) live in `workspaceLines` and `historyBlock` below and are
-    // emitted strictly AFTER the cacheable header.
     const projectLines = [
       `## Project Context`,
       `- Type: ${projectType}`,
@@ -248,7 +224,6 @@ export const runCommand = defineCommand({
       isPostImplementation,
     });
 
-    // null means the discovery gate aborted (questions posted) — don't spawn Claude
     if (prompt === null) return;
 
     await executeAndPost({

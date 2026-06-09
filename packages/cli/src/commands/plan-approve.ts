@@ -25,13 +25,12 @@ export const planApproveCommand = defineCommand({
       return;
     }
 
-    // Resolve plan path
-    let planPath: string;
-    if (args.plan) {
-      planPath = resolve(cwd, args.plan as string);
-    } else if (state.current_plan?.path) {
-      planPath = resolve(cwd, state.current_plan.path as string);
-    } else {
+    const planPath = args.plan
+      ? resolve(cwd, args.plan as string)
+      : state.current_plan?.path
+      ? resolve(cwd, state.current_plan.path as string)
+      : null;
+    if (!planPath) {
       consola.error("No plan to approve. Run `software-teams plan` first.");
       return;
     }

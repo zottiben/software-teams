@@ -47,20 +47,21 @@ export const reviewCommand = defineCommand({
       return;
     }
 
-    let meta = "";
-    if (metaResult.exitCode === 0) {
-      try {
-        const data = JSON.parse(metaResult.stdout);
-        meta = [
-          `**Title:** ${data.title}`,
-          `**Author:** ${data.author?.login ?? "unknown"}`,
-          `**Base:** ${data.baseRefName} <- ${data.headRefName}`,
-          data.body ? `**Description:**\n${data.body}` : "",
-        ].filter(Boolean).join("\n");
-      } catch {
-        meta = metaResult.stdout;
-      }
-    }
+    const meta = metaResult.exitCode === 0
+      ? (() => {
+          try {
+            const data = JSON.parse(metaResult.stdout);
+            return [
+              `**Title:** ${data.title}`,
+              `**Author:** ${data.author?.login ?? "unknown"}`,
+              `**Base:** ${data.baseRefName} <- ${data.headRefName}`,
+              data.body ? `**Description:**\n${data.body}` : "",
+            ].filter(Boolean).join("\n");
+          } catch {
+            return metaResult.stdout;
+          }
+        })()
+      : "";
 
     const ctx = await gatherPromptContext(process.cwd());
     const prompt = buildReviewPrompt(

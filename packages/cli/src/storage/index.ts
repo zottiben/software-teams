@@ -35,21 +35,22 @@ export async function createStorage(
   cwd: string,
   config?: StorageConfig,
 ): Promise<SoftwareTeamsStorage> {
-  let adapter = config?.adapter ?? "fs";
-  let basePath = config?.basePath;
-
-  // Read from software-teams-config.yaml if no explicit config
-  if (!config?.adapter && !config?.basePath) {
-    const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
-    if (existsSync(configPath)) {
-      const content = await Bun.file(configPath).text();
-      const parsed = parse(content);
-      if (parsed?.storage?.adapter) adapter = parsed.storage.adapter;
-      if (parsed?.storage?.base_path) basePath = parsed.storage.base_path;
+  const resolvedStorageConfig = await (async (): Promise<{ adapter: string; basePath: string | undefined }> => {
+    if (config?.adapter || config?.basePath) {
+      return { adapter: config?.adapter ?? "fs", basePath: config?.basePath };
     }
-  }
+    const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
+    if (!existsSync(configPath)) return { adapter: "fs", basePath: config?.basePath };
+    const content = await Bun.file(configPath).text();
+    const parsed = parse(content);
+    return {
+      adapter: (parsed?.storage?.adapter ?? "fs") as string,
+      basePath: (parsed?.storage?.base_path ?? config?.basePath) as string | undefined,
+    };
+  })();
+  const adapter = resolvedStorageConfig.adapter;
+  const basePath = resolvedStorageConfig.basePath;
 
-  // Built-in: filesystem adapter
   if (adapter === "fs") {
     const resolvedPath = basePath
       ? join(cwd, basePath)

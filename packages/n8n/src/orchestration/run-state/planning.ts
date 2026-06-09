@@ -68,16 +68,17 @@ function extractJsonArray(text: string): string {
  * parseable is found so a broken planning pass is traceable (R-05).
  */
 export function parseBreakdown(text: string): OrchestrationTask[] {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(extractJsonArray(text));
-  } catch (err) {
-    throw new Error(
-      `Planner did not return a parseable JSON task breakdown: ${
-        err instanceof Error ? err.message : String(err)
-      }`,
-    );
-  }
+  const raw = (() => {
+    try {
+      return JSON.parse(extractJsonArray(text));
+    } catch (err) {
+      throw new Error(
+        `Planner did not return a parseable JSON task breakdown: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  })();
   if (!Array.isArray(raw)) {
     throw new Error("Planner breakdown is not a JSON array.");
   }

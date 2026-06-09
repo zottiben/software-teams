@@ -152,12 +152,12 @@ export async function findActiveOrchestration(
     ? orchestrationAbs.slice(cwd.length + 1)
     : orchestrationAbs;
 
-  let content: string;
-  try {
-    content = readFileSync(orchestrationAbs, "utf-8");
-  } catch {
-    return null;
-  }
+  const contentResult = (() => {
+    try { return { ok: true as const, value: readFileSync(orchestrationAbs, "utf-8") }; }
+    catch { return { ok: false as const }; }
+  })();
+  if (!contentResult.ok) return null;
+  const content = contentResult.value;
 
   const fm = parseFrontmatter<OrchestrationFrontmatter>(content);
   if (!fm) return null;
@@ -176,12 +176,12 @@ export async function findActiveOrchestration(
       : join(plansDir, basename(entry));
     if (!existsSync(sliceAbs)) continue;
 
-    let sliceContent: string;
-    try {
-      sliceContent = readFileSync(sliceAbs, "utf-8");
-    } catch {
-      continue;
-    }
+    const sliceReadResult = (() => {
+      try { return { ok: true as const, value: readFileSync(sliceAbs, "utf-8") }; }
+      catch { return { ok: false as const }; }
+    })();
+    if (!sliceReadResult.ok) continue;
+    const sliceContent = sliceReadResult.value;
     const sliceFm = parseFrontmatter<SliceFrontmatter>(sliceContent);
     const agentType = asString(sliceFm?.agent);
     if (!agentType) continue;
@@ -194,22 +194,16 @@ export async function findActiveOrchestration(
 
   if (slices.length === 0) return null;
 
-  // Resolve SPEC path — prefer the orchestration's explicit `spec_link:`,
-  // otherwise derive from the slug.
-  let specPath: string | undefined;
+  const toRel = (abs: string) => abs.startsWith(cwd + "/") ? abs.slice(cwd.length + 1) : abs;
   const specLink = asString(fm.spec_link);
-  if (specLink) {
-    const specAbs = specLink.startsWith("/") ? specLink : join(cwd, specLink);
-    if (existsSync(specAbs)) {
-      specPath = specAbs.startsWith(cwd + "/") ? specAbs.slice(cwd.length + 1) : specAbs;
-    }
-  }
-  if (!specPath) {
+  const specPathFromLink = specLink
+    ? (() => { const abs = specLink.startsWith("/") ? specLink : join(cwd, specLink); return existsSync(abs) ? toRel(abs) : undefined; })()
+    : undefined;
+  const specPathDerived = (() => {
     const derived = orchestrationAbs.replace(/\.orchestration\.md$/, ".spec.md");
-    if (existsSync(derived)) {
-      specPath = derived.startsWith(cwd + "/") ? derived.slice(cwd.length + 1) : derived;
-    }
-  }
+    return existsSync(derived) ? toRel(derived) : undefined;
+  })();
+  const specPath = specPathFromLink ?? specPathDerived;
 
   return { orchestrationPath: orchestrationRel, specPath, slices };
 }

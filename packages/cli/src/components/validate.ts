@@ -222,42 +222,32 @@ export function validateRegistry():
   if (existsSync(frameworkPath)) {
     const g = new Bun.Glob("**/*.md");
     for (const filePath of g.scanSync({ cwd: frameworkPath, absolute: true })) {
-      let content: string;
-      try {
-        content = readFileSync(filePath, "utf8");
-      } catch {
+      const readResult = (() => {
+        try {
+          return { ok: true as const, content: readFileSync(filePath, "utf8") };
+        } catch {
+          return { ok: false as const };
+        }
+      })();
+      if (!readResult.ok) {
         errors.push(`Could not read file: ${filePath}`);
         continue;
       }
 
-      const lines = content.split("\n");
-      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-        const line = lines[lineIdx];
-        TAG_REGEX.lastIndex = 0;
-        let match: RegExpExecArray | null;
-        while ((match = TAG_REGEX.exec(line)) !== null) {
+      readResult.content.split("\n").forEach((line, lineIdx) => {
+        for (const match of line.matchAll(TAG_REGEX)) {
           const compName = match[1];
           const secName = match[2] as string | undefined;
-
           const component = registry[compName];
-          if (component === undefined) {
-            const tag =
-              secName !== undefined
-                ? `${compName}:${secName}`
-                : compName;
-            errors.push(
-              `${filePath}:${lineIdx + 1}: broken ref '@ST:${tag}' — component '${compName}' not found`,
-            );
-            continue;
-          }
 
-          if (secName !== undefined && !(secName in component.sections)) {
-            errors.push(
-              `${filePath}:${lineIdx + 1}: broken ref '@ST:${compName}:${secName}' — section '${secName}' not found in '${compName}'`,
-            );
+          if (component === undefined) {
+            const tag = secName !== undefined ? `${compName}:${secName}` : compName;
+            errors.push(`${filePath}:${lineIdx + 1}: broken ref '@ST:${tag}' — component '${compName}' not found`);
+          } else if (secName !== undefined && !(secName in component.sections)) {
+            errors.push(`${filePath}:${lineIdx + 1}: broken ref '@ST:${compName}:${secName}' — section '${secName}' not found in '${compName}'`);
           }
         }
-      }
+      });
     }
   }
 

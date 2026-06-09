@@ -26,44 +26,37 @@ export async function loadPersistedState(
   cwd: string,
   storage: SoftwareTeamsStorage,
 ): Promise<{ rulesPath: string | null; codebaseIndexPath: string | null }> {
-  let rulesPath: string | null = null;
-  let codebaseIndexPath: string | null = null;
-
-  // Load each rule category file individually
   const dir = join(cwd, ".software-teams", "rules");
-  let anyLoaded = false;
-  for (const category of RULE_CATEGORIES) {
-    // Try the new key first, then fall back to the legacy `learnings-*` key
-    // for caches written before the rename.
-    const content =
-      (await storage.load(`rules-${category}`)) ??
-      (await storage.load(`learnings-${category}`));
-    if (content) {
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-      await writeIfChanged(join(dir, `${category}.md`), content);
-      anyLoaded = true;
-    }
-  }
+  const ruleLoadResults = await Promise.all(
+    RULE_CATEGORIES.map(async (category) => {
+      const content =
+        (await storage.load(`rules-${category}`)) ??
+        (await storage.load(`learnings-${category}`));
+      if (content) {
+        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+        await writeIfChanged(join(dir, `${category}.md`), content);
+        return true;
+      }
+      return false;
+    }),
+  );
+  const anyLoaded = ruleLoadResults.some(Boolean);
 
-  if (anyLoaded) {
-    rulesPath = dir;
-  } else if (existsSync(dir)) {
-    // Final fallback: rules already exist on disk (e.g. committed to repo).
-    // This handles the case where cache has been evicted but rules were
-    // persisted via git.
-    const files = readdirSync(dir).filter((f) => f.endsWith(".md"));
-    if (files.length > 0) {
-      rulesPath = dir;
-    }
-  }
+  const rulesPath: string | null = anyLoaded
+    ? dir
+    : existsSync(dir) && readdirSync(dir).filter((f) => f.endsWith(".md")).length > 0
+      ? dir
+      : null;
 
   const codebaseIndex = await storage.load("codebase-index");
-  if (codebaseIndex) {
+  const codebaseIndexPath: string | null = await (async () => {
+    if (!codebaseIndex) return null;
     const cbDir = join(cwd, ".software-teams", "codebase");
     if (!existsSync(cbDir)) mkdirSync(cbDir, { recursive: true });
-    codebaseIndexPath = join(cbDir, "INDEX.md");
-    await writeIfChanged(codebaseIndexPath, codebaseIndex);
-  }
+    const indexPath = join(cbDir, "INDEX.md");
+    await writeIfChanged(indexPath, codebaseIndex);
+    return indexPath;
+  })();
 
   return { rulesPath, codebaseIndexPath };
 }
@@ -76,39 +69,33 @@ export async function savePersistedState(
   cwd: string,
   storage: SoftwareTeamsStorage,
 ): Promise<{ rulesSaved: boolean; codebaseIndexSaved: boolean }> {
-  let rulesSaved = false;
-  let codebaseIndexSaved = false;
-
-  // Save each rule category file individually
   const rulesDir = join(cwd, ".software-teams", "rules");
-  if (existsSync(rulesDir)) {
-    for (const category of RULE_CATEGORIES) {
-      const filePath = join(rulesDir, `${category}.md`);
-      if (!existsSync(filePath)) continue;
+  const ruleSaveResults = existsSync(rulesDir)
+    ? await Promise.all(
+        RULE_CATEGORIES.map(async (category) => {
+          const filePath = join(rulesDir, `${category}.md`);
+          if (!existsSync(filePath)) return false;
+          const content = await Bun.file(filePath).text();
+          const trimmed = content.trim();
+          const hasContent = trimmed.split("\n").some(
+            (l) => l.trim() && !l.startsWith("#") && !l.startsWith("<!--"),
+          );
+          if (!hasContent) return false;
+          await storage.save(`rules-${category}`, trimmed);
+          return true;
+        }),
+      )
+    : [];
+  const rulesSaved = ruleSaveResults.some(Boolean);
 
-      const content = await Bun.file(filePath).text();
-      const trimmed = content.trim();
-
-      // Skip empty files (just headers/comments)
-      const lines = trimmed.split("\n").filter(
-        (l) => l.trim() && !l.startsWith("#") && !l.startsWith("<!--"),
-      );
-      if (lines.length === 0) continue;
-
-      await storage.save(`rules-${category}`, trimmed);
-      rulesSaved = true;
-    }
-  }
-
-  // Save codebase index if it exists
   const indexPath = join(cwd, ".software-teams", "codebase", "INDEX.md");
-  if (existsSync(indexPath)) {
+  const codebaseIndexSaved = await (async () => {
+    if (!existsSync(indexPath)) return false;
     const content = await Bun.file(indexPath).text();
-    if (content.trim()) {
-      await storage.save("codebase-index", content);
-      codebaseIndexSaved = true;
-    }
-  }
+    if (!content.trim()) return false;
+    await storage.save("codebase-index", content);
+    return true;
+  })();
 
   return { rulesSaved, codebaseIndexSaved };
 }

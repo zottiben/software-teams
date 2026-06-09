@@ -180,8 +180,8 @@ describe("action run command prompt invariants", () => {
       const source = await Bun.file(new URL("../run/command.ts", import.meta.url).pathname).text();
       // Look for the aggregation pattern: corpus starts as the
       // comment description, then appends the issue title + body.
-      expect(source).toMatch(/let externalSearchCorpus = intent\.description/);
-      expect(source).toMatch(/externalSearchCorpus \+= `\\n\$\{issueRecord\.title\}\\n\$\{issueRecord\.body\}`/);
+      expect(source).toMatch(/const externalSearchCorpus[\s\S]{0,120}intent\.description/);
+      expect(source).toMatch(/issueRecord\.title[\s\S]{0,60}issueRecord\.body/);
     });
 
     test("label-triggered path also runs the external-context lookup against the synthetic issue text", async () => {

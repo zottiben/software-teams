@@ -163,7 +163,6 @@ export function mergeRules(
       }
       result.copied++;
     } else {
-      // Existing file — append non-duplicate lines (vs existing target AND CLAUDE.md).
       const sourceContent = readFileSync(sourcePath, "utf-8");
       const targetContent = readFileSync(targetPath, "utf-8");
       const targetLines = new Set(targetContent.split("\n"));
@@ -171,19 +170,17 @@ export function mergeRules(
         targetContent.split("\n").map(normaliseRuleLine).filter((s) => s),
       );
 
-      const newLines: string[] = [];
-      let droppedByClaudeMd = 0;
-      for (const line of sourceContent.split("\n")) {
-        if (line.trim() === "") continue;
-        if (targetLines.has(line)) continue;
-        const norm = normaliseRuleLine(line);
-        if (norm && targetNormSet.has(norm)) continue;
-        if (norm && claudeMdSet.has(norm)) {
-          droppedByClaudeMd++;
-          continue;
-        }
-        newLines.push(line);
-      }
+      const { newLines, droppedByClaudeMd } = sourceContent.split("\n").reduce(
+        (acc, line) => {
+          if (line.trim() === "") return acc;
+          if (targetLines.has(line)) return acc;
+          const norm = normaliseRuleLine(line);
+          if (norm && targetNormSet.has(norm)) return acc;
+          if (norm && claudeMdSet.has(norm)) return { ...acc, droppedByClaudeMd: acc.droppedByClaudeMd + 1 };
+          return { ...acc, newLines: [...acc.newLines, line] };
+        },
+        { newLines: [] as string[], droppedByClaudeMd: 0 },
+      );
 
       if (newLines.length > 0) {
         const appendContent = (targetContent.endsWith("\n") ? "" : "\n") + newLines.join("\n") + "\n";
@@ -212,26 +209,21 @@ function filterAgainstClaudeMd(
     });
     return { kept: lines, dropped: 0, hasContent };
   }
-  const kept: string[] = [];
-  let dropped = 0;
-  let hasContent = false;
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("<!--")) {
-      kept.push(line);
-      continue;
-    }
-    const norm = normaliseRuleLine(trimmed);
-    if (norm && claudeMdSet.has(norm)) {
-      dropped++;
-      continue;
-    }
-    kept.push(line);
-    hasContent = true;
-  }
-  // Drop trailing blanks introduced by the filter
-  while (kept.length > 0 && kept[kept.length - 1].trim() === "") kept.pop();
-  return { kept, dropped, hasContent };
+  const { kept, dropped, hasContent } = content.split("\n").reduce(
+    (acc, line) => {
+      const trimmed = line.trim();
+      if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("<!--")) {
+        return { ...acc, kept: [...acc.kept, line] };
+      }
+      const norm = normaliseRuleLine(trimmed);
+      if (norm && claudeMdSet.has(norm)) return { ...acc, dropped: acc.dropped + 1 };
+      return { kept: [...acc.kept, line], dropped: acc.dropped, hasContent: true };
+    },
+    { kept: [] as string[], dropped: 0, hasContent: false },
+  );
+  const trimmedKept = [...kept];
+  while (trimmedKept.length > 0 && trimmedKept[trimmedKept.length - 1].trim() === "") trimmedKept.pop();
+  return { kept: trimmedKept, dropped, hasContent };
 }
 
 export const fetchRulesCommand = defineCommand({

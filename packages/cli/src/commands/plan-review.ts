@@ -40,13 +40,12 @@ export const planReviewCommand = defineCommand({
     const cwd = process.cwd();
     const state = await readState(cwd);
 
-    // Resolve plan path
-    let planPath: string;
-    if (args.plan) {
-      planPath = resolve(cwd, args.plan as string);
-    } else if (state?.current_plan?.path) {
-      planPath = resolve(cwd, state.current_plan.path as string);
-    } else {
+    const planPath = args.plan
+      ? resolve(cwd, args.plan as string)
+      : state?.current_plan?.path
+      ? resolve(cwd, state.current_plan.path as string)
+      : null;
+    if (!planPath) {
       consola.error("No plan found. Run `software-teams plan` first.");
       return;
     }
@@ -68,9 +67,7 @@ export const planReviewCommand = defineCommand({
     consola.info(`Status: ${reviewStatus} | Revision: ${revision}`);
     consola.info(`Objective: ${objective}`);
     consola.info(`\nTasks (${tasks.length}):`);
-    for (let i = 0; i < tasks.length; i++) {
-      consola.info(`  ${i + 1}. ${tasks[i]}`);
-    }
+    tasks.forEach((task, i) => consola.info(`  ${i + 1}. ${task}`));
     consola.info("");
 
     // Prompt for feedback

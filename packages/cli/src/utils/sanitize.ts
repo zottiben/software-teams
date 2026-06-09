@@ -13,21 +13,18 @@ const INJECTION_PATTERNS = [
  * and truncating to a safe length.
  */
 export function sanitizeUserInput(text: string, maxLength: number = 10_000): string {
-  let sanitized = text;
+  const scrubbed = INJECTION_PATTERNS.reduce((acc, pattern) => {
+    if (!pattern.test(acc)) return acc;
+    consola.warn(`Sanitizer: stripped injection pattern ${pattern.source}`);
+    return acc.replace(new RegExp(pattern.source, "gi"), "[removed]");
+  }, text);
 
-  for (const pattern of INJECTION_PATTERNS) {
-    if (pattern.test(sanitized)) {
-      consola.warn(`Sanitizer: stripped injection pattern ${pattern.source}`);
-      sanitized = sanitized.replace(new RegExp(pattern.source, "gi"), "[removed]");
-    }
+  if (scrubbed.length > maxLength) {
+    consola.warn(`Sanitizer: truncated input from ${scrubbed.length} to ${maxLength} chars`);
+    return scrubbed.slice(0, maxLength);
   }
 
-  if (sanitized.length > maxLength) {
-    consola.warn(`Sanitizer: truncated input from ${sanitized.length} to ${maxLength} chars`);
-    sanitized = sanitized.slice(0, maxLength);
-  }
-
-  return sanitized;
+  return scrubbed;
 }
 
 /**

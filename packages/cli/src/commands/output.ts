@@ -108,20 +108,14 @@ export async function runOutputEngine(
   const title = args.title ?? slugify(body.slice(0, 72));
 
   if (args.mode === "pr") {
-    // ── Resolve head branch ────────────────────────────────────────────────
-    let head: string | null = args.head ?? null;
-
-    if (!head) {
-      for (const artifact of envelope.artifacts) {
-        if (artifact.type === "branch" || artifact.type === "pr") {
-          const extracted = extractBranchName(artifact.url);
-          if (extracted) {
-            head = extracted;
-            break;
-          }
-        }
+    const head = args.head ?? envelope.artifacts.reduce<string | null>((found, artifact) => {
+      if (found) return found;
+      if (artifact.type === "branch" || artifact.type === "pr") {
+        const extracted = extractBranchName(artifact.url);
+        return extracted ?? null;
       }
-    }
+      return null;
+    }, null);
 
     if (!head) {
       return {
@@ -133,33 +127,18 @@ export async function runOutputEngine(
       };
     }
 
-    let ref: GitHubCreatedRef;
-    try {
-      ref = await deps.createPr({
-        owner: args.owner,
-        repo: args.repo,
-        title,
-        body,
-        head,
-        base: args.base,
-        token,
-      });
-    } catch (err) {
-      // Never leak the token — only surface the API error message.
-      return {
-        ...envelope,
-        status: "error",
-        result: {
-          text: `GitHub PR creation failed: ${err instanceof Error ? err.message : String(err)}`,
-        },
-      };
+    const prResult = await deps.createPr({
+      owner: args.owner, repo: args.repo, title, body, head, base: args.base, token,
+    }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
+
+    if ("_error" in prResult) {
+      return { ...envelope, status: "error", result: { text: `GitHub PR creation failed: ${prResult._error}` } };
     }
 
-    // Accrete: prepend existing artifacts, append the new PR ref.
     return {
       ...envelope,
       status: "ok",
-      artifacts: [...envelope.artifacts, { type: "pr", url: ref.url }],
+      artifacts: [...envelope.artifacts, { type: "pr", url: prResult.url }],
     };
   }
 
@@ -171,30 +150,18 @@ export async function runOutputEngine(
         .filter(Boolean)
     : undefined;
 
-  let ref: GitHubCreatedRef;
-  try {
-    ref = await deps.createIss({
-      owner: args.owner,
-      repo: args.repo,
-      title,
-      body,
-      labels: labelsList,
-      token,
-    });
-  } catch (err) {
-    return {
-      ...envelope,
-      status: "error",
-      result: {
-        text: `GitHub issue creation failed: ${err instanceof Error ? err.message : String(err)}`,
-      },
-    };
+  const issResult = await deps.createIss({
+    owner: args.owner, repo: args.repo, title, body, labels: labelsList, token,
+  }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
+
+  if ("_error" in issResult) {
+    return { ...envelope, status: "error", result: { text: `GitHub issue creation failed: ${issResult._error}` } };
   }
 
   return {
     ...envelope,
     status: "ok",
-    artifacts: [...envelope.artifacts, { type: "issue", url: ref.url }],
+    artifacts: [...envelope.artifacts, { type: "issue", url: issResult.url }],
   };
 }
 

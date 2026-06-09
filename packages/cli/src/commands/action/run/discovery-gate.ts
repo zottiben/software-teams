@@ -102,29 +102,18 @@ export function formatQuestionsCommentBody(opts: {
   const hasQuestions = questions.length > 0;
   const hasAnswers = previousCommentAnswers.trim().length > 0;
 
-  // Intro line — phrased to match what's actually in the comment.
-  // Three cases: answers+questions, answers only, questions only.
-  let intro: string;
-  if (hasAnswers && hasQuestions) {
-    intro = `The Research Agent has answers to your last comment plus a few remaining questions before producing a plan for issue #${issueNumber}. Reply when ready and the plan will continue.`;
-  } else if (hasAnswers) {
-    intro = `The Research Agent has answers to your last comment for issue #${issueNumber}. Reply to confirm or push further — the planner will run on your next message.`;
-  } else {
-    intro = `The Research Agent surveyed the codebase and has a few questions before producing a plan for issue #${issueNumber}. Answer them in a follow-up comment on this issue and the plan will continue.`;
-  }
+  const intro = hasAnswers && hasQuestions
+    ? `The Research Agent has answers to your last comment plus a few remaining questions before producing a plan for issue #${issueNumber}. Reply when ready and the plan will continue.`
+    : hasAnswers
+    ? `The Research Agent has answers to your last comment for issue #${issueNumber}. Reply to confirm or push further — the planner will run on your next message.`
+    : `The Research Agent surveyed the codebase and has a few questions before producing a plan for issue #${issueNumber}. Answer them in a follow-up comment on this issue and the plan will continue.`;
   const lines: string[] = [intro, ``];
 
-  // Opening summary fires only on the FIRST researcher pass. By
-  // round 2+ the user knows what stack we're in; repeating it on
-  // every reply adds noise (real complaint observed on issue 6206).
   if (openingSummary && !isFollowUp) {
     lines.push(`**Researcher's read on the codebase:** ${openingSummary}`);
     lines.push(``);
   }
 
-  // Answers go ABOVE questions — they respond directly to the user's
-  // most recent message, so they're the first thing the reader wants
-  // to see when they come back to the issue.
   if (hasAnswers) {
     lines.push(`### Answers to your last comment`);
     lines.push(``);
