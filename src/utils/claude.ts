@@ -34,6 +34,19 @@ export const DEFAULT_ALLOWED_TOOLS: readonly string[] = [
   "Bash(software-teams:*)",
 ];
 
+/**
+ * Allowed tools for single-turn n8n node execution (Task-disabled).
+ *
+ * Identical to DEFAULT_ALLOWED_TOOLS with `"Task"` omitted — enforces the
+ * AC2 constraint that each n8n Agent node runs exactly ONE specialist turn
+ * with no internal sub-agent spawning. Agent-to-agent collaboration flows
+ * over the n8n canvas (NodeEnvelope handoff) instead of Claude's Task tool.
+ *
+ * Used by `n8n/src/execution/single-turn.ts` → `runAgentTurn`.
+ */
+export const SINGLE_TURN_ALLOWED_TOOLS: readonly string[] =
+  DEFAULT_ALLOWED_TOOLS.filter((t) => t !== "Task");
+
 export async function findClaude(): Promise<string> {
   const path = Bun.which("claude");
   if (path) return path;

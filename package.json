@@ -6,8 +6,15 @@
   "bin": {
     "software-teams": "./dist/index.js"
   },
+  "workspaces": ["n8n"],
+  "main": "./lib/n8n-api.js",
+  "types": "./lib/n8n-api.d.ts",
   "exports": {
-    ".": "./dist/index.js",
+    ".": {
+      "require": "./lib/n8n-api.js",
+      "import": "./src/n8n-api.ts",
+      "types": "./lib/n8n-api.d.ts"
+    },
     "./storage": "./src/storage/index.ts"
   },
   "scripts": {

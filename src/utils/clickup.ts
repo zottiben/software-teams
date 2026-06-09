@@ -86,16 +86,18 @@ export async function fetchClickUpTicket(
   // Custom task IDs (URLs like `/t/{team_id}/{NDP-33700}`) need the
   // custom_task_ids=true + team_id=... query params; ClickUp 404s
   // without them. Plain task IDs work against the bare endpoint.
+  const clickupBase = (process.env.CLICKUP_API_BASE || "https://api.clickup.com").replace(/\/$/, "");
   const url = teamId
-    ? `https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}?custom_task_ids=true&team_id=${encodeURIComponent(teamId)}`
-    : `https://api.clickup.com/api/v2/task/${encodeURIComponent(taskId)}`;
+    ? `${clickupBase}/api/v2/task/${encodeURIComponent(taskId)}?custom_task_ids=true&team_id=${encodeURIComponent(teamId)}`
+    : `${clickupBase}/api/v2/task/${encodeURIComponent(taskId)}`;
 
   try {
     const res = await fetch(url, { headers: { Authorization: token } });
 
     if (!res.ok) return null;
 
-    const data = await res.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (await res.json()) as any;
 
     // Extract acceptance criteria from checklists
     const acceptanceCriteria: string[] = [];

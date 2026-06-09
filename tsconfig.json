@@ -6,10 +6,11 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
+    "outDir": "lib-esm",
     "rootDir": "src",
     "declaration": true,
-    "types": ["bun-types"]
+    "composite": true,
+    "types": ["@types/bun"]
   },
   "include": ["src/**/*"]
 }
