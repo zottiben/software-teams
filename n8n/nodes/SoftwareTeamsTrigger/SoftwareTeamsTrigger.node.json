@@ -1,0 +1,14 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsTrigger",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI", "Productivity"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/n8n#trigger-ingestion-node"
+      }
+    ]
+  },
+  "alias": ["software teams trigger", "clickup trigger", "datadog trigger", "ticket ingestion"]
+}
