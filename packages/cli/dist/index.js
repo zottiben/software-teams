@@ -17688,6 +17688,9 @@ Tasks (${tasks.length}):`);
       state.review = {
         ...state.review,
         status: "approved",
+        revision: state.review?.revision ?? revision,
+        scope: state.review?.scope ?? "plan",
+        feedback_history: state.review?.feedback_history ?? [],
         approved_at: now
       };
       if (state.position) {
@@ -17782,6 +17785,9 @@ var planApproveCommand = defineCommand({
     state.review = {
       ...state.review,
       status: "approved",
+      revision: state.review?.revision ?? 1,
+      scope: state.review?.scope ?? "plan",
+      feedback_history: state.review?.feedback_history ?? [],
       approved_at: now
     };
     if (state.position) {
@@ -19861,6 +19867,8 @@ This issue does not have a three-tier plan tagged with \`issue: ${issueNumber}\`
       };
       return buildRouterPrompt(routerCtx);
     }
+    case "ping":
+      throw new Error("Unreachable: ping is handled before the switch");
     default: {
       const _exhaustive = intent.command;
       throw new Error(`Unhandled command: ${_exhaustive}`);
@@ -20035,6 +20043,9 @@ async function runApprovalHandler(opts) {
   state.review = {
     ...state.review,
     status: "approved",
+    revision: state.review?.revision ?? 1,
+    scope: state.review?.scope ?? "plan",
+    feedback_history: state.review?.feedback_history ?? [],
     approved_at: new Date().toISOString()
   };
   await writeState(cwd, state);
@@ -23138,9 +23149,7 @@ async function spawnClaude2(prompt2, opts) {
     opts?.permissionMode ?? "acceptEdits"
   ];
   const allowedTools = opts?.allowedTools ?? [...SINGLE_TURN_ALLOWED_TOOLS2];
-  for (const tool of allowedTools) {
-    args.push("--allowedTools", tool);
-  }
+  args.push(...allowedTools.flatMap((tool) => ["--allowedTools", tool]));
   const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
   if (!useStdin) {
     args.push("--", prompt2);
@@ -23159,11 +23168,10 @@ async function spawnClaude2(prompt2, opts) {
       try {
         const event = JSON.parse(trimmed);
         if (event.type === "assistant" && event.message?.content) {
-          for (const block of event.message.content) {
-            if (block.type === "text" && block.text) {
-              streamState.lastTextResponse = block.text;
-            }
-          }
+          const textBlocks = event.message.content.filter((b2) => b2.type === "text" && b2.text);
+          const last = textBlocks[textBlocks.length - 1];
+          if (last?.text)
+            streamState.lastTextResponse = last.text;
         }
         if (event.type === "result" && event.result) {
           streamState.lastTextResponse = event.result;
@@ -23175,11 +23183,7 @@ async function spawnClaude2(prompt2, opts) {
       const lines = streamState.buffer.split(`
 `);
       streamState.buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed)
-          processLine(trimmed);
-      }
+      lines.map((l2) => l2.trim()).filter(Boolean).forEach(processLine);
     });
     proc.on("close", (code) => {
       if (streamState.buffer.trim())
@@ -23195,11 +23199,7 @@ function resolveAgentSpecPath2(agentId) {
     join30(pkgRoot, ".claude", "agents", `${agentId}.md`),
     join30(pkgRoot, "agents", `${agentId}.md`)
   ];
-  for (const candidate of candidates) {
-    if (existsSync36(candidate))
-      return candidate;
-  }
-  return null;
+  return candidates.find(existsSync36) ?? null;
 }
 function stripSpecFrontmatter2(content) {
   const fm = content.match(/^---\n[\s\S]*?\n---\n?/);
@@ -23704,7 +23704,7 @@ var DEFAULT_AGENT = "software-teams-researcher";
 function getIngestAdapters(source) {
   if (process.env.ST_CLI_TEST_STUB === "1") {
     if (source === "clickup") {
-      return {
+      const clickUpStub = {
         buildContext: async () => ({
           source: "clickup",
           ticketId: "TEST-123",
@@ -23712,8 +23712,9 @@ function getIngestAdapters(source) {
 _PII patterns have been replaced._`
         })
       };
+      return clickUpStub;
     } else {
-      return {
+      const datadogStub = {
         buildContext: async () => ({
           source: "datadog",
           issueId: "test-issue-uuid",
@@ -23721,11 +23722,13 @@ _PII patterns have been replaced._`
 _PII has been replaced._`
         })
       };
+      return datadogStub;
     }
   }
-  return {
-    buildContext: source === "clickup" ? buildClickUpContext : buildDatadogContext
-  };
+  if (source === "clickup") {
+    return { buildContext: buildClickUpContext };
+  }
+  return { buildContext: buildDatadogContext };
 }
 async function resolveIngestContext(source, refText, datadogApiBase) {
   if (source === "clickup") {
@@ -24083,7 +24086,9 @@ var package_default = {
     "./storage": "./src/storage/index.ts"
   },
   scripts: {
-    build: "tsc -p tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
+    build: "tsc -b tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
+    "build:lib": "tsc -b tsconfig.node.json",
+    typecheck: "tsc --noEmit -p tsconfig.json",
     dev: "bun run src/index.ts",
     lint: "eslint src",
     "lint:fix": "eslint src --fix",
