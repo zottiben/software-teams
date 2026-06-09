@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse } from "yaml";
 
+/** Ingestion boundary: adapter.yaml values for quality_gates/conventions/tech_stack are user-defined; preserve as unknown. */
 export interface AdapterConfig {
   quality_gates?: Record<string, unknown>;
   dependency_install?: string;

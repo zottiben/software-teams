@@ -95,7 +95,7 @@ export const initCommand = defineCommand({
       const nativeSubagentsEnabled = !existsSync(cfgPath) || await (async () => {
         try {
           const cfgContent = await Bun.file(cfgPath).text();
-          const cfg = (parseYaml(cfgContent) ?? {}) as Record<string, any>;
+          const cfg = (parseYaml(cfgContent) ?? {}) as Record<string, unknown>;
           return !(cfg.features && typeof cfg.features === "object" && cfg.features.native_subagents === false);
         } catch {
           return true;
@@ -170,7 +170,7 @@ export const initCommand = defineCommand({
     if (args.storage || args["storage-path"]) {
       const { parse, stringify } = await import("yaml");
       const configPath = join(cwd, ".software-teams", "config", "software-teams-config.yaml");
-      const config: any = await Bun.file(configPath).text().then((t) => parse(t) ?? {}).catch(() => ({}));
+      const config = (await Bun.file(configPath).text().then((t) => parse(t) ?? {}).catch(() => ({}))) as Record<string, unknown>;
 
       config.storage = {
         adapter: args.storage ?? "fs",

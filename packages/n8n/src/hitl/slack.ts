@@ -233,6 +233,7 @@ export async function postThreadReply(
 /**
  * Call a Slack Web API method via HTTPS POST (JSON body).
  * Throws on HTTP errors and on Slack `ok: false` responses.
+ * `payload` is `unknown` because the Slack API accepts arbitrary JSON shapes per method.
  */
 async function slackApiCall(
   method: string,

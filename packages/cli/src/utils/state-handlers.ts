@@ -57,24 +57,24 @@ export async function transitionToPlanReady(
     plan: planNumber ?? planPath,
     plan_name: planName,
     status: "planning",
-  } as any;
+  } as SoftwareTeamsState["position"];
   state.current_plan = {
     ...state.current_plan,
     path: planPath,
     tasks: taskFiles,
     completed_tasks: [],
     current_task_index: taskFiles.length > 0 ? 0 : null,
-  } as any;
+  } as SoftwareTeamsState["current_plan"];
   state.progress = {
     ...state.progress,
     tasks_total: taskFiles.length,
     tasks_completed: 0,
-  } as any;
+  } as SoftwareTeamsState["progress"];
   state.review = {
     ...state.review,
-    status: "in_review",
-    scope: "plan",
-  } as any;
+    status: "in_review" as const,
+    scope: "plan" as const,
+  } as SoftwareTeamsState["review"];
   await updateSessionActivity(cwd, state);
 }
 
@@ -96,7 +96,7 @@ export async function recordPlanReview(cwd: string, verdict: PlanReviewVerdict):
   const now = new Date().toISOString();
   state.review = {
     ...state.review,
-    path: "review-plan",
+    path: "review-plan" as const,
     quality_gate: {
       status: verdict.status ?? (verdict.oneShotReady ? "satisfied" : "gaps_found"),
       one_shot_ready: verdict.oneShotReady,
@@ -105,7 +105,7 @@ export async function recordPlanReview(cwd: string, verdict: PlanReviewVerdict):
       revision: verdict.revision ?? state.review?.revision ?? null,
       last_reviewed_at: now,
     },
-  } as any;
+  } as SoftwareTeamsState["review"];
   await updateSessionActivity(cwd, state);
 }
 
@@ -134,12 +134,12 @@ export async function transitionToApproved(
   state.position = {
     ...state.position,
     status: "approved",
-  } as any;
+  } as SoftwareTeamsState["position"];
   state.review = {
     ...state.review,
-    status: "approved",
+    status: "approved" as const,
     approved_at: new Date().toISOString(),
-  } as any;
+  } as SoftwareTeamsState["review"];
   await updateSessionActivity(cwd, state);
 }
 
@@ -157,7 +157,7 @@ export async function transitionToExecuting(
     status: "executing",
     task: taskId ?? state.position?.task ?? null,
     task_name: taskName ?? state.position?.task_name ?? null,
-  } as any;
+  } as SoftwareTeamsState["position"];
   await updateSessionActivity(cwd, state);
 }
 
@@ -170,7 +170,7 @@ export async function transitionToComplete(cwd: string): Promise<void> {
   state.position = {
     ...state.position,
     status: "complete",
-  } as any;
+  } as SoftwareTeamsState["position"];
 
   // Increment plans_completed
   if (!state.progress) {
@@ -205,7 +205,7 @@ export async function transitionToComplete(cwd: string): Promise<void> {
                 status: "idle",
                 task: null,
                 task_name: null,
-              } as any;
+              } as SoftwareTeamsState["position"];
             }
           }
         }
@@ -248,6 +248,6 @@ async function updateSessionActivity(cwd: string, state: SoftwareTeamsState): Pr
   state.session = {
     ...state.session,
     last_activity: new Date().toISOString(),
-  } as any;
+  } as SoftwareTeamsState["session"];
   await writeState(cwd, state);
 }

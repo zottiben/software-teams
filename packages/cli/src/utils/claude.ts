@@ -29,10 +29,24 @@ export async function findClaude(): Promise<string> {
   );
 }
 
+/** Stream event shapes emitted by `claude --output-format stream-json`. */
+interface ClaudeStreamBlock {
+  type: string;
+  text?: string;
+  name?: string;
+  input?: { file_path?: string; command?: string; pattern?: string };
+}
+interface ClaudeStreamEvent {
+  type: string;
+  subtype?: string;
+  message?: { content?: ClaudeStreamBlock[] };
+  result?: string;
+}
+
 function makeStreamFormatter() {
   const state = { lastEventType: "" };
 
-  return function formatStreamEvent(event: any): string | null {
+  return function formatStreamEvent(event: ClaudeStreamEvent): string | null {
     if (event.type === "assistant" && event.message?.content) {
       const parts: string[] = [];
       for (const block of event.message.content) {

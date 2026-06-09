@@ -19,6 +19,7 @@ import { parse as parseYaml } from "yaml";
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 
+/** Ingestion boundary: fields parsed from YAML frontmatter; types are uninferable until narrowed downstream. */
 interface OrchestrationFrontmatter {
   task_files?: unknown;
   spec_link?: unknown;
@@ -35,6 +36,7 @@ interface OrchestrationFrontmatter {
   [key: string]: unknown;
 }
 
+/** Ingestion boundary: per-task slice frontmatter; fields are uninferable until narrowed. */
 interface SliceFrontmatter {
   agent?: unknown;
   tier?: unknown;

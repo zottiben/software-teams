@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parse, stringify } from "yaml";
 import { findProjectRoot } from "./find-root";
 
+/** Ingestion boundary: YAML values are untyped at parse time; callers narrow as needed. */
 export type YamlValue = unknown;
 export type YamlObject = Record<string, YamlValue>;
 

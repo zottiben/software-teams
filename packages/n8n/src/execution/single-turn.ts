@@ -234,6 +234,7 @@ function assemblePrompt(input: NodeEnvelope["input"]): string {
   return `## Upstream context\n\`\`\`json\n${contextJson}\n\`\`\`\n\n## Task\n${fencedPrompt}`;
 }
 
+/** Ingestion boundary: context arrives from `NodeEnvelope.input.context` whose type is `unknown` on the wire; narrows here. */
 function isNonEmptyContext(ctx: unknown): boolean {
   if (ctx === null || ctx === undefined) return false;
   if (typeof ctx === "object" && !Array.isArray(ctx)) {

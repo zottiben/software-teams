@@ -92,8 +92,8 @@ export const planReviewCommand = defineCommand({
       // Approve the plan
       const now = new Date().toISOString();
       state.review = {
-        ...(state.review as any),
-        status: "approved",
+        ...state.review,
+        status: "approved" as const,
         approved_at: now,
       };
       if (state.position) {
@@ -106,7 +106,7 @@ export const planReviewCommand = defineCommand({
       // Record feedback and generate refinement prompt
       const now = new Date().toISOString();
       const newRevision = revision + 1;
-      const history = (state.review?.feedback_history as any[]) ?? [];
+      const history = state.review?.feedback_history ?? [];
       history.push({ revision: newRevision, feedback: feedback.trim(), requested_at: now });
 
       state.review = {

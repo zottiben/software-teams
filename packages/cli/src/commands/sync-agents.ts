@@ -16,7 +16,7 @@ async function readNativeSubagentsFlag(cwd: string): Promise<boolean> {
   if (!existsSync(configPath)) return true;
   try {
     const content = await Bun.file(configPath).text();
-    const config = (parseYaml(content) ?? {}) as Record<string, any>;
+    const config = (parseYaml(content) ?? {}) as Record<string, unknown>;
     const features = config.features as Record<string, unknown> | undefined;
     if (!features || typeof features !== "object") return true;
     const flag = features.native_subagents;

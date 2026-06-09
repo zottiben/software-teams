@@ -87,8 +87,9 @@ export async function createStorage(
     }
 
     return instance as SoftwareTeamsStorage;
-  } catch (err: any) {
-    if (err.message?.includes("Storage adapter")) throw err;
-    throw new Error(`Failed to load storage adapter from ${adapterPath}: ${err.message}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("Storage adapter")) throw err;
+    throw new Error(`Failed to load storage adapter from ${adapterPath}: ${msg}`);
   }
 }

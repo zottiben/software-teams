@@ -54,6 +54,7 @@ export interface SoftwareTeamsState {
       last_reviewed_at: string | null;
     };
   };
+  /** Ingestion boundary: additional YAML keys from external tools are preserved as unknown. */
   [key: string]: unknown;
 }
 

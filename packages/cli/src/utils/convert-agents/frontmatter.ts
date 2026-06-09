@@ -9,6 +9,7 @@ export interface AgentFrontmatter {
   category?: string;
   team?: string;
   requires_components?: string[];
+  /** Ingestion boundary: agent YAML may contain arbitrary framework keys; preserve as unknown. */
   [key: string]: unknown;
 }
 

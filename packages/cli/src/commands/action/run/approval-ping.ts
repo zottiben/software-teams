@@ -38,9 +38,9 @@ export async function runApprovalHandler(opts: {
   const state = await readState(cwd) ?? {};
   state.review = {
     ...state.review,
-    status: "approved",
+    status: "approved" as const,
     approved_at: new Date().toISOString(),
-  } as any;
+  };
   await writeState(cwd, state);
 
   const approvalBody = `Plan approved and locked in.\n\nSay **\`Hey Software Teams implement\`** when you're ready to go.`;

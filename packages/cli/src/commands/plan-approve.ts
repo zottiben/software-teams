@@ -52,8 +52,8 @@ export const planApproveCommand = defineCommand({
     const planName = (state.position?.plan_name as string) ?? "current plan";
 
     state.review = {
-      ...(state.review as any),
-      status: "approved",
+      ...state.review,
+      status: "approved" as const,
       approved_at: now,
     };
     if (state.position) {

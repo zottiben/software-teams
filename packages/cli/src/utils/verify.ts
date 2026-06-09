@@ -43,12 +43,12 @@ export async function runQualityGates(cwd: string): Promise<VerificationResult> 
         passed: exitCode === 0,
         output: (stdout + stderr).trim(),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       gates.push({
         name,
         command: cmd,
         passed: false,
-        output: err.message ?? "Failed to execute",
+        output: err instanceof Error ? err.message : "Failed to execute",
       });
     }
   }

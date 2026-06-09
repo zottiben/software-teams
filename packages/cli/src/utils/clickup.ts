@@ -10,6 +10,23 @@ export interface ClickUpTicket {
   subtasks: { name: string; status: string }[];
 }
 
+/** Raw subtask shape returned by the ClickUp v2 API. */
+interface ClickUpApiSubtask {
+  name: string;
+  status?: { status?: string };
+}
+
+/** Raw task shape returned by the ClickUp v2 API. */
+interface ClickUpApiTask {
+  id: string;
+  name: string;
+  description?: string;
+  status?: { status?: string };
+  priority?: { id?: number };
+  checklists?: Array<{ items?: Array<{ name: string }> }>;
+  subtasks?: ClickUpApiSubtask[];
+}
+
 /**
  * What we pull out of a ClickUp URL. Two shapes are supported:
  *
@@ -96,8 +113,7 @@ export async function fetchClickUpTicket(
 
     if (!res.ok) return null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data = (await res.json()) as any;
+    const data = (await res.json()) as ClickUpApiTask;
 
     // Extract acceptance criteria from checklists
     const acceptanceCriteria: string[] = [];
@@ -110,7 +126,7 @@ export async function fetchClickUpTicket(
     }
 
     // Extract subtasks
-    const subtasks = (data.subtasks ?? []).map((st: any) => ({
+    const subtasks = (data.subtasks ?? []).map((st) => ({
       name: st.name,
       status: st.status?.status ?? "unknown",
     }));
@@ -127,7 +143,7 @@ export async function fetchClickUpTicket(
       name: data.name,
       description: data.description ?? "",
       status: data.status?.status ?? "unknown",
-      priority: priorityMap[data.priority?.id] ?? "normal",
+      priority: (data.priority?.id != null ? priorityMap[data.priority.id] : undefined) ?? "normal",
       acceptanceCriteria,
       subtasks,
     };

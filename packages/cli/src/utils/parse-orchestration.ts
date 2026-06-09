@@ -16,6 +16,7 @@ export interface ParsedOrchestration {
   tier: string;
   specLink?: string;
   tasks: OrchestrationTask[];
+  /** Ingestion boundary: raw YAML keys from the orchestration file; callers narrow specific fields. */
   frontmatter: Record<string, unknown>;
 }
 

@@ -7,7 +7,6 @@ export const stderrLog = createConsola({
 });
 
 export function redirectConsolaToStderr(): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (consola as unknown as { options: { stdout: NodeJS.WritableStream } }).options.stdout =
     process.stderr;
 }
