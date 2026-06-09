@@ -16,17 +16,12 @@ import {
   summarise,
   type PlanResult,
 } from '../../src/orchestration/run-state';
+import { toDataObject } from '../../src/n8n-cast';
 
-// ---------------------------------------------------------------------------
-// runAgentTurn loader — break the static import chain to Bun-specific code
-// ---------------------------------------------------------------------------
-// single-turn.ts uses `import.meta.dir` and `Bun.*` APIs that don't compile
-// under the n8n tsconfig (module: commonjs, no Bun types). A `string`-typed
-// require argument prevents TypeScript from resolving the module statically, so
-// the Bun import chain is never type-checked here. The orchestration core
-// (run-state.ts) is Bun-free and IS imported statically above; the adapter is
-// injected into `planEpic`, keeping that logic runtime-agnostic and testable.
-
+// n8n tsconfig (module: commonjs) cannot statically resolve single-turn.ts — its
+// require path prevents TypeScript from type-checking the Bun import chain here.
+// The orchestration core (run-state.ts) is Bun-free and IS imported statically
+// above; the adapter is injected into `planEpic`, keeping it testable.
 type RunAgentTurnFn = (input: NodeEnvelope) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
@@ -35,42 +30,20 @@ const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
   runAgentTurn: RunAgentTurnFn;
 };
 
-// ---------------------------------------------------------------------------
-// Model options — mirrors the Agent node; per-node model selection (R-03).
-// ---------------------------------------------------------------------------
-
 const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
   { name: 'Claude Sonnet 4.5 (Default)', value: 'claude-sonnet-4-5' },
   { name: 'Claude Opus 4', value: 'claude-opus-4-5' },
   { name: 'Claude Haiku 3.5', value: 'claude-haiku-3-5' },
 ];
 
-// ---------------------------------------------------------------------------
-// Orchestrator Node
-// ---------------------------------------------------------------------------
-
 /**
  * SoftwareTeamsOrchestrator node (AC4, R-04, R-05).
  *
  * Accepts an epic / sprint goal, runs ONE single-turn planning pass through the
- * T3 adapter as `software-teams-planner` (the planner spec is inlined by the
- * adapter — its breakdown logic is reused, not re-authored), and **emits one
- * output item per wave-task** as a NodeEnvelope, ordered by wave then
- * dependency. This is the canvas-delegation mechanism defined in
- * ARCHITECTURE.md §"Decision C — Canvas handoff replaces the native Task tool":
- * downstream Agent nodes consume these items (static wiring or a Switch keyed on
- * `agentId`) in wave order; the Orchestrator owns sequencing explicitly — there
- * is no hidden Task-tool graph.
- *
- * Run state (waves, per-task status, correlationId) is persisted to the
- * workflow's static data keyed by `correlationId`, so a partial failure leaves
- * a resumable, traceable run rather than a silent half-completion (R-05).
- *
- * needs-input bubbling: a sub-agent `needs-input` envelope arriving on the input
- * (or a planner that itself needs human input) is passed through UNCHANGED so a
- * downstream Switch on `{{ $json.status === 'needs-input' }}` routes it to the
- * Slack HITL flow (T10). An `error` envelope is surfaced (short-circuited)
- * rather than re-planned. The Slack loop itself is NOT implemented here.
+ * T3 adapter as `software-teams-planner`, and emits one output item per
+ * wave-task as a NodeEnvelope, ordered by wave then dependency.
+ * ARCHITECTURE.md §"Decision C — Canvas handoff" is the authority for item
+ * emission. Run state is persisted to workflow static data (R-05).
  */
 export class SoftwareTeamsOrchestrator implements INodeType {
   description: INodeTypeDescription = {
@@ -130,37 +103,29 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials (R-02: NEVER written to output) ────────────────────────
+    // Credentials (R-02: NEVER written to output)
     const credentials = await this.getCredentials('softwareTeamsApi');
     process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
 
-    // Persisted run state lives on the workflow's static data (survives across
-    // executions → resumable runs, R-05).
+    // Persisted run state lives on workflow static data (survives across
+    // executions — resumable runs, R-05).
     const staticData = this.getWorkflowStaticData('node') as IDataObject;
     const runs = (staticData['runs'] as Record<string, unknown> | undefined) ?? {};
     staticData['runs'] = runs;
 
-    // At least one iteration even when upstream sends zero items.
     const itemCount = items.length > 0 ? items.length : 1;
 
-    for (let i = 0; i < itemCount; i++) {
+    // n8n per-item + continueOnFail pattern; entries() avoids a let counter.
+    for (const [i] of Array.from({ length: itemCount }).entries()) {
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
 
-      // Bubble needs-input up for the Slack HITL flow (T10) — pass UNCHANGED.
       if (isNodeEnvelope(upstream) && upstream.status === 'needs-input') {
-        returnData.push({
-          json: upstream as unknown as IDataObject,
-          pairedItem: { item: i },
-        });
+        returnData.push({ json: toDataObject(upstream), pairedItem: { item: i } });
         continue;
       }
 
-      // Short-circuit a sub-agent error (R-05): surface, do not re-plan.
       if (isNodeEnvelope(upstream) && upstream.status === 'error') {
-        returnData.push({
-          json: upstream as unknown as IDataObject,
-          pairedItem: { item: i },
-        });
+        returnData.push({ json: toDataObject(upstream), pairedItem: { item: i } });
         continue;
       }
 
@@ -182,7 +147,6 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
       }
 
-      // ── Plan: single-turn planner pass → ordered per-task envelopes ─────────
       let plan: PlanResult;
       try {
         plan = await planEpic(epic, correlationId, runAgentTurn);
@@ -203,27 +167,21 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         );
       }
 
-      // Planner itself needs human input → bubble up for T10.
       if (plan.plannerNeedsInput) {
         returnData.push({
-          json: plan.plannerNeedsInput as unknown as IDataObject,
+          json: toDataObject(plan.plannerNeedsInput),
           pairedItem: { item: i },
         });
         continue;
       }
 
-      // Persist run state keyed by correlationId (R-05).
       runs[correlationId] = serialiseRunState(plan.state);
       const summary = summarise(plan.state);
 
-      // Emit one output item per wave-task envelope, in wave/dep order.
-      // ARCHITECTURE.md §"Decision C" is the authority for this item-emission
-      // contract. Run-state context rides on each item so a downstream
-      // Merge/Switch can gate per wave and re-drive on partial failure.
       plan.envelopes.forEach((env) => {
         returnData.push({
           json: {
-            ...(env as unknown as IDataObject),
+            ...toDataObject(env),
             run: { correlationId, taskCount: summary.total },
           },
           pairedItem: { item: i },

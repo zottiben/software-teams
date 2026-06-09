@@ -2,15 +2,11 @@ import { ICredentialType, INodeProperties, ICredentialTestRequest } from 'n8n-wo
 
 /**
  * SoftwareTeamsApi credential type.
- *
  * Holds every secret the Software Teams n8n nodes need. Secrets are stored
- * encrypted in n8n's internal database and injected at execution time via
- * `this.getCredentials('softwareTeamsApi')` — they MUST NOT appear as node
- * parameters, node output, or log entries (R-02).
- *
- * Self-hosted constraint (AC9): the n8n worker must have the `claude` binary
- * on PATH and ANTHROPIC_API_KEY set here. n8n Cloud cannot satisfy this
- * requirement; the node fails fast with a clear error if the binary is absent.
+ * encrypted in n8n's DB and injected at execution time — they MUST NOT appear
+ * as node parameters, node output, or log entries (R-02).
+ * Self-hosted constraint (AC9): the n8n worker must have `claude` on PATH and
+ * ANTHROPIC_API_KEY set here. Fails fast with a clear error if the binary is absent.
  */
 export class SoftwareTeamsApi implements ICredentialType {
   name = 'softwareTeamsApi';

@@ -1,16 +1,12 @@
 import type { NodeEnvelope } from "@websitelabs/software-teams";
 import type { RunState } from "./shapes";
 
-// ---------------------------------------------------------------------------
-// 6. Persistence helpers — plain JSON for n8n workflow static data
-// ---------------------------------------------------------------------------
-
 /** Deep-clone to a plain JSON object for storage in workflow static data. */
 export function serialiseRunState(state: RunState): Record<string, unknown> {
   return JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
 }
 
-/** Rehydrate a run state from workflow static data; null when shape is invalid. */
+/** Ingestion boundary: value arrives from n8n workflow static data whose type is `unknown`; narrows here. */
 export function deserialiseRunState(value: unknown): RunState | null {
   if (value == null || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
@@ -18,7 +14,7 @@ export function deserialiseRunState(value: unknown): RunState | null {
   return value as RunState;
 }
 
-/** Whether a value is a well-formed NodeEnvelope (used to detect handoff items). */
+/** Ingestion boundary: value arrives from n8n item.json whose type is `unknown`; narrows to NodeEnvelope. */
 export function isNodeEnvelope(value: unknown): value is NodeEnvelope {
   if (value == null || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;

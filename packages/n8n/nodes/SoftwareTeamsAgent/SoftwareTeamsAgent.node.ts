@@ -1,5 +1,4 @@
 import {
-  IDataObject,
   IExecuteFunctions,
   INodeExecutionData,
   INodeType,
@@ -9,16 +8,10 @@ import {
 } from 'n8n-workflow';
 import { randomUUID } from 'node:crypto';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
+import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 
-// ---------------------------------------------------------------------------
-// runAgentTurn loader — break the static import chain to Bun-specific code
-// ---------------------------------------------------------------------------
-// single-turn.ts uses `import.meta.dir` and `Bun.*` APIs that don't compile
-// under the n8n tsconfig (module: commonjs, no Bun types). Using a `string`-
-// typed variable as the `require()` argument prevents TypeScript from resolving
-// the module statically, so the Bun import chain is never type-checked here.
-// The type is manually declared to match T3's implementation exactly.
-
+// n8n tsconfig (module: commonjs) cannot statically resolve single-turn.ts — its
+// require path prevents TypeScript from type-checking the Bun import chain here.
 type RunAgentTurnFn = (input: NodeEnvelope) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
@@ -26,11 +19,6 @@ const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
 const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
   runAgentTurn: RunAgentTurnFn;
 };
-
-// ---------------------------------------------------------------------------
-// Specialist options — statically sourced from agents/*.md filenames.
-// Do NOT shell out at load time; n8n loads node descriptors synchronously.
-// ---------------------------------------------------------------------------
 
 const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
   { name: 'Architect', value: 'software-teams-architect' },
@@ -68,19 +56,11 @@ const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
   { name: 'Verifier', value: 'software-teams-verifier' },
 ];
 
-// ---------------------------------------------------------------------------
-// Model options — mirrors the credential-injected model selection (R-03).
-// ---------------------------------------------------------------------------
-
 const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
   { name: 'Claude Sonnet 4.5 (Default)', value: 'claude-sonnet-4-5' },
   { name: 'Claude Opus 4', value: 'claude-opus-4-5' },
   { name: 'Claude Haiku 3.5', value: 'claude-haiku-3-5' },
 ];
-
-// ---------------------------------------------------------------------------
-// Agent Node
-// ---------------------------------------------------------------------------
 
 /**
  * SoftwareTeamsAgent node.
@@ -96,10 +76,8 @@ const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
  * First node: When there is no upstream envelope, a fresh `correlationId` is
  * generated and `input.context` is taken from the optional Context parameter.
  *
- * `needs-input`: The `status` field in the output envelope carries the raw
- * value from `runAgentTurn`. A downstream Switch node can route on
+ * `needs-input`: A downstream Switch node can route on
  * `{{ $json.status === 'needs-input' }}` to feed the Slack HITL flow (T10).
- * The Slack loop is NOT implemented here.
  */
 export class SoftwareTeamsAgent implements INodeType {
   description: INodeTypeDescription = {
@@ -172,14 +150,14 @@ export class SoftwareTeamsAgent implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials (R-02: NEVER written to returnData) ──────────────────────
+    // Credentials (R-02: NEVER written to returnData)
     const credentials = await this.getCredentials('softwareTeamsApi');
     process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
 
-    // Use at least one iteration even when upstream sends zero items.
     const itemCount = items.length > 0 ? items.length : 1;
 
-    for (let i = 0; i < itemCount; i++) {
+    // n8n per-item + continueOnFail pattern; entries() avoids a let counter.
+    for (const [i] of Array.from({ length: itemCount }).entries()) {
       const specialist = this.getNodeParameter('specialist', i) as string;
       const prompt = this.getNodeParameter('prompt', i) as string;
       const contextRaw = this.getNodeParameter('context', i, '') as string;
@@ -189,8 +167,6 @@ export class SoftwareTeamsAgent implements INodeType {
         process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
       }
 
-      // ── Detect upstream NodeEnvelope ────────────────────────────────────────
-      // A valid envelope has correlationId (string), agentId (string), status.
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
       const isUpstreamEnvelope =
         typeof upstream['correlationId'] === 'string' &&
@@ -199,10 +175,9 @@ export class SoftwareTeamsAgent implements INodeType {
         typeof upstream['status'] === 'string';
 
       const envelope: NodeEnvelope = isUpstreamEnvelope
-        ? buildHandoffEnvelope(upstream as unknown as NodeEnvelope, specialist, prompt)
+        ? buildHandoffEnvelope(fromDataObject<NodeEnvelope>(items[i]!.json), specialist, prompt)
         : buildFreshEnvelope(specialist, prompt, contextRaw);
 
-      // ── Run agent turn ───────────────────────────────────────────────────────
       let result: NodeEnvelope;
       try {
         result = await runAgentTurn(envelope);
@@ -223,10 +198,8 @@ export class SoftwareTeamsAgent implements INodeType {
         );
       }
 
-      // A downstream Switch node can route on `{{ $json.status }}` to handle
-      // the 'needs-input' branch for Slack HITL (T10).
       returnData.push({
-        json: result as unknown as IDataObject,
+        json: toDataObject(result),
         pairedItem: { item: i },
       });
     }
@@ -234,10 +207,6 @@ export class SoftwareTeamsAgent implements INodeType {
     return [returnData];
   }
 }
-
-// ---------------------------------------------------------------------------
-// Envelope builders
-// ---------------------------------------------------------------------------
 
 /**
  * Build an A→B handoff envelope (CONTRACT.md §3).

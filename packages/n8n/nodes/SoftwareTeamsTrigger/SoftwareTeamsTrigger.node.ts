@@ -1,35 +1,4 @@
-/**
- * SoftwareTeamsTrigger — Trigger Ingestion Node (T6)
- *
- * Fetches context from a ClickUp ticket or Datadog Error Tracking issue and
- * emits an INITIAL NodeEnvelope populated with PII-scrubbed `input.context`,
- * a fresh `correlationId`, and `status: 'ok'` so downstream Agent / Orchestrator
- * nodes can begin the workflow.
- *
- * This node is NOT a polling/webhook trigger — it is a regular execute node
- * placed AFTER an n8n-native ClickUp, Datadog, or Schedule trigger. Its job is
- * to enrich the incoming data with fetched ticket/issue context and produce the
- * envelope that the rest of the Software Teams node chain consumes.
- *
- * Credential contract (R-02):
- *   Tokens are read exclusively from the `softwareTeamsApi` credential via
- *   `this.getCredentials`. They are NEVER accepted as node parameters and are
- *   NEVER written to the envelope, logs, or node output.
- *
- * Graceful degradation:
- *   Missing credential keys or an unfetchable ref → the node proceeds with
- *   `status: 'ok'` and `context: null`. A note is logged to the execution log
- *   so the user can diagnose without blocking the workflow.
- *
- * References:
- *   - n8n/CONTRACT.md §1 (NodeEnvelope shape)
- *   - n8n/CONTRACT.md §2 (agentId / correlationId rules)
- *   - Spec AC5 (trigger ingestion for both sources)
- *   - ORCHESTRATION §Risks R-02 (token handling)
- */
-
 import {
-  IDataObject,
   IExecuteFunctions,
   INodeExecutionData,
   INodeType,
@@ -47,25 +16,13 @@ import {
   extractClickUpRef,
   extractDatadogIssue,
 } from "@websitelabs/software-teams";
+import { toDataObject } from "../../src/n8n-cast";
 
-// --------------------------------------------------------------------------
-// Helpers
-// --------------------------------------------------------------------------
-
-/**
- * Generate a human-readable correlation ID for a new run.
- * Format mirrors the CONTRACT.md example: `run-YYYY-MM-DD-<source>-<rand>`.
- * Unique enough for workflow correlation; not a cryptographic UUID.
- */
 function newCorrelationId(source: "clickup" | "datadog"): string {
   const date = new Date().toISOString().slice(0, 10);
   const rand = Math.random().toString(36).slice(2, 10);
   return `run-${date}-${source}-${rand}`;
 }
-
-// --------------------------------------------------------------------------
-// Node implementation
-// --------------------------------------------------------------------------
 
 export class SoftwareTeamsTrigger implements INodeType {
   description: INodeTypeDescription = {
@@ -163,36 +120,35 @@ export class SoftwareTeamsTrigger implements INodeType {
     const items = this.getInputData();
     const output: INodeExecutionData[] = [];
 
-    for (let i = 0; i < items.length; i++) {
+    // n8n per-item + continueOnFail pattern; entries() avoids a let counter.
+    for (const [i] of items.entries()) {
       try {
-      const source = this.getNodeParameter("source", i) as "clickup" | "datadog";
-      const prompt = this.getNodeParameter("prompt", i) as string;
-      const agentId = (this.getNodeParameter("agentId", i) as string) || "software-teams-trigger";
+        const source = this.getNodeParameter("source", i) as "clickup" | "datadog";
+        const prompt = this.getNodeParameter("prompt", i) as string;
+        const agentId = (this.getNodeParameter("agentId", i) as string) || "software-teams-trigger";
 
-      // ── Read tokens from credential ONLY (R-02) ───────────────────────────
-      const rawCreds = await this.getCredentials("softwareTeamsApi");
-      const clickupCreds = {
-        clickupApiKey: (rawCreds.clickupApiKey as string) ?? "",
-      };
-      const datadogCreds = {
-        datadogApiKey: (rawCreds.datadogApiKey as string) ?? "",
-        datadogAppKey: (rawCreds.datadogAppKey as string) ?? "",
-      };
+        // Read tokens from credential ONLY (R-02)
+        const rawCreds = await this.getCredentials("softwareTeamsApi");
+        const clickupCreds = {
+          clickupApiKey: (rawCreds.clickupApiKey as string) ?? "",
+        };
+        const datadogCreds = {
+          datadogApiKey: (rawCreds.datadogApiKey as string) ?? "",
+          datadogAppKey: (rawCreds.datadogAppKey as string) ?? "",
+        };
 
-      // ── Fetch context ─────────────────────────────────────────────────────
-      const context = await fetchContext(source, i, this, clickupCreds, datadogCreds);
+        const context = await fetchContext(source, i, this, clickupCreds, datadogCreds);
 
-      // ── Build INITIAL envelope (CONTRACT.md §1) ───────────────────────────
-      const envelope: NodeEnvelope = {
-        correlationId: newCorrelationId(source),
-        agentId,
-        status: "ok",
-        input: { prompt, context },
-        result: { text: "" },
-        artifacts: [],
-      };
+        const envelope: NodeEnvelope = {
+          correlationId: newCorrelationId(source),
+          agentId,
+          status: "ok",
+          input: { prompt, context },
+          result: { text: "" },
+          artifacts: [],
+        };
 
-      output.push({ json: envelope as unknown as IDataObject, pairedItem: { item: i } });
+        output.push({ json: toDataObject(envelope), pairedItem: { item: i } });
       } catch (err) {
         if (this.continueOnFail()) {
           output.push({
@@ -212,10 +168,6 @@ export class SoftwareTeamsTrigger implements INodeType {
     return [output];
   }
 }
-
-// ---------------------------------------------------------------------------
-// Context fetchers
-// ---------------------------------------------------------------------------
 
 /**
  * Fetch PII-scrubbed context for the given source and item index.

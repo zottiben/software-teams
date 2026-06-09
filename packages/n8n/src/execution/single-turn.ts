@@ -1,29 +1,9 @@
-/**
- * Inline single-turn execution adapter (Task disabled, structured I/O)
- *
- * Implements `runAgentTurn(input: NodeEnvelope): Promise<NodeEnvelope>` —
- * the reusable execution core every Agent and Orchestrator node calls.
- *
- * This module is compiled to CommonJS by n8n's tsconfig and runs under
- * Node.js inside the n8n worker. All Claude-CLI spawning is therefore done
- * with Node's `child_process` instead of Bun-specific APIs.
- *
- * Contract references:
- *   - n8n/CONTRACT.md §1  (NodeEnvelope shape)
- *   - n8n/CONTRACT.md §4  (upstream-context merge strategy)
- *   - n8n/CONTRACT.md §5  (needs-input marker convention)
- *   - ARCHITECTURE.md Decision B (single-turn, Task-disabled model)
- *   - spec AC2, AC3, AC9
- */
-
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import type { NodeEnvelope } from "@websitelabs/software-teams";
-// Security: input sanitisation primitives and the Task-disabled allowed-tools
-// list are consumed from the communal CLI surface (single source of truth) via
-// the @websitelabs/software-teams workspace dependency — no copy-paste here.
-// sanitizeUserInput strips prompt-injection patterns and bounds length;
-// fenceUserInput wraps untrusted content in XML tags with a model-facing warning.
+// Security (R-02 / T13): sanitizeUserInput strips prompt-injection patterns and
+// bounds length; fenceUserInput wraps untrusted content in XML tags. Both are
+// consumed from the shared CLI surface via the workspace dependency — no copy-paste.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharedApi = require("@websitelabs/software-teams") as {
   sanitizeUserInput: (text: string, maxLength?: number) => string;
@@ -35,24 +15,8 @@ const { sanitizeUserInput, fenceUserInput, SINGLE_TURN_ALLOWED_TOOLS } = sharedA
 
 export { SINGLE_TURN_ALLOWED_TOOLS };
 
-// --------------------------------------------------------------------------
-// Marker detection — CONTRACT.md §5
-// --------------------------------------------------------------------------
-
-/**
- * Regex that detects the in-band HITL marker the agent emits when it needs
- * a human decision. The question for the human follows the colon.
- */
 const NEEDS_INPUT_RE = /^NEEDS_INPUT:\s*(.+)$/m;
 
-// --------------------------------------------------------------------------
-// Node-compatible Claude binary discovery
-// --------------------------------------------------------------------------
-
-/**
- * Locate the `claude` binary on PATH using Node's child_process.
- * Throws when not found.
- */
 async function findClaude(): Promise<string> {
   const { execSync } = await import("child_process");
   try {
@@ -70,16 +34,12 @@ async function findClaude(): Promise<string> {
   );
 }
 
-// --------------------------------------------------------------------------
-// Node-compatible Claude spawn
-// --------------------------------------------------------------------------
-
 const PROMPT_LENGTH_THRESHOLD = 100_000;
 
 /**
  * Spawn `claude -p` with stream-json output and capture the last assistant
- * text response. Uses Node's `child_process.spawn` so it works inside n8n
- * workers which run on Node.js rather than Bun.
+ * text response. Uses Node's child_process so it runs inside n8n workers (Node,
+ * not Bun).
  */
 async function spawnClaude(
   prompt: string,
@@ -102,9 +62,7 @@ async function spawnClaude(
   ];
 
   const allowedTools = opts?.allowedTools ?? [...SINGLE_TURN_ALLOWED_TOOLS];
-  for (const tool of allowedTools) {
-    args.push("--allowedTools", tool);
-  }
+  args.push(...allowedTools.flatMap((tool) => ["--allowedTools", tool]));
 
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) {
@@ -130,11 +88,10 @@ async function spawnClaude(
       try {
         const event = JSON.parse(trimmed);
         if (event.type === "assistant" && event.message?.content) {
-          for (const block of event.message.content) {
-            if (block.type === "text" && block.text) {
-              streamState.lastTextResponse = block.text;
-            }
-          }
+          const textBlocks = (event.message.content as Array<{ type: string; text?: string }>)
+            .filter((b) => b.type === "text" && b.text);
+          const last = textBlocks[textBlocks.length - 1];
+          if (last?.text) streamState.lastTextResponse = last.text;
         }
         if (event.type === "result" && event.result) {
           streamState.lastTextResponse = event.result;
@@ -148,10 +105,10 @@ async function spawnClaude(
       streamState.buffer += chunk.toString("utf8");
       const lines = streamState.buffer.split("\n");
       streamState.buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed) processLine(trimmed);
-      }
+      lines
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .forEach(processLine);
     });
 
     proc.on("close", (code) => {
@@ -163,20 +120,10 @@ async function spawnClaude(
   });
 }
 
-// --------------------------------------------------------------------------
-// Agent-spec resolution
-// --------------------------------------------------------------------------
-
 /**
  * Resolve the `.md` spec file for `agentId`.
- *
- * Resolution order (mirrors src/utils/prompt-builder.ts):
- *  1. `<root>/.claude/agents/<agentId>.md`  (synced, @ST: tags expanded)
- *  2. `<root>/agents/<agentId>.md`           (self-hosted source)
- *
- * `__dirname` at runtime is <root>/n8n/dist/src/execution; climb 4 levels
- * to reach the monorepo root (dist/src/execution → dist/src → dist → n8n → root).
- *
+ * Resolution order: `.claude/agents/<id>.md`, then `agents/<id>.md`.
+ * `__dirname` at runtime is <root>/n8n/dist/src/execution — climb 4 levels.
  * Returns `null` when no spec is found; callers degrade gracefully.
  */
 function resolveAgentSpecPath(agentId: string): string | null {
@@ -185,16 +132,9 @@ function resolveAgentSpecPath(agentId: string): string | null {
     join(pkgRoot, ".claude", "agents", `${agentId}.md`),
     join(pkgRoot, "agents", `${agentId}.md`),
   ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  return null;
+  return candidates.find(existsSync) ?? null;
 }
 
-/**
- * Strip YAML frontmatter from a spec file so only the prompt-relevant body
- * is inlined into the turn prompt.
- */
 function stripSpecFrontmatter(content: string): string {
   const fm = content.match(/^---\n[\s\S]*?\n---\n?/);
   const rawBody = fm ? content.slice(fm[0].length) : content;
@@ -204,24 +144,14 @@ function stripSpecFrontmatter(content: string): string {
     .trim();
 }
 
-// --------------------------------------------------------------------------
-// Upstream-context merge — CONTRACT.md §4
-// --------------------------------------------------------------------------
-
 /**
- * Assemble the `claude -p` prompt string from the envelope's `input` per
- * CONTRACT.md §4 (chosen strategy: prepend a fenced JSON block).
- *
+ * Assemble the `claude -p` prompt from the envelope's `input` per CONTRACT.md §4.
  * Security (T13 / R-01): `input.prompt` and `input.context` may contain
- * user-controlled data (e.g. Slack HITL answers, ticket text interpolated via
- * n8n expressions). We apply `sanitizeUserInput` to strip prompt-injection
- * patterns and truncate to a safe length, then wrap with `fenceUserInput` so
- * the model cannot be tricked by embedded instruction overrides.
+ * user-controlled data. `sanitizeUserInput` strips injection patterns and truncates;
+ * `fenceUserInput` wraps with XML so the model cannot be tricked by overrides.
  */
 function assemblePrompt(input: NodeEnvelope["input"]): string {
-  // Strip injection patterns and bound the prompt to 10 000 chars.
   const safePrompt = sanitizeUserInput(input.prompt, 10_000);
-  // Wrap in an XML fence so the model knows this section is user-controlled.
   const fencedPrompt = fenceUserInput("user-task", safePrompt);
 
   const hasContext = isNonEmptyContext(input.context);
@@ -234,7 +164,7 @@ function assemblePrompt(input: NodeEnvelope["input"]): string {
   return `## Upstream context\n\`\`\`json\n${contextJson}\n\`\`\`\n\n## Task\n${fencedPrompt}`;
 }
 
-/** Ingestion boundary: context arrives from `NodeEnvelope.input.context` whose type is `unknown` on the wire; narrows here. */
+/** Ingestion boundary: context arrives as `unknown` from NodeEnvelope.input.context on the wire; narrows here. */
 function isNonEmptyContext(ctx: unknown): boolean {
   if (ctx === null || ctx === undefined) return false;
   if (typeof ctx === "object" && !Array.isArray(ctx)) {
@@ -243,18 +173,9 @@ function isNonEmptyContext(ctx: unknown): boolean {
   return true;
 }
 
-// --------------------------------------------------------------------------
-// Public adapter
-// --------------------------------------------------------------------------
-
-/**
- * Run exactly ONE specialist turn via the Claude CLI with the Task tool
- * disabled, and return a typed NodeEnvelope.
- */
 export async function runAgentTurn(
   input: NodeEnvelope,
 ): Promise<NodeEnvelope> {
-  // ── 1. Fail fast when the claude binary is unavailable (AC9, R-01) ──────
   try {
     await findClaude();
   } catch {
@@ -275,7 +196,6 @@ export async function runAgentTurn(
       })()
     : "";
 
-  // ── 3. Assemble the full prompt ──────────────────────────────────────────
   const taskSection = assemblePrompt(input.input);
   const fullPrompt = agentSpecBody
     ? `${agentSpecBody}\n\n---\n\n${taskSection}`
@@ -290,7 +210,6 @@ export async function runAgentTurn(
   }
   const { exitCode, response } = spawnResult;
 
-  // ── 5. Detect needs-input marker (CONTRACT.md §5) ────────────────────────
   const needsInputMatch = NEEDS_INPUT_RE.exec(response);
   if (needsInputMatch) {
     return {
@@ -303,7 +222,6 @@ export async function runAgentTurn(
     };
   }
 
-  // ── 6. Map exit code → status ─────────────────────────────────────────────
   const status: NodeEnvelope["status"] = exitCode === 0 ? "ok" : "error";
 
   return {
@@ -315,10 +233,6 @@ export async function runAgentTurn(
     artifacts: input.artifacts,
   };
 }
-
-// --------------------------------------------------------------------------
-// Internal helpers
-// --------------------------------------------------------------------------
 
 function buildErrorEnvelope(
   input: NodeEnvelope,

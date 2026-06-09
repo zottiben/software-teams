@@ -3,18 +3,6 @@ import type { AgentTurnAdapter, OrchestrationTask, PlanResult } from "./shapes";
 import { orderTasks, tasksToEnvelopes } from "./ordering";
 import { initRunState } from "./transitions";
 
-// ---------------------------------------------------------------------------
-// 3. Planner breakdown — reuse the planner spec via the T3 adapter
-// ---------------------------------------------------------------------------
-
-/**
- * The output contract appended to the planner turn. The planner's breakdown
- * LOGIC (Task Breakdown → Wave Computation) is NOT re-authored here — it is
- * inlined by the T3 adapter, which resolves and prepends the
- * `software-teams-planner` spec for `agentId: "software-teams-planner"` (the
- * same mechanism as `inlineAgentSpec` in src/utils/prompt-builder.ts). This
- * block only pins a machine-readable OUTPUT shape so the result is parseable.
- */
 export const BREAKDOWN_INSTRUCTION = [
   "Break the epic / sprint goal below into a waved task breakdown using your",
   "Task Breakdown and Wave Computation workflow.",
@@ -31,10 +19,7 @@ export const BREAKDOWN_INSTRUCTION = [
   "from waves and dependencies.",
 ].join("\n");
 
-/**
- * Build the single-turn envelope that runs the planner. `agentId` is
- * `software-teams-planner` so the T3 adapter inlines the planner spec/persona.
- */
+/** Build the single-turn envelope that runs the planner. */
 export function buildPlannerEnvelope(
   epic: string,
   correlationId: string,
@@ -52,7 +37,6 @@ export function buildPlannerEnvelope(
   };
 }
 
-/** Extract the JSON array substring from a planner response (tolerates fences). */
 function extractJsonArray(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = fenced ? fenced[1]! : text;
@@ -63,9 +47,9 @@ function extractJsonArray(text: string): string {
 }
 
 /**
- * Parse a planner response into `OrchestrationTask`-shaped items. Tolerant of
- * markdown fences and stray prose; throws with a clear message when nothing
- * parseable is found so a broken planning pass is traceable (R-05).
+ * Parse a planner response into `OrchestrationTask`-shaped items.
+ * Tolerant of markdown fences and stray prose; throws with a clear message when
+ * nothing parseable is found (R-05 — traceable failures).
  */
 export function parseBreakdown(text: string): OrchestrationTask[] {
   const raw = (() => {
@@ -89,7 +73,7 @@ export function parseBreakdown(text: string): OrchestrationTask[] {
     const o = entry as Record<string, unknown>;
     const name = typeof o.name === "string" ? o.name.trim() : "";
     const agent = typeof o.agent === "string" ? o.agent.trim() : "";
-    if (!name || !agent) return; // skip malformed rows rather than poison the run
+    if (!name || !agent) return;
 
     const taskId =
       typeof o.taskId === "string" && o.taskId.trim() ? o.taskId.trim() : `T${i + 1}`;
@@ -98,6 +82,7 @@ export function parseBreakdown(text: string): OrchestrationTask[] {
         ? Math.trunc(o.wave)
         : Number.parseInt(String(o.wave ?? ""), 10);
     const wave = Number.isFinite(waveNum) && waveNum > 0 ? waveNum : 1;
+    // Ingestion boundary: dependsOn arrives as unknown[] from parsed JSON; filtered to string[] here.
     const dependsOn = Array.isArray(o.dependsOn)
       ? (o.dependsOn as unknown[]).filter((d): d is string => typeof d === "string")
       : [];
@@ -112,17 +97,9 @@ export function parseBreakdown(text: string): OrchestrationTask[] {
   return tasks;
 }
 
-// ---------------------------------------------------------------------------
-// 4. Planning pass — epic → ordered envelopes + run state (injectable adapter)
-// ---------------------------------------------------------------------------
-
 /**
- * Run a single-turn planning pass through the injected adapter and produce the
- * canvas-delegation payload: ordered per-task envelopes + an initial run state.
- *
- * - Planner `needs-input` → returned via `plannerNeedsInput` (no tasks emitted);
- *   the node bubbles it to the Slack HITL flow (T10).
- * - Planner `error` → throws (the node surfaces it as a node error).
+ * Run a single-turn planning pass and produce canvas-delegation payload.
+ * Planner `needs-input` → returned via `plannerNeedsInput`; `error` → throws.
  */
 export async function planEpic(
   epic: string,

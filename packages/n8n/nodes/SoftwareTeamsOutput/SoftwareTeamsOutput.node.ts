@@ -1,32 +1,4 @@
-/**
- * SoftwareTeamsOutput — terminal output node for Software Teams workflows (T7, AC6).
- *
- * Reads a NodeEnvelope from the upstream node's output, creates a GitHub PR
- * (default) or issue against the configured target repository, then appends
- * the created URL to the envelope's `artifacts` array before passing it
- * downstream.
- *
- * Token source:  `softwareTeamsApi` credential → `githubToken` field.
- *                NEVER a node parameter (R-02).
- *
- * No-changes / error cases:
- *  - PR mode but no branch artifact in envelope → falls back to an issue
- *    (body includes a note explaining the fallback).
- *  - GitHub API rejects the PR (e.g. no diff, existing open PR, scope error) →
- *    sets `status: 'error'` on the envelope and passes it downstream so the
- *    canvas can route to an error handler.
- *
- * Reuse (T7 contract):
- *  - `createPullRequest` / `createIssue` / `extractBranchName` — net-new
- *    helpers in n8n/src/output/github.ts (no create-PR/issue existed in
- *    src/utils/github.ts; GHA runner forbids `gh pr create` in its path).
- *  - NodeEnvelope type — n8n/src/contract/envelope.ts (T3).
- *  - `slugify` — inlined in n8n/src/output/github.ts (pure, Bun-free copy of
- *    the function in src/utils/git.ts).
- */
-
 import {
-  IDataObject,
   IExecuteFunctions,
   INodeExecutionData,
   INodeType,
@@ -41,6 +13,7 @@ import {
   createIssue,
   extractBranchName,
 } from '../../src/output/github';
+import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 
 export class SoftwareTeamsOutput implements INodeType {
   description: INodeTypeDescription = {
@@ -145,7 +118,7 @@ export class SoftwareTeamsOutput implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // ── Credentials (R-02: NEVER a node param) ────────────────────────────
+    // Credentials (R-02: NEVER a node param)
     const credentials = await this.getCredentials('softwareTeamsApi');
     const githubToken = typeof credentials.githubToken === 'string'
       ? credentials.githubToken.trim()
@@ -160,74 +133,74 @@ export class SoftwareTeamsOutput implements INodeType {
       );
     }
 
-    for (let i = 0; i < items.length; i++) {
+    // n8n per-item + continueOnFail pattern; entries() avoids a let counter.
+    for (const [i, item] of items.entries()) {
       try {
-      const envelope = items[i].json as unknown as NodeEnvelope;
+        const envelope = fromDataObject<NodeEnvelope>(item.json);
 
-      if (!envelope || typeof envelope.correlationId !== 'string') {
-        throw new NodeOperationError(
-          this.getNode(),
-          'Incoming item is not a valid NodeEnvelope (missing correlationId). ' +
-            'Wire this node after a Software Teams Agent or Orchestrator node.',
-          { itemIndex: i },
-        );
-      }
+        if (!envelope || typeof envelope.correlationId !== 'string') {
+          throw new NodeOperationError(
+            this.getNode(),
+            'Incoming item is not a valid NodeEnvelope (missing correlationId). ' +
+              'Wire this node after a Software Teams Agent or Orchestrator node.',
+            { itemIndex: i },
+          );
+        }
 
-      const mode = this.getNodeParameter('mode', i) as string;
-      const rawRepo = (this.getNodeParameter('targetRepo', i) as string).trim();
-      const baseBranch =
-        ((this.getNodeParameter('baseBranch', i, 'main') as string) || 'main').trim();
-      const titleParam = ((this.getNodeParameter('title', i, '') as string) || '').trim();
-      const issueLabelsParam =
-        ((this.getNodeParameter('issueLabels', i, '') as string) || '').trim();
+        const mode = this.getNodeParameter('mode', i) as string;
+        const rawRepo = (this.getNodeParameter('targetRepo', i) as string).trim();
+        const baseBranch =
+          ((this.getNodeParameter('baseBranch', i, 'main') as string) || 'main').trim();
+        const titleParam = ((this.getNodeParameter('title', i, '') as string) || '').trim();
+        const issueLabelsParam =
+          ((this.getNodeParameter('issueLabels', i, '') as string) || '').trim();
 
-      if (!rawRepo || !rawRepo.includes('/')) {
-        throw new NodeOperationError(
-          this.getNode(),
-          `"Target Repository" must be in owner/repo format; received: "${rawRepo}"`,
-          { itemIndex: i },
-        );
-      }
+        if (!rawRepo || !rawRepo.includes('/')) {
+          throw new NodeOperationError(
+            this.getNode(),
+            `"Target Repository" must be in owner/repo format; received: "${rawRepo}"`,
+            { itemIndex: i },
+          );
+        }
 
-      const slashIdx = rawRepo.indexOf('/');
-      const owner = rawRepo.slice(0, slashIdx);
-      const repo = rawRepo.slice(slashIdx + 1);
-      const title = titleParam || `[Software Teams] ${envelope.correlationId}`;
-      const body = buildPrIssueBody(envelope);
+        const slashIdx = rawRepo.indexOf('/');
+        const owner = rawRepo.slice(0, slashIdx);
+        const repo = rawRepo.slice(slashIdx + 1);
+        const title = titleParam || `[Software Teams] ${envelope.correlationId}`;
+        const body = buildPrIssueBody(envelope);
 
-      const outputRef = await resolveOutputRef({
-        mode,
-        envelope,
-        owner,
-        repo,
-        title,
-        body,
-        baseBranch,
-        issueLabelsParam,
-        githubToken,
-      });
+        const outputRef = await resolveOutputRef({
+          mode,
+          envelope,
+          owner,
+          repo,
+          title,
+          body,
+          baseBranch,
+          issueLabelsParam,
+          githubToken,
+        });
 
-      if (outputRef.errorEnvelope) {
+        if (outputRef.errorEnvelope) {
+          returnData.push({
+            json: toDataObject(outputRef.errorEnvelope),
+            pairedItem: { item: i },
+          });
+          continue;
+        }
+
+        const updatedEnvelope: NodeEnvelope = {
+          ...envelope,
+          artifacts: [
+            ...envelope.artifacts,
+            { type: outputRef.outputType, url: outputRef.outputUrl },
+          ],
+        };
+
         returnData.push({
-          json: outputRef.errorEnvelope as unknown as IDataObject,
+          json: toDataObject(updatedEnvelope),
           pairedItem: { item: i },
         });
-        continue;
-      }
-
-      // Append artifact — CONTRACT.md §2: artifacts accrete.
-      const updatedEnvelope: NodeEnvelope = {
-        ...envelope,
-        artifacts: [
-          ...envelope.artifacts,
-          { type: outputRef.outputType, url: outputRef.outputUrl },
-        ],
-      };
-
-      returnData.push({
-        json: updatedEnvelope as unknown as IDataObject,
-        pairedItem: { item: i },
-      });
       } catch (err) {
         if (this.continueOnFail()) {
           returnData.push({
@@ -247,10 +220,6 @@ export class SoftwareTeamsOutput implements INodeType {
     return [returnData];
   }
 }
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
 
 interface OutputRefResult {
   outputUrl: string;
@@ -338,7 +307,6 @@ async function resolveOutputRef(p: ResolveOutputRefParams): Promise<OutputRefRes
 
 /**
  * Build a Markdown body for the PR or issue from the NodeEnvelope.
- * Includes agent result text, correlation ID, agent identity, and upstream artifacts.
  */
 function buildPrIssueBody(envelope: NodeEnvelope): string {
   const priorArtifacts = envelope.artifacts.filter((a) => a.type !== 'pr' && a.type !== 'issue');

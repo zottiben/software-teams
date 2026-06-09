@@ -7,10 +7,6 @@ import type {
   RunTaskStatus,
 } from "./shapes";
 
-// ---------------------------------------------------------------------------
-// 5. Run-state model — waves, per-task status, correlationId (R-05)
-// ---------------------------------------------------------------------------
-
 /** Create a fresh run state with every task pending. */
 export function initRunState(
   correlationId: string,
@@ -47,9 +43,9 @@ export function markTask(
 }
 
 /**
- * Fold a returned agent envelope into the run state for `taskId`. The envelope
- * carries the run-level `correlationId`; the specific task it answers is named
- * by `taskId` (carried on `input.context` when the orchestrator emitted it).
+ * Fold a returned agent envelope into the run state for `taskId`.
+ * The specific task is named by `taskId` (carried on `input.context` when the
+ * orchestrator emitted it).
  */
 export function applyResult(
   state: RunState,
@@ -83,8 +79,7 @@ export function summarise(state: RunState): RunSummary {
 
 /**
  * Tasks that may run now: still pending and every in-plan dependency is done.
- * The orchestrator uses this for wave-gated re-entry — a failed/needs-input
- * dependency holds back its dependents instead of silently skipping them.
+ * A failed/needs-input dependency holds back its dependents (no silent skips).
  */
 export function readyTasks(state: RunState): RunTaskState[] {
   const known = new Set(state.tasks.map((t) => t.taskId));
