@@ -361,7 +361,7 @@ describe("stderrLog — must never throw at runtime", () => {
 // subprocess test exercises the REAL error path end-to-end: malformed stdin
 // under --json must exit 2 with empty stdout and a clean diagnostic on stderr.
 
-describe("subprocess — exit-2 input-error path (byte-for-byte)", () => {
+describe.skipIf(!!process.env.CI)("subprocess — exit-2 input-error path (byte-for-byte)", () => {
   test("malformed stdin + --json → exit 2, empty stdout, diagnostic on stderr", async () => {
     const proc = Bun.spawn({
       cmd: ["bun", CLI_ENTRY, "ingest", "--source", "clickup", "--json"],

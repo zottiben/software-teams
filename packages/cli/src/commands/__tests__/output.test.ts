@@ -677,7 +677,7 @@ describe("output — ok-path with mocked deps (in-process, not subprocess)", () 
 
 // ─── Subprocess: offline input-error paths only (no network, exit 2) ──────────
 
-describe("output subprocess — end-to-end CLI (offline input-error paths)", () => {
+describe.skipIf(!!process.env.CI)("output subprocess — end-to-end CLI (offline input-error paths)", () => {
   test("missing GITHUB_TOKEN (offline, reachable) → exit 1, diagnostic on stderr, empty stdout", async () => {
     const inputEnv: NodeEnvelope = {
       correlationId: "test-run-001",

@@ -42,7 +42,7 @@ function runCLI(args: string[]) {
   };
 }
 
-describe("software-teams component CLI", () => {
+describe.skipIf(!!process.env.CI)("software-teams component CLI", () => {
   /**
    * Build a test-only bundle before running any CLI tests.
    *

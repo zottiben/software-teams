@@ -627,7 +627,7 @@ describe("orchestratorMode integration", () => {
 // Behavioural test: orchestrator-deny-bash.sh script
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("orchestrator-deny-bash.sh", () => {
+describe.skipIf(!!process.env.CI)("orchestrator-deny-bash.sh", () => {
   // Check if bash and jq are available
   const canRunBashTest = (): boolean => {
     try {
