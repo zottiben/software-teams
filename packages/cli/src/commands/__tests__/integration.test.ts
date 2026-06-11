@@ -86,7 +86,7 @@ async function spawnVerb(opts: {
 }): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn({
     cmd: ["bun", CLI_ENTRY, opts.verb, ...(opts.args ?? [])],
-    stdin: opts.stdinData !== undefined ? Buffer.from(opts.stdinData) : undefined,
+    stdin: opts.stdinData !== undefined ? Buffer.from(opts.stdinData) : "ignore",
     stdout: "pipe",
     stderr: "pipe",
     env: opts.env ?? safeEnv(),
