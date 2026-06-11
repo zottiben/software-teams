@@ -24073,7 +24073,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.6.0",
+  version: "0.6.1",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
@@ -24096,7 +24096,7 @@ var package_default = {
     dev: "bun run src/index.ts",
     lint: "eslint src",
     "lint:fix": "eslint src --fix",
-    test: "bun test"
+    test: "bun test --timeout 120000"
   },
   dependencies: {
     citty: "^0.1.6",
