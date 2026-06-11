@@ -24090,8 +24090,8 @@ var package_default = {
     "./storage": "./src/storage/index.ts"
   },
   scripts: {
-    build: "tsc -b tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
-    "build:lib": "tsc -b tsconfig.node.json",
+    build: `tsc -b tsconfig.node.json && node -e "require('fs').writeFileSync('lib/package.json',JSON.stringify({type:'commonjs'})+'\\n')" && bun build src/index.ts --outdir dist --target=bun`,
+    "build:lib": `tsc -b tsconfig.node.json && node -e "require('fs').writeFileSync('lib/package.json',JSON.stringify({type:'commonjs'})+'\\n')"`,
     typecheck: "tsc --noEmit -p tsconfig.json",
     dev: "bun run src/index.ts",
     lint: "eslint src",
