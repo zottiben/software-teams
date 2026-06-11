@@ -77,19 +77,22 @@ jobs:
         with:
           fetch-depth: 2
 
-      # Only publish if packages/cli/package.json version changed
-      - name: Check version change
+      # Publish if packages/cli/package.json version is not yet on npm. This is
+      # idempotent and recovers from a failed publish: a HEAD~1 diff strands a
+      # version forever if its publish run failed, whereas "not on npm" retries
+      # until the version actually ships.
+      - name: Check version needs publishing
         id: version
         run: |
           CURRENT=$(jq -r .version packages/cli/package.json)
-          PREVIOUS=$(git show HEAD~1:packages/cli/package.json | jq -r .version)
-          if [ "$CURRENT" = "$PREVIOUS" ]; then
+          PUBLISHED=$(npm view "@websitelabs/software-teams@$CURRENT" version 2>/dev/null || true)
+          if [ -n "$PUBLISHED" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Version unchanged ($CURRENT) — skipping publish"
+            echo "Version $CURRENT already on npm — skipping publish"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
-            echo "Version changed: $PREVIOUS → $CURRENT"
+            echo "Version $CURRENT not on npm — publishing"
           fi
 
       # Fail fast if packages/cli/package.json version != packages/cli/.claude-plugin/plugin.json version (keeps artefacts in lockstep)
