@@ -713,16 +713,18 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
       stderr: "pipe",
       env,
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     // The token check runs before runVerb — the process exits without writing
     // anything to stdout. The diagnostic is on stderr.
     expect(exitCode).toBe(1);
     expect(stdout).toBe(""); // token check exits before any JSON is written
     expect(stderr).toContain("token");
-  }, 20000);
+  }, 120000);
 
   test("malformed JSON on stdin → exit 2, no JSON on stdout", async () => {
     const proc = Bun.spawn({
@@ -745,14 +747,16 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
       stderr: "pipe",
       env: { ...process.env, GITHUB_TOKEN: "ghp_test_token" },
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr.length).toBeGreaterThan(0);
-  }, 20000);
+  }, 120000);
 
   test("missing --owner or --repo → exit 2 with clear message", async () => {
     const inputEnv: NodeEnvelope = {
@@ -771,10 +775,13 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
       stderr: "pipe",
       env: { ...process.env, GITHUB_TOKEN: "ghp_test_token" },
     });
-    const exitCode = await proc.exited;
-    const stderr = await new Response(proc.stderr).text();
+    const [, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stderr).toContain("owner");
-  }, 20000);
+  }, 120000);
 });

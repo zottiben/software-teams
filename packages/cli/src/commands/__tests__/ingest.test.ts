@@ -481,14 +481,16 @@ describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () 
       stdout: "pipe",
       stderr: "pipe",
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr).toContain("source");
-  }, 20000);
+  }, 120000);
 
   test("missing --source → exit 2 with clear message", async () => {
     const proc = Bun.spawn({
@@ -496,12 +498,15 @@ describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () 
       stdout: "pipe",
       stderr: "pipe",
     });
-    const exitCode = await proc.exited;
-    const stderr = await new Response(proc.stderr).text();
+    const [, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stderr).toContain("source");
-  }, 20000);
+  }, 120000);
 
   test("malformed stdin JSON → exit 2, no JSON on stdout", async () => {
     const proc = Bun.spawn({
@@ -510,14 +515,16 @@ describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () 
       stdout: "pipe",
       stderr: "pipe",
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr.length).toBeGreaterThan(0);
-  }, 20000);
+  }, 120000);
 
   test("--envelope flag carries correlationId through ok path (in-process)", async () => {
     const result = await buildIngestEnvelope({

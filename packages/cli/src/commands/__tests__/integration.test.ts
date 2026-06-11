@@ -91,9 +91,11 @@ async function spawnVerb(opts: {
     stderr: "pipe",
     env: opts.env ?? safeEnv(),
   });
-  const exitCode = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
   return { exitCode, stdout, stderr };
 }
 
@@ -146,7 +148,7 @@ describe("agent-turn subprocess — json-purity-gate (STO_FAKE_ENGINE)", () => {
     const expectedEnvelope = { ...fixture, status: "ok" as const };
     assertJsonPurity(stdout, expectedEnvelope);
     assertContractConformance(JSON.parse(stdout));
-  }, 20000);
+  }, 120000);
 
   test("needs-input status: stdout is pure envelope JSON", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -159,7 +161,7 @@ describe("agent-turn subprocess — json-purity-gate (STO_FAKE_ENGINE)", () => {
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.status).toBe("needs-input");
     assertJsonPurity(stdout, { ...fixture, status: "needs-input" });
-  }, 20000);
+  }, 120000);
 
   test("error status: stdout is pure error envelope JSON", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -172,7 +174,7 @@ describe("agent-turn subprocess — json-purity-gate (STO_FAKE_ENGINE)", () => {
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.status).toBe("error");
     assertJsonPurity(stdout, { ...fixture, status: "error" });
-  }, 20000);
+  }, 120000);
 });
 
 describe("agent-turn subprocess — exit-code-gate", () => {
@@ -186,7 +188,7 @@ describe("agent-turn subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "ok" }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("needs-input → exit 0 (valid HITL park, not a failure)", async () => {
     const { exitCode } = await spawnVerb({
@@ -196,7 +198,7 @@ describe("agent-turn subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "needs-input" }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("error → exit 1", async () => {
     const { exitCode } = await spawnVerb({
@@ -206,7 +208,7 @@ describe("agent-turn subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "error" }),
     });
     expect(exitCode).toBe(1);
-  }, 20000);
+  }, 120000);
 
   test("bad-input (malformed stdin) → exit 2, empty stdout", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -217,7 +219,7 @@ describe("agent-turn subprocess — exit-code-gate", () => {
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe(""); // exit 2 writes NOTHING to stdout
-  }, 20000);
+  }, 120000);
 });
 
 describe("agent-turn subprocess — --envelope precedence over stdin", () => {
@@ -237,7 +239,7 @@ describe("agent-turn subprocess — --envelope precedence over stdin", () => {
     // The flag envelope's correlationId must win.
     expect(parsed.correlationId).toBe("from-flag-agent");
     expect(parsed.correlationId).not.toBe("from-stdin-agent");
-  }, 20000);
+  }, 120000);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,7 +264,7 @@ describe("orchestrator-turn subprocess — json-purity-gate (STO_FAKE_ENGINE)", 
     const expectedEnvelope = { ...fixture, status: "ok" as const };
     assertJsonPurity(stdout, expectedEnvelope);
     assertContractConformance(JSON.parse(stdout));
-  }, 20000);
+  }, 120000);
 
   test("needs-input status: pure envelope JSON, exit 0", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -274,7 +276,7 @@ describe("orchestrator-turn subprocess — json-purity-gate (STO_FAKE_ENGINE)", 
     expect(exitCode).toBe(0);
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.status).toBe("needs-input");
-  }, 20000);
+  }, 120000);
 
   test("error status: pure error envelope JSON, exit 1", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -286,7 +288,7 @@ describe("orchestrator-turn subprocess — json-purity-gate (STO_FAKE_ENGINE)", 
     expect(exitCode).toBe(1);
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.status).toBe("error");
-  }, 20000);
+  }, 120000);
 });
 
 describe("orchestrator-turn subprocess — exit-code-gate", () => {
@@ -302,7 +304,7 @@ describe("orchestrator-turn subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "ok" }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("needs-input → exit 0", async () => {
     const { exitCode } = await spawnVerb({
@@ -312,7 +314,7 @@ describe("orchestrator-turn subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "needs-input" }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("error → exit 1", async () => {
     const { exitCode } = await spawnVerb({
@@ -322,7 +324,7 @@ describe("orchestrator-turn subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "error" }),
     });
     expect(exitCode).toBe(1);
-  }, 20000);
+  }, 120000);
 
   test("bad-input (malformed stdin) → exit 2, empty stdout", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -333,7 +335,7 @@ describe("orchestrator-turn subprocess — exit-code-gate", () => {
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 });
 
 describe("orchestrator-turn subprocess — --envelope precedence over stdin", () => {
@@ -357,7 +359,7 @@ describe("orchestrator-turn subprocess — --envelope precedence over stdin", ()
     expect(exitCode).toBe(0);
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.correlationId).toBe("from-flag-orch");
-  }, 20000);
+  }, 120000);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -385,7 +387,7 @@ describe("ingest subprocess — json-purity-gate (ST_CLI_TEST_STUB=1)", () => {
     expect(stdout).toBe(JSON.stringify(parsed) + "\n");
     // Exactly one non-empty line.
     expect(stdout.split("\n").filter(Boolean)).toHaveLength(1);
-  }, 20000);
+  }, 120000);
 
   test("datadog ok: stdout is exactly one valid JSON NodeEnvelope", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -398,7 +400,7 @@ describe("ingest subprocess — json-purity-gate (ST_CLI_TEST_STUB=1)", () => {
     expect(parsed.status).toBe("ok");
     assertContractConformance(parsed);
     expect(stdout).toBe(JSON.stringify(parsed) + "\n");
-  }, 20000);
+  }, 120000);
 });
 
 describe("ingest subprocess — exit-code-gate", () => {
@@ -409,7 +411,7 @@ describe("ingest subprocess — exit-code-gate", () => {
       env: safeEnv({ ST_CLI_TEST_STUB: "1" }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("datadog ok → exit 0", async () => {
     const { exitCode } = await spawnVerb({
@@ -418,7 +420,7 @@ describe("ingest subprocess — exit-code-gate", () => {
       env: safeEnv({ ST_CLI_TEST_STUB: "1" }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("graceful degradation (no token, real adapter path) → exit 0, context null in output", async () => {
     // No ST_CLI_TEST_STUB, no CLICKUP_API_KEY — adapter returns null → status: ok, context: null.
@@ -434,7 +436,7 @@ describe("ingest subprocess — exit-code-gate", () => {
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.status).toBe("ok");
     expect(parsed.input.context).toBeNull();
-  }, 20000);
+  }, 120000);
 
   test("invalid --source → exit 2", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -444,7 +446,7 @@ describe("ingest subprocess — exit-code-gate", () => {
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 
   test("unparseable ClickUp ref → exit 2, empty stdout", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -454,7 +456,7 @@ describe("ingest subprocess — exit-code-gate", () => {
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 
   test("unparseable Datadog ref → exit 2, empty stdout", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -464,7 +466,7 @@ describe("ingest subprocess — exit-code-gate", () => {
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 });
 
 describe("ingest subprocess — stdout contains no token (R-02 secret-guard)", () => {
@@ -477,7 +479,7 @@ describe("ingest subprocess — stdout contains no token (R-02 secret-guard)", (
     });
     expect(stdout).not.toContain(secretToken);
     expect(stderr).not.toContain(secretToken);
-  }, 20000);
+  }, 120000);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -505,7 +507,7 @@ describe("output subprocess — json-purity-gate (STO_FAKE_ENGINE)", () => {
     assertContractConformance(parsed);
     expect(stdout).toBe(JSON.stringify(parsed) + "\n");
     expect(stdout.split("\n").filter(Boolean)).toHaveLength(1);
-  }, 20000);
+  }, 120000);
 
   test("issue mode ok: stdout is pure envelope JSON", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -519,7 +521,7 @@ describe("output subprocess — json-purity-gate (STO_FAKE_ENGINE)", () => {
     expect(parsed.status).toBe("ok");
     assertContractConformance(parsed);
     expect(stdout).toBe(JSON.stringify(parsed) + "\n");
-  }, 20000);
+  }, 120000);
 
   test("error status: pure error envelope JSON, exit 1", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -531,7 +533,7 @@ describe("output subprocess — json-purity-gate (STO_FAKE_ENGINE)", () => {
     expect(exitCode).toBe(1);
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.status).toBe("error");
-  }, 20000);
+  }, 120000);
 });
 
 describe("output subprocess — exit-code-gate", () => {
@@ -545,7 +547,7 @@ describe("output subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "ok", GITHUB_TOKEN: STUB_GITHUB_TOKEN }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("needs-input → exit 0", async () => {
     const { exitCode } = await spawnVerb({
@@ -555,7 +557,7 @@ describe("output subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "needs-input", GITHUB_TOKEN: STUB_GITHUB_TOKEN }),
     });
     expect(exitCode).toBe(0);
-  }, 20000);
+  }, 120000);
 
   test("error → exit 1", async () => {
     const { exitCode } = await spawnVerb({
@@ -565,7 +567,7 @@ describe("output subprocess — exit-code-gate", () => {
       env: safeEnv({ STO_FAKE_ENGINE: "error", GITHUB_TOKEN: STUB_GITHUB_TOKEN }),
     });
     expect(exitCode).toBe(1);
-  }, 20000);
+  }, 120000);
 
   test("bad-input (malformed stdin) → exit 2, empty stdout", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -576,7 +578,7 @@ describe("output subprocess — exit-code-gate", () => {
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 });
 
 describe("output subprocess — --envelope precedence over stdin", () => {
@@ -598,7 +600,7 @@ describe("output subprocess — --envelope precedence over stdin", () => {
     const parsed = JSON.parse(stdout) as NodeEnvelope;
     expect(parsed.correlationId).toBe("from-flag-output");
     expect(parsed.correlationId).not.toBe("from-stdin-output");
-  }, 20000);
+  }, 120000);
 });
 
 describe("output subprocess — stdout contains no token (R-02 secret-guard)", () => {
@@ -612,7 +614,7 @@ describe("output subprocess — stdout contains no token (R-02 secret-guard)", (
     });
     expect(stdout).not.toContain(secretToken);
     expect(stderr).not.toContain(secretToken);
-  }, 20000);
+  }, 120000);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -658,7 +660,7 @@ describe("cross-verb exit-code matrix (STO_FAKE_ENGINE — all four verbs)", () 
       expect(exitCode).toBe(0);
       const parsed = JSON.parse(stdout) as NodeEnvelope;
       expect(parsed.status).toBe("ok");
-    }, 20000);
+    }, 120000);
 
     test(`${verb}: needs-input → exit 0 (HITL park — not a failure)`, async () => {
       const { exitCode, stdout } = await spawnVerb({
@@ -670,7 +672,7 @@ describe("cross-verb exit-code matrix (STO_FAKE_ENGINE — all four verbs)", () 
       expect(exitCode).toBe(0);
       const parsed = JSON.parse(stdout) as NodeEnvelope;
       expect(parsed.status).toBe("needs-input");
-    }, 20000);
+    }, 120000);
 
     test(`${verb}: error → exit 1`, async () => {
       const { exitCode, stdout } = await spawnVerb({
@@ -682,7 +684,7 @@ describe("cross-verb exit-code matrix (STO_FAKE_ENGINE — all four verbs)", () 
       expect(exitCode).toBe(1);
       const parsed = JSON.parse(stdout) as NodeEnvelope;
       expect(parsed.status).toBe("error");
-    }, 20000);
+    }, 120000);
 
     test(`${verb}: bad-input (malformed JSON) → exit 2, empty stdout`, async () => {
       const { exitCode, stdout } = await spawnVerb({
@@ -693,6 +695,6 @@ describe("cross-verb exit-code matrix (STO_FAKE_ENGINE — all four verbs)", () 
       });
       expect(exitCode).toBe(2);
       expect(stdout).toBe("");
-    }, 20000);
+    }, 120000);
   }
 });

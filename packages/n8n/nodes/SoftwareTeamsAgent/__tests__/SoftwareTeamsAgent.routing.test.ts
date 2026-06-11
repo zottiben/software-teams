@@ -16,7 +16,7 @@ const MOCK_RESULT: NodeEnvelope = {
 };
 
 beforeAll(() => {
-  mock.module("../../src/execution/single-turn", () => ({
+  mock.module("../../../src/execution/single-turn", () => ({
     runAgentTurn: async (env: NodeEnvelope) => ({
       ...env,
       status: "ok",

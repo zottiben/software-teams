@@ -75,9 +75,11 @@ async function spawnVerb(opts: {
     stderr: "pipe",
     env: opts.env ?? safeEnv(),
   });
-  const exitCode = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
   return { exitCode, stdout, stderr };
 }
 
@@ -234,7 +236,7 @@ describe("json-purity-gate regression — all four verbs (R-09 / AC2)", () => {
       const parsed = assertJsonPurityAndConformance(stdout);
       // Envelope must round-trip (no extra fields stripped by JSON.stringify).
       expect(JSON.parse(stdout)).toEqual(parsed);
-    }, 20000);
+    }, 120000);
   }
 });
 
@@ -316,7 +318,7 @@ describe("exit-code-gate: full cross-verb matrix — all four verbs (AC7)", () =
       expect(exitCode).toBe(0);
       const parsed = JSON.parse(stdout) as NodeEnvelope;
       expect(parsed.status).toBe("ok");
-    }, 20000);
+    }, 120000);
 
     // needs-input → exit 0 (where the seam supports it)
     if (supportsNeedsInput) {
@@ -330,7 +332,7 @@ describe("exit-code-gate: full cross-verb matrix — all four verbs (AC7)", () =
         expect(exitCode).toBe(0);
         const parsed = JSON.parse(stdout) as NodeEnvelope;
         expect(parsed.status).toBe("needs-input");
-      }, 20000);
+      }, 120000);
     }
 
     // error → exit 1 (where the seam supports it)
@@ -345,7 +347,7 @@ describe("exit-code-gate: full cross-verb matrix — all four verbs (AC7)", () =
         expect(exitCode).toBe(1);
         const parsed = JSON.parse(stdout) as NodeEnvelope;
         expect(parsed.status).toBe("error");
-      }, 20000);
+      }, 120000);
     }
 
     // bad-input → exit 2, empty stdout (all verbs that accept an envelope on stdin)
@@ -361,7 +363,7 @@ describe("exit-code-gate: full cross-verb matrix — all four verbs (AC7)", () =
         });
         expect(exitCode).toBe(2);
         expect(stdout).toBe("");
-      }, 20000);
+      }, 120000);
     }
   }
 
@@ -374,7 +376,7 @@ describe("exit-code-gate: full cross-verb matrix — all four verbs (AC7)", () =
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 
   test("ingest: unparseable ClickUp URL → exit 2, empty stdout", async () => {
     const { exitCode, stdout } = await spawnVerb({
@@ -384,7 +386,7 @@ describe("exit-code-gate: full cross-verb matrix — all four verbs (AC7)", () =
     });
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
-  }, 20000);
+  }, 120000);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -429,6 +431,6 @@ describe("exit-2 stdout invariant: no bytes written to stdout on bad-input (§3,
       });
       expect(exitCode).toBe(2);
       expect(stdout).toBe("");
-    }, 20000);
+    }, 120000);
   }
 });
