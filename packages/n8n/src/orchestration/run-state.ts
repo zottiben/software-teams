@@ -26,6 +26,9 @@ export {
   nextReadyWave,
   failedTasks,
   needsInputTasks,
+  recordAgentResult,
+  enumerateAgentResults,
+  type AgentResult,
 } from "./run-state/transitions";
 
 export {
@@ -33,3 +36,10 @@ export {
   deserialiseRunState,
   isNodeEnvelope,
 } from "./run-state/persistence";
+
+export {
+  getRunStore,
+  readRunState,
+  writeRunState,
+  type RunStore,
+} from "./run-state/global-store";

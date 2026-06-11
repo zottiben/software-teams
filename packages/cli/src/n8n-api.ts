@@ -36,4 +36,4 @@ export {
 
 export { slugify } from "./shared/slugify";
 
-export type { NodeEnvelope, ArtifactRef } from "./contract/envelope";
+export type { NodeEnvelope, ArtifactRef, RepoDescriptor, ChangeRef } from "./contract/envelope";

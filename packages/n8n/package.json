@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/n8n-nodes-software-teams",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only — requires the claude binary and ANTHROPIC_API_KEY on the n8n worker.",
   "author": { "name": "WebsiteLabs" },
   "license": "MIT",
@@ -11,15 +11,17 @@
     "anthropic",
     "ai-agents"
   ],
-  "main": "index.js",
+  "main": "dist/credentials/SoftwareTeamsApi.credentials.js",
   "scripts": {
-    "build": "n8n-node build",
+    "build": "n8n-node build && node scripts/bundle-specs.cjs",
+    "prepack": "npm run build",
     "build:watch": "n8n-node build --watch",
     "dev": "n8n-node dev",
     "lint": "n8n-node lint",
     "lint:fix": "n8n-node lint --fix",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:node-load": "n8n-node build && node scripts/bundle-specs.cjs && node scripts/verify-node-load.cjs"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -31,8 +33,20 @@
       "dist/nodes/SoftwareTeamsTrigger/SoftwareTeamsTrigger.node.js",
       "dist/nodes/SoftwareTeamsOutput/SoftwareTeamsOutput.node.js",
       "dist/nodes/SoftwareTeamsOrchestrator/SoftwareTeamsOrchestrator.node.js",
-      "dist/nodes/SoftwareTeamsSlackHitl/SoftwareTeamsSlackHitl.node.js"
+      "dist/nodes/SoftwareTeamsSlackHitl/SoftwareTeamsSlackHitl.node.js",
+      "dist/nodes/SoftwareTeamsWorkspace/SoftwareTeamsWorkspace.node.js",
+      "dist/nodes/SoftwareTeamsFinaliser/SoftwareTeamsFinaliser.node.js"
     ]
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CONTRACT.md",
+    "ARCHITECTURE.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "n8n-workflow": "*"

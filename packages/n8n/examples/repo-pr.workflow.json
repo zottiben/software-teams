@@ -1,0 +1,306 @@
+{
+  "name": "Repo Execution: Workspace → Orchestrator (fan-out) → Agents (routing by agentId) → Finaliser → PR",
+  "nodes": [
+    {
+      "id": "b2c3d4e5-0000-4000-8000-000000000000",
+      "name": "Repo + Prompt (Form Trigger)",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "parameters": {
+        "formTitle": "Software Teams: repo + prompt",
+        "formDescription": "Provide the target repository, base branch, and the epic/prompt for this run.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Target Repository",
+              "fieldType": "text",
+              "placeholder": "owner/repo",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Base Branch",
+              "fieldType": "text",
+              "placeholder": "main",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Prompt / Epic",
+              "fieldType": "textarea",
+              "placeholder": "Describe the feature or change the agents should implement.",
+              "requiredField": true
+            }
+          ]
+        }
+      },
+      "notes": "ADDITIVE alternative entry (ADR-004 Decision O). Built-in n8n Form Trigger — NOT a Software Teams node, no contract change. On submit its three fields drive every repo/prompt consumer via robust node references: Workspace targetRepo = $('Repo + Prompt (Form Trigger)').first().json[\"Target Repository\"], Workspace/Finaliser/Output baseBranch = the same node's [\"Base Branch\"] || \"main\", Orchestrator(plan) epic = the same node's [\"Prompt / Epic\"] (the Workspace does not carry the prompt forward), and the Finaliser/Output ownerRepo/targetRepo reuse [\"Target Repository\"]. Referencing the Form node by name (rather than .item) keeps the values readable after the Orchestrator fan-out and the summary aggregation. The only value a user still hand-edits is the credential id (REPLACE_WITH_CREDENTIAL_ID). The existing manual entry (run Workspace directly with its literal params) is unchanged — this Form Trigger is an alternative, not a replacement."
+    },
+    {
+      "id": "b2c3d4e5-0001-4000-8000-000000000001",
+      "name": "Software Teams Workspace",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsWorkspace",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "targetRepo": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Target Repository\"] }}",
+        "baseBranch": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Base Branch\"] || \"main\" }}",
+        "correlationId": ""
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "targetRepo and baseBranch are driven by the Form Trigger fields (Target Repository, Base Branch defaulting to main). The worker must have git, claude, and gh binaries on PATH. Correlation ID is left blank so the node auto-generates a fresh run ID and emits it at the envelope top level (correlationId) for every downstream node."
+    },
+    {
+      "id": "b2c3d4e5-0002-4000-8000-000000000002",
+      "name": "Orchestrator",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsOrchestrator",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "operation": "plan",
+        "epic": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Prompt / Epic\"] }}",
+        "correlationId": "={{ $json.correlationId }}",
+        "model": "claude-haiku-3-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "epic is read straight from the Form Trigger's Prompt / Epic field — the Workspace node does not carry the prompt forward (its emitted input.prompt is empty), so we reference the Form node directly. correlationId is read from the Workspace envelope ($json.correlationId) to continue the same run. Uses claude-haiku-3-5 for the planning turn to reduce cost. Emits one NodeEnvelope per planned task in wave order, each tagged with the specialist agentId. ALL three Agent nodes below are wired off this single output — no Switch node needed. Each Agent node picks up only the items addressed to its configured specialist."
+    },
+    {
+      "id": "b2c3d4e5-0003-4000-8000-000000000003",
+      "name": "Agent: Backend",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsAgent",
+      "typeVersion": 1,
+      "position": [750, 150],
+      "parameters": {
+        "specialist": "software-teams-backend",
+        "prompt": "={{ $json.input.prompt }}",
+        "model": "claude-sonnet-4-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Wired directly off the Orchestrator fan-out output. Only processes envelopes where agentId === 'software-teams-backend'. Items addressed to other specialists pass through silently. Runs inside an isolated git worktree; changeRef is written to run-state for the Finaliser."
+    },
+    {
+      "id": "b2c3d4e5-0004-4000-8000-000000000004",
+      "name": "Agent: Frontend",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsAgent",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "parameters": {
+        "specialist": "software-teams-frontend",
+        "prompt": "={{ $json.input.prompt }}",
+        "model": "claude-sonnet-4-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Wired directly off the Orchestrator fan-out output alongside the other Agent nodes. Only processes envelopes where agentId === 'software-teams-frontend'. Its changeRef (base64 git format-patch) is written to run-state keyed by correlationId and taskId."
+    },
+    {
+      "id": "b2c3d4e5-0005-4000-8000-000000000005",
+      "name": "Agent: Programmer",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsAgent",
+      "typeVersion": 1,
+      "position": [750, 450],
+      "parameters": {
+        "specialist": "software-teams-programmer",
+        "prompt": "={{ $json.input.prompt }}",
+        "model": "claude-sonnet-4-5"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Wired directly off the Orchestrator fan-out output alongside the other Agent nodes. Only processes envelopes where agentId === 'software-teams-programmer'. Its changeRef is written to run-state for the Finaliser to merge."
+    },
+    {
+      "id": "b2c3d4e5-0007-4000-8000-000000000007",
+      "name": "Orchestrator: Run Summary",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsOrchestrator",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "parameters": {
+        "operation": "summary",
+        "correlationId": "={{ $json.correlationId }}"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Orchestrator-centric summary: reads the aggregated run-state (enumerateAgentResults) and emits a human-facing summary of what each specialist agent did and the overall outcome. Additive — no return edge to the Orchestrator, the DAG contract (ADR-002 Decision F) is intact. The Finaliser still owns the forward summary and PR."
+    },
+    {
+      "id": "b2c3d4e5-0006-4000-8000-000000000006",
+      "name": "Software Teams Finaliser",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsFinaliser",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "parameters": {
+        "ownerRepo": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Target Repository\"] }}",
+        "baseBranch": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Base Branch\"] || \"main\" }}"
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "ownerRepo and baseBranch are required and driven by the Form Trigger (Target Repository, Base Branch defaulting to main). The correlationId is NOT a param — the Finaliser reads it from its input item's NodeEnvelope at runtime ($json.correlationId carried forward from the summary Orchestrator) and uses it to look up the aggregated run-state. Reads all agents' changeRef patches from run-state, applies them onto a feature branch, runs the bounded conflict-resolver (≤3 claude turns) if needed, commits, and pushes. Emits a branch artifact so the Output node opens a PR. Fails cleanly with a structured error (conflicting file list) if the 3-turn bound is exceeded."
+    },
+    {
+      "id": "b2c3d4e5-0008-4000-8000-000000000008",
+      "name": "GitHub PR Output",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsOutput",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "parameters": {
+        "mode": "pr",
+        "targetRepo": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Target Repository\"] }}",
+        "baseBranch": "={{ $('Repo + Prompt (Form Trigger)').first().json[\"Base Branch\"] || \"main\" }}",
+        "title": ""
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "targetRepo and baseBranch are driven by the same Form Trigger fields as the Workspace and Finaliser, so the repo is entered once on the form. The branch artifact from the Finaliser drives the PR path — the issue fallback is not triggered. The GitHub token in the credential must have repo + PR write scopes."
+    }
+  ],
+  "connections": {
+    "Repo + Prompt (Form Trigger)": {
+      "main": [
+        [
+          {
+            "node": "Software Teams Workspace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Software Teams Workspace": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "Agent: Backend",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Agent: Frontend",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Agent: Programmer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Backend": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator: Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Frontend": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator: Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent: Programmer": {
+      "main": [
+        [
+          {
+            "node": "Orchestrator: Run Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Orchestrator: Run Summary": {
+      "main": [
+        [
+          {
+            "node": "Software Teams Finaliser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Software Teams Finaliser": {
+      "main": [
+        [
+          {
+            "node": "GitHub PR Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "software-teams-example"
+  },
+  "tags": [
+    { "name": "software-teams" },
+    { "name": "repo-execution" },
+    { "name": "example" }
+  ]
+}
