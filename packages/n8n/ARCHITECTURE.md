@@ -881,23 +881,26 @@ EQUALS `SPECIALIST_OPTIONS` one-to-one (empirically confirmed — the both-ways 
 empty), so **lean (only SPECIALIST_OPTIONS) == all 33; there is no "lean vs all 33" choice for
 T4 to make.** (R-29.)
 
-- **Source:** `.claude/agents/software-teams-*.md` (repo root).
+- **Source:** the tracked plugin specs at `packages/cli/agents/software-teams-*.md`. This is
+  the version-controlled origin. The equivalent repo-root `.claude/agents/` copy is
+  gitignored/generated (by `sync-agents`), so the bundler MUST read the tracked
+  `packages/cli/agents/` — otherwise a fresh clone / CI / `npm` build finds no specs (ENOENT).
 - **Packaged destination:** `dist/agents/software-teams-*.md` (Decision K).
 - **Copy:** wired into `n8n-node build` (Decision M). Only `software-teams-*.md` is copied —
-  no other `.claude/agents/*.md` (the framework/JDI specs) ship.
+  no other `packages/cli/agents/*.md` (the framework/JDI specs) ship.
 
 ---
 
 ## Decision M — Spec-bundling build glue + Decision N's packaging
 
 - **Build glue (T4).** The `package.json` `build` script (`"n8n-node build"`) gains a copy
-  step that, AFTER the tsc build emits `dist`, copies `.claude/agents/software-teams-*.md` →
+  step that, AFTER the tsc build emits `dist`, copies `packages/cli/agents/software-teams-*.md` →
   `dist/agents/`. The lowest-risk shape consistent with ADR-003's no-bundler constraint is a
   tiny Node `.cjs` script (mirroring `scripts/verify-node-load.cjs`) invoked as a postbuild,
   e.g. `"build": "n8n-node build && node scripts/bundle-specs.cjs"`. It introduces NO bundler
-  (esbuild/tsup) — it is a file copy. The script reads from the repo `.claude/agents/` and
-  writes to `dist/agents/`, creating the dir if absent. The 1-05 node-load gate and `main`
-  entry are unchanged.
+  (esbuild/tsup) — it is a file copy. The script reads from the tracked `packages/cli/agents/`
+  (NOT the gitignored `.claude/agents/`) and writes to `dist/agents/`, creating the dir if
+  absent. The 1-05 node-load gate and `main` entry are unchanged.
 
 ---
 
@@ -1020,7 +1023,7 @@ run-state module):**
 
 **T4 — Packaging + spec bundling (programmer; `package.json` + `scripts/`):**
 
-1. Add `scripts/bundle-specs.cjs`: copy `.claude/agents/software-teams-*.md` → `dist/agents/`
+1. Add `scripts/bundle-specs.cjs`: copy `packages/cli/agents/software-teams-*.md` → `dist/agents/`
    (create the dir; copy ONLY `software-teams-*.md`). No bundler.
 2. `package.json` `"build": "n8n-node build && node scripts/bundle-specs.cjs"`.
 3. Add the `files` allowlist (`["dist","README.md","CONTRACT.md","ARCHITECTURE.md","LICENSE"]`)

@@ -15,7 +15,7 @@ const pkgRoot = resolve(import.meta.dir, "..", "..", "..");
 const repoRoot = resolve(pkgRoot, "..", "..");
 const sourceSingleTurn = resolve(import.meta.dir, "..", "single-turn.ts");
 const builtAgentsDir = resolve(pkgRoot, "dist", "agents");
-const repoAgentsDir = resolve(repoRoot, ".claude", "agents");
+const repoAgentsDir = resolve(repoRoot, "packages", "cli", "agents");
 
 const installedSingleTurnDir = resolve(pkgRoot, "dist", "src", "execution");
 

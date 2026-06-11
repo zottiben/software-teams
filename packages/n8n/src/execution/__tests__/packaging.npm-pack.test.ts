@@ -5,7 +5,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 const pkgRoot = resolve(import.meta.dir, "..", "..", "..");
-const repoAgentsDir = resolve(pkgRoot, "..", "..", ".claude", "agents");
+const repoAgentsDir = resolve(pkgRoot, "..", "cli", "agents");
 
 const NODE_BASENAMES = [
   "SoftwareTeamsAgent",
