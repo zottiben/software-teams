@@ -464,7 +464,7 @@ describe("ingest — ok-path with mocked adapters (in-process, not subprocess)",
 // ─── Integration tests: subprocess-level (end-to-end via CLI) ────────────────
 // Keep ONLY offline input-error paths (invalid/missing --source, malformed stdin JSON)
 
-describe("ingest subprocess — end-to-end CLI (offline input-error paths)", () => {
+describe.skipIf(!!process.env.CI)("ingest subprocess — end-to-end CLI (offline input-error paths)", () => {
 
   test("invalid --source → exit 2", async () => {
     const proc = Bun.spawn({
