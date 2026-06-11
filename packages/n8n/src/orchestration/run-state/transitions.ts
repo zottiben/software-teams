@@ -1,4 +1,4 @@
-import type { NodeEnvelope } from "@websitelabs/software-teams";
+import type { ChangeRef, NodeEnvelope } from "@websitelabs/software-teams";
 import type {
   OrchestrationTask,
   RunState,
@@ -102,6 +102,74 @@ export function nextReadyWave(state: RunState): number | null {
 
 export function failedTasks(state: RunState): RunTaskState[] {
   return state.tasks.filter((t) => t.status === "error");
+}
+
+/**
+ * ADR-002 Decision F — T8 aggregation transition.
+ *
+ * Record a returning agent envelope's terminal status + changeRef into run-state.
+ * The task is located by correlationId (must match) + taskId (from envelope.input.context).
+ * Idempotent: re-applying the same result for an already-terminal task is a no-op.
+ */
+export function recordAgentResult(
+  state: RunState,
+  env: NodeEnvelope,
+): RunState {
+  if (env.correlationId !== state.correlationId) return state;
+
+  const ctx = env.input.context as Record<string, unknown> | null | undefined;
+  const taskId = typeof ctx?.taskId === "string" ? ctx.taskId : undefined;
+  if (taskId === undefined) return state;
+
+  const terminal: ReadonlySet<RunTaskStatus> = new Set(["done", "error", "needs-input"]);
+
+  return {
+    ...state,
+    tasks: state.tasks.map((t): RunTaskState => {
+      if (t.taskId !== taskId) return t;
+      if (terminal.has(t.status)) return t;
+
+      const status: RunTaskStatus =
+        env.status === "ok"
+          ? "done"
+          : env.status === "needs-input"
+            ? "needs-input"
+            : "error";
+      const detail = status === "done" ? undefined : env.result.text;
+      const changeRef: ChangeRef | undefined =
+        env.changeRef !== undefined ? env.changeRef : undefined;
+
+      return {
+        ...t,
+        status,
+        ...(detail !== undefined ? { detail } : {}),
+        ...(changeRef !== undefined ? { changeRef } : {}),
+      };
+    }),
+  };
+}
+
+/**
+ * ADR-002 Decision F — T9 read contract (forward-aggregation accessor).
+ *
+ * Enumerate every agent task's status and changeRef from the rehydrated run-state.
+ * The Finaliser calls this to build its merge set — it does not receive envelopes back
+ * from agents; it reads the aggregated run-state directly.
+ */
+export interface AgentResult {
+  readonly taskId: string;
+  readonly agent: string;
+  readonly status: RunTaskStatus;
+  readonly changeRef?: ChangeRef;
+}
+
+export function enumerateAgentResults(state: RunState): AgentResult[] {
+  return state.tasks.map((t) => ({
+    taskId: t.taskId,
+    agent: t.agent,
+    status: t.status,
+    ...(t.changeRef !== undefined ? { changeRef: t.changeRef } : {}),
+  }));
 }
 
 export function needsInputTasks(state: RunState): RunTaskState[] {

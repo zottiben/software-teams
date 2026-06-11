@@ -59,6 +59,15 @@ jobs:
             exit 1
           fi
 
+      - name: Node-load gate (n8n nodes load under Node, not Bun)
+        # Loads all 7 built nodes + the credential under Node (not Bun) after build.
+        # Run as a DISTINCT step — Bun tolerates mixed ESM/CJS format; this gate catches
+        # a Node-load regression that the Bun test run would silently pass (ADR-003 R-23).
+        # CWD = packages/n8n/ so n8n-workflow resolves to dist/cjs/index.js and the shared
+        # lib resolves via its exports.require condition (lib/n8n-api.js) — the host-equivalent
+        # CJS resolution boundary (ADR-003 Decision 4).
+        run: bun run verify:node-load
+
       - run: bun run test
 
   component-validate:

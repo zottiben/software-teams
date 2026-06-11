@@ -19,6 +19,34 @@ export interface ArtifactRef {
 }
 
 /**
+ * Non-secret repo coordinates seeded by the Workspace node and read by Agent nodes.
+ * Additive, optional — never contains credentials (R-02).
+ * Shared contract source of truth; `RepoContext` (which adds the off-wire `worktreePath`)
+ * is defined locally in the n8n package and is never serialised onto the envelope.
+ */
+export interface RepoDescriptor {
+  /** Clone URL of the target repo (https/ssh). Never contains an embedded token (R-02). */
+  cloneUrl: string;
+  /** Canonical "owner/repo" — the validated form used for gh/PR addressing. */
+  ownerRepo: string;
+  /** Branch the run is based on (e.g. "main"). All worktrees fork from here. */
+  baseBranch: string;
+}
+
+/**
+ * ADR-002 Decision E — the ONE canonical portable-change representation.
+ * Shared contract source of truth; imported by the n8n package from here
+ * so the definition lives in exactly one place.
+ * Additive, optional — never secret.
+ */
+export interface ChangeRef {
+  /** Discriminant — the ONE canonical form. The sole extension point; no other kind is permitted. */
+  readonly kind: "format-patch";
+  /** base64 of `git format-patch` bytes; re-applied on any worker (queue-safe). */
+  readonly patchBase64: string;
+}
+
+/**
  * The one and only object passed between every Software Teams n8n node.
  * No field is optional except where stated; no field is `undefined`.
  */
@@ -53,4 +81,16 @@ export interface NodeEnvelope {
   /** Produced references. MAY be empty [], never absent. T7 appends the
    *  created PR/issue URL here. */
   artifacts: ArtifactRef[];
+
+  /** Non-secret repo coordinates. Additive, optional — seeded by the Workspace node,
+   *  read by Agent nodes. Never contains a token or `worktreePath` (R-02).
+   *  Top-level sibling of `input`; `assemblePrompt` reads only `input`, so this
+   *  field is never serialised into the model prompt. (plan 1-04, ADR-002 Decision G) */
+  repo?: RepoDescriptor;
+
+  /** The agent turn's captured portable change (ADR-002 Decision E). Additive, optional —
+   *  set by an Agent node after capturing its change, read by the Orchestrator aggregation
+   *  transition (T8) and the Finaliser (T9). Top-level sibling of `input`; `assemblePrompt`
+   *  reads only `input`, so this field is never serialised into the model prompt. */
+  changeRef?: ChangeRef;
 }

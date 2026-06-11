@@ -262,3 +262,97 @@ the question in `result.text`; T10's Slack HITL posts it, parks the run on the
 `correlationId`, and resumes the same agent with the human's reply folded back in
 as `input.context`. The exact marker grammar is finalised by T3/T10; this contract
 fixes only that `needs-input` is signalled in-band and surfaced via `result.text`.
+
+---
+
+## 6. Addendum — repo-execution additive fields (plan `1-04`, ADR-002)
+
+> **Status:** Accepted. Pairs with [`ARCHITECTURE.md`](./ARCHITECTURE.md) ADR-002.
+> **Implemented by** T2 (`RepoContext` threading), T4 (`changeRef` capture/apply),
+> T8 (run-state aggregation), T9 (Finaliser). **Additive and optional ONLY.**
+
+### 6.1 The six top-level invariants are UNCHANGED
+
+The six fields of §1 (`correlationId`, `agentId`, `status`, `input`, `result`,
+`artifacts`), their types, the invariants the `contract-check` gate asserts (§1), and
+the **§4 upstream-context merge are all unchanged**. Existing envelope/contract tests
+stay green; T11 adds new-field assertions on top.
+
+Two additive optional top-level fields are introduced below (`repo`, `changeRef`).
+Because they are top-level siblings of `input` — and `assemblePrompt` reads only
+`input` — neither field is ever serialised into the model prompt.
+
+### 6.2 `RepoContext` is OFF-WIRE — not an envelope field
+
+The run's repository checkout (`RepoContext`, ADR-002 Decision D) is threaded as a
+**typed optional parameter** on `runAgentTurn(input, repoContext?)` — it is **never
+serialised onto the envelope**, never part of `input`/`input.context`, and never
+reaches `assemblePrompt` or the model prompt. It is documented here only to state that
+it does **not** touch the wire contract. (R-18: no §4-merge bleed; R-02: no secret
+path.)
+
+### 6.3 `repo` — non-secret repo coordinates (additive, optional)
+
+The Workspace node seeds and Agent nodes read the target repo's non-secret coordinates
+via the optional `repo` top-level field. It is **additive and optional**; an envelope
+without it is valid exactly as today. It **never** carries a token or `worktreePath`
+(R-02). Because it is a top-level sibling of `input`, `assemblePrompt` never
+serialises it into the model prompt.
+
+```ts
+/** Non-secret repo coordinates — seeded by the Workspace node, read by Agent nodes.
+ *  Additive, optional. Never secret. */
+export interface RepoDescriptor {
+  cloneUrl: string;
+  ownerRepo: string;
+  baseBranch: string;
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `repo` | `RepoDescriptor` | **no** (optional) | Non-secret coordinates for the target repo. Absent on runs that don't involve repo checkout. Never contains a token or `worktreePath` (R-02). |
+
+### 6.4 `changeRef` — the SINGLE portable-change artifact (additive, optional)
+
+The one canonical portable-change representation (ADR-002 Decision E) is carried as an
+optional `changeRef` field. It is **additive and optional**; an envelope without it is
+valid exactly as today. The `ChangeRef` interface is now defined in the **shared
+contract** (`packages/cli/src/contract/envelope.ts`) — the n8n package imports it from
+`@websitelabs/software-teams` rather than defining it locally, so there is exactly one
+source of truth.
+
+```ts
+/** ADR-002 Decision E — the ONE canonical portable change. Additive, optional. */
+export interface ChangeRef {
+  kind: 'format-patch';
+  /** base64 of `git format-patch` bytes; re-applied on any worker (queue-safe). */
+  patchBase64: string;
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `changeRef` | `ChangeRef` | **no** (optional) | The agent turn's captured portable change. Absent ⇒ no change produced. Self-contained base64 `format-patch`; needs no shared storage (AC9, R-15). |
+
+`changeRef` also rides the Orchestrator's run-state as an additive optional member of
+`RunTaskState` (`src/orchestration/run-state/shapes.ts`): `changeRef?: ChangeRef`. T8
+writes it there per `correlationId` + `taskId`; T9 reads it (ADR-002 Decision F). This
+is a run-state field, not a top-level envelope field — the §1 invariants are untouched.
+
+### 6.5 `branch` artifact type (already open-vocabulary)
+
+The Finaliser (T9) appends `{ type: 'branch', url: '…/tree/<branch>' }` to `artifacts`.
+`artifacts[].type` is already an **open vocabulary** per §1 (`type: string`), so this is
+**not** a contract change — `branch` is the value `extractBranchName`/`resolveOutputRef`
+consume to take the PR path (AC7, R-17). The CONTRACT.md §3 example already shows a
+`branch` artifact.
+
+### 6.6 Additive-only rule (binding on all `1-04` slices)
+
+Any new field introduced by `1-04` is **additive and optional**. No slice may make an
+existing field optional, change a type, add a required field, or alter the §4 merge.
+The GitHub token is **never** a field on the envelope or in `RepoContext` (R-02); it
+travels only via the `SoftwareTeamsApi` credential into the child-process env (T3). The
+`contract-check` gate and existing tests MUST stay green; a changed existing test
+signals a regression, not a test to edit.

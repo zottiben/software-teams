@@ -1,0 +1,17 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsFinaliser",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Development", "AI"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/packages/n8n"
+      }
+    ]
+  },
+  "alias": ["finaliser", "merge", "branch", "push", "pr", "summary", "software teams"],
+  "subcategories": {
+    "Development": ["Source Control"]
+  }
+}

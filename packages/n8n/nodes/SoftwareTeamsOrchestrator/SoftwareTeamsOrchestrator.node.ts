@@ -10,8 +10,13 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 import {
+  deserialiseRunState,
+  enumerateAgentResults,
+  getRunStore,
   isNodeEnvelope,
   planEpic,
+  readRunState,
+  recordAgentResult,
   serialiseRunState,
   summarise,
   type PlanResult,
@@ -22,7 +27,11 @@ import { toDataObject } from '../../src/n8n-cast';
 // require path prevents TypeScript from type-checking the Bun import chain here.
 // The orchestration core (run-state.ts) is Bun-free and IS imported statically
 // above; the adapter is injected into `planEpic`, keeping it testable.
-type RunAgentTurnFn = (input: NodeEnvelope) => Promise<NodeEnvelope>;
+type RunAgentTurnFn = (
+  input: NodeEnvelope,
+  repoContext?: undefined,
+  githubToken?: string,
+) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -62,6 +71,28 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     outputs: [NodeConnectionTypes.Main],
     credentials: [{ name: 'softwareTeamsApi', required: true }],
     properties: [
+      {
+        displayName: 'Operation',
+        name: 'operation',
+        type: 'options',
+        noDataExpression: true,
+        options: [
+          {
+            name: 'Plan',
+            value: 'plan',
+            description: 'Break an epic into a waved task breakdown and fan out one envelope per task (default behaviour)',
+            action: 'Break an epic into a waved task breakdown and fan out one envelope per task',
+          },
+          {
+            name: 'Summary',
+            value: 'summary',
+            description: 'Read aggregated run-state for a completed or in-flight run and emit an Orchestrator-centric human summary of what each agent did',
+            action: 'Read aggregated run state and emit a human summary of what each agent did',
+          },
+        ],
+        default: 'plan',
+        description: 'Whether to plan a new epic or summarise an existing run',
+      },
       {
         displayName: 'Epic / Sprint Goal',
         name: 'epic',
@@ -106,12 +137,12 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     // Credentials (R-02: NEVER written to output)
     const credentials = await this.getCredentials('softwareTeamsApi');
     process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    const githubToken = (credentials.githubToken as string | undefined) || undefined;
+    const boundRunAgentTurn: (input: NodeEnvelope) => Promise<NodeEnvelope> = (input) =>
+      runAgentTurn(input, undefined, githubToken);
 
-    // Persisted run state lives on workflow static data (survives across
-    // executions — resumable runs, R-05).
-    const staticData = this.getWorkflowStaticData('node') as IDataObject;
-    const runs = (staticData['runs'] as Record<string, unknown> | undefined) ?? {};
-    staticData['runs'] = runs;
+    const staticData = this.getWorkflowStaticData('global') as IDataObject;
+    const runs = getRunStore(staticData);
 
     const itemCount = items.length > 0 ? items.length : 1;
 
@@ -126,6 +157,70 @@ export class SoftwareTeamsOrchestrator implements INodeType {
 
       if (isNodeEnvelope(upstream) && upstream.status === 'error') {
         returnData.push({ json: toDataObject(upstream), pairedItem: { item: i } });
+        continue;
+      }
+
+      if (isNodeEnvelope(upstream) && runs[upstream.correlationId] !== undefined) {
+        const existing = deserialiseRunState(runs[upstream.correlationId]);
+        if (existing !== null) {
+          const ctx = upstream.input.context as Record<string, unknown> | null | undefined;
+          if (typeof ctx?.taskId === 'string') {
+            const updated = recordAgentResult(existing, upstream);
+            runs[upstream.correlationId] = serialiseRunState(updated);
+            const results = enumerateAgentResults(updated);
+            returnData.push({
+              json: {
+                ...toDataObject(upstream),
+                agentResults: results,
+              },
+              pairedItem: { item: i },
+            });
+            continue;
+          }
+        }
+      }
+
+      const operation = (this.getNodeParameter('operation', i, 'plan') as string) || 'plan';
+
+      if (operation === 'summary') {
+        const upstreamCorrelationId =
+          isNodeEnvelope(upstream) ? (upstream.correlationId as string) : '';
+        const correlationIdParam = (
+          this.getNodeParameter('correlationId', i, '') as string
+        ).trim();
+        const resolvedId = upstreamCorrelationId || correlationIdParam;
+
+        const runState = resolvedId !== '' ? readRunState(staticData, resolvedId) : null;
+
+        const agentLines =
+          runState !== null
+            ? enumerateAgentResults(runState).map(
+                (r) => `- ${r.agent} (${r.taskId}): ${r.status}`,
+              )
+            : [];
+        const runSummary = runState !== null ? summarise(runState) : null;
+        const outcomeText =
+          runSummary !== null
+            ? `Overall: ${runSummary.done}/${runSummary.total} done` +
+              (runSummary.error > 0 ? `, ${runSummary.error} error(s)` : '') +
+              (runSummary.needsInput > 0 ? `, ${runSummary.needsInput} awaiting input` : '') +
+              (runSummary.complete ? ' — run complete.' : runSummary.resumable ? ' — run resumable.' : '.')
+            : 'No run-state found for this correlationId.';
+
+        const summaryText =
+          agentLines.length > 0
+            ? `Orchestrator run summary (${resolvedId || 'unknown'}):\n${agentLines.join('\n')}\n${outcomeText}`
+            : `Orchestrator run summary (${resolvedId || 'unknown'}): ${outcomeText}`;
+
+        returnData.push({
+          json: {
+            correlationId: resolvedId,
+            operation: 'summary',
+            summary: summaryText,
+            agentResults: runState !== null ? enumerateAgentResults(runState) : [],
+          },
+          pairedItem: { item: i },
+        });
         continue;
       }
 
@@ -149,7 +244,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
 
       let plan: PlanResult;
       try {
-        plan = await planEpic(epic, correlationId, runAgentTurn);
+        plan = await planEpic(epic, correlationId, boundRunAgentTurn);
       } catch (err) {
         if (this.continueOnFail()) {
           returnData.push({

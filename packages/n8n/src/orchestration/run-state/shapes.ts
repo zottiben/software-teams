@@ -1,4 +1,4 @@
-import type { NodeEnvelope } from "@websitelabs/software-teams";
+import type { ChangeRef, NodeEnvelope } from "@websitelabs/software-teams";
 
 // Re-declared (not imported from src/utils/parse-orchestration.ts) so this
 // module stays free of that file's runtime deps (yaml, node:fs/promises).
@@ -30,6 +30,8 @@ export interface RunTaskState {
   status: RunTaskStatus;
   /** populated when a task transitions to error / needs-input (traceability) */
   detail?: string;
+  /** ADR-002 Decision E/F — the agent's captured portable change, set on terminal status (T8). */
+  changeRef?: ChangeRef;
 }
 
 export interface RunState {

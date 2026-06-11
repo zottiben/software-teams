@@ -23154,9 +23154,11 @@ async function spawnClaude2(prompt2, opts) {
   if (!useStdin) {
     args.push("--", prompt2);
   }
+  const spawnEnv = opts?.githubToken ? { ...process.env, GITHUB_TOKEN: opts.githubToken } : { ...process.env };
   return new Promise((resolve12, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts?.cwd ?? process.cwd(),
+      env: spawnEnv,
       stdio: useStdin ? ["pipe", "pipe", "inherit"] : ["ignore", "pipe", "inherit"]
     });
     if (useStdin && proc.stdin) {
@@ -23194,10 +23196,10 @@ async function spawnClaude2(prompt2, opts) {
   });
 }
 function resolveAgentSpecPath2(agentId) {
-  const pkgRoot = join30(__dirname, "../../../..");
   const candidates = [
-    join30(pkgRoot, ".claude", "agents", `${agentId}.md`),
-    join30(pkgRoot, "agents", `${agentId}.md`)
+    join30(__dirname, "..", "..", "agents", `${agentId}.md`),
+    join30(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
+    join30(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)
   ];
   return candidates.find(existsSync36) ?? null;
 }
@@ -23231,7 +23233,7 @@ function isNonEmptyContext(ctx) {
   }
   return true;
 }
-async function runAgentTurn(input) {
+async function runAgentTurn(input, repoContext, githubToken) {
   try {
     await findClaude2();
   } catch {
@@ -23252,7 +23254,9 @@ async function runAgentTurn(input) {
 
 ${taskSection}` : taskSection;
   const spawnResult = await spawnClaude2(fullPrompt, {
-    allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS2]
+    allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS2],
+    cwd: repoContext?.worktreePath,
+    githubToken
   }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
   if ("_error" in spawnResult) {
     return buildErrorEnvelope(input, `Failed to invoke claude CLI: ${spawnResult._error}`);
@@ -24069,7 +24073,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.5.57",
+  version: "0.6.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
@@ -24086,8 +24090,8 @@ var package_default = {
     "./storage": "./src/storage/index.ts"
   },
   scripts: {
-    build: "tsc -b tsconfig.node.json && bun build src/index.ts --outdir dist --target=bun",
-    "build:lib": "tsc -b tsconfig.node.json",
+    build: `tsc -b tsconfig.node.json && node -e "require('fs').writeFileSync('lib/package.json',JSON.stringify({type:'commonjs'})+'\\n')" && bun build src/index.ts --outdir dist --target=bun`,
+    "build:lib": `tsc -b tsconfig.node.json && node -e "require('fs').writeFileSync('lib/package.json',JSON.stringify({type:'commonjs'})+'\\n')"`,
     typecheck: "tsc --noEmit -p tsconfig.json",
     dev: "bun run src/index.ts",
     lint: "eslint src",

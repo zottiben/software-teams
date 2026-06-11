@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
 import type { NodeEnvelope } from "@websitelabs/software-teams";
+import type { RepoContext } from "../repo/repo-context";
 // Security (R-02 / T13): sanitizeUserInput strips prompt-injection patterns and
 // bounds length; fenceUserInput wraps untrusted content in XML tags. Both are
 // consumed from the shared CLI surface via the workspace dependency — no copy-paste.
@@ -47,6 +48,7 @@ async function spawnClaude(
     allowedTools?: string[];
     cwd?: string;
     permissionMode?: string;
+    githubToken?: string;
   },
 ): Promise<{ exitCode: number; response: string }> {
   const claudePath = await findClaude();
@@ -66,14 +68,17 @@ async function spawnClaude(
 
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) {
-    // `--` terminates option parsing so the prompt isn't swallowed by the
-    // preceding variadic `--allowedTools` flag.
     args.push("--", prompt);
   }
+
+  const spawnEnv: NodeJS.ProcessEnv = opts?.githubToken
+    ? { ...process.env, GITHUB_TOKEN: opts.githubToken }
+    : { ...process.env };
 
   return new Promise((resolve, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts?.cwd ?? process.cwd(),
+      env: spawnEnv,
       stdio: useStdin ? ["pipe", "pipe", "inherit"] : ["ignore", "pipe", "inherit"],
     });
 
@@ -120,17 +125,11 @@ async function spawnClaude(
   });
 }
 
-/**
- * Resolve the `.md` spec file for `agentId`.
- * Resolution order: `.claude/agents/<id>.md`, then `agents/<id>.md`.
- * `__dirname` at runtime is <root>/n8n/dist/src/execution — climb 4 levels.
- * Returns `null` when no spec is found; callers degrade gracefully.
- */
 function resolveAgentSpecPath(agentId: string): string | null {
-  const pkgRoot = join(__dirname, "../../../..");
   const candidates = [
-    join(pkgRoot, ".claude", "agents", `${agentId}.md`),
-    join(pkgRoot, "agents", `${agentId}.md`),
+    join(__dirname, "..", "..", "agents", `${agentId}.md`),
+    join(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
+    join(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`),
   ];
   return candidates.find(existsSync) ?? null;
 }
@@ -175,6 +174,8 @@ function isNonEmptyContext(ctx: unknown): boolean {
 
 export async function runAgentTurn(
   input: NodeEnvelope,
+  repoContext?: RepoContext,
+  githubToken?: string,
 ): Promise<NodeEnvelope> {
   try {
     await findClaude();
@@ -203,6 +204,8 @@ export async function runAgentTurn(
 
   const spawnResult = await spawnClaude(fullPrompt, {
     allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS],
+    cwd: repoContext?.worktreePath,
+    githubToken,
   }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
 
   if ("_error" in spawnResult) {

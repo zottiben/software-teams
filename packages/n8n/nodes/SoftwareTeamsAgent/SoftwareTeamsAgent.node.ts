@@ -7,12 +7,24 @@ import {
   NodeOperationError,
 } from 'n8n-workflow';
 import { randomUUID } from 'node:crypto';
-import type { NodeEnvelope } from '@websitelabs/software-teams';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import type { NodeEnvelope, RepoDescriptor } from '@websitelabs/software-teams';
+import {
+  readRunState,
+  recordAgentResult,
+  writeRunState,
+} from '../../src/orchestration/run-state';
 import { toDataObject, fromDataObject } from '../../src/n8n-cast';
+import { cloneRepo, createWorktree, capturePortableChange, removeWorktree } from '../../src/repo/git';
+import { validateOwnerRepo, validateBranchName, validateCloneUrl } from '../../src/repo/validate';
+import type { RepoContext } from '../../src/repo/repo-context';
 
-// n8n tsconfig (module: commonjs) cannot statically resolve single-turn.ts — its
-// require path prevents TypeScript from type-checking the Bun import chain here.
-type RunAgentTurnFn = (input: NodeEnvelope) => Promise<NodeEnvelope>;
+type RunAgentTurnFn = (
+  input: NodeEnvelope,
+  repoContext?: RepoContext,
+  githubToken?: string,
+) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -150,13 +162,14 @@ export class SoftwareTeamsAgent implements INodeType {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
-    // Credentials (R-02: NEVER written to returnData)
     const credentials = await this.getCredentials('softwareTeamsApi');
     process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    const githubToken = (credentials.githubToken as string | undefined) || undefined;
+
+    const staticData = this.getWorkflowStaticData('global') as Record<string, unknown>;
 
     const itemCount = items.length > 0 ? items.length : 1;
 
-    // n8n per-item + continueOnFail pattern; entries() avoids a let counter.
     for (const [i] of Array.from({ length: itemCount }).entries()) {
       const specialist = this.getNodeParameter('specialist', i) as string;
       const prompt = this.getNodeParameter('prompt', i) as string;
@@ -168,6 +181,11 @@ export class SoftwareTeamsAgent implements INodeType {
       }
 
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
+
+      if (shouldSkipForSpecialist(upstream, specialist)) {
+        continue;
+      }
+
       const isUpstreamEnvelope =
         typeof upstream['correlationId'] === 'string' &&
         upstream['correlationId'].length > 0 &&
@@ -178,9 +196,20 @@ export class SoftwareTeamsAgent implements INodeType {
         ? buildHandoffEnvelope(fromDataObject<NodeEnvelope>(items[i]!.json), specialist, prompt)
         : buildFreshEnvelope(specialist, prompt, contextRaw);
 
+      const repoDescriptor = resolveRepoDescriptor(upstream);
+
       let result: NodeEnvelope;
       try {
-        result = await runAgentTurn(envelope);
+        if (repoDescriptor) {
+          result = await executeWithWorktree({
+            envelope,
+            repoDescriptor,
+            specialist,
+            githubToken,
+          });
+        } else {
+          result = await runAgentTurn(envelope, undefined, githubToken);
+        }
       } catch (err) {
         if (this.continueOnFail()) {
           returnData.push({
@@ -198,6 +227,8 @@ export class SoftwareTeamsAgent implements INodeType {
         );
       }
 
+      persistResultForward(staticData, result);
+
       returnData.push({
         json: toDataObject(result),
         pairedItem: { item: i },
@@ -206,6 +237,28 @@ export class SoftwareTeamsAgent implements INodeType {
 
     return [returnData];
   }
+}
+
+/** ADR-004 Decision J — Agent forward-persist: fold the terminal envelope into the GLOBAL run-state (skip if unseeded), in ADDITION to the wire emit. */
+function persistResultForward(
+  staticData: Record<string, unknown>,
+  result: NodeEnvelope,
+): void {
+  const state = readRunState(staticData, result.correlationId);
+  if (state === null) {
+    return;
+  }
+  writeRunState(staticData, result.correlationId, recordAgentResult(state, result));
+}
+
+function shouldSkipForSpecialist(
+  upstream: Record<string, unknown>,
+  specialist: string,
+): boolean {
+  const upstreamAgentId = upstream['agentId'];
+  return typeof upstreamAgentId === 'string' &&
+    upstreamAgentId.length > 0 &&
+    upstreamAgentId !== specialist;
 }
 
 /**
@@ -218,6 +271,8 @@ function buildHandoffEnvelope(
   specialist: string,
   prompt: string,
 ): NodeEnvelope {
+  const upCtx = up.input.context as Record<string, unknown> | null | undefined;
+  const taskId = typeof upCtx?.taskId === 'string' ? upCtx.taskId : undefined;
   return {
     correlationId: up.correlationId,
     agentId: specialist,
@@ -229,6 +284,7 @@ function buildHandoffEnvelope(
         upstreamStatus: up.status,
         result: up.result,
         artifacts: up.artifacts,
+        ...(taskId !== undefined ? { taskId } : {}),
       },
     },
     result: { text: '' },
@@ -264,4 +320,64 @@ function buildFreshEnvelope(
     result: { text: '' },
     artifacts: [],
   };
+}
+
+function resolveRepoDescriptor(upstream: Record<string, unknown>): RepoDescriptor | undefined {
+  const repo = upstream['repo'];
+  if (
+    repo !== null &&
+    typeof repo === 'object' &&
+    typeof (repo as Record<string, unknown>)['cloneUrl'] === 'string' &&
+    typeof (repo as Record<string, unknown>)['ownerRepo'] === 'string' &&
+    typeof (repo as Record<string, unknown>)['baseBranch'] === 'string'
+  ) {
+    return repo as RepoDescriptor;
+  }
+  return undefined;
+}
+
+async function executeWithWorktree(opts: {
+  readonly envelope: NodeEnvelope;
+  readonly repoDescriptor: RepoDescriptor;
+  readonly specialist: string;
+  readonly githubToken: string | undefined;
+}): Promise<NodeEnvelope> {
+  const { envelope, repoDescriptor, specialist, githubToken } = opts;
+  const { cloneUrl, ownerRepo, baseBranch } = repoDescriptor;
+
+  validateOwnerRepo(ownerRepo);
+  validateBranchName(baseBranch);
+  validateCloneUrl(cloneUrl);
+
+  const correlationId = envelope.correlationId;
+  const repoDir = join(tmpdir(), 'st-workspace', correlationId);
+
+  const authenticatedCloneUrl = githubToken && cloneUrl.startsWith('https://')
+    ? cloneUrl.replace('https://', `https://x-access-token:${githubToken}@`)
+    : cloneUrl;
+
+  await cloneRepo({ cloneUrl: authenticatedCloneUrl, branch: baseBranch, destDir: repoDir }).catch(() => undefined);
+
+  const worktreePath = await createWorktree({
+    repoDir,
+    agentId: specialist,
+    correlationId,
+    baseBranch,
+  });
+
+  const repoContext: RepoContext = {
+    cloneUrl,
+    ownerRepo,
+    baseBranch,
+    correlationId,
+    worktreePath,
+  };
+
+  try {
+    const agentResult = await runAgentTurn(envelope, repoContext, githubToken);
+    const changeRef = await capturePortableChange({ worktreePath, baseBranch });
+    return changeRef ? { ...agentResult, changeRef } : agentResult;
+  } finally {
+    await removeWorktree({ repoDir, worktreePath }).catch(() => undefined);
+  }
 }

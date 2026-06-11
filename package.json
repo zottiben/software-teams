@@ -6,7 +6,8 @@
     "test": "bun run --cwd packages/cli test && bun run --cwd packages/n8n test",
     "typecheck": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli typecheck && bun run --cwd packages/n8n typecheck",
     "lint": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli lint && bun run --cwd packages/n8n lint",
-    "dev": "bun run --cwd packages/cli dev"
+    "dev": "bun run --cwd packages/cli dev",
+    "verify:node-load": "bun run --cwd packages/n8n verify:node-load"
   },
   "devDependencies": {
     "@types/bun": "latest",
