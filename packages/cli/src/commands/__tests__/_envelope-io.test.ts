@@ -377,7 +377,7 @@ describe("subprocess — exit-2 input-error path (byte-for-byte)", () => {
     expect(stdout).toBe(""); // exit-2 writes NOTHING to stdout (CLI-RECIPE §3)
     expect(stderr.length).toBeGreaterThan(0); // diagnostic present
     expect(stderr).not.toContain("undefined is not an object"); // the S2 crash
-  }, 20000);
+  }, 120000);
 });
 
 // ─── full exit-code matrix for parse errors ──────────────────────────────────

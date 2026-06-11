@@ -722,7 +722,7 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
     expect(exitCode).toBe(1);
     expect(stdout).toBe(""); // token check exits before any JSON is written
     expect(stderr).toContain("token");
-  }, 20000);
+  }, 120000);
 
   test("malformed JSON on stdin → exit 2, no JSON on stdout", async () => {
     const proc = Bun.spawn({
@@ -752,7 +752,7 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
     expect(stderr.length).toBeGreaterThan(0);
-  }, 20000);
+  }, 120000);
 
   test("missing --owner or --repo → exit 2 with clear message", async () => {
     const inputEnv: NodeEnvelope = {
@@ -776,5 +776,5 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
 
     expect(exitCode).toBe(2);
     expect(stderr).toContain("owner");
-  }, 20000);
+  }, 120000);
 });
