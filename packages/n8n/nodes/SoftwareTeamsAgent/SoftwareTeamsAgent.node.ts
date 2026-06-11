@@ -27,10 +27,13 @@ type RunAgentTurnFn = (
 ) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
-  runAgentTurn: RunAgentTurnFn;
-};
+const runAgentTurn: RunAgentTurnFn = (input, repoContext, githubToken) =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  (require(SINGLE_TURN_MODULE) as { runAgentTurn: RunAgentTurnFn }).runAgentTurn(
+    input,
+    repoContext,
+    githubToken,
+  );
 
 const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
   { name: 'Architect', value: 'software-teams-architect' },
