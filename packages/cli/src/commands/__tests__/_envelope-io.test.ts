@@ -369,9 +369,11 @@ describe("subprocess — exit-2 input-error path (byte-for-byte)", () => {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe(""); // exit-2 writes NOTHING to stdout (CLI-RECIPE §3)

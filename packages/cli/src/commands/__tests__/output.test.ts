@@ -713,9 +713,11 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
       stderr: "pipe",
       env,
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     // The token check runs before runVerb — the process exits without writing
     // anything to stdout. The diagnostic is on stderr.
@@ -745,9 +747,11 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
       stderr: "pipe",
       env: { ...process.env, GITHUB_TOKEN: "ghp_test_token" },
     });
-    const exitCode = await proc.exited;
-    const stdout = await new Response(proc.stdout).text();
-    const stderr = await new Response(proc.stderr).text();
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stdout).toBe("");
@@ -771,8 +775,11 @@ describe("output subprocess — end-to-end CLI (offline input-error paths)", () 
       stderr: "pipe",
       env: { ...process.env, GITHUB_TOKEN: "ghp_test_token" },
     });
-    const exitCode = await proc.exited;
-    const stderr = await new Response(proc.stderr).text();
+    const [, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     expect(exitCode).toBe(2);
     expect(stderr).toContain("owner");

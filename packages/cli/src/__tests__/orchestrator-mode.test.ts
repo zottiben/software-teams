@@ -668,8 +668,11 @@ describe("orchestrator-deny-bash.sh", () => {
     stdin.write(payloadJson);
     stdin.end();
 
-    const stderr = await new Response(proc.stderr).text();
-    const exitCode = await proc.exited;
+    const [, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
 
     return { exitCode, stderr };
   };
