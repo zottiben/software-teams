@@ -6,6 +6,7 @@ import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
 import { loadModelMap } from "../utils/models-config";
+import { updateGitignore } from "../utils/gitignore";
 
 export const initCommand = defineCommand({
   meta: {
@@ -151,22 +152,16 @@ export const initCommand = defineCommand({
       }
     }
 
-    // Add Software Teams entries to .gitignore
+    // Insert/refresh the Software Teams managed block in .gitignore so the
+    // artefacts init generates (`.software-teams/` + the `.claude/` specs, hooks,
+    // statusline, settings) don't show up as dozens of untracked files. This
+    // runs on EVERY init (idempotent) so upgraded projects pick up newly-added
+    // artefacts — the old logic wrote the block once and never updated it.
     const gitignorePath = join(cwd, ".gitignore");
-    const stMarker = "# Software Teams framework";
-    const stEntries = [
-      "",
-      `${stMarker} — remove these lines to version control Software Teams artefacts`,
-      ".software-teams/",
-      ...(!args["state-only"] ? [".claude/commands/st/"] : []),
-    ].join("\n");
-
     const existingGitignore = existsSync(gitignorePath) ? readFileSync(gitignorePath, "utf-8") : "";
-    if (!existingGitignore.includes(stMarker)) {
-      const newContent = existingGitignore
-        ? existingGitignore.trimEnd() + "\n" + stEntries + "\n"
-        : stEntries.trimStart() + "\n";
-      await Bun.write(gitignorePath, newContent);
+    const nextGitignore = updateGitignore(existingGitignore);
+    if (nextGitignore !== existingGitignore) {
+      await Bun.write(gitignorePath, nextGitignore);
     }
 
     // Configure storage in software-teams-config.yaml if flags provided
