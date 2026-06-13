@@ -9,6 +9,7 @@ import {
   readSettings,
   writeSettings,
   ensureSubagentStopHook,
+  ensureSessionStartHook,
 } from "../utils/settings-merge";
 import { orchestratorMode } from "../commands/orchestrator-mode";
 import type { Settings } from "../utils/settings-merge";
@@ -666,6 +667,37 @@ describe("ensureSubagentStopHook", () => {
     const again = ensureSubagentStopHook(seeded, ".claude/hooks/custom.sh");
     expect(again).toBe(seeded);
     expect(again.hooks?.SubagentStop).toHaveLength(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests: ensureSessionStartHook (state-durability wiring)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("ensureSessionStartHook", () => {
+  test("adds a matcher-less SessionStart entry when none exists", () => {
+    const result = ensureSessionStartHook({});
+    const cmds = (result.hooks?.SessionStart ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/state-session-context.sh");
+    expect(result.hooks?.SessionStart?.[0]?.matcher).toBeUndefined();
+  });
+
+  test("is idempotent and coexists with the SubagentStop quality-gate hook", () => {
+    const once = ensureSessionStartHook(ensureSubagentStopHook({}));
+    const twice = ensureSessionStartHook(ensureSubagentStopHook(once));
+    expect(twice).toBe(once); // both already present → unchanged reference
+    expect(twice.hooks?.SessionStart).toHaveLength(1);
+    expect(twice.hooks?.SubagentStop).toHaveLength(1);
+  });
+
+  test("preserves an existing user SessionStart hook (adds, not replaces)", () => {
+    const existing: Settings = {
+      hooks: { SessionStart: [{ hooks: [{ type: "command", command: "user-thing.sh" }] }] },
+    };
+    const result = ensureSessionStartHook(existing);
+    const cmds = (result.hooks?.SessionStart ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain("user-thing.sh");
+    expect(cmds).toContain(".claude/hooks/state-session-context.sh");
   });
 });
 

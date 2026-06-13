@@ -140,38 +140,59 @@ export function mergeHooks(
 
 /** Default command for the deterministic quality-gate hook (#2). */
 export const QUALITY_GATE_HOOK_COMMAND = ".claude/hooks/quality-gate.sh";
+/** Default command for the SessionStart state-context hook (state durability). */
+export const SESSION_CONTEXT_HOOK_COMMAND = ".claude/hooks/state-session-context.sh";
 
 /**
- * Idempotently ensure a `SubagentStop` hook running `command` is present.
+ * Idempotently ensure a MATCHER-LESS hook running `command` is present on the
+ * given Stop-family / session event (e.g. `SubagentStop`, `SessionStart`).
  *
- * `SubagentStop` is a Stop-family event (not tool-scoped), so the entry is
- * matcher-less: `{ hooks: [{ type: "command", command }] }`. Returns a NEW
- * Settings object; the input is never mutated. Returns the input UNCHANGED
- * (same reference) when an entry with the same command already exists, so it is
- * safe to call on every `init` — fresh or upgrade — without duplicating the
- * hook or clobbering the user's allowlist / other hooks.
+ * The entry shape is matcher-less: `{ hooks: [{ type: "command", command }] }`.
+ * Returns a NEW Settings object; the input is never mutated. Returns the input
+ * UNCHANGED (same reference) when an entry with the same command already exists,
+ * so it is safe to call on every `init` — fresh or upgrade — without duplicating
+ * the hook or clobbering the user's allowlist / other hooks.
  *
- * This is how the quality-gate hook reaches EXISTING projects on re-init:
- * `copy-framework` only writes the template `settings.json` when absent, so an
- * upgrade would otherwise miss the wiring.
- *
- * @example
- * const next = ensureSubagentStopHook(await readSettings(path));
- * if (next !== current) await writeSettings(path, next);
+ * This is how framework hooks reach EXISTING projects on re-init: `copy-framework`
+ * only writes the template `settings.json` when absent, so an upgrade would
+ * otherwise miss the wiring.
  */
-export function ensureSubagentStopHook(
+export function ensureMatcherlessHook(
   existing: Settings,
-  command: string = QUALITY_GATE_HOOK_COMMAND,
+  event: string,
+  command: string,
 ): Settings {
-  const subagentStop = existing.hooks?.SubagentStop ?? [];
-  const alreadyWired = subagentStop.some((entry) =>
+  const eventHooks = existing.hooks?.[event] ?? [];
+  const alreadyWired = eventHooks.some((entry) =>
     entry?.hooks?.some((h) => h.command === command),
   );
   if (alreadyWired) return existing;
 
   const hooks: NonNullable<Settings["hooks"]> = existing.hooks ? { ...existing.hooks } : {};
-  hooks.SubagentStop = [...subagentStop, { hooks: [{ type: "command", command }] }];
+  hooks[event] = [...eventHooks, { hooks: [{ type: "command", command }] }];
   return { ...existing, hooks };
+}
+
+/** Idempotently ensure the deterministic quality-gate hook is wired on `SubagentStop`. */
+export function ensureSubagentStopHook(
+  existing: Settings,
+  command: string = QUALITY_GATE_HOOK_COMMAND,
+): Settings {
+  return ensureMatcherlessHook(existing, "SubagentStop", command);
+}
+
+/**
+ * Idempotently ensure the state-context hook is wired on `SessionStart`.
+ * It fires on startup / resume / clear / compact — re-injecting the Software
+ * Teams orchestration state, which is the durability mechanism after a context
+ * compaction (PreCompact cannot inject context; it can only save state, and
+ * `state.yaml` is already the durable store).
+ */
+export function ensureSessionStartHook(
+  existing: Settings,
+  command: string = SESSION_CONTEXT_HOOK_COMMAND,
+): Settings {
+  return ensureMatcherlessHook(existing, "SessionStart", command);
 }
 
 /**

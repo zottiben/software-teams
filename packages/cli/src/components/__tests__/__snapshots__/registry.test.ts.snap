@@ -5,6 +5,7 @@ exports[`Component Registry AgentBase snapshot matches expected output: AgentBas
 - Follow \`CLAUDE.md\` and \`.claude/rules/\` conventions.
 - Read \`.software-teams/config/state.yaml\` once at task start for context. Do NOT update state.yaml for status transitions — the framework handles this. Only use state.yaml to record decisions, deviations, or blockers via \`@ST:StateUpdate\`.
 - Use the Read tool before editing any file.
+- When the \`LSP\` tool is available, prefer it for symbol navigation — go-to-definition, find-references, type/diagnostic info, and rename-safety — over \`Grep\`; it is precise and token-cheap. Fall back to \`Grep\` when no language server covers the file.
 - Batch file reads: issue all Read calls in a single turn rather than sequentially.
 - Batch git operations: combine related commands into a single Bash call where possible.
 

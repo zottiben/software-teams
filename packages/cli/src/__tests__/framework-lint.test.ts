@@ -24,6 +24,7 @@ const TOOL_ALLOWLIST = new Set([
   "WebSearch",
   "Task",
   "AskUserQuestion",
+  "LSP",
 ]);
 const VALID_MODELS = new Set(["opus", "sonnet", "haiku"]);
 
@@ -611,6 +612,39 @@ describe("CLI-wrapper skills for the new commands", () => {
     const content = readFrameworkFile("commands/implement-plan.md");
     expect(content).toContain("--isolate");
     expect(content).toContain("worktree-merge");
+  });
+});
+
+describe("state-durability (SessionStart) + LSP", () => {
+  test("state-session-context.sh ships, is executable, and emits SessionStart additionalContext", () => {
+    const fullPath = resolveFrameworkPath(
+      join("templates", ".claude", "hooks", "state-session-context.sh"),
+    );
+    expect(existsSync(fullPath), "SessionStart hook missing").toBe(true);
+    expect(statSync(fullPath).mode & 0o111, "SessionStart hook must be executable").toBeGreaterThan(0);
+    const content = readFileSync(fullPath, "utf-8");
+    expect(content).toContain("hookSpecificOutput");
+    expect(content).toContain("additionalContext");
+  });
+
+  test("settings template wires the state-context hook on SessionStart", () => {
+    const parsed = JSON.parse(
+      readFileSync(resolveFrameworkPath(join("templates", ".claude", "settings.json")), "utf-8"),
+    ) as { hooks?: { SessionStart?: Array<{ hooks: Array<{ command: string }> }> } };
+    const cmds = (parsed.hooks?.SessionStart ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/state-session-context.sh");
+  });
+
+  test("code-touching agents declare the LSP tool", () => {
+    const agents = [
+      "programmer", "backend", "frontend", "debugger",
+      "architect", "codebase-mapper", "quality", "qa-tester",
+    ];
+    for (const a of agents) {
+      const content = readFrameworkFile(`agents/software-teams-${a}.md`);
+      const fm = content.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
+      expect(fm, `software-teams-${a} must declare the LSP tool in its frontmatter`).toMatch(/^\s*-\s*LSP\s*$/m);
+    }
   });
 });
 

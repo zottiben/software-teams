@@ -7,6 +7,7 @@ tools:
   - Edit
   - Glob
   - Grep
+  - LSP
   - Read
   - Write
 ---
