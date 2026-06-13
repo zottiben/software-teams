@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { copyFrameworkFiles } from "../../utils/copy-framework";
 import { convertAgents } from "../../utils/convert-agents";
+import { updateGitignore } from "../../utils/gitignore";
 
 let tempDirs: string[] = [];
 
@@ -206,24 +207,16 @@ describe("init --state-only (plugin mode)", () => {
     expect(existsSync(cfgDest)).toBe(true);
   });
 
-  test("--state-only .gitignore contains .software-teams/ but NOT .claude/commands/st/", async () => {
-    const cwd = makeTempDir();
-
-    // Simulate state-only .gitignore generation
-    const gitignorePath = join(cwd, ".gitignore");
-    const stMarker = "# Software Teams framework";
-    const stEntries = [
-      "",
-      `${stMarker} — remove these lines to version control Software Teams artefacts`,
-      ".software-teams/",
-      // Note: state-only means we skip the .claude/commands/st/ line
-    ].join("\n");
-
-    await Bun.write(gitignorePath, stEntries.trimStart() + "\n");
-
-    const gitignoreContent = await readFile(gitignorePath, "utf-8");
-    expect(gitignoreContent).toContain(".software-teams/");
-    expect(gitignoreContent).not.toContain(".claude/commands/st/");
+  test("init's managed .gitignore block ignores .software-teams/ + the generated .claude/ artefacts", async () => {
+    // init writes this block via updateGitignore (same for full and --state-only:
+    // hooks/statusline/settings install on both paths, so all are ignored).
+    const out = updateGitignore("");
+    expect(out).toContain(".software-teams/");
+    expect(out).toContain(".claude/commands/st/");
+    expect(out).toContain(".claude/agents/software-teams-*.md");
+    expect(out).toContain(".claude/hooks/");
+    expect(out).toContain(".claude/statusline/");
+    expect(out).toContain(".claude/settings.json");
   });
 
   test("default init (no flag) STILL creates .claude/commands/st and .claude/agents — regression check", async () => {
@@ -265,23 +258,14 @@ describe("init --state-only (plugin mode)", () => {
     expect(agentFiles.length).toBeGreaterThan(0);
   });
 
-  test("default init .gitignore contains BOTH .software-teams/ AND .claude/commands/st/", async () => {
-    const cwd = makeTempDir();
-
-    // Simulate default init .gitignore generation (state-only=false)
-    const gitignorePath = join(cwd, ".gitignore");
-    const stMarker = "# Software Teams framework";
-    const stEntries = [
-      "",
-      `${stMarker} — remove these lines to version control Software Teams artefacts`,
-      ".software-teams/",
-      ".claude/commands/st/",  // This line is ONLY when state-only=false
-    ].join("\n");
-
-    await Bun.write(gitignorePath, stEntries.trimStart() + "\n");
-
-    const gitignoreContent = await readFile(gitignorePath, "utf-8");
-    expect(gitignoreContent).toContain(".software-teams/");
-    expect(gitignoreContent).toContain(".claude/commands/st/");
+  test("init refreshes the managed .gitignore block idempotently (re-init does not duplicate)", async () => {
+    // Regression: the old logic wrote the block once and never updated it.
+    // updateGitignore refreshes it on every init and is a no-op on its own output.
+    const userContent = "node_modules/\ndist/\n";
+    const once = updateGitignore(userContent);
+    const twice = updateGitignore(once);
+    expect(twice).toBe(once);
+    expect(once).toContain("node_modules/"); // user content preserved
+    expect((once.match(/^\.software-teams\/$/gm) ?? []).length).toBe(1); // no duplication
   });
 });
