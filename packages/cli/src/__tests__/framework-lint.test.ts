@@ -675,6 +675,40 @@ describe("automation, notifications & memory integration", () => {
   });
 });
 
+describe("agent teams — specialist collaboration (experimental, opt-in)", () => {
+  test("AgentTeamsOrchestration documents peer DMs + lead monitoring + experimental caveats", () => {
+    const c = getComponent("AgentTeamsOrchestration");
+    expect(c).toMatch(/peer/i);
+    expect(c).toContain("SendMessage(to:");
+    expect(c).toContain("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS");
+    expect(c).toMatch(/resume/i);
+  });
+
+  test("AgentBase TeamMode tells teammates to collaborate with peers directly", () => {
+    expect(getComponent("AgentBase", "TeamMode")).toMatch(/peers? directly/i);
+  });
+
+  test("team TaskCompleted quality-gate hook ships and is executable", () => {
+    const p = resolveFrameworkPath(join("templates", ".claude", "hooks", "team-task-quality-gate.sh"));
+    expect(existsSync(p)).toBe(true);
+    expect(statSync(p).mode & 0o111).toBeGreaterThan(0);
+  });
+
+  test("settings template wires TaskCompleted → team quality gate", () => {
+    const parsed = JSON.parse(
+      readFileSync(resolveFrameworkPath(join("templates", ".claude", "settings.json")), "utf-8"),
+    ) as { hooks?: { TaskCompleted?: Array<{ hooks: Array<{ command: string }> }> } };
+    const cmds = (parsed.hooks?.TaskCompleted ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/team-task-quality-gate.sh");
+  });
+
+  test("implement-plan documents the experimental flag + peer collaboration", () => {
+    const c = readFrameworkFile("commands/implement-plan.md");
+    expect(c).toContain("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS");
+    expect(c).toMatch(/peer/i);
+  });
+});
+
 describe("wave-2 per-command native subagent presence", () => {
   const MIGRATED_COMMANDS = [
     "commit.md",

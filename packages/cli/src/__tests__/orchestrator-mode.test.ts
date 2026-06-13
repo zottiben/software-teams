@@ -10,6 +10,7 @@ import {
   writeSettings,
   ensureSubagentStopHook,
   ensureSessionStartHook,
+  ensureTaskCompletedHook,
 } from "../utils/settings-merge";
 import { orchestratorMode } from "../commands/orchestrator-mode";
 import type { Settings } from "../utils/settings-merge";
@@ -698,6 +699,24 @@ describe("ensureSessionStartHook", () => {
     const cmds = (result.hooks?.SessionStart ?? []).flatMap((e) => e.hooks.map((h) => h.command));
     expect(cmds).toContain("user-thing.sh");
     expect(cmds).toContain(".claude/hooks/state-session-context.sh");
+  });
+});
+
+describe("ensureTaskCompletedHook (Agent-Teams advisory quality gate)", () => {
+  test("adds a matcher-less TaskCompleted entry when none exists", () => {
+    const result = ensureTaskCompletedHook({});
+    const cmds = (result.hooks?.TaskCompleted ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/team-task-quality-gate.sh");
+    expect(result.hooks?.TaskCompleted?.[0]?.matcher).toBeUndefined();
+  });
+
+  test("coexists idempotently with the other framework hooks", () => {
+    const once = ensureTaskCompletedHook(ensureSessionStartHook(ensureSubagentStopHook({})));
+    const twice = ensureTaskCompletedHook(ensureSessionStartHook(ensureSubagentStopHook(once)));
+    expect(twice).toBe(once);
+    expect(twice.hooks?.TaskCompleted).toHaveLength(1);
+    expect(twice.hooks?.SubagentStop).toHaveLength(1);
+    expect(twice.hooks?.SessionStart).toHaveLength(1);
   });
 });
 

@@ -142,6 +142,8 @@ export function mergeHooks(
 export const QUALITY_GATE_HOOK_COMMAND = ".claude/hooks/quality-gate.sh";
 /** Default command for the SessionStart state-context hook (state durability). */
 export const SESSION_CONTEXT_HOOK_COMMAND = ".claude/hooks/state-session-context.sh";
+/** Default command for the Agent-Teams TaskCompleted advisory quality gate. */
+export const TEAM_TASK_GATE_HOOK_COMMAND = ".claude/hooks/team-task-quality-gate.sh";
 
 /**
  * Idempotently ensure a MATCHER-LESS hook running `command` is present on the
@@ -193,6 +195,17 @@ export function ensureSessionStartHook(
   command: string = SESSION_CONTEXT_HOOK_COMMAND,
 ): Settings {
   return ensureMatcherlessHook(existing, "SessionStart", command);
+}
+
+/**
+ * Idempotently ensure the Agent-Teams advisory quality gate is wired on
+ * `TaskCompleted` (fires only in Agent Teams mode; a no-op otherwise).
+ */
+export function ensureTaskCompletedHook(
+  existing: Settings,
+  command: string = TEAM_TASK_GATE_HOOK_COMMAND,
+): Settings {
+  return ensureMatcherlessHook(existing, "TaskCompleted", command);
 }
 
 /**

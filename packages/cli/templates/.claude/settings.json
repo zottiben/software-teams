@@ -36,6 +36,16 @@
           }
         ]
       }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/team-task-quality-gate.sh"
+          }
+        ]
+      }
     ]
   }
 }

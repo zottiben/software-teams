@@ -29,6 +29,52 @@ const AgentTeamsOrchestration: Component = {
 5. **Coordinate** — Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
 6. **Cleanup** — shutdown_request to all → TeamDelete → set status "complete" → report (include which specialist ran which task and any downgrade events)`,
     },
+    PeerCollaboration: {
+      name: "PeerCollaboration",
+      description: "Specialist-to-specialist collaboration + lead duties + experimental-feature caveats",
+      body: `Teammates collaborate DIRECTLY, not only through the lead — this is what makes
+a team better than one-shot fan-out.
+
+### Specialist-to-specialist DMs
+
+When a teammate hits a question another specialist owns — e.g. a
+\`software-teams-programmer\` needs an interface decision from
+\`software-teams-architect\`, or \`software-teams-frontend\` needs a contract shape
+from \`software-teams-backend\` — DM that peer DIRECTLY by name with
+\`SendMessage(to: "{peer-name}", ...)\` instead of stalling or round-tripping the
+lead. Find peer names in the team config (\`~/.claude/teams/{team}/config.json\`,
+\`members[].name\`). Keep working while you wait if you can; the reply arrives
+automatically as a turn. The lead sees a brief summary of peer DMs via idle
+notifications, so you do NOT need to CC the lead.
+
+**Peer vs. lead — who to message:**
+- **Peer** — a scoped technical question or handoff the peer owns: contracts,
+  interfaces, shared types, "is X ready yet".
+- **Lead** — blockers needing a decision or scope change, a missing dependency,
+  or anything that should change the plan.
+
+### Lead duties (the producer / team lead)
+
+Beyond spawning teammates and committing results:
+- **Monitor for lag.** Agent teams sometimes fail to mark a task complete, which
+  blocks dependents. Periodically call \`TaskList\`; if a task sits
+  \`in_progress\` with an idle owner and no recent progress, DM the owner to
+  confirm or complete it (or reassign). Do NOT assume idle == done — idle just
+  means waiting; check the task status.
+- **Unblock.** If every available task is \`blockedBy\` open work, resolve or
+  reprioritise the blockers so teammates aren't stuck.
+
+### Experimental-feature caveats (handle these explicitly)
+
+Agent teams are an experimental Claude Code feature. Two limitations matter:
+- **Enablement.** Teams require \`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\` in
+  settings/env. If \`TeamCreate\` is unavailable or fails, teams are not enabled —
+  tell the user to add that flag, and fall back to single-agent mode for now.
+- **No resume.** In-process teammates do NOT survive \`/resume\` or \`/rewind\`;
+  the lead may end up messaging teammates that no longer exist. On resume, treat
+  the team as gone: re-create it (\`TeamCreate\`) and respawn teammates from the
+  still-current \`state.yaml\` / task board rather than messaging stale names.`,
+    },
     TaskRoutingTable: {
       name: "TaskRoutingTable",
       description: "Fallback routing table when tasks have no agent pin",
@@ -120,6 +166,7 @@ Collect results → Deferred ops → shutdown_request → TeamDelete
   },
   defaultOrder: [
     "CorePattern",
+    "PeerCollaboration",
     "TaskRoutingTable",
     "SpawnTemplates",
     "PostAgentOps",
