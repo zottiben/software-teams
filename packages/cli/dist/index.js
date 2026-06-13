@@ -11672,14 +11672,21 @@ function mergeHooks(existing, additions) {
   }, { ...existing });
 }
 var QUALITY_GATE_HOOK_COMMAND = ".claude/hooks/quality-gate.sh";
-function ensureSubagentStopHook(existing, command = QUALITY_GATE_HOOK_COMMAND) {
-  const subagentStop = existing.hooks?.SubagentStop ?? [];
-  const alreadyWired = subagentStop.some((entry) => entry?.hooks?.some((h2) => h2.command === command));
+var SESSION_CONTEXT_HOOK_COMMAND = ".claude/hooks/state-session-context.sh";
+function ensureMatcherlessHook(existing, event, command) {
+  const eventHooks = existing.hooks?.[event] ?? [];
+  const alreadyWired = eventHooks.some((entry) => entry?.hooks?.some((h2) => h2.command === command));
   if (alreadyWired)
     return existing;
   const hooks = existing.hooks ? { ...existing.hooks } : {};
-  hooks.SubagentStop = [...subagentStop, { hooks: [{ type: "command", command }] }];
+  hooks[event] = [...eventHooks, { hooks: [{ type: "command", command }] }];
   return { ...existing, hooks };
+}
+function ensureSubagentStopHook(existing, command = QUALITY_GATE_HOOK_COMMAND) {
+  return ensureMatcherlessHook(existing, "SubagentStop", command);
+}
+function ensureSessionStartHook(existing, command = SESSION_CONTEXT_HOOK_COMMAND) {
+  return ensureMatcherlessHook(existing, "SessionStart", command);
 }
 function removeHooks(existing, removals) {
   return removals.reduce((result, { event, matcher, command }) => {
@@ -11802,7 +11809,7 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
   }
   const settingsForHook = join2(cwd, ".claude", "settings.json");
   const currentSettings = await readSettings(settingsForHook);
-  const wiredSettings = ensureSubagentStopHook(currentSettings);
+  const wiredSettings = ensureSessionStartHook(ensureSubagentStopHook(currentSettings));
   if (wiredSettings !== currentSettings) {
     await writeSettings(settingsForHook, wiredSettings);
   }
@@ -12063,6 +12070,7 @@ var AgentBase = {
 - Follow \`CLAUDE.md\` and \`.claude/rules/\` conventions.
 - Read \`.software-teams/config/state.yaml\` once at task start for context. Do NOT update state.yaml for status transitions \u2014 the framework handles this. Only use state.yaml to record decisions, deviations, or blockers via \`@ST:StateUpdate\`.
 - Use the Read tool before editing any file.
+- When the \`LSP\` tool is available, prefer it for symbol navigation \u2014 go-to-definition, find-references, type/diagnostic info, and rename-safety \u2014 over \`Grep\`; it is precise and token-cheap. Fall back to \`Grep\` when no language server covers the file.
 - Batch file reads: issue all Read calls in a single turn rather than sequentially.
 - Batch git operations: combine related commands into a single Bash call where possible.`
     },
@@ -24825,7 +24833,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.9.0",
+  version: "0.10.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
