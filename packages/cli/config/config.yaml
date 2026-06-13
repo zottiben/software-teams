@@ -39,50 +39,151 @@ models:
   # Active profile: quality | balanced | budget
   profile: balanced
 
-  # Profile definitions (agent -> model mapping)
+  # Profile definitions (agent key = hyphenated name minus "software-teams-")
   profiles:
     # Maximum reasoning power, use for critical work (~100% token baseline)
     quality:
-      planner: opus
-      architect: opus
-      programmer: opus
-      verifier: sonnet
-      researcher: sonnet
-      phase_researcher: sonnet
-      plan_checker: sonnet
-      debugger: opus
-      quality: sonnet
+      planner: claude-opus-4-8
+      dev-planner: claude-opus-4-8
+      architect: claude-opus-4-8
+      producer: claude-opus-4-8
+      plan-checker: claude-opus-4-8
+      product-lead: claude-opus-4-8
+      head-engineering: claude-opus-4-8
+      researcher: claude-opus-4-8
+      phase-researcher: claude-opus-4-8
+      backend: claude-opus-4-6
+      frontend: claude-opus-4-6
+      programmer: claude-opus-4-6
+      devops: claude-opus-4-6
+      codebase-mapper: claude-opus-4-6
+      ux-designer: claude-opus-4-6
+      pr-generator: claude-opus-4-6
+      pr-feedback: claude-opus-4-6
+      feedback-learner: claude-opus-4-6
+      quality: claude-opus-4-6
+      security: claude-opus-4-6
+      perf-analyst: claude-opus-4-6
+      verifier: claude-opus-4-6
+      committer: claude-sonnet-4-6
+      debugger: claude-sonnet-4-6
+      qa-tester: claude-sonnet-4-6
+      game-designer: claude-opus-4-8
+      game-producer: claude-opus-4-8
+      game-engineer: claude-opus-4-6
+      game-ai-engineer: claude-opus-4-6
+      game-art-pipeline: claude-opus-4-6
+      game-devops: claude-opus-4-6
+      game-qa: claude-opus-4-6
+      game-tech-artist: claude-opus-4-6
 
     # Smart allocation for typical development (~40% less than quality)
     balanced:
-      planner: opus
-      architect: opus
-      programmer: sonnet
-      verifier: sonnet
-      researcher: sonnet
-      phase_researcher: sonnet
-      plan_checker: sonnet
-      debugger: sonnet
-      quality: sonnet
+      planner: claude-opus-4-8
+      dev-planner: claude-opus-4-6
+      architect: claude-opus-4-8
+      producer: claude-opus-4-6
+      plan-checker: claude-opus-4-6
+      product-lead: claude-opus-4-6
+      head-engineering: claude-opus-4-6
+      researcher: claude-opus-4-8
+      phase-researcher: claude-sonnet-4-6
+      backend: claude-opus-4-6
+      frontend: claude-opus-4-6
+      programmer: claude-opus-4-6
+      devops: claude-sonnet-4-6
+      codebase-mapper: claude-sonnet-4-6
+      ux-designer: claude-sonnet-4-6
+      pr-generator: claude-sonnet-4-6
+      pr-feedback: claude-sonnet-4-6
+      feedback-learner: claude-sonnet-4-6
+      quality: claude-sonnet-4-6
+      security: claude-sonnet-4-6
+      perf-analyst: claude-sonnet-4-6
+      verifier: claude-sonnet-4-6
+      committer: claude-haiku-4-5
+      debugger: claude-haiku-4-5
+      qa-tester: claude-haiku-4-5
+      game-designer: claude-opus-4-6
+      game-producer: claude-opus-4-6
+      game-engineer: claude-sonnet-4-6
+      game-ai-engineer: claude-sonnet-4-6
+      game-art-pipeline: claude-sonnet-4-6
+      game-devops: claude-sonnet-4-6
+      game-qa: claude-sonnet-4-6
+      game-tech-artist: claude-sonnet-4-6
 
     # Minimal opus usage, conserve quota (~60% less than quality)
     budget:
-      planner: sonnet
-      architect: sonnet
-      programmer: sonnet
-      verifier: haiku
-      researcher: haiku
-      phase_researcher: haiku
-      plan_checker: haiku
-      debugger: sonnet
-      quality: haiku
+      planner: claude-sonnet-4-6
+      dev-planner: claude-sonnet-4-6
+      architect: claude-sonnet-4-6
+      producer: claude-sonnet-4-6
+      plan-checker: claude-sonnet-4-6
+      product-lead: claude-sonnet-4-6
+      head-engineering: claude-sonnet-4-6
+      researcher: claude-sonnet-4-6
+      phase-researcher: claude-haiku-4-5
+      backend: claude-sonnet-4-6
+      frontend: claude-sonnet-4-6
+      programmer: claude-sonnet-4-6
+      devops: claude-sonnet-4-6
+      codebase-mapper: claude-sonnet-4-6
+      ux-designer: claude-sonnet-4-6
+      pr-generator: claude-sonnet-4-6
+      pr-feedback: claude-sonnet-4-6
+      feedback-learner: claude-sonnet-4-6
+      quality: claude-sonnet-4-6
+      security: claude-sonnet-4-6
+      perf-analyst: claude-sonnet-4-6
+      verifier: claude-haiku-4-5
+      committer: claude-haiku-4-5
+      debugger: claude-haiku-4-5
+      qa-tester: claude-haiku-4-5
+      game-designer: claude-sonnet-4-6
+      game-producer: claude-sonnet-4-6
+      game-engineer: claude-sonnet-4-6
+      game-ai-engineer: claude-sonnet-4-6
+      game-art-pipeline: claude-sonnet-4-6
+      game-devops: claude-sonnet-4-6
+      game-qa: claude-sonnet-4-6
+      game-tech-artist: claude-sonnet-4-6
 
-  # Override specific agents (null = use profile default)
+  # Override specific agents (null = use profile default; hyphenated keys)
   overrides:
     planner: null
-    programmer: null
-    verifier: null
+    dev-planner: null
+    architect: null
+    producer: null
+    plan-checker: null
+    product-lead: null
+    head-engineering: null
     researcher: null
+    phase-researcher: null
+    backend: null
+    frontend: null
+    programmer: null
+    devops: null
+    codebase-mapper: null
+    ux-designer: null
+    pr-generator: null
+    pr-feedback: null
+    feedback-learner: null
+    quality: null
+    security: null
+    perf-analyst: null
+    verifier: null
+    committer: null
+    debugger: null
+    qa-tester: null
+    game-designer: null
+    game-producer: null
+    game-engineer: null
+    game-ai-engineer: null
+    game-art-pipeline: null
+    game-devops: null
+    game-qa: null
+    game-tech-artist: null
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Default Paths and Values

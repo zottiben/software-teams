@@ -28,6 +28,7 @@ export interface ConvertAgentsOptions {
   dryRun?: boolean;
   onConflict?: ConflictMode;
   storage?: SoftwareTeamsStorage;
+  models?: Record<string, string>;
 }
 
 export async function convertAgents(
@@ -71,6 +72,8 @@ export async function convertAgents(
       validateAgentFrontmatter(parsed.frontmatter, sourcePath);
 
       const fm = parsed.frontmatter as AgentFrontmatter;
+      const key = fm.name.replace(/^software-teams-/, "");
+      fm.model = opts.models?.[key] ?? fm.model;
       const outName = `${fm.name}.md`;
       const outPath = join(targetDir, outName);
 
