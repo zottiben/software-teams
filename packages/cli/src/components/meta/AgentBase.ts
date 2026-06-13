@@ -171,7 +171,8 @@ When operating within an Agent Team (spawned by coordinator):
 **Team Mode Rules:**
 - NEVER write to state.yaml (coordinator handles this)
 - ALWAYS SendMessage results to coordinator before TaskUpdate(completed)
-- Use **SendMessage** to communicate — plain text is not visible to teammates.`,
+- Use **SendMessage** to communicate — plain text is not visible to teammates.
+- **Collaborate with peers directly.** If you need something another specialist owns — a contract, interface, design decision, or "is X ready yet" — \`SendMessage(to: "{peer-name}")\` that teammate DIRECTLY (find names in \`~/.claude/teams/{team}/config.json\`, \`members[].name\`). Keep working while you wait; the reply arrives as a turn. Message the LEAD only for blockers, scope changes, or missing dependencies. See \`the AgentTeamsOrchestration component\` § PeerCollaboration.`,
     },
   },
   defaultOrder: [

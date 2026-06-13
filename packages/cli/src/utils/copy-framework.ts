@@ -2,7 +2,7 @@ import { join, dirname } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import { readdir, stat, chmod } from "node:fs/promises";
 import type { ProjectType } from "./detect-project";
-import { readSettings, writeSettings, ensureSubagentStopHook, ensureSessionStartHook } from "./settings-merge";
+import { readSettings, writeSettings, ensureSubagentStopHook, ensureSessionStartHook, ensureTaskCompletedHook } from "./settings-merge";
 
 /**
  * Subdirectories shipped from the package root into a consumer's
@@ -178,9 +178,12 @@ export async function copyFrameworkFiles(
   // already wired.
   const settingsForHook = join(cwd, ".claude", "settings.json");
   const currentSettings = await readSettings(settingsForHook);
-  // Quality gate (SubagentStop) + state-durability context (SessionStart). Both
-  // are idempotent and matcher-less; chaining preserves any prior wiring.
-  const wiredSettings = ensureSessionStartHook(ensureSubagentStopHook(currentSettings));
+  // Quality gate (SubagentStop) + state-durability context (SessionStart) +
+  // Agent-Teams advisory gate (TaskCompleted). All idempotent and matcher-less;
+  // chaining preserves any prior wiring.
+  const wiredSettings = ensureTaskCompletedHook(
+    ensureSessionStartHook(ensureSubagentStopHook(currentSettings)),
+  );
   if (wiredSettings !== currentSettings) {
     await writeSettings(settingsForHook, wiredSettings);
   }

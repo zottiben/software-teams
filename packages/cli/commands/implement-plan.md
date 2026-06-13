@@ -189,6 +189,13 @@ Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI stat
 
 **Team setup (Agent Teams mode only).** If `DISCOVERED_STATE.routing.mode` is `agent-teams`, call `TeamCreate(team_name: "{slug}-team")` once before entering the loop, where `{slug}` is `current_plan.slug` from `state.yaml`. This matches the team-name convention used in the single-tier §8 path and is the contract documented in `AgentTeamsOrchestration` `CorePattern` step 2. Single-agent mode (the one-agent-acts-as-its-own-orchestrator flow described in §3T.5) skips this step — no team is created.
 
+**Agent Teams is experimental — handle it explicitly** (see `@ST:AgentTeamsOrchestration` § PeerCollaboration for the full protocol):
+- **Enablement.** If `TeamCreate` is unavailable or errors, the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag is off. Tell the user to add it to `.claude/settings.json`, and fall back to single-agent mode for this run — do NOT abort the plan.
+- **Peer collaboration.** Teammates DM peers DIRECTLY for cross-domain questions (contracts, interfaces, "is X ready") instead of stalling or routing everything through you; you get peer-DM summaries via idle notifications.
+- **Lead monitoring.** Periodically `TaskList`: if a task sits `in_progress` with an idle owner and no progress, DM the owner to confirm/complete (teams sometimes fail to mark tasks done, blocking dependents). Idle ≠ done.
+- **No resume.** In-process teammates do NOT survive `/resume`/`/rewind`. On resume, treat the team as gone — re-create it and respawn from the current task board; do not message stale teammate names.
+- **Per-task quality gate.** The `TaskCompleted` hook (`.claude/hooks/team-task-quality-gate.sh`) runs the fast gates and surfaces failures to the team as it completes tasks; it is **advisory** in a shared tree (won't false-block on a peer's in-progress files). For hard per-task blocking, run the team with per-task worktree isolation.
+
 For each task in the topologically sorted task graph:
 
 1. **Resolve the slice load set.** Read the slice file (`{slug}.T{n}.md`) and parse its `**Read first:**` line. That line names the SPEC sections (and optionally specific ORCHESTRATION sections) the agent needs. Build a load set of:
@@ -362,6 +369,8 @@ TeamCreate(team_name: "{slug}-team")
 ```
 
 Team name pattern: `{slug}-team`. The `{slug}` value comes from `current_plan.slug` in `state.yaml` (see step §2). This pattern is deliberate and identical in the three-tier path (§3T.8) so the team is predictable and FleetView-discoverable.
+
+**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if `TeamCreate` errors, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
 
 Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
