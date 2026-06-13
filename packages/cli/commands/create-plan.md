@@ -199,6 +199,7 @@ Present the plan summary using the **fixed shape** below. Do NOT free-form. Do N
 3. **Open questions** — bulleted list of questions the planner surfaced, or the literal word `none`.
 4. **Files written** — bulleted paths grouped by tier (SPEC / ORCHESTRATION / per-agent slices, or single-tier index + slices).
 5. **Recommended next step** — one line: `` Run `/st:review-plan` for a quality check on one-shot readiness before approving (recommended, not required). ``
+6. **Deterministic run (three-tier plans only)** — one line, include ONLY when the plan resolved to three-tier: `` Once approved, you can run this plan as a deterministic Workflow with `/st:compile-workflow` (or `/st:implement-plan --workflow`) instead of the inline loop. `` Omit this line entirely for single-tier plans.
 
 **Hard caps:**
 

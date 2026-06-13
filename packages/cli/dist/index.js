@@ -24584,7 +24584,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.8.0",
+  version: "0.8.1",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
