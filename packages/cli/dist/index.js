@@ -15442,6 +15442,43 @@ async function loadModelMap(cwd) {
   }
 }
 
+// src/utils/gitignore.ts
+var BLOCK_START = "# >>> Software Teams \u2014 generated artefacts (managed by 'software-teams init'); remove a line to version-control it >>>";
+var BLOCK_END = "# <<< Software Teams <<<";
+var LEGACY_MARKER = "# Software Teams framework";
+var ST_GITIGNORE_PATHS = [
+  ".software-teams/",
+  ".claude/commands/st/",
+  ".claude/agents/software-teams-*.md",
+  ".claude/AGENTS.md",
+  ".claude/RULES.md",
+  ".claude/CLAUDE.md",
+  ".claude/hooks/",
+  ".claude/statusline/",
+  ".claude/settings.json",
+  ".claude/settings.local.json"
+];
+function buildManagedBlock(paths = ST_GITIGNORE_PATHS) {
+  return [BLOCK_START, ...paths, BLOCK_END].join(`
+`);
+}
+function escapeRegex(s2) {
+  return s2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function stripManagedBlock(content) {
+  return content.replace(new RegExp(`${escapeRegex(BLOCK_START)}[\\s\\S]*?${escapeRegex(BLOCK_END)}`, "g"), "").replace(new RegExp(`(^|\\n)${escapeRegex(LEGACY_MARKER)}[^\\n]*(\\n(?:\\.software-teams/|\\.claude/)[^\\n]*)*`, "g"), "");
+}
+function updateGitignore(existing, paths = ST_GITIGNORE_PATHS) {
+  const base = stripManagedBlock(existing).replace(/\n{3,}/g, `
+
+`).replace(/\s+$/, "");
+  const block = buildManagedBlock(paths);
+  return (base ? base + `
+
+` : "") + block + `
+`;
+}
+
 // src/commands/init.ts
 var initCommand = defineCommand({
   meta: {
@@ -15552,21 +15589,10 @@ var initCommand = defineCommand({
       }
     }
     const gitignorePath = join6(cwd, ".gitignore");
-    const stMarker = "# Software Teams framework";
-    const stEntries = [
-      "",
-      `${stMarker} \u2014 remove these lines to version control Software Teams artefacts`,
-      ".software-teams/",
-      ...!args["state-only"] ? [".claude/commands/st/"] : []
-    ].join(`
-`);
     const existingGitignore = existsSync7(gitignorePath) ? readFileSync2(gitignorePath, "utf-8") : "";
-    if (!existingGitignore.includes(stMarker)) {
-      const newContent = existingGitignore ? existingGitignore.trimEnd() + `
-` + stEntries + `
-` : stEntries.trimStart() + `
-`;
-      await Bun.write(gitignorePath, newContent);
+    const nextGitignore = updateGitignore(existingGitignore);
+    if (nextGitignore !== existingGitignore) {
+      await Bun.write(gitignorePath, nextGitignore);
     }
     if (args.storage || args["storage-path"]) {
       const { parse, stringify } = await Promise.resolve().then(() => __toESM(require_dist(), 1));
@@ -24886,7 +24912,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.12.0",
+  version: "0.12.1",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
