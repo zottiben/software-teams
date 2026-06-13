@@ -51,11 +51,12 @@ Files to check (in order):
 1. `.claude/CLAUDE.md`
 2. `./CLAUDE.md`
 3. Any file these CLAUDE.md files import via `@path/to/file.md` syntax
+4. **Native Claude Code auto-memory** — the `MEMORY.md` index (and any recalled memories) loaded into your context automatically each session when auto-memory is enabled. You do NOT need to read a file for this; it is already in your context. Treat its facts as already-documented so the rules files and auto-memory do not duplicate each other.
 
 For each candidate rule:
-- Read the relevant CLAUDE.md sections (skim — these can be long).
-- If a rule with the same intent is already there (even if worded differently), **skip it** and record a `duplicates_skipped` increment.
-- If only the gist is covered but the new rule is materially more specific, you MAY add the specific guidance — note this in the rule's body so it's clear it refines an existing CLAUDE.md rule.
+- Read the relevant CLAUDE.md sections (skim — these can be long); native auto-memory is already in your context.
+- If a rule with the same intent is already documented — in CLAUDE.md **or** native auto-memory — even if worded differently, **skip it** and record a `duplicates_skipped` increment.
+- If only the gist is covered but the new rule is materially more specific, you MAY add the specific guidance — note this in the rule's body so it's clear it refines an existing rule.
 
 ---
 

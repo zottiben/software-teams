@@ -106,6 +106,34 @@ workflow inside it, then merge back).
 
 ---
 
+## Unattended & background runs
+
+For long or background runs (`claude --bg`, an agent-view session, or just
+walking away), three Claude Code facilities make an ST run self-driving and
+observable. All are optional and additive — skip them for interactive runs.
+
+**Proactively surface this ONCE for large plans.** If the plan has many tasks or
+multiple waves (≈5+ tasks or 2+ waves) and the run looks interactive, tell the
+user once before executing: _"This is a large plan — I can run it unattended
+with `/goal` and PushNotification you at blockers and on completion."_ Mention it
+a single time and respect their answer; do not nag.
+
+- **`/goal` — drive to completion.** Seed a goal from the spec's acceptance
+  criteria and let it run until met, e.g.
+  `` /goal "every task in the plan is implemented and all quality gates pass" ``.
+  The orchestrator keeps executing the loop below until the condition holds.
+- **`PushNotification` — get pinged when you're needed.** On an unattended run,
+  emit a `PushNotification` (when the tool is available) at the points that need
+  a human: a `status: blocked` task or checkpoint (§8a / §3T.8), and on
+  completion (§14 / §3T.14). It reaches the user's device so they need not watch.
+- **`Monitor` — watch long processes.** For slow verification gates (full test
+  suites, builds), use the `Monitor` tool (when available) to watch the process
+  and resume on exit instead of blocking.
+
+See `/st:routines` for recurring (scheduled) ST tasks.
+
+---
+
 ## Three-Tier Execution Loop (default)
 
 For plans that have an `orchestration.md` artefact, the orchestrator (main Claude) reads the task graph from ORCHESTRATION, spawns each pinned agent natively with **only** its per-agent slice plus the SPEC sections that slice cites, verifies via `software-teams-qa-tester`, and advances. The orchestrator owns "when to move on" — agents never declare themselves done.
