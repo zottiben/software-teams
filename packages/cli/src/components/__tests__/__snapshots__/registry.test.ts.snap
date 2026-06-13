@@ -293,39 +293,21 @@ signal hierarchy (highest to lowest):
 | 6 | Domain default | Backend code → \`software-teams-backend\`, frontend code → \`software-teams-frontend\`, C#/Unity → \`unity-specialist\` |
 | 7 | Fallback | \`general-purpose\` (only if no specialists exist) |
 
-### Unity routing cheat sheet (common case for game projects)
+### Game-engine routing (Unity / Unreal / Godot) — fetched on demand
 
-| Signal | Preferred agent |
-|--------|-----------------|
-| \`Assets/Scripts/**/UI/**\` or TMPro/UGUI/UI Toolkit references | \`unity-ui-specialist\` |
-| \`Assets/Scripts/**/DOTS/**\` or Jobs/Burst/ECS references | \`unity-dots-specialist\` |
-| Shader Graph, HLSL, VFX Graph, render pipeline | \`unity-shader-specialist\` |
-| Addressables, asset bundles, memory budgets | \`unity-addressables-specialist\` |
-| Gameplay mechanics, combat, movement, abilities | \`gameplay-programmer\` |
-| AI, behaviour trees, pathfinding, perception | \`ai-programmer\` |
-| Core engine/framework, performance-critical systems | \`engine-programmer\` or \`performance-analyst\` |
-| General Unity API guidance, bootstrapping, subsystem integration | \`unity-specialist\` |
-| Tests, QA checklists, regression scripts | \`qa-tester\` |
-| Any task that edits code — no better specialist available | \`gameplay-programmer\` (games) or \`general-purpose\` (non-game) |
+The per-engine cheat sheets are deliberately NOT inlined here: they are dead
+weight on the majority of plans, which are not game projects. When the
+project's \`tech_stack\` indicates a game engine, pull the matching table on
+demand instead:
 
-### Unreal routing cheat sheet
+\`\`\`bash
+software-teams component get AgentRouter GameEngineRouting
+\`\`\`
 
-| Signal | Preferred agent |
-|--------|-----------------|
-| Blueprints and Blueprint architecture | \`ue-blueprint-specialist\` |
-| UMG / CommonUI widgets | \`ue-umg-specialist\` |
-| Gameplay Ability System, abilities, attribute sets | \`ue-gas-specialist\` |
-| Replication, RPCs, prediction | \`ue-replication-specialist\` |
-| General UE API and subsystem guidance | \`unreal-specialist\` |
-
-### Godot routing cheat sheet
-
-| Signal | Preferred agent |
-|--------|-----------------|
-| GDScript code, typed signals, node architecture | \`godot-gdscript-specialist\` |
-| GDExtension / C++ / Rust bindings | \`godot-gdextension-specialist\` |
-| Godot shading language, visual shaders, particles | \`godot-shader-specialist\` |
-| General Godot API and node/scene guidance | \`godot-specialist\` |
+It maps engine-specific signals — Unity (UI / DOTS / shader / addressables /
+gameplay / AI), Unreal (Blueprint / UMG / GAS / replication), Godot (GDScript /
+GDExtension / shader) — to the right specialist. For non-game projects, skip it
+and use the defaults below.
 
 ### Non-game defaults
 
@@ -366,6 +348,44 @@ Use these pins when the work being done is on the Software Teams framework itsel
 
 > **Note:** \`software-teams-qa-tester\` is automatically invoked by \`implement-plan\` after
 > every code-touching task — it does not need to be explicitly pinned per task.
+
+Fetch this section only when the project's \`tech_stack\` indicates a game
+engine. It is intentionally excluded from the always-loaded \`Matching\`
+section so non-game plans don't carry it.
+
+### Unity routing cheat sheet
+
+| Signal | Preferred agent |
+|--------|-----------------|
+| \`Assets/Scripts/**/UI/**\` or TMPro/UGUI/UI Toolkit references | \`unity-ui-specialist\` |
+| \`Assets/Scripts/**/DOTS/**\` or Jobs/Burst/ECS references | \`unity-dots-specialist\` |
+| Shader Graph, HLSL, VFX Graph, render pipeline | \`unity-shader-specialist\` |
+| Addressables, asset bundles, memory budgets | \`unity-addressables-specialist\` |
+| Gameplay mechanics, combat, movement, abilities | \`gameplay-programmer\` |
+| AI, behaviour trees, pathfinding, perception | \`ai-programmer\` |
+| Core engine/framework, performance-critical systems | \`engine-programmer\` or \`performance-analyst\` |
+| General Unity API guidance, bootstrapping, subsystem integration | \`unity-specialist\` |
+| Tests, QA checklists, regression scripts | \`qa-tester\` |
+| Any task that edits code — no better specialist available | \`gameplay-programmer\` (games) or \`general-purpose\` (non-game) |
+
+### Unreal routing cheat sheet
+
+| Signal | Preferred agent |
+|--------|-----------------|
+| Blueprints and Blueprint architecture | \`ue-blueprint-specialist\` |
+| UMG / CommonUI widgets | \`ue-umg-specialist\` |
+| Gameplay Ability System, abilities, attribute sets | \`ue-gas-specialist\` |
+| Replication, RPCs, prediction | \`ue-replication-specialist\` |
+| General UE API and subsystem guidance | \`unreal-specialist\` |
+
+### Godot routing cheat sheet
+
+| Signal | Preferred agent |
+|--------|-----------------|
+| GDScript code, typed signals, node architecture | \`godot-gdscript-specialist\` |
+| GDExtension / C++ / Rust bindings | \`godot-gdextension-specialist\` |
+| Godot shading language, visual shaders, particles | \`godot-shader-specialist\` |
+| General Godot API and node/scene guidance | \`godot-specialist\` |
 
 ### Plan index (\`{phase}-{plan}-{slug}.plan.md\`) frontmatter
 

@@ -7875,12 +7875,12 @@ function slugify2(input, maxLength = 30) {
 var init_git = () => {};
 
 // src/utils/find-root.ts
-import { join as join12, dirname as dirname5, resolve as resolve5 } from "path";
+import { join as join12, dirname as dirname6, resolve as resolve5 } from "path";
 import { existsSync as existsSync14 } from "fs";
 function walkUp(dir) {
   if (isStateDir(dir))
     return dir;
-  const parent = dirname5(dir);
+  const parent = dirname6(dir);
   return parent === dir ? null : walkUp(parent);
 }
 function findProjectRoot(startDir) {
@@ -11625,9 +11625,92 @@ async function detectProjectType(cwd) {
 }
 
 // src/utils/copy-framework.ts
-import { join as join2, dirname } from "path";
+import { join as join2, dirname as dirname2 } from "path";
 import { existsSync as existsSync2, mkdirSync } from "fs";
 import { readdir, stat, chmod } from "fs/promises";
+
+// src/utils/settings-merge.ts
+import { mkdir } from "fs/promises";
+import { dirname } from "path";
+async function readSettings(path) {
+  const file = Bun.file(path);
+  const exists = await file.exists();
+  if (!exists) {
+    return {};
+  }
+  const text = await file.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Failed to parse ${path}: the file contains invalid JSON. ` + `Fix or delete it and try again.`);
+  }
+}
+async function writeSettings(path, value) {
+  await mkdir(dirname(path), { recursive: true });
+  await Bun.write(path, JSON.stringify(value, null, 2) + `
+`);
+}
+function mergeHooks(existing, additions) {
+  return additions.reduce((result, { event, matcher, command }) => {
+    const hooks = result.hooks ? { ...result.hooks } : {};
+    const eventArray = hooks[event] ? [...hooks[event] ?? []] : [];
+    hooks[event] = eventArray;
+    const matcherIdx = eventArray.findIndex((h2) => h2.matcher === matcher);
+    if (matcherIdx === -1) {
+      eventArray.push({ matcher, hooks: [{ type: "command", command }] });
+    } else {
+      const matchingEntry = eventArray[matcherIdx];
+      if (!matchingEntry)
+        return { ...result, hooks };
+      const hookEntries = [...matchingEntry.hooks];
+      if (!hookEntries.some((e2) => e2.command === command)) {
+        hookEntries.push({ type: "command", command });
+      }
+      eventArray[matcherIdx] = { ...matchingEntry, hooks: hookEntries };
+    }
+    return { ...result, hooks };
+  }, { ...existing });
+}
+var QUALITY_GATE_HOOK_COMMAND = ".claude/hooks/quality-gate.sh";
+function ensureSubagentStopHook(existing, command = QUALITY_GATE_HOOK_COMMAND) {
+  const subagentStop = existing.hooks?.SubagentStop ?? [];
+  const alreadyWired = subagentStop.some((entry) => entry?.hooks?.some((h2) => h2.command === command));
+  if (alreadyWired)
+    return existing;
+  const hooks = existing.hooks ? { ...existing.hooks } : {};
+  hooks.SubagentStop = [...subagentStop, { hooks: [{ type: "command", command }] }];
+  return { ...existing, hooks };
+}
+function removeHooks(existing, removals) {
+  return removals.reduce((result, { event, matcher, command }) => {
+    if (!result.hooks?.[event])
+      return result;
+    const eventArray = result.hooks[event];
+    if (!eventArray)
+      return result;
+    const matcherIdx = eventArray.findIndex((h2) => h2.matcher === matcher);
+    if (matcherIdx === -1)
+      return result;
+    const matchingEntry = eventArray[matcherIdx];
+    if (!matchingEntry)
+      return result;
+    const filteredHookEntries = matchingEntry.hooks.filter((e2) => e2.command !== command);
+    const newEventArray = filteredHookEntries.length === 0 ? eventArray.filter((_3, i2) => i2 !== matcherIdx) : Object.assign([...eventArray], { [matcherIdx]: { ...matchingEntry, hooks: filteredHookEntries } });
+    const newHooks = { ...result.hooks };
+    if (newEventArray.length === 0) {
+      delete newHooks[event];
+    } else {
+      newHooks[event] = newEventArray;
+    }
+    if (Object.keys(newHooks).length === 0) {
+      const { hooks: _hooks, ...rest } = result;
+      return rest;
+    }
+    return { ...result, hooks: newHooks };
+  }, { ...existing });
+}
+
+// src/utils/copy-framework.ts
 var COPIED_SUBDIRS = ["rules"];
 async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRootOverride, stateOnly = false) {
   const oneUp = join2(import.meta.dir, "..");
@@ -11645,7 +11728,7 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
       const dest = join2(destDir, file);
       if (!force && existsSync2(dest))
         continue;
-      const dir = dirname(dest);
+      const dir = dirname2(dest);
       if (!existsSync2(dir))
         mkdirSync(dir, { recursive: true });
       const content = await Bun.file(src2).text();
@@ -11662,7 +11745,7 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
         const dest = join2(commandsDest, file);
         if (!force && existsSync2(dest))
           continue;
-        const dir = dirname(dest);
+        const dir = dirname2(dest);
         if (!existsSync2(dir))
           mkdirSync(dir, { recursive: true });
         const content = await Bun.file(src2).text();
@@ -11672,7 +11755,7 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
     const settingsTemplate = join2(packageRoot, "templates", ".claude", "settings.json");
     if (existsSync2(settingsTemplate)) {
       const settingsDest = join2(cwd, ".claude", "settings.json");
-      const destDir = dirname(settingsDest);
+      const destDir = dirname2(settingsDest);
       if (!existsSync2(destDir))
         mkdirSync(destDir, { recursive: true });
       if (force || !existsSync2(settingsDest)) {
@@ -11680,32 +11763,36 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
         await Bun.write(settingsDest, content);
       }
     }
-    const hooksTemplateDir = join2(packageRoot, "templates", ".claude", "hooks");
-    if (existsSync2(hooksTemplateDir)) {
-      const hooksDestDir = join2(cwd, ".claude", "hooks");
-      if (!existsSync2(hooksDestDir))
-        mkdirSync(hooksDestDir, { recursive: true });
-      const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile())
-          continue;
-        const src2 = join2(hooksTemplateDir, entry.name);
-        const dst = join2(hooksDestDir, entry.name);
-        if (force || !existsSync2(dst)) {
-          const content = await Bun.file(src2).text();
-          await Bun.write(dst, content);
-          const srcStat = await stat(src2);
-          if (srcStat.mode & 73) {
-            await chmod(dst, srcStat.mode);
-          }
-        }
+  }
+  const hooksTemplateDir = join2(packageRoot, "templates", ".claude", "hooks");
+  if (existsSync2(hooksTemplateDir)) {
+    const hooksDestDir = join2(cwd, ".claude", "hooks");
+    if (!existsSync2(hooksDestDir))
+      mkdirSync(hooksDestDir, { recursive: true });
+    const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile())
+        continue;
+      const src2 = join2(hooksTemplateDir, entry.name);
+      const dst = join2(hooksDestDir, entry.name);
+      const content = await Bun.file(src2).text();
+      await Bun.write(dst, content);
+      const srcStat = await stat(src2);
+      if (srcStat.mode & 73) {
+        await chmod(dst, srcStat.mode);
       }
     }
+  }
+  const settingsForHook = join2(cwd, ".claude", "settings.json");
+  const currentSettings = await readSettings(settingsForHook);
+  const wiredSettings = ensureSubagentStopHook(currentSettings);
+  if (wiredSettings !== currentSettings) {
+    await writeSettings(settingsForHook, wiredSettings);
   }
   const adapterPath = join2(packageRoot, "adapters", `${projectType}.yaml`);
   if (existsSync2(adapterPath)) {
     const dest = join2(cwd, ".software-teams", "config", "adapter.yaml");
-    const dir = dirname(dest);
+    const dir = dirname2(dest);
     if (!existsSync2(dir))
       mkdirSync(dir, { recursive: true });
     const content = await Bun.file(adapterPath).text();
@@ -11841,7 +11928,7 @@ After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation 
 }
 
 // src/utils/convert-agents.ts
-import { join as join4, resolve as resolve2, relative, basename, dirname as dirname3 } from "path";
+import { join as join4, resolve as resolve2, relative, basename, dirname as dirname4 } from "path";
 import { existsSync as existsSync5, mkdirSync as mkdirSync3 } from "fs";
 
 // src/utils/convert-agents/conflict.ts
@@ -12210,39 +12297,21 @@ signal hierarchy (highest to lowest):
 | 6 | Domain default | Backend code \u2192 \`software-teams-backend\`, frontend code \u2192 \`software-teams-frontend\`, C#/Unity \u2192 \`unity-specialist\` |
 | 7 | Fallback | \`general-purpose\` (only if no specialists exist) |
 
-### Unity routing cheat sheet (common case for game projects)
+### Game-engine routing (Unity / Unreal / Godot) \u2014 fetched on demand
 
-| Signal | Preferred agent |
-|--------|-----------------|
-| \`Assets/Scripts/**/UI/**\` or TMPro/UGUI/UI Toolkit references | \`unity-ui-specialist\` |
-| \`Assets/Scripts/**/DOTS/**\` or Jobs/Burst/ECS references | \`unity-dots-specialist\` |
-| Shader Graph, HLSL, VFX Graph, render pipeline | \`unity-shader-specialist\` |
-| Addressables, asset bundles, memory budgets | \`unity-addressables-specialist\` |
-| Gameplay mechanics, combat, movement, abilities | \`gameplay-programmer\` |
-| AI, behaviour trees, pathfinding, perception | \`ai-programmer\` |
-| Core engine/framework, performance-critical systems | \`engine-programmer\` or \`performance-analyst\` |
-| General Unity API guidance, bootstrapping, subsystem integration | \`unity-specialist\` |
-| Tests, QA checklists, regression scripts | \`qa-tester\` |
-| Any task that edits code \u2014 no better specialist available | \`gameplay-programmer\` (games) or \`general-purpose\` (non-game) |
+The per-engine cheat sheets are deliberately NOT inlined here: they are dead
+weight on the majority of plans, which are not game projects. When the
+project's \`tech_stack\` indicates a game engine, pull the matching table on
+demand instead:
 
-### Unreal routing cheat sheet
+\`\`\`bash
+software-teams component get AgentRouter GameEngineRouting
+\`\`\`
 
-| Signal | Preferred agent |
-|--------|-----------------|
-| Blueprints and Blueprint architecture | \`ue-blueprint-specialist\` |
-| UMG / CommonUI widgets | \`ue-umg-specialist\` |
-| Gameplay Ability System, abilities, attribute sets | \`ue-gas-specialist\` |
-| Replication, RPCs, prediction | \`ue-replication-specialist\` |
-| General UE API and subsystem guidance | \`unreal-specialist\` |
-
-### Godot routing cheat sheet
-
-| Signal | Preferred agent |
-|--------|-----------------|
-| GDScript code, typed signals, node architecture | \`godot-gdscript-specialist\` |
-| GDExtension / C++ / Rust bindings | \`godot-gdextension-specialist\` |
-| Godot shading language, visual shaders, particles | \`godot-shader-specialist\` |
-| General Godot API and node/scene guidance | \`godot-specialist\` |
+It maps engine-specific signals \u2014 Unity (UI / DOTS / shader / addressables /
+gameplay / AI), Unreal (Blueprint / UMG / GAS / replication), Godot (GDScript /
+GDExtension / shader) \u2014 to the right specialist. For non-game projects, skip it
+and use the defaults below.
 
 ### Non-game defaults
 
@@ -12283,6 +12352,47 @@ Use these pins when the work being done is on the Software Teams framework itsel
 
 > **Note:** \`software-teams-qa-tester\` is automatically invoked by \`implement-plan\` after
 > every code-touching task \u2014 it does not need to be explicitly pinned per task.`
+    },
+    GameEngineRouting: {
+      name: "GameEngineRouting",
+      description: "Per-engine (Unity/Unreal/Godot) task\u2192specialist cheat sheets \u2014 fetched on demand for game projects only, NOT inlined into the planner",
+      body: `Fetch this section only when the project's \`tech_stack\` indicates a game
+engine. It is intentionally excluded from the always-loaded \`Matching\`
+section so non-game plans don't carry it.
+
+### Unity routing cheat sheet
+
+| Signal | Preferred agent |
+|--------|-----------------|
+| \`Assets/Scripts/**/UI/**\` or TMPro/UGUI/UI Toolkit references | \`unity-ui-specialist\` |
+| \`Assets/Scripts/**/DOTS/**\` or Jobs/Burst/ECS references | \`unity-dots-specialist\` |
+| Shader Graph, HLSL, VFX Graph, render pipeline | \`unity-shader-specialist\` |
+| Addressables, asset bundles, memory budgets | \`unity-addressables-specialist\` |
+| Gameplay mechanics, combat, movement, abilities | \`gameplay-programmer\` |
+| AI, behaviour trees, pathfinding, perception | \`ai-programmer\` |
+| Core engine/framework, performance-critical systems | \`engine-programmer\` or \`performance-analyst\` |
+| General Unity API guidance, bootstrapping, subsystem integration | \`unity-specialist\` |
+| Tests, QA checklists, regression scripts | \`qa-tester\` |
+| Any task that edits code \u2014 no better specialist available | \`gameplay-programmer\` (games) or \`general-purpose\` (non-game) |
+
+### Unreal routing cheat sheet
+
+| Signal | Preferred agent |
+|--------|-----------------|
+| Blueprints and Blueprint architecture | \`ue-blueprint-specialist\` |
+| UMG / CommonUI widgets | \`ue-umg-specialist\` |
+| Gameplay Ability System, abilities, attribute sets | \`ue-gas-specialist\` |
+| Replication, RPCs, prediction | \`ue-replication-specialist\` |
+| General UE API and subsystem guidance | \`unreal-specialist\` |
+
+### Godot routing cheat sheet
+
+| Signal | Preferred agent |
+|--------|-----------------|
+| GDScript code, typed signals, node architecture | \`godot-gdscript-specialist\` |
+| GDExtension / C++ / Rust bindings | \`godot-gdextension-specialist\` |
+| Godot shading language, visual shaders, particles | \`godot-shader-specialist\` |
+| General Godot API and node/scene guidance | \`godot-specialist\` |`
     },
     OutputFormat: {
       name: "OutputFormat",
@@ -12436,6 +12546,7 @@ Referenced by:
   defaultOrder: [
     "Discovery",
     "Matching",
+    "GameEngineRouting",
     "OutputFormat",
     "Execution",
     "ValidationRules",
@@ -15047,7 +15158,7 @@ function renderCatalogue(entries) {
 }
 
 // src/utils/convert-agents/io.ts
-import { join as join3, resolve, dirname as dirname2 } from "path";
+import { join as join3, resolve, dirname as dirname3 } from "path";
 import { existsSync as existsSync4, mkdirSync as mkdirSync2 } from "fs";
 function resolveAgainst(cwd, p) {
   return resolve(cwd, p);
@@ -15170,7 +15281,7 @@ async function convertAgents(opts = {}) {
         continue;
       }
       if (!dryRun) {
-        const dir = dirname3(outPath);
+        const dir = dirname4(outPath);
         if (!existsSync5(dir))
           mkdirSync3(dir, { recursive: true });
         if (await writeIfChanged(outPath, rendered)) {
@@ -15191,7 +15302,7 @@ async function convertAgents(opts = {}) {
       result.errors.push({ file: sourcePath, reason });
     }
   }
-  const targetRoot = dirname3(targetDir);
+  const targetRoot = dirname4(targetDir);
   const rulesSource = resolveDefaultRulesSource(cwd);
   if (catalogueEntries.length > 0) {
     await writeCatalogue(catalogueEntries, targetRoot, onConflict, dryRun, result);
@@ -15845,7 +15956,7 @@ function inlineAgentSpec(cwd, agentName, fallbackPath) {
   ];
 }
 // src/utils/prompt-builder/builders.ts
-import { resolve as resolve4, dirname as dirname4, basename as basename2 } from "path";
+import { resolve as resolve4, dirname as dirname5, basename as basename2 } from "path";
 import { existsSync as existsSync13 } from "fs";
 
 // src/utils/sanitize.ts
@@ -15914,7 +16025,7 @@ function buildPlanPrompt(ctx, description) {
 }
 function detectPlanTier(cwd, planPath) {
   const fullPlanPath = resolve4(cwd, planPath);
-  const dir = dirname4(fullPlanPath);
+  const dir = dirname5(fullPlanPath);
   const file = basename2(fullPlanPath);
   const slug = file.replace(/\.orchestration\.md$/i, "").replace(/\.plan\.md$/i, "").replace(/\.md$/i, "");
   const orchestrationCandidate = resolve4(dir, `${slug}.orchestration.md`);
@@ -16608,13 +16719,21 @@ async function updateSessionActivity(cwd, state) {
 }
 
 // src/utils/verify.ts
-async function runQualityGates(cwd) {
+async function runQualityGates(cwd, options = {}) {
   const adapter = await readAdapter(cwd);
   if (!adapter?.quality_gates) {
     return { passed: true, gates: [] };
   }
+  const { only, skip } = options;
+  const selected = Object.entries(adapter.quality_gates).filter(([name]) => {
+    if (only && only.length > 0 && !only.includes(name))
+      return false;
+    if (skip && skip.includes(name))
+      return false;
+    return true;
+  });
   const gates = [];
-  for (const [name, command] of Object.entries(adapter.quality_gates)) {
+  for (const [name, command] of selected) {
     const cmd = String(command);
     try {
       const proc = Bun.spawn(["sh", "-c", cmd], {
@@ -17023,12 +17142,12 @@ var componentCommand = defineCommand({
 
 // src/commands/commit.ts
 init_git();
-import { dirname as dirname6 } from "path";
+import { dirname as dirname7 } from "path";
 function detectScope(files) {
   if (files.length === 0)
     return null;
   const dirs = files.map((f3) => {
-    const d2 = dirname6(f3);
+    const d2 = dirname7(f3);
     return d2 === "." ? null : d2.split("/")[0];
   }).filter(Boolean);
   const unique = [...new Set(dirs)];
@@ -18560,7 +18679,7 @@ async function loadExternalContexts(searchText) {
 // src/utils/orchestration.ts
 var import_yaml10 = __toESM(require_dist(), 1);
 import { existsSync as existsSync25, readdirSync as readdirSync3, readFileSync as readFileSync6, statSync } from "fs";
-import { join as join19, basename as basename4, dirname as dirname7 } from "path";
+import { join as join19, basename as basename4, dirname as dirname8 } from "path";
 var FRONTMATTER_RE2 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 function parseFrontmatter2(content) {
   const match = content.match(FRONTMATTER_RE2);
@@ -18622,7 +18741,7 @@ async function findActiveOrchestration(cwd, issueNumber) {
   const taskFiles = asStringArray(fm.task_files);
   if (taskFiles.length === 0)
     return null;
-  const plansDir2 = dirname7(orchestrationAbs);
+  const plansDir2 = dirname8(orchestrationAbs);
   const slices = [];
   for (const entry of taskFiles) {
     const sliceAbs = entry.includes("/") ? entry.startsWith("/") ? entry : join19(cwd, entry) : join19(plansDir2, basename4(entry));
@@ -21270,7 +21389,7 @@ var actionCommand = defineCommand({
 });
 
 // src/commands/setup-action.ts
-import { join as join25, dirname as dirname8 } from "path";
+import { join as join25, dirname as dirname9 } from "path";
 import { existsSync as existsSync31, mkdirSync as mkdirSync9 } from "fs";
 var setupActionCommand = defineCommand({
   meta: {
@@ -21290,7 +21409,7 @@ var setupActionCommand = defineCommand({
         consola.error("Workflow template not found. Ensure @websitelabs/software-teams is properly installed.");
         process.exit(1);
       }
-      const dir = dirname8(workflowDest);
+      const dir = dirname9(workflowDest);
       if (!existsSync31(dir))
         mkdirSync9(dir, { recursive: true });
       const template = await Bun.file(templatePath).text();
@@ -21677,9 +21796,395 @@ var syncAgentsCommand = defineCommand({
   }
 });
 
-// src/commands/sync-framework.ts
-import { join as join27 } from "path";
+// src/commands/verify.ts
+function parseList(value) {
+  if (!value)
+    return [];
+  return value.split(",").map((s2) => s2.trim()).filter((s2) => s2.length > 0);
+}
+function truncate(output, maxLines) {
+  const lines = output.split(`
+`);
+  if (lines.length <= maxLines)
+    return output;
+  const shown = lines.slice(0, maxLines).join(`
+`);
+  return `${shown}
+\u2026 (${lines.length - maxLines} more line(s) truncated)`;
+}
+async function verify(options = {}) {
+  const cwd = process.cwd();
+  const result = await runQualityGates(cwd, {
+    only: options.only,
+    skip: options.skip
+  });
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2));
+    return result.passed ? 0 : 1;
+  }
+  if (result.gates.length === 0) {
+    if (!options.quiet) {
+      console.log("software-teams verify: no matching quality gates (check .software-teams/config/adapter.yaml).");
+    }
+    return 0;
+  }
+  for (const gate of result.gates) {
+    if (options.quiet && gate.passed)
+      continue;
+    console.log(`[${gate.passed ? "PASS" : "FAIL"}] ${gate.name} \u2014 ${gate.command}`);
+    if (!gate.passed && gate.output) {
+      console.log(truncate(gate.output, 40));
+    }
+  }
+  if (!result.passed) {
+    console.log(`
+software-teams verify: one or more quality gates FAILED.`);
+  } else if (!options.quiet) {
+    console.log(`
+software-teams verify: all quality gates passed.`);
+  }
+  return result.passed ? 0 : 1;
+}
+var verifyCommand = defineCommand({
+  meta: {
+    name: "verify",
+    description: "Run the project's adapter quality gates (lint / analyse / test) and exit non-zero on failure"
+  },
+  args: {
+    gate: {
+      type: "string",
+      description: "Comma-separated gate names to run (default: all)",
+      required: false
+    },
+    skip: {
+      type: "string",
+      description: "Comma-separated gate names to skip (e.g. 'test')",
+      required: false
+    },
+    json: {
+      type: "boolean",
+      description: "Emit structured JSON instead of human-readable output",
+      required: false
+    },
+    quiet: {
+      type: "boolean",
+      description: "Print only failing gates (silent when everything passes)",
+      required: false
+    }
+  },
+  async run({ args }) {
+    const code = await verify({
+      only: parseList(args.gate),
+      skip: parseList(args.skip),
+      json: Boolean(args.json),
+      quiet: Boolean(args.quiet)
+    });
+    process.exit(code);
+  }
+});
+
+// src/commands/compile-workflow.ts
 import { existsSync as existsSync33 } from "fs";
+import { readdir as readdir2, stat as stat2, writeFile } from "fs/promises";
+import { join as join27 } from "path";
+
+// src/utils/parse-orchestration.ts
+var import_yaml13 = __toESM(require_dist(), 1);
+import { readFile } from "fs/promises";
+async function parseOrchestration(filePath) {
+  const content = await readFile(filePath, "utf-8");
+  const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!fmMatch)
+    throw new Error(`No frontmatter in ${filePath}`);
+  const fm = import_yaml13.parse(fmMatch[1]) ?? {};
+  for (const key of ["plan_id", "slug", "tier"]) {
+    if (typeof fm[key] !== "string" || !fm[key].length) {
+      throw new Error(`Missing required frontmatter '${key}' in ${filePath}`);
+    }
+  }
+  const body = fmMatch[2] ?? "";
+  const tasksHeader = body.match(/^##\s+Tasks\s*$/m);
+  const tasks = [];
+  if (tasksHeader) {
+    const after = body.slice((tasksHeader.index ?? 0) + tasksHeader[0].length);
+    const nextHeader = after.search(/^##\s+/m);
+    const section = nextHeader >= 0 ? after.slice(0, nextHeader) : after;
+    const lines = section.split(`
+`).filter((l2) => /^\s*\|/.test(l2));
+    if (lines.length > 0) {
+      const header = lines[0].split("|").map((c3) => c3.trim().toLowerCase()).filter(Boolean);
+      const required = ["id", "name", "agent", "wave", "depends on", "slice"];
+      for (const col of required) {
+        if (!header.includes(col)) {
+          throw new Error(`Malformed Tasks table in ${filePath}: missing column '${col}'`);
+        }
+      }
+      for (const line of lines.slice(2)) {
+        const cells = line.split("|").map((c3) => c3.trim());
+        const trimmed = cells[0] === "" ? cells.slice(1) : cells;
+        const row = trimmed[trimmed.length - 1] === "" ? trimmed.slice(0, -1) : trimmed;
+        if (row.length < required.length)
+          continue;
+        const [id, name, agent, waveStr, depsStr, sliceCell] = row;
+        const dependsOn = (depsStr ?? "").split(",").map((s2) => s2.trim()).filter((s2) => s2.length > 0 && s2 !== "\u2014" && s2 !== "-");
+        const slice = (sliceCell ?? "").replace(/^`|`$/g, "").trim();
+        tasks.push({
+          taskId: id ?? "",
+          name: name ?? "",
+          agent: agent ?? "",
+          wave: Number.parseInt(waveStr ?? "0", 10) || 0,
+          dependsOn,
+          slice
+        });
+      }
+    }
+  }
+  return {
+    planId: fm.plan_id,
+    slug: fm.slug,
+    tier: fm.tier,
+    specLink: fm.spec_link,
+    tasks,
+    frontmatter: fm
+  };
+}
+
+// src/utils/compile-workflow.ts
+function escTemplate(s2) {
+  return s2.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+}
+function lit(s2) {
+  return JSON.stringify(s2);
+}
+function groupByWave(tasks) {
+  const byWave = new Map;
+  for (const t2 of tasks) {
+    const arr = byWave.get(t2.wave) ?? [];
+    arr.push(t2);
+    byWave.set(t2.wave, arr);
+  }
+  return [...byWave.entries()].sort((a2, b2) => a2[0] - b2[0]);
+}
+function workflowName(slug) {
+  const cleaned = slug.replace(/[^A-Za-z0-9_-]/g, "-").replace(/^-+|-+$/g, "");
+  return `st-impl-${cleaned || "plan"}`;
+}
+function buildWorkflowScript(parsed, options = {}) {
+  const { tasks, slug, planId, specLink } = parsed;
+  if (tasks.length === 0) {
+    throw new Error(`Orchestration plan '${slug}' has no tasks \u2014 nothing to compile into a workflow.`);
+  }
+  const qa = options.qa !== false;
+  const waves = groupByWave(tasks);
+  const name = workflowName(slug);
+  const specRef = specLink ?? `${slug}.spec.md`;
+  const phaseEntries = waves.map(([wave, ws]) => `    { title: ${lit(`Wave ${wave}`)}, detail: ${lit(`${ws.length} task(s): ${ws.map((t2) => t2.taskId).join(", ")}`)} },`);
+  if (qa) {
+    phaseEntries.push(`    { title: "Verify", detail: "QA-tester verifies the plan against its spec" },`);
+  }
+  const header = `// AUTO-GENERATED by \`software-teams compile-workflow\` from
+//   ${slug}.orchestration.md  (plan ${planId}, ${tasks.length} task(s), ${waves.length} wave(s))
+//
+// Deterministic implementation of this plan. Run it with the Claude Code
+// Workflow tool (requires opt-in \u2014 e.g. mention "ultracode" or ask Claude to
+// run this workflow). Wave gates are real code barriers; each task is pinned to
+// its specialist and returns a validated structured result. Specialists do NOT
+// commit \u2014 they report \`commits_pending\`; the orchestrator commits after the
+// workflow returns, per the Software Teams quality doctrine.
+//
+// Regenerate after editing the orchestration plan; do not hand-edit.`;
+  const meta = `export const meta = {
+  name: ${lit(name)},
+  description: ${lit(`Software Teams deterministic implementation of ${slug} \u2014 ${tasks.length} task(s) across ${waves.length} wave(s)`)},
+  phases: [
+${phaseEntries.join(`
+`)}
+  ],
+}`;
+  const schema = `// Structured envelope every specialist must return (mirrors the Software
+// Teams reporting contract). Validation + retry happens at the tool layer.
+const TASK_RESULT = {
+  type: "object",
+  properties: {
+    status: { type: "string", enum: ["complete", "blocked", "failed"] },
+    summary: { type: "string", description: "One-line outcome" },
+    files_modified: { type: "array", items: { type: "string" } },
+    files_created: { type: "array", items: { type: "string" } },
+    commits_pending: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          message: { type: "string" },
+          files: { type: "array", items: { type: "string" } },
+        },
+      },
+    },
+    deviations: { type: "string", description: "Anything that diverged from the slice" },
+  },
+  required: ["status", "summary"],
+}`;
+  const waveBlocks = waves.map(([wave, ws]) => {
+    const calls = ws.map((t2) => {
+      const prompt2 = `Implement Software Teams task ${t2.taskId} \u2014 ${t2.name}.
+
+` + `Your task slice: ${t2.slice}
+` + `Spec (acceptance criteria & context): ${specRef}
+
+` + `Read the slice and the spec sections it cites, then implement the task ` + `following your agent specification. Do NOT run git commit/add/push \u2014 ` + `leave changes in the working tree and report them in commits_pending. ` + `Return the structured TASK_RESULT.`;
+      const label = `${t2.taskId} \xB7 ${t2.agent}`;
+      return `    () => agent(\`${escTemplate(prompt2)}\`, {
+      label: ${lit(label)},
+      phase: ${lit(`Wave ${wave}`)},
+      agentType: ${lit(t2.agent)},
+      schema: TASK_RESULT,
+    }),`;
+    }).join(`
+`);
+    return `phase(${lit(`Wave ${wave}`)})
+log(${lit(`Wave ${wave}: dispatching ${ws.length} task(s) \u2014 ${ws.map((t2) => t2.taskId).join(", ")}`)})
+results.push(
+  ...(
+    await parallel([
+${calls}
+    ])
+  ).filter(Boolean),
+)`;
+  });
+  const qaBlock = qa ? `
+phase("Verify")
+const verification = await agent(
+  \`${escTemplate(`Verify the completed implementation of ${slug} against its spec at ${specRef}. ` + `Run the project's full test suite and quality gates (\`software-teams verify\`). ` + `Confirm every acceptance criterion is met. Report pass/fail with specifics \u2014 ` + `do NOT fix issues yourself, report them.`)}\`,
+  {
+    label: "qa \xB7 software-teams-qa-tester",
+    phase: "Verify",
+    agentType: "software-teams-qa-tester",
+    schema: {
+      type: "object",
+      properties: {
+        passed: { type: "boolean" },
+        failures: { type: "array", items: { type: "string" } },
+        summary: { type: "string" },
+      },
+      required: ["passed", "summary"],
+    },
+  },
+)
+` : "";
+  const ret = qa ? `return { slug: ${lit(slug)}, tasks: results, verification }` : `return { slug: ${lit(slug)}, tasks: results }`;
+  return `${header}
+
+${meta}
+
+${schema}
+
+const results = []
+
+${waveBlocks.join(`
+
+`)}
+${qaBlock}
+${ret}
+`;
+}
+
+// src/commands/compile-workflow.ts
+var PLANS_DIR = ".software-teams/plans";
+async function resolveOrchestrationPath(cwd, arg) {
+  if (arg && arg.endsWith(".orchestration.md")) {
+    const abs = arg.startsWith("/") ? arg : join27(cwd, arg);
+    if (!existsSync33(abs))
+      throw new Error(`Orchestration file not found: ${arg}`);
+    return abs;
+  }
+  if (arg) {
+    const abs = join27(cwd, PLANS_DIR, `${arg}.orchestration.md`);
+    if (!existsSync33(abs)) {
+      throw new Error(`No orchestration plan for slug '${arg}' at ${PLANS_DIR}/${arg}.orchestration.md`);
+    }
+    return abs;
+  }
+  const dir = join27(cwd, PLANS_DIR);
+  if (!existsSync33(dir)) {
+    throw new Error(`No plans directory (${PLANS_DIR}). Run \`software-teams plan\` first.`);
+  }
+  const files = (await readdir2(dir)).filter((f3) => f3.endsWith(".orchestration.md"));
+  if (files.length === 0) {
+    throw new Error(`No *.orchestration.md plans found in ${PLANS_DIR}. compile-workflow needs a three-tier orchestration plan.`);
+  }
+  const [first] = files;
+  if (files.length === 1 && first)
+    return join27(dir, first);
+  const withMtime = await Promise.all(files.map(async (f3) => ({ f: f3, m: (await stat2(join27(dir, f3))).mtimeMs })));
+  withMtime.sort((a2, b2) => b2.m - a2.m);
+  const chosen = withMtime[0]?.f;
+  if (!chosen) {
+    throw new Error(`No orchestration plan resolvable in ${PLANS_DIR}`);
+  }
+  consola.info(`Multiple orchestration plans found; using the most recent: ${chosen}. ` + `Pass a slug to choose explicitly.`);
+  return join27(dir, chosen);
+}
+async function compileWorkflow(cwd, opts) {
+  const orchestrationPath = await resolveOrchestrationPath(cwd, opts.plan);
+  const parsed = await parseOrchestration(orchestrationPath);
+  const script = buildWorkflowScript(parsed, { qa: opts.qa });
+  if (opts.print) {
+    process.stdout.write(script);
+    return 0;
+  }
+  const outPath = opts.output ? opts.output.startsWith("/") ? opts.output : join27(cwd, opts.output) : join27(cwd, PLANS_DIR, `${parsed.slug}.workflow.js`);
+  await writeFile(outPath, script, "utf8");
+  const rel = outPath.startsWith(cwd + "/") ? outPath.slice(cwd.length + 1) : outPath;
+  consola.success(`Compiled workflow \u2192 ${rel}`);
+  consola.info(`${parsed.tasks.length} task(s) across ${new Set(parsed.tasks.map((t2) => t2.wave)).size} wave(s).`);
+  consola.info(`Run it deterministically via the Claude Code Workflow tool (opt-in): ask Claude to "run the workflow at ${rel}", or mention "ultracode". ` + `Without opt-in, implement-plan still runs the plan wave-by-wave as before.`);
+  return 0;
+}
+var compileWorkflowCommand = defineCommand({
+  meta: {
+    name: "compile-workflow",
+    description: "Compile a three-tier orchestration plan into a deterministic Claude Code Workflow script"
+  },
+  args: {
+    plan: {
+      type: "positional",
+      description: "Plan slug or path to a *.orchestration.md (auto-detected if omitted)",
+      required: false
+    },
+    qa: {
+      type: "boolean",
+      description: "Append a final QA-tester verification phase (use --no-qa to skip)",
+      default: true
+    },
+    output: {
+      type: "string",
+      description: `Output path (default: ${PLANS_DIR}/{slug}.workflow.js)`
+    },
+    print: {
+      type: "boolean",
+      description: "Print the script to stdout instead of writing a file",
+      default: false
+    }
+  },
+  async run({ args }) {
+    try {
+      const code = await compileWorkflow(process.cwd(), {
+        plan: args.plan,
+        qa: args.qa,
+        output: args.output,
+        print: Boolean(args.print)
+      });
+      process.exit(code);
+    } catch (err) {
+      consola.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  }
+});
+
+// src/commands/sync-framework.ts
+import { join as join28 } from "path";
+import { existsSync as existsSync34 } from "fs";
 var PRESERVED_STATE_FILES = [
   ".software-teams/project.yaml",
   ".software-teams/requirements.yaml",
@@ -21690,8 +22195,8 @@ var COPIED_SUBDIRS2 = ["rules"];
 async function listFrameworkFiles(packageRoot) {
   const out = [];
   for (const sub of COPIED_SUBDIRS2) {
-    const subDir = join27(packageRoot, sub);
-    if (!existsSync33(subDir))
+    const subDir = join28(packageRoot, sub);
+    if (!existsSync34(subDir))
       continue;
     const subGlob = new Bun.Glob("**/*");
     for await (const file of subGlob.scan({ cwd: subDir })) {
@@ -21706,12 +22211,12 @@ async function detectFrameworkChanges(cwd, packageRoot) {
   const changed = [];
   const files = await listFrameworkFiles(packageRoot);
   for (const file of files) {
-    const dest = join27(cwd, ".software-teams", file);
-    if (!existsSync33(dest)) {
+    const dest = join28(cwd, ".software-teams", file);
+    if (!existsSync34(dest)) {
       missing.push(file);
       continue;
     }
-    const srcContent = await Bun.file(join27(packageRoot, file)).text();
+    const srcContent = await Bun.file(join28(packageRoot, file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent)
       changed.push(file);
@@ -21739,8 +22244,8 @@ var syncFrameworkCommand = defineCommand({
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
     const models = await loadModelMap(cwd);
-    const packageRoot = join27(import.meta.dir, "..", "..");
-    if (!existsSync33(join27(packageRoot, "rules"))) {
+    const packageRoot = join28(import.meta.dir, "..", "..");
+    if (!existsSync34(join28(packageRoot, "rules"))) {
       consola.error(`Software Teams package layout not found at ${packageRoot}. Are you running from inside the Software Teams package?`);
       process.exit(1);
     }
@@ -21777,8 +22282,8 @@ var syncFrameworkCommand = defineCommand({
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot);
     consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
     for (const rel of PRESERVED_STATE_FILES) {
-      const p = join27(cwd, rel);
-      if (existsSync33(p)) {
+      const p = join28(cwd, rel);
+      if (existsSync34(p)) {
         consola.info(`Preserved: ${rel}`);
       }
     }
@@ -21794,25 +22299,25 @@ var syncFrameworkCommand = defineCommand({
 });
 
 // src/utils/spawn-ledger.ts
-import { mkdir } from "fs/promises";
-import { existsSync as existsSync34 } from "fs";
-import { dirname as dirname9, join as join28 } from "path";
-var DEFAULT_LEDGER_PATH = join28(".software-teams", "persistence", "spawn-ledger.jsonl");
+import { mkdir as mkdir2 } from "fs/promises";
+import { existsSync as existsSync35 } from "fs";
+import { dirname as dirname10, join as join29 } from "path";
+var DEFAULT_LEDGER_PATH = join29(".software-teams", "persistence", "spawn-ledger.jsonl");
 function resolveLedgerPath(opts) {
   return opts?.ledgerPath ?? DEFAULT_LEDGER_PATH;
 }
 async function recordSpawn(entry, opts) {
   const path = resolveLedgerPath(opts);
-  await mkdir(dirname9(path), { recursive: true });
+  await mkdir2(dirname10(path), { recursive: true });
   const line = JSON.stringify(entry) + `
 `;
   const file = Bun.file(path);
-  const existing = existsSync34(path) ? await file.text() : "";
+  const existing = existsSync35(path) ? await file.text() : "";
   await Bun.write(path, existing + line);
 }
 async function readLedger(opts) {
   const path = resolveLedgerPath(opts);
-  if (!existsSync34(path))
+  if (!existsSync35(path))
     return [];
   const text = await Bun.file(path).text();
   const lines = text.split(`
@@ -21871,7 +22376,7 @@ async function summariseLedger(opts) {
 }
 async function clearLedger(opts) {
   const path = resolveLedgerPath(opts);
-  if (!existsSync34(path))
+  if (!existsSync35(path))
     return;
   if (!opts?.planId) {
     await Bun.write(path, "");
@@ -22751,122 +23256,49 @@ var projectCommand = defineCommand({
 });
 
 // src/commands/orchestrator-mode.ts
-import { existsSync as existsSync35 } from "fs";
-import { mkdir as mkdir3, readFile, writeFile, unlink, chmod as chmod2 } from "fs/promises";
-import { join as join29, dirname as dirname11 } from "path";
-
-// src/utils/settings-merge.ts
-import { mkdir as mkdir2 } from "fs/promises";
-import { dirname as dirname10 } from "path";
-async function readSettings(path) {
-  const file = Bun.file(path);
-  const exists = await file.exists();
-  if (!exists) {
-    return {};
-  }
-  const text = await file.text();
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(`Failed to parse ${path}: the file contains invalid JSON. ` + `Fix or delete it and try again.`);
-  }
-}
-async function writeSettings(path, value) {
-  await mkdir2(dirname10(path), { recursive: true });
-  await Bun.write(path, JSON.stringify(value, null, 2) + `
-`);
-}
-function mergeHooks(existing, additions) {
-  return additions.reduce((result, { event, matcher, command }) => {
-    const hooks = result.hooks ? { ...result.hooks } : {};
-    const eventArray = hooks[event] ? [...hooks[event] ?? []] : [];
-    hooks[event] = eventArray;
-    const matcherIdx = eventArray.findIndex((h2) => h2.matcher === matcher);
-    if (matcherIdx === -1) {
-      eventArray.push({ matcher, hooks: [{ type: "command", command }] });
-    } else {
-      const matchingEntry = eventArray[matcherIdx];
-      if (!matchingEntry)
-        return { ...result, hooks };
-      const hookEntries = [...matchingEntry.hooks];
-      if (!hookEntries.some((e2) => e2.command === command)) {
-        hookEntries.push({ type: "command", command });
-      }
-      eventArray[matcherIdx] = { ...matchingEntry, hooks: hookEntries };
-    }
-    return { ...result, hooks };
-  }, { ...existing });
-}
-function removeHooks(existing, removals) {
-  return removals.reduce((result, { event, matcher, command }) => {
-    if (!result.hooks?.[event])
-      return result;
-    const eventArray = result.hooks[event];
-    if (!eventArray)
-      return result;
-    const matcherIdx = eventArray.findIndex((h2) => h2.matcher === matcher);
-    if (matcherIdx === -1)
-      return result;
-    const matchingEntry = eventArray[matcherIdx];
-    if (!matchingEntry)
-      return result;
-    const filteredHookEntries = matchingEntry.hooks.filter((e2) => e2.command !== command);
-    const newEventArray = filteredHookEntries.length === 0 ? eventArray.filter((_3, i2) => i2 !== matcherIdx) : Object.assign([...eventArray], { [matcherIdx]: { ...matchingEntry, hooks: filteredHookEntries } });
-    const newHooks = { ...result.hooks };
-    if (newEventArray.length === 0) {
-      delete newHooks[event];
-    } else {
-      newHooks[event] = newEventArray;
-    }
-    if (Object.keys(newHooks).length === 0) {
-      const { hooks: _hooks, ...rest } = result;
-      return rest;
-    }
-    return { ...result, hooks: newHooks };
-  }, { ...existing });
-}
-
-// src/commands/orchestrator-mode.ts
+import { existsSync as existsSync36 } from "fs";
+import { mkdir as mkdir3, readFile as readFile2, writeFile as writeFile2, unlink, chmod as chmod2 } from "fs/promises";
+import { join as join30, dirname as dirname11 } from "path";
 var CLAUDE_DIR = ".claude";
-var SETTINGS_PATH = join29(CLAUDE_DIR, "settings.json");
-var CLAUDE_MD_PATH = join29(CLAUDE_DIR, "CLAUDE.md");
-var DIRECTIVE_PATH = join29(CLAUDE_DIR, "orchestrator-mode.md");
-var HOOK_SCRIPT_PATH = join29(CLAUDE_DIR, "hooks", "orchestrator-deny-bash.sh");
+var SETTINGS_PATH = join30(CLAUDE_DIR, "settings.json");
+var CLAUDE_MD_PATH = join30(CLAUDE_DIR, "CLAUDE.md");
+var DIRECTIVE_PATH = join30(CLAUDE_DIR, "orchestrator-mode.md");
+var HOOK_SCRIPT_PATH = join30(CLAUDE_DIR, "hooks", "orchestrator-deny-bash.sh");
 var IMPORT_LINE = "@.claude/orchestrator-mode.md";
 var HOOK_MATCHER = "Edit|Write|NotebookEdit|Bash";
 var HOOK_COMMAND_VALUE = ".claude/hooks/orchestrator-deny-bash.sh";
-var oneUp = join29(import.meta.dir, "..");
-var twoUp = join29(import.meta.dir, "..", "..");
-var packageRoot = existsSync35(join29(oneUp, "package.json")) ? oneUp : twoUp;
+var oneUp = join30(import.meta.dir, "..");
+var twoUp = join30(import.meta.dir, "..", "..");
+var packageRoot = existsSync36(join30(oneUp, "package.json")) ? oneUp : twoUp;
 async function on() {
-  await mkdir3(join29(process.cwd(), CLAUDE_DIR), { recursive: true });
-  const absSettings = join29(process.cwd(), SETTINGS_PATH);
-  if (!existsSync35(absSettings)) {
-    await writeFile(absSettings, `{}
+  await mkdir3(join30(process.cwd(), CLAUDE_DIR), { recursive: true });
+  const absSettings = join30(process.cwd(), SETTINGS_PATH);
+  if (!existsSync36(absSettings)) {
+    await writeFile2(absSettings, `{}
 `, "utf8");
   }
-  const directiveSrc = join29(packageRoot, "templates", "orchestrator-mode-directive.md");
-  const directiveContent = await readFile(directiveSrc, "utf8");
-  const absDirective = join29(process.cwd(), DIRECTIVE_PATH);
+  const directiveSrc = join30(packageRoot, "templates", "orchestrator-mode-directive.md");
+  const directiveContent = await readFile2(directiveSrc, "utf8");
+  const absDirective = join30(process.cwd(), DIRECTIVE_PATH);
   await mkdir3(dirname11(absDirective), { recursive: true });
-  await writeFile(absDirective, directiveContent, "utf8");
-  const absHookScript = join29(process.cwd(), HOOK_SCRIPT_PATH);
-  const hookSrc = join29(packageRoot, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
-  const hookContent = await readFile(hookSrc, "utf8");
+  await writeFile2(absDirective, directiveContent, "utf8");
+  const absHookScript = join30(process.cwd(), HOOK_SCRIPT_PATH);
+  const hookSrc = join30(packageRoot, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
+  const hookContent = await readFile2(hookSrc, "utf8");
   await mkdir3(dirname11(absHookScript), { recursive: true });
-  await writeFile(absHookScript, hookContent, "utf8");
+  await writeFile2(absHookScript, hookContent, "utf8");
   await chmod2(absHookScript, 493);
-  const absClaudeMd = join29(process.cwd(), CLAUDE_MD_PATH);
-  if (!existsSync35(absClaudeMd)) {
-    await writeFile(absClaudeMd, IMPORT_LINE + `
+  const absClaudeMd = join30(process.cwd(), CLAUDE_MD_PATH);
+  if (!existsSync36(absClaudeMd)) {
+    await writeFile2(absClaudeMd, IMPORT_LINE + `
 `, "utf8");
   } else {
-    const content = await readFile(absClaudeMd, "utf8");
+    const content = await readFile2(absClaudeMd, "utf8");
     if (!content.includes(IMPORT_LINE)) {
       const separator = content.endsWith(`
 `) ? "" : `
 `;
-      await writeFile(absClaudeMd, content + separator + IMPORT_LINE + `
+      await writeFile2(absClaudeMd, content + separator + IMPORT_LINE + `
 `, "utf8");
     }
   }
@@ -22882,17 +23314,17 @@ async function on() {
   return 0;
 }
 async function off() {
-  const absSettings = join29(process.cwd(), SETTINGS_PATH);
-  if (existsSync35(absSettings)) {
+  const absSettings = join30(process.cwd(), SETTINGS_PATH);
+  if (existsSync36(absSettings)) {
     const settings = await readSettings(absSettings);
     const next = removeHooks(settings, [
       { event: "PreToolUse", matcher: HOOK_MATCHER, command: HOOK_COMMAND_VALUE }
     ]);
     await writeSettings(absSettings, next);
   }
-  const absClaudeMd = join29(process.cwd(), CLAUDE_MD_PATH);
-  if (existsSync35(absClaudeMd)) {
-    const content = await readFile(absClaudeMd, "utf8");
+  const absClaudeMd = join30(process.cwd(), CLAUDE_MD_PATH);
+  if (existsSync36(absClaudeMd)) {
+    const content = await readFile2(absClaudeMd, "utf8");
     const lines = content.split(`
 `);
     const filtered = lines.filter((line) => line !== IMPORT_LINE);
@@ -22901,11 +23333,11 @@ async function off() {
     if (newContent.trim().length === 0) {
       await unlink(absClaudeMd);
     } else {
-      await writeFile(absClaudeMd, newContent, "utf8");
+      await writeFile2(absClaudeMd, newContent, "utf8");
     }
   }
-  const absDirective = join29(process.cwd(), DIRECTIVE_PATH);
-  if (existsSync35(absDirective)) {
+  const absDirective = join30(process.cwd(), DIRECTIVE_PATH);
+  if (existsSync36(absDirective)) {
     await unlink(absDirective);
   }
   console.log("Orchestrator-Only Mode: OFF");
@@ -22915,13 +23347,13 @@ async function off() {
   return 0;
 }
 async function status() {
-  const absDirective = join29(process.cwd(), DIRECTIVE_PATH);
-  const hasDirective = existsSync35(absDirective);
-  const absClaudeMd = join29(process.cwd(), CLAUDE_MD_PATH);
-  const hasImportLine = existsSync35(absClaudeMd) && (await readFile(absClaudeMd, "utf8")).split(`
+  const absDirective = join30(process.cwd(), DIRECTIVE_PATH);
+  const hasDirective = existsSync36(absDirective);
+  const absClaudeMd = join30(process.cwd(), CLAUDE_MD_PATH);
+  const hasImportLine = existsSync36(absClaudeMd) && (await readFile2(absClaudeMd, "utf8")).split(`
 `).includes(IMPORT_LINE);
-  const absSettings = join29(process.cwd(), SETTINGS_PATH);
-  const hasHookEntry = existsSync35(absSettings) ? await (async () => {
+  const absSettings = join30(process.cwd(), SETTINGS_PATH);
+  const hasHookEntry = existsSync36(absSettings) ? await (async () => {
     const settings = await readSettings(absSettings);
     const preToolUse = settings.hooks?.PreToolUse ?? [];
     return preToolUse.some((entry) => entry.matcher === HOOK_MATCHER && entry.hooks.some((h2) => h2.command === HOOK_COMMAND_VALUE));
@@ -22972,34 +23404,34 @@ var orchestratorModeCommand = defineCommand({
 });
 
 // src/commands/ask-questions.ts
-import { existsSync as existsSync36 } from "fs";
-import { mkdir as mkdir4, readFile as readFile2, writeFile as writeFile2, unlink as unlink2 } from "fs/promises";
-import { join as join30, dirname as dirname12 } from "path";
+import { existsSync as existsSync37 } from "fs";
+import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile3, unlink as unlink2 } from "fs/promises";
+import { join as join31, dirname as dirname12 } from "path";
 var CLAUDE_DIR2 = ".claude";
-var CLAUDE_MD_PATH2 = join30(CLAUDE_DIR2, "CLAUDE.md");
-var DIRECTIVE_PATH2 = join30(CLAUDE_DIR2, "ask-questions.md");
+var CLAUDE_MD_PATH2 = join31(CLAUDE_DIR2, "CLAUDE.md");
+var DIRECTIVE_PATH2 = join31(CLAUDE_DIR2, "ask-questions.md");
 var IMPORT_LINE2 = "@.claude/ask-questions.md";
-var oneUp2 = join30(import.meta.dir, "..");
-var twoUp2 = join30(import.meta.dir, "..", "..");
-var packageRoot2 = existsSync36(join30(oneUp2, "package.json")) ? oneUp2 : twoUp2;
+var oneUp2 = join31(import.meta.dir, "..");
+var twoUp2 = join31(import.meta.dir, "..", "..");
+var packageRoot2 = existsSync37(join31(oneUp2, "package.json")) ? oneUp2 : twoUp2;
 async function on2() {
-  await mkdir4(join30(process.cwd(), CLAUDE_DIR2), { recursive: true });
-  const directiveSrc = join30(packageRoot2, "templates", "ask-questions-directive.md");
-  const directiveContent = await readFile2(directiveSrc, "utf8");
-  const absDirective = join30(process.cwd(), DIRECTIVE_PATH2);
+  await mkdir4(join31(process.cwd(), CLAUDE_DIR2), { recursive: true });
+  const directiveSrc = join31(packageRoot2, "templates", "ask-questions-directive.md");
+  const directiveContent = await readFile3(directiveSrc, "utf8");
+  const absDirective = join31(process.cwd(), DIRECTIVE_PATH2);
   await mkdir4(dirname12(absDirective), { recursive: true });
-  await writeFile2(absDirective, directiveContent, "utf8");
-  const absClaudeMd = join30(process.cwd(), CLAUDE_MD_PATH2);
-  if (!existsSync36(absClaudeMd)) {
-    await writeFile2(absClaudeMd, IMPORT_LINE2 + `
+  await writeFile3(absDirective, directiveContent, "utf8");
+  const absClaudeMd = join31(process.cwd(), CLAUDE_MD_PATH2);
+  if (!existsSync37(absClaudeMd)) {
+    await writeFile3(absClaudeMd, IMPORT_LINE2 + `
 `, "utf8");
   } else {
-    const content = await readFile2(absClaudeMd, "utf8");
+    const content = await readFile3(absClaudeMd, "utf8");
     if (!content.includes(IMPORT_LINE2)) {
       const separator = content.endsWith(`
 `) ? "" : `
 `;
-      await writeFile2(absClaudeMd, content + separator + IMPORT_LINE2 + `
+      await writeFile3(absClaudeMd, content + separator + IMPORT_LINE2 + `
 `, "utf8");
     }
   }
@@ -23009,9 +23441,9 @@ async function on2() {
   return 0;
 }
 async function off2() {
-  const absClaudeMd = join30(process.cwd(), CLAUDE_MD_PATH2);
-  if (existsSync36(absClaudeMd)) {
-    const content = await readFile2(absClaudeMd, "utf8");
+  const absClaudeMd = join31(process.cwd(), CLAUDE_MD_PATH2);
+  if (existsSync37(absClaudeMd)) {
+    const content = await readFile3(absClaudeMd, "utf8");
     const lines = content.split(`
 `);
     const filtered = lines.filter((line) => line !== IMPORT_LINE2);
@@ -23020,11 +23452,11 @@ async function off2() {
     if (newContent.trim().length === 0) {
       await unlink2(absClaudeMd);
     } else {
-      await writeFile2(absClaudeMd, newContent, "utf8");
+      await writeFile3(absClaudeMd, newContent, "utf8");
     }
   }
-  const absDirective = join30(process.cwd(), DIRECTIVE_PATH2);
-  if (existsSync36(absDirective)) {
+  const absDirective = join31(process.cwd(), DIRECTIVE_PATH2);
+  if (existsSync37(absDirective)) {
     await unlink2(absDirective);
   }
   console.log("Ask Clarifying Questions policy: OFF");
@@ -23033,10 +23465,10 @@ async function off2() {
   return 0;
 }
 async function status2() {
-  const absDirective = join30(process.cwd(), DIRECTIVE_PATH2);
-  const hasDirective = existsSync36(absDirective);
-  const absClaudeMd = join30(process.cwd(), CLAUDE_MD_PATH2);
-  const hasImportLine = existsSync36(absClaudeMd) && (await readFile2(absClaudeMd, "utf8")).split(`
+  const absDirective = join31(process.cwd(), DIRECTIVE_PATH2);
+  const hasDirective = existsSync37(absDirective);
+  const absClaudeMd = join31(process.cwd(), CLAUDE_MD_PATH2);
+  const hasImportLine = existsSync37(absClaudeMd) && (await readFile3(absClaudeMd, "utf8")).split(`
 `).includes(IMPORT_LINE2);
   const fmt = (v2) => v2 ? "present" : "missing";
   console.log("Ask Clarifying Questions policy status:");
@@ -23199,8 +23631,8 @@ async function runVerb(args, engineFn) {
 }
 
 // ../n8n/src/execution/single-turn.ts
-import { join as join31 } from "path";
-import { existsSync as existsSync37, readFileSync as readFileSync12 } from "fs";
+import { join as join32 } from "path";
+import { existsSync as existsSync38, readFileSync as readFileSync12 } from "fs";
 var __dirname = "/Users/medusa/Developer/software-teams/packages/n8n/src/execution";
 var sharedApi = require_n8n_api();
 var { sanitizeUserInput: sanitizeUserInput2, fenceUserInput: fenceUserInput2, SINGLE_TURN_ALLOWED_TOOLS: SINGLE_TURN_ALLOWED_TOOLS2 } = sharedApi;
@@ -23276,11 +23708,11 @@ async function spawnClaude2(prompt2, opts) {
 }
 function resolveAgentSpecPath2(agentId) {
   const candidates = [
-    join31(__dirname, "..", "..", "agents", `${agentId}.md`),
-    join31(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
-    join31(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)
+    join32(__dirname, "..", "..", "agents", `${agentId}.md`),
+    join32(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
+    join32(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)
   ];
-  return candidates.find(existsSync37) ?? null;
+  return candidates.find(existsSync38) ?? null;
 }
 function stripSpecFrontmatter2(content) {
   const fm = content.match(/^---\n[\s\S]*?\n---\n?/);
@@ -24152,7 +24584,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.7.0",
+  version: "0.8.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
@@ -24235,6 +24667,8 @@ var main = defineCommand({
     state: stateCommand,
     "sync-agents": syncAgentsCommand,
     "sync-framework": syncFrameworkCommand,
+    verify: verifyCommand,
+    "compile-workflow": compileWorkflowCommand,
     "spawn-log": spawnLogCommand,
     roadmap: roadmapCommand,
     requirements: requirementsCommand,

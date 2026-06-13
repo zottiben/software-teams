@@ -22,9 +22,13 @@ After resolution, `$ST_CLI` is available for the steps below.
 $ST_CLI init --state-only
 ```
 
-`--state-only` creates `.software-teams/` scaffolding only. It does **not** write
-any `.claude/commands/st/` stubs or `.claude/agents/` files — the plugin already
-supplies those natively.
+`--state-only` skips the `.claude/` artefacts the plugin already supplies
+natively — `.claude/commands/st/` stubs and `.claude/agents/` files. It **does**
+install framework infrastructure the plugin does *not* ship: the
+`.claude/hooks/` scripts (`quality-gate.sh`, `orchestrator-deny-bash.sh`) and the
+deterministic SubagentStop quality-gate wiring in `.claude/settings.json`. The
+quality gate runs the project's fast gates via `software-teams verify` after each
+specialist completes.
 
 ### Step 3: Offer lint-fix hook (single prompt)
 

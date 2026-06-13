@@ -16,5 +16,16 @@
     "Bash(rm:*)",
     "Bash(software-teams:*)"
   ],
-  "hooks": {}
+  "hooks": {
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/quality-gate.sh"
+          }
+        ]
+      }
+    ]
+  }
 }

@@ -46,7 +46,20 @@ Rule of thumb: **bounded + specialist exists → spawn. Trivial + already loaded
 
 ## Quality Gates
 
-Every code-touching task must pass through `software-teams-qa-tester` post-task verification before the orchestrator advances to the next task.
+Quality is enforced in two layers — one automated, one judgement-based.
+
+**Layer 1 — automated fast gate (deterministic).** A `SubagentStop` hook
+(`.claude/hooks/quality-gate.sh`, wired by `init`) runs the project's fast
+quality gates — lint / analyse / typecheck, sourced from `adapter.yaml` —
+automatically after every specialist that touched code. It skips clean trees
+and the full test suite (that is Layer 2's job), and surfaces any failure
+straight back to the agent (exit 2) so it is fixed before the work is accepted.
+Nobody has to remember to run it. Trigger it manually any time, or in CI, with
+`software-teams verify` (`--gate`/`--skip` select gates; `--json` for tooling).
+
+**Layer 2 — QA-tester gate (judgement).** Every code-touching task must still
+pass through `software-teams-qa-tester` post-task verification — acceptance
+criteria plus the full test suite — before the orchestrator advances:
 
 ```
 1. Specialist completes work, reports files_modified.

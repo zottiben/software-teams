@@ -2,6 +2,7 @@ import { join, dirname } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
 import { readdir, stat, chmod } from "node:fs/promises";
 import type { ProjectType } from "./detect-project";
+import { readSettings, writeSettings, ensureSubagentStopHook } from "./settings-merge";
 
 /**
  * Subdirectories shipped from the package root into a consumer's
@@ -38,9 +39,12 @@ export async function copyFrameworkFiles(
    */
   packageRootOverride?: string,
   /**
-   * When true, skip all `.claude/` writes (commands, settings, hooks, CLAUDE.md).
-   * Used by `init --state-only` for plugin users who already have native
-   * commands/agents and do not want `.claude/` artifacts generated.
+   * When true (`init --state-only`, the plugin path), skip the `.claude/` writes
+   * the PLUGIN already supplies natively: command stubs, the allowlist
+   * `settings.json` template, and `CLAUDE.md`. Hooks are NOT skipped — the plugin
+   * ships none, so `.claude/hooks/` and the SubagentStop quality-gate wiring in
+   * `.claude/settings.json` are installed in this mode too. Used by plugin users
+   * who already have native commands/agents.
    */
   stateOnly: boolean = false,
 ): Promise<void> {
@@ -111,31 +115,52 @@ export async function copyFrameworkFiles(
         await Bun.write(settingsDest, content);
       }
     }
+  }
 
-    // Copy the declarative `.claude/hooks/` directory into the project root.
-    // Hooks are shell scripts invoked by PreToolUse / PostToolUse / etc.
-    // Used by Orchestrator-Only Mode (templates/.claude/hooks/orchestrator-deny-bash.sh).
-    // Do NOT clobber existing consumer hooks unless --force was passed.
-    const hooksTemplateDir = join(packageRoot, "templates", ".claude", "hooks");
-    if (existsSync(hooksTemplateDir)) {
-      const hooksDestDir = join(cwd, ".claude", "hooks");
-      if (!existsSync(hooksDestDir)) mkdirSync(hooksDestDir, { recursive: true });
-      const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile()) continue;
-        const src = join(hooksTemplateDir, entry.name);
-        const dst = join(hooksDestDir, entry.name);
-        if (force || !existsSync(dst)) {
-          const content = await Bun.file(src).text();
-          await Bun.write(dst, content);
-          // Preserve the executable bit from the template.
-          const srcStat = await stat(src);
-          if (srcStat.mode & 0o111) {
-            await chmod(dst, srcStat.mode);
-          }
-        }
+  // ── Hooks + quality-gate wiring — run in BOTH full and --state-only modes ──
+  // Commands/agents are skipped under --state-only because the Claude Code
+  // PLUGIN supplies them natively. HOOKS are different: the plugin ships none
+  // (`.claude-plugin/` has no hooks), so they must be installed on the plugin
+  // path too — otherwise `/st:init` (which runs `init --state-only`) would never
+  // wire the deterministic quality gate. The allowlist `settings.json` template
+  // above stays gated to full init; plugin users get only the hook wiring added
+  // below, not a generated allowlist.
+  //
+  // The hook SCRIPTS are framework-OWNED, deterministic assets and are refreshed
+  // on every init — a bug fix (e.g. the orchestrator-deny-bash quote-strip fix)
+  // or a newly-added hook must reach EXISTING projects on re-init, not just
+  // fresh installs. Only template-shipped files are touched; user-added hooks
+  // (different filenames) are never seen by this loop and so are preserved.
+  const hooksTemplateDir = join(packageRoot, "templates", ".claude", "hooks");
+  if (existsSync(hooksTemplateDir)) {
+    const hooksDestDir = join(cwd, ".claude", "hooks");
+    if (!existsSync(hooksDestDir)) mkdirSync(hooksDestDir, { recursive: true });
+    const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      const src = join(hooksTemplateDir, entry.name);
+      const dst = join(hooksDestDir, entry.name);
+      const content = await Bun.file(src).text();
+      await Bun.write(dst, content);
+      // Preserve the executable bit from the template.
+      const srcStat = await stat(src);
+      if (srcStat.mode & 0o111) {
+        await chmod(dst, srcStat.mode);
       }
     }
+  }
+
+  // Idempotently wire the deterministic SubagentStop quality-gate hook into
+  // settings.json. The allowlist template-copy (full init only) writes
+  // settings.json when ABSENT, so on an upgrade — or on the plugin path where it
+  // is never copied — the wiring would be missed. This merge guarantees the hook
+  // is present without clobbering the user's allowlist or other hooks. No-op when
+  // already wired.
+  const settingsForHook = join(cwd, ".claude", "settings.json");
+  const currentSettings = await readSettings(settingsForHook);
+  const wiredSettings = ensureSubagentStopHook(currentSettings);
+  if (wiredSettings !== currentSettings) {
+    await writeSettings(settingsForHook, wiredSettings);
   }
 
   // Apply adapter config for the detected project type.

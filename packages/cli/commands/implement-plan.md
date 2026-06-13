@@ -21,6 +21,7 @@ Execute an approved plan with complexity-based routing. Deterministic workflow �
 - `--single` — Force single-agent mode regardless of complexity signals
 - `--dry-run` — Preview without writing: list files that would change and agents that would be spawned, then STOP
 - `--skip-qa` — Skip the post-task `software-teams-qa-tester` verification pass
+- `--workflow` — Compile the three-tier plan to a deterministic Claude Code Workflow script and run that instead of the inline wave loop. Requires Workflow-tool opt-in; see "Optional: Deterministic execution" below.
 
 > **Do NOT use the built-in `EnterWorktree` tool.** If `.software-teams/state.yaml` has `worktree.active: true`, just `cd` into `worktree.path`.
 
@@ -47,6 +48,20 @@ else                                           → STOP, ask user to run /st:cre
 - `{slug}.T{n}.md` — per-task files
 
 If `tier = three-tier`, follow the **Three-Tier Execution Loop (default)** below. If `tier = single-tier`, follow the **Single-Tier Execution Loop (legacy / fallback)** that comes after it. Do NOT mix the two — each loop is self-contained.
+
+---
+
+## Optional: Deterministic execution via a compiled Workflow
+
+For three-tier plans, the wave loop can instead be compiled into a single deterministic Claude Code **Workflow** script and executed by the Workflow tool. This makes the wave gates real code barriers, pins every task to its specialist via `agentType`, and forces each to return a validated structured envelope — token-lean and reproducible.
+
+```bash
+software-teams compile-workflow {slug}     # → .software-teams/plans/{slug}.workflow.js
+```
+
+**When to use it:** large multi-wave plans where you want guaranteed sequencing and structured returns, AND the session has the Workflow tool available (opt-in — e.g. the user mentions "ultracode" or asks to run the workflow). The generated script's specialists do NOT commit; they report `commits_pending`, and the orchestrator commits after the workflow returns (§3T.11), exactly as in the inline loop.
+
+**If the Workflow tool is unavailable or not opted into,** ignore this and run the inline **Three-Tier Execution Loop** below — behaviour is identical, just LLM-driven instead of script-driven. This path is purely additive; it never replaces the default loop.
 
 ---
 

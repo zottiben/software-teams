@@ -8,6 +8,7 @@ import {
   removeHooks,
   readSettings,
   writeSettings,
+  ensureSubagentStopHook,
 } from "../utils/settings-merge";
 import { orchestratorMode } from "../commands/orchestrator-mode";
 import type { Settings } from "../utils/settings-merge";
@@ -624,6 +625,50 @@ describe("orchestratorMode integration", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests: ensureSubagentStopHook (quality-gate wiring)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("ensureSubagentStopHook", () => {
+  test("adds a matcher-less SubagentStop entry when none exists", () => {
+    const result = ensureSubagentStopHook({});
+    const cmds = (result.hooks?.SubagentStop ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/quality-gate.sh");
+    // Stop-family events are matcher-less.
+    expect(result.hooks?.SubagentStop?.[0]?.matcher).toBeUndefined();
+  });
+
+  test("is idempotent — returns the same reference when already wired", () => {
+    const once = ensureSubagentStopHook({});
+    const twice = ensureSubagentStopHook(once);
+    expect(twice).toBe(once);
+    expect(twice.hooks?.SubagentStop).toHaveLength(1);
+  });
+
+  test("preserves existing allowlist and other hook events", () => {
+    const existing: Settings = {
+      allowedTools: ["Read", "Write"],
+      hooks: {
+        PreToolUse: [{ matcher: "Edit", hooks: [{ type: "command", command: "deny.sh" }] }],
+      },
+    };
+    const result = ensureSubagentStopHook(existing);
+    expect(result.allowedTools).toEqual(["Read", "Write"]);
+    expect(result.hooks?.PreToolUse).toEqual(existing.hooks!.PreToolUse);
+    const cmds = (result.hooks?.SubagentStop ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/quality-gate.sh");
+    // Input not mutated.
+    expect(existing.hooks?.SubagentStop).toBeUndefined();
+  });
+
+  test("does not duplicate when a custom command is already present", () => {
+    const seeded = ensureSubagentStopHook({}, ".claude/hooks/custom.sh");
+    const again = ensureSubagentStopHook(seeded, ".claude/hooks/custom.sh");
+    expect(again).toBe(seeded);
+    expect(again.hooks?.SubagentStop).toHaveLength(1);
+  });
+});
+
 // Behavioural test: orchestrator-deny-bash.sh script
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -707,6 +752,61 @@ describe.skipIf(!!process.env.CI)("orchestrator-deny-bash.sh", () => {
     });
 
     expect(exitCode).toBe(0);
+  });
+
+  // ── Quoted-argument safety (R-2 mitigation) ──────────────────────────────
+  // Deny patterns scan the QUOTE-STRIPPED command, so redirect/rm/etc.
+  // characters that appear inside a quoted argument (literal data) must not
+  // false-positive. These guard the historical pain point: a normal commit
+  // whose body contains a `<email>` trailer or an arrow/`rm` word.
+
+  skip("commit with multi-line Co-Authored-By trailer (<email>) is allowed", async () => {
+    const { exitCode, stderr } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: {
+        command:
+          `git commit -m "feat: add thing\n\nCo-Authored-By: Claude <noreply@anthropic.com>"`,
+      },
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr).toBe("");
+  });
+
+  skip("commit message containing the word 'rm' is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: `git commit -m "chore: drop the rm helper"` },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("commit message containing '>' / arrow is allowed", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: `git commit -m "refactor: use a => b > c mapping"` },
+    });
+
+    expect(exitCode).toBe(0);
+  });
+
+  skip("real redirect after a quoted arg is still denied", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: `echo "hello world" > app.ts` },
+    });
+
+    expect(exitCode).toBe(2);
+  });
+
+  skip("real rm with a quoted path is still denied", async () => {
+    const { exitCode } = await runDenyScript({
+      tool_name: "Bash",
+      tool_input: { command: `rm "my file.txt"` },
+    });
+
+    expect(exitCode).toBe(2);
   });
 
   skip("Bash with git push is allowed (delivery command)", async () => {

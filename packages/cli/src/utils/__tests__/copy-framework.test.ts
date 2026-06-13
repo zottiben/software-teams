@@ -184,7 +184,7 @@ describe("copyFrameworkFiles", () => {
     expect(synced).toBe(sourceContent);
   });
 
-  test("copies templates/.claude/settings.json to consumer's .claude/settings.json", async () => {
+  test("copies settings.json and wires the SubagentStop quality-gate hook", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
     const templatesClaude = join(packageRoot, "templates", ".claude");
@@ -196,7 +196,51 @@ describe("copyFrameworkFiles", () => {
 
     const dest = join(dir, ".claude", "settings.json");
     expect(existsSync(dest)).toBe(true);
-    expect(await Bun.file(dest).text()).toBe(settingsContent);
+    const parsed = JSON.parse(await Bun.file(dest).text());
+    // Allowlist preserved from the template ...
+    expect(parsed.allowedTools).toEqual(["Read", "Write"]);
+    // ... and the deterministic quality-gate hook is wired on SubagentStop.
+    const cmds = (parsed.hooks?.SubagentStop ?? []).flatMap(
+      (e: { hooks: { command: string }[] }) => e.hooks.map((h) => h.command),
+    );
+    expect(cmds).toContain(".claude/hooks/quality-gate.sh");
+  });
+
+  test("merges the quality-gate hook into an EXISTING settings.json (upgrade path)", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    // Simulate an already-initialised project with a customised settings.json
+    // and NO template settings.json (so the copy step won't overwrite it).
+    const claudeDir = join(dir, ".claude");
+    mkdirSync(claudeDir, { recursive: true });
+    writeFileSync(join(claudeDir, "settings.json"), '{"allowedTools":["Read","Custom"],"hooks":{}}\n');
+
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    const parsed = JSON.parse(await Bun.file(join(claudeDir, "settings.json")).text());
+    expect(parsed.allowedTools).toEqual(["Read", "Custom"]); // user allowlist preserved
+    const cmds = (parsed.hooks?.SubagentStop ?? []).flatMap(
+      (e: { hooks: { command: string }[] }) => e.hooks.map((h) => h.command),
+    );
+    expect(cmds).toContain(".claude/hooks/quality-gate.sh");
+  });
+
+  test("refreshes framework-owned hook scripts on re-init (no stale copy kept)", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    const hooksDir = join(packageRoot, "templates", ".claude", "hooks");
+    mkdirSync(hooksDir, { recursive: true });
+    writeFileSync(join(hooksDir, "test-hook.sh"), "#!/usr/bin/env bash\n# v2\nexit 0\n");
+    chmodSync(join(hooksDir, "test-hook.sh"), 0o755);
+
+    // A stale copy already on disk (simulates a pre-upgrade project).
+    const destHooks = join(dir, ".claude", "hooks");
+    mkdirSync(destHooks, { recursive: true });
+    writeFileSync(join(destHooks, "test-hook.sh"), "#!/usr/bin/env bash\n# v1 STALE\nexit 0\n");
+
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    expect(await Bun.file(join(destHooks, "test-hook.sh")).text()).toContain("# v2");
   });
 
   test("copies templates/.claude/hooks/ to consumer's .claude/hooks/ preserving executable bit", async () => {

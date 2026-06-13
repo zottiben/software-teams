@@ -11,7 +11,12 @@ type HookEntry = {
 };
 
 type PreToolUseHook = {
-  matcher: string;
+  /**
+   * Tool matcher for tool-scoped events (PreToolUse/PostToolUse). Optional
+   * because Stop-family events (Stop, SubagentStop) are not tool-scoped and
+   * use a matcher-less entry shape.
+   */
+  matcher?: string;
   hooks: HookEntry[];
 };
 
@@ -131,6 +136,42 @@ export function mergeHooks(
 
     return { ...result, hooks };
   }, { ...existing });
+}
+
+/** Default command for the deterministic quality-gate hook (#2). */
+export const QUALITY_GATE_HOOK_COMMAND = ".claude/hooks/quality-gate.sh";
+
+/**
+ * Idempotently ensure a `SubagentStop` hook running `command` is present.
+ *
+ * `SubagentStop` is a Stop-family event (not tool-scoped), so the entry is
+ * matcher-less: `{ hooks: [{ type: "command", command }] }`. Returns a NEW
+ * Settings object; the input is never mutated. Returns the input UNCHANGED
+ * (same reference) when an entry with the same command already exists, so it is
+ * safe to call on every `init` — fresh or upgrade — without duplicating the
+ * hook or clobbering the user's allowlist / other hooks.
+ *
+ * This is how the quality-gate hook reaches EXISTING projects on re-init:
+ * `copy-framework` only writes the template `settings.json` when absent, so an
+ * upgrade would otherwise miss the wiring.
+ *
+ * @example
+ * const next = ensureSubagentStopHook(await readSettings(path));
+ * if (next !== current) await writeSettings(path, next);
+ */
+export function ensureSubagentStopHook(
+  existing: Settings,
+  command: string = QUALITY_GATE_HOOK_COMMAND,
+): Settings {
+  const subagentStop = existing.hooks?.SubagentStop ?? [];
+  const alreadyWired = subagentStop.some((entry) =>
+    entry?.hooks?.some((h) => h.command === command),
+  );
+  if (alreadyWired) return existing;
+
+  const hooks: NonNullable<Settings["hooks"]> = existing.hooks ? { ...existing.hooks } : {};
+  hooks.SubagentStop = [...subagentStop, { hooks: [{ type: "command", command }] }];
+  return { ...existing, hooks };
 }
 
 /**
