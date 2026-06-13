@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/software-teams",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Software Teams -  Skills and Agents to help with Software Development",
   "type": "module",
   "bin": {
