@@ -15548,6 +15548,7 @@ var initCommand = defineCommand({
       consola.info("  /st:review-plan          (quality-check a plan before approving)");
       consola.info('  /st:quick "small fix"');
       consola.info("  /st:statusline           (optional: plan/phase/task in your statusline \u2014 needs python3)");
+      consola.info("  /st:routines             (optional: schedule recurring ST tasks; unattended-run tips)");
     }
   }
 });
@@ -24833,7 +24834,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.10.0",
+  version: "0.11.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {

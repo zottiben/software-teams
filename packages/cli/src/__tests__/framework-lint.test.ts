@@ -648,6 +648,33 @@ describe("state-durability (SessionStart) + LSP", () => {
   });
 });
 
+describe("automation, notifications & memory integration", () => {
+  test("/st:routines skill exists and references /loop + /schedule", () => {
+    const content = readFrameworkFile("commands/routines.md");
+    expect(content).toContain("/loop");
+    expect(content).toContain("/schedule");
+  });
+
+  test("implement-plan documents unattended runs (/goal + PushNotification)", () => {
+    const content = readFrameworkFile("commands/implement-plan.md");
+    expect(content).toContain("/goal");
+    expect(content).toContain("PushNotification");
+  });
+
+  test("feedback-learner dedups against native auto-memory", () => {
+    expect(readFrameworkFile("agents/software-teams-feedback-learner.md")).toMatch(/auto-memory/i);
+  });
+
+  test("create-plan proactively suggests /goal (unattended runs) for three-tier plans", () => {
+    expect(readFrameworkFile("commands/create-plan.md")).toContain("/goal");
+  });
+
+  test("implement-plan proactively surfaces the unattended option for large plans", () => {
+    const content = readFrameworkFile("commands/implement-plan.md");
+    expect(content).toMatch(/proactively surface/i);
+  });
+});
+
 describe("wave-2 per-command native subagent presence", () => {
   const MIGRATED_COMMANDS = [
     "commit.md",
