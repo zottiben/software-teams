@@ -51,17 +51,32 @@ If `tier = three-tier`, follow the **Three-Tier Execution Loop (default)** below
 
 ---
 
-## Optional: Deterministic execution via a compiled Workflow
+## `--workflow` — deterministic execution via a compiled Workflow
 
-For three-tier plans, the wave loop can instead be compiled into a single deterministic Claude Code **Workflow** script and executed by the Workflow tool. This makes the wave gates real code barriers, pins every task to its specialist via `agentType`, and forces each to return a validated structured envelope — token-lean and reproducible.
+When `--workflow` is passed (three-tier plans only), execute the plan as a single
+deterministic Claude Code **Workflow** instead of the inline wave loop below.
+Wave gates become real code barriers, every task is pinned to its specialist via
+`agentType`, and each returns a validated structured envelope — reproducible and
+token-lean.
 
-```bash
-software-teams compile-workflow {slug}     # → .software-teams/plans/{slug}.workflow.js
-```
+**This is the actionable branch — do this when `--workflow` is set:**
 
-**When to use it:** large multi-wave plans where you want guaranteed sequencing and structured returns, AND the session has the Workflow tool available (opt-in — e.g. the user mentions "ultracode" or asks to run the workflow). The generated script's specialists do NOT commit; they report `commits_pending`, and the orchestrator commits after the workflow returns (§3T.11), exactly as in the inline loop.
+1. Run §3T.1 (Silent Discovery) and §3T.2 (Load Orchestration) as normal to
+   confirm the plan is three-tier and `approved`. If the plan is single-tier,
+   tell the user `--workflow` needs a three-tier plan and STOP.
+2. Then follow **`/st:compile-workflow` Steps 1–5** (resolve the CLI, run
+   `$ST_CLI compile-workflow {slug}`, then call the Workflow tool on the
+   generated `.software-teams/plans/{slug}.workflow.js`, then execute
+   `commits_pending` and advance state). Calling the Workflow tool from this
+   skill is a valid opt-in — you do NOT need the user to type `ultracode`.
+3. Resume this skill at **§3T.12 (Run Verification Gates)** and **§3T.14 (Present
+   Summary)**. Do NOT also run the inline §3T.8 per-task spawn loop — the
+   Workflow replaced it.
 
-**If the Workflow tool is unavailable or not opted into,** ignore this and run the inline **Three-Tier Execution Loop** below — behaviour is identical, just LLM-driven instead of script-driven. This path is purely additive; it never replaces the default loop.
+**Fallback:** if the Workflow tool is unavailable (e.g. plan tier without it),
+tell the user and run the inline **Three-Tier Execution Loop** below instead —
+behaviour is identical, just LLM-driven. Without `--workflow`, ignore this
+section entirely and use the inline loop (the default).
 
 ---
 

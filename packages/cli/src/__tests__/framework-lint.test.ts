@@ -564,6 +564,29 @@ describe("review-plan command lint", () => {
   });
 });
 
+describe("CLI-wrapper skills for the new commands", () => {
+  // The new CLI features (compile-workflow #1, verify #2) must be usable from
+  // inside Claude Code, not only a terminal. Each is wrapped as a skill that
+  // resolves and invokes $ST_CLI.
+  test("compile-workflow + verify skills exist and invoke $ST_CLI canonically", () => {
+    for (const file of ["compile-workflow.md", "verify.md"]) {
+      const fullPath = resolveFrameworkPath(join("commands", file));
+      expect(existsSync(fullPath), `commands/${file} does not exist`).toBe(true);
+      const content = readFileSync(fullPath, "utf-8");
+      expect(content, `commands/${file} must invoke the CLI via $ST_CLI`).toContain("$ST_CLI");
+      expect(content, `commands/${file} must resolve the CLI via cli-invocation`).toContain("cli-invocation");
+    }
+  });
+
+  test("create-plan suggests /st:compile-workflow for three-tier plans", () => {
+    expect(readFrameworkFile("commands/create-plan.md")).toContain("/st:compile-workflow");
+  });
+
+  test("implement-plan --workflow branch delegates to compile-workflow", () => {
+    expect(readFrameworkFile("commands/implement-plan.md")).toContain("compile-workflow");
+  });
+});
+
 describe("wave-2 per-command native subagent presence", () => {
   const MIGRATED_COMMANDS = [
     "commit.md",
