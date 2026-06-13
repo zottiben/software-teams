@@ -22,6 +22,7 @@ Execute an approved plan with complexity-based routing. Deterministic workflow �
 - `--dry-run` — Preview without writing: list files that would change and agents that would be spawned, then STOP
 - `--skip-qa` — Skip the post-task `software-teams-qa-tester` verification pass
 - `--workflow` — Compile the three-tier plan to a deterministic Claude Code Workflow script and run that instead of the inline wave loop. Requires Workflow-tool opt-in; see "Optional: Deterministic execution" below.
+- `--isolate` — Run this plan inside a dedicated git worktree (staged off your main working tree) and merge it back cleanly once it completes and passes QA. See "Optional: Isolated execution" below.
 
 > **Do NOT use the built-in `EnterWorktree` tool.** If `.software-teams/state.yaml` has `worktree.active: true`, just `cd` into `worktree.path`.
 
@@ -77,6 +78,31 @@ token-lean.
 tell the user and run the inline **Three-Tier Execution Loop** below instead —
 behaviour is identical, just LLM-driven. Without `--workflow`, ignore this
 section entirely and use the inline loop (the default).
+
+---
+
+## `--isolate` — run in a worktree, merge back when green
+
+When `--isolate` is passed, stage the whole run in a Software Teams worktree so
+your main working tree stays clean until the plan is verified, then merge it back
+deterministically (Software Teams owns the worktree branch name, so the
+merge-back is reliable — no discovery gap).
+
+1. **Create / enter the worktree.** If `state.worktree.active` is false, create
+   one: `$ST_CLI worktree {slug}` (resolve the CLI per
+   `commands/_shared/cli-invocation.md`; `{slug}` = `current_plan.slug`). This
+   branches `{slug}` at `.worktrees/{slug}`, runs the adapter's worktree setup,
+   and records it in state. Then `cd` into `state.worktree.path`.
+2. **Run normally.** Execute the plan via the loop below, committing each task's
+   `commits_pending` in the worktree as usual.
+3. **Merge back when green.** After §3T.12 / §12 verification gates PASS, merge
+   the worktree into the parent branch and clean up:
+   `$ST_CLI worktree-merge {slug} --remove`. If it reports a **conflict** or
+   **uncommitted changes**, relay the message and STOP — do NOT force.
+
+Without `--isolate`, ignore this section — the default runs in the current tree.
+It is purely additive and composes with `--workflow` (isolate the run, run the
+workflow inside it, then merge back).
 
 ---
 

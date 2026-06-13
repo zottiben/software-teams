@@ -12,6 +12,7 @@ import { feedbackCommand } from "./commands/feedback";
 import { quickCommand } from "./commands/quick";
 import { worktreeCommand } from "./commands/worktree";
 import { worktreeRemoveCommand } from "./commands/worktree-remove";
+import { worktreeMergeCommand } from "./commands/worktree-merge";
 import { planReviewCommand } from "./commands/plan-review";
 import { planApproveCommand } from "./commands/plan-approve";
 import { actionCommand } from "./commands/action/index";
@@ -20,6 +21,7 @@ import { stateCommand } from "./commands/state";
 import { syncAgentsCommand } from "./commands/sync-agents";
 import { verifyCommand } from "./commands/verify";
 import { compileWorkflowCommand } from "./commands/compile-workflow";
+import { statuslineCommand } from "./commands/statusline";
 import { syncFrameworkCommand } from "./commands/sync-framework";
 import { spawnLogCommand } from "./commands/spawn-log";
 import { roadmapCommand } from "./commands/roadmap";
@@ -52,6 +54,7 @@ const main = defineCommand({
     quick: quickCommand,
     worktree: worktreeCommand,
     "worktree-remove": worktreeRemoveCommand,
+    "worktree-merge": worktreeMergeCommand,
     "plan-review": planReviewCommand,
     "plan-approve": planApproveCommand,
     action: actionCommand,
@@ -61,6 +64,7 @@ const main = defineCommand({
     "sync-framework": syncFrameworkCommand,
     verify: verifyCommand,
     "compile-workflow": compileWorkflowCommand,
+    statusline: statuslineCommand,
     "spawn-log": spawnLogCommand,
     roadmap: roadmapCommand,
     requirements: requirementsCommand,

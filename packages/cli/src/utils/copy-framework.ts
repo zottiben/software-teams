@@ -150,6 +150,26 @@ export async function copyFrameworkFiles(
     }
   }
 
+  // Copy the statusline renderer (framework-owned, deterministic asset) into the
+  // project — same rationale as hooks: the plugin ships none, so it must land on
+  // the plugin path too. Refreshed on every init. It is NOT auto-wired into
+  // settings (a personal display preference); the user opts in with
+  // `software-teams statusline --install` or the `/st:statusline` skill.
+  const statuslineTemplateDir = join(packageRoot, "templates", ".claude", "statusline");
+  if (existsSync(statuslineTemplateDir)) {
+    const statuslineDestDir = join(cwd, ".claude", "statusline");
+    if (!existsSync(statuslineDestDir)) mkdirSync(statuslineDestDir, { recursive: true });
+    const slEntries = await readdir(statuslineTemplateDir, { withFileTypes: true });
+    for (const entry of slEntries) {
+      if (!entry.isFile()) continue;
+      const src = join(statuslineTemplateDir, entry.name);
+      const dst = join(statuslineDestDir, entry.name);
+      await Bun.write(dst, await Bun.file(src).text());
+      const srcStat = await stat(src);
+      if (srcStat.mode & 0o111) await chmod(dst, srcStat.mode);
+    }
+  }
+
   // Idempotently wire the deterministic SubagentStop quality-gate hook into
   // settings.json. The allowlist template-copy (full init only) writes
   // settings.json when ABSENT, so on an upgrade — or on the plugin path where it
