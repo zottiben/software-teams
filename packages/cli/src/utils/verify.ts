@@ -12,19 +12,42 @@ export interface VerificationResult {
   gates: GateResult[];
 }
 
+export interface QualityGateOptions {
+  /** When non-empty, run ONLY gates whose name is in this list. */
+  only?: string[];
+  /** Gate names to exclude (applied after `only`). */
+  skip?: string[];
+}
+
 /**
  * Run quality gates defined in adapter.yaml.
  * Returns results for each gate with pass/fail status.
+ *
+ * `options.only` / `options.skip` filter which gates run — used by the
+ * `software-teams verify` command and the SubagentStop quality-gate hook to
+ * run the fast gates (lint / analyse) per specialist while leaving the full
+ * test suite to the QA-tester gate. Default (no options) runs every gate, so
+ * existing callers are unaffected.
  */
-export async function runQualityGates(cwd: string): Promise<VerificationResult> {
+export async function runQualityGates(
+  cwd: string,
+  options: QualityGateOptions = {},
+): Promise<VerificationResult> {
   const adapter = await readAdapter(cwd);
   if (!adapter?.quality_gates) {
     return { passed: true, gates: [] };
   }
 
+  const { only, skip } = options;
+  const selected = Object.entries(adapter.quality_gates).filter(([name]) => {
+    if (only && only.length > 0 && !only.includes(name)) return false;
+    if (skip && skip.includes(name)) return false;
+    return true;
+  });
+
   const gates: GateResult[] = [];
 
-  for (const [name, command] of Object.entries(adapter.quality_gates)) {
+  for (const [name, command] of selected) {
     const cmd = String(command);
     try {
       const proc = Bun.spawn(["sh", "-c", cmd], {

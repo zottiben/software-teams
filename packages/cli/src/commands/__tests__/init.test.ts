@@ -135,7 +135,7 @@ describe("init — scaffolding layout", () => {
 });
 
 describe("init --state-only (plugin mode)", () => {
-  test("--state-only creates .software-teams/ subtree but NO .claude/ artifacts", async () => {
+  test("--state-only installs hooks + quality-gate but NOT plugin-supplied commands/agents", async () => {
     const cwd = makeTempDir();
 
     // Simulate `init --ci --state-only` by creating the expected structure
@@ -163,10 +163,18 @@ describe("init --state-only (plugin mode)", () => {
       expect(existsSync(join(cwd, dir))).toBe(true);
     }
 
-    // Assert .claude/ is NOT created
-    expect(existsSync(join(cwd, ".claude"))).toBe(false);
+    // Plugin-supplied artefacts are NOT generated under --state-only.
     expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(false);
     expect(existsSync(join(cwd, ".claude", "agents"))).toBe(false);
+
+    // Hooks are framework infra the plugin does NOT supply, so they ARE installed,
+    // and the deterministic quality gate is wired into settings.json.
+    expect(existsSync(join(cwd, ".claude", "hooks", "quality-gate.sh"))).toBe(true);
+    const settings = JSON.parse(await readFile(join(cwd, ".claude", "settings.json"), "utf-8")) as {
+      hooks?: { SubagentStop?: { hooks: { command: string }[] }[] };
+    };
+    const cmds = (settings.hooks?.SubagentStop ?? []).flatMap((e) => e.hooks.map((h) => h.command));
+    expect(cmds).toContain(".claude/hooks/quality-gate.sh");
   });
 
   test("--state-only generates state.yaml and config YAML in .software-teams/", async () => {

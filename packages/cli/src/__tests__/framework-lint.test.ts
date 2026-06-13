@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { getComponent } from "../components/resolve";
@@ -591,7 +591,6 @@ describe("wave-2 per-command native subagent presence", () => {
         missing.push(`${fileName}: neither subagent_type="software-teams-..." nor Skill tool reference`);
       } else if (!hasNative) {
         // Useful telemetry but not a failure — a Skill-only command is allowed.
-        // eslint-disable-next-line no-console
         console.log(`[wave-2 audit] ${fileName} has no software-teams-* subagent_type but invokes via Skill tool — accepted`);
       }
     }
@@ -627,13 +626,29 @@ describe("orchestrator-mode framework lint", () => {
       true,
     );
 
-    // Check executable bit: mode & 0o111 (any of owner/group/other execute bits)
-    const stats = Bun.file(fullPath).stat();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    stats.then((s) => {
-      // stat() is async; for simplicity we accept that the file exists (above).
-      // The chmod operation in orchestrator-mode.ts sets 0o755, which includes execute.
-    });
+    // Check executable bit: mode & 0o111 (any of owner/group/other execute bits).
+    // orchestrator-mode.ts chmods this to 0o755 on install; the template asset
+    // must already carry the bit so copy-framework preserves it on copy.
+    const mode = statSync(fullPath).mode;
+    expect(mode & 0o111, "orchestrator-deny-bash.sh must be executable").toBeGreaterThan(0);
+  });
+
+  // Quality-gate hook — exists, executable, and wired into the settings template
+  test("templates/.claude/hooks/quality-gate.sh exists and is executable", () => {
+    const fullPath = resolveFrameworkPath("templates/.claude/hooks/quality-gate.sh");
+    expect(existsSync(fullPath), `templates/.claude/hooks/quality-gate.sh does not exist`).toBe(true);
+    const mode = statSync(fullPath).mode;
+    expect(mode & 0o111, "quality-gate.sh must be executable").toBeGreaterThan(0);
+  });
+
+  test("settings template wires the quality-gate hook on SubagentStop", () => {
+    const fullPath = resolveFrameworkPath("templates/.claude/settings.json");
+    const parsed = JSON.parse(readFileSync(fullPath, "utf-8")) as {
+      hooks?: { SubagentStop?: Array<{ hooks: Array<{ command: string }> }> };
+    };
+    const subagentStop = parsed.hooks?.SubagentStop ?? [];
+    const commands = subagentStop.flatMap((e) => e.hooks.map((h) => h.command));
+    expect(commands).toContain(".claude/hooks/quality-gate.sh");
   });
 
   // AC1 — directive template exists and has correct header

@@ -18,6 +18,8 @@ import { actionCommand } from "./commands/action/index";
 import { setupActionCommand } from "./commands/setup-action";
 import { stateCommand } from "./commands/state";
 import { syncAgentsCommand } from "./commands/sync-agents";
+import { verifyCommand } from "./commands/verify";
+import { compileWorkflowCommand } from "./commands/compile-workflow";
 import { syncFrameworkCommand } from "./commands/sync-framework";
 import { spawnLogCommand } from "./commands/spawn-log";
 import { roadmapCommand } from "./commands/roadmap";
@@ -57,6 +59,8 @@ const main = defineCommand({
     state: stateCommand,
     "sync-agents": syncAgentsCommand,
     "sync-framework": syncFrameworkCommand,
+    verify: verifyCommand,
+    "compile-workflow": compileWorkflowCommand,
     "spawn-log": spawnLogCommand,
     roadmap: roadmapCommand,
     requirements: requirementsCommand,

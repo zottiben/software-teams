@@ -63,10 +63,17 @@
 #     npm/bun/pnpm/yarn install|add|remove, make, gh pr|issue *, sudo, and
 #     any other Bash command not in the deny set above.
 #
-# FALSE-POSITIVE RISK (R-2): The rm/mv/cp/tee patterns use a negative
-# look-behind character class to avoid matching "form", "chmod", etc., but
-# they cannot exclude these commands when they appear inside string arguments.
-# Accept the false positive; toggle off if needed.
+# QUOTED-ARGUMENT SAFETY (R-2, mitigated): Before scanning, single- and
+# double-quoted spans are stripped from the command (see `scan=` in the Bash
+# branch). The deny patterns target real shell SYNTAX (redirects, rm/mv,
+# in-place edits); the SAME characters inside a quoted argument are literal
+# data, not syntax. Stripping quotes first means a commit message like
+#   git commit -m "...<noreply@anthropic.com>"   (a `>` inside quotes)
+#   git commit -m "drop the rm call"             (the word `rm` inside quotes)
+# no longer false-positives, while real syntax OUTSIDE quotes is still caught
+# (`echo "x" > file.ts` strips to `echo  > file.ts` and is denied). The threat
+# model is accidental main-thread authoring by the orchestrator LLM, not an
+# adversary crafting quote-escaping, so simple span removal is sufficient.
 #
 # ───────────────────────────────────────────────────────────────────────────
 
@@ -123,6 +130,35 @@ case "$tool" in
   Bash)
     command=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty')
 
+    # Strip single- and double-quoted spans before pattern-scanning so that
+    # redirect/rm/etc. characters appearing INSIDE a quoted argument (literal
+    # data, e.g. a commit message or an echo string) do not false-positive.
+    # Real shell syntax lives OUTSIDE quotes and survives the strip:
+    #   echo "x" > file.ts       → scan: `echo  > file.ts`       (still denied)
+    #   git commit -m "...<a@b>" → scan: `git commit -m `        (now allowed)
+    #   git commit -m "rm this"  → scan: `git commit -m `        (now allowed)
+    # Done as a single left-to-right pass in pure bash (NOT sed) so it is
+    # newline-safe: jq decodes a multi-line commit body (`-m "...\n\n..."`)
+    # into real newlines, and a line-oriented sed cannot strip a quoted span
+    # that crosses them. The first quote char opens a span; the next matching
+    # quote closes it; everything between (and the quotes) is dropped. Escaped
+    # quotes / unterminated quotes are out of scope — the threat model is
+    # accidental main-thread authoring, not adversarial quote-escaping.
+    strip_quotes() {
+      local s="$1" out="" n=${#1} i=0 c q=""
+      while (( i < n )); do
+        c="${s:i:1}"
+        if [[ -z "$q" ]]; then
+          if [[ "$c" == "'" || "$c" == '"' ]]; then q="$c"; else out+="$c"; fi
+        elif [[ "$c" == "$q" ]]; then
+          q=""
+        fi
+        (( i++ ))
+      done
+      printf '%s' "$out"
+    }
+    scan=$(strip_quotes "$command")
+
     deny() {
       local pattern="$1"
       printf "orchestrator-mode: Bash command matched deny pattern '%s'.\nThis writes or destroys code directly — delegate it to a specialist via the\nTask tool, or run:\n  /st:orchestrator-mode off\nto disable the hook. (Delivery commands — git commit/push, installs, make,\ngh, read-only git — are allowed.)\n" "$pattern" >&2
@@ -131,19 +167,19 @@ case "$tool" in
 
     # git mutations that DESTROY or REVERT tree state. Delivery-oriented git —
     # commit, push, rebase, branch -D — is ALLOWED: the orchestrator owns
-    # shipping the outcome.
-    [[ "$command" =~ git[[:space:]]+reset[[:space:]]+--hard([[:space:]]|$) ]] && deny 'git reset --hard\b'
-    [[ "$command" =~ git[[:space:]]+checkout[[:space:]]--[[:space:]] ]] && deny 'git checkout -- '
-    [[ "$command" =~ git[[:space:]]+restore[[:space:]]\. ]] && deny 'git restore \.'
-    [[ "$command" =~ git[[:space:]]+clean[[:space:]]+-f([[:space:]]|$) ]] && deny 'git clean -f\b'
+    # shipping the outcome. (Scanned against `scan` — the quote-stripped form.)
+    [[ "$scan" =~ git[[:space:]]+reset[[:space:]]+--hard([[:space:]]|$) ]] && deny 'git reset --hard\b'
+    [[ "$scan" =~ git[[:space:]]+checkout[[:space:]]--[[:space:]] ]] && deny 'git checkout -- '
+    [[ "$scan" =~ git[[:space:]]+restore[[:space:]]\. ]] && deny 'git restore \.'
+    [[ "$scan" =~ git[[:space:]]+clean[[:space:]]+-f([[:space:]]|$) ]] && deny 'git clean -f\b'
 
     # file system mutations — deleting, moving, copying, or writing file
     # content in place is "editing code" and must be delegated.
-    [[ "$command" =~ (^|[^a-zA-Z_])rm[[:space:]] ]] && deny '(^|[^a-zA-Z_])rm \b'
-    [[ "$command" =~ (^|[^a-zA-Z_])mv[[:space:]] ]] && deny '(^|[^a-zA-Z_])mv \b'
-    [[ "$command" =~ (^|[^a-zA-Z_])cp[[:space:]] ]] && deny '(^|[^a-zA-Z_])cp \b'
-    [[ "$command" =~ (^|[^a-zA-Z_])tee[[:space:]] ]] && deny '(^|[^a-zA-Z_])tee \b'
-    [[ "$command" =~ sed[[:space:]]+-i([[:space:]]|$) ]] && deny 'sed -i\b'
+    [[ "$scan" =~ (^|[^a-zA-Z_])rm[[:space:]] ]] && deny '(^|[^a-zA-Z_])rm \b'
+    [[ "$scan" =~ (^|[^a-zA-Z_])mv[[:space:]] ]] && deny '(^|[^a-zA-Z_])mv \b'
+    [[ "$scan" =~ (^|[^a-zA-Z_])cp[[:space:]] ]] && deny '(^|[^a-zA-Z_])cp \b'
+    [[ "$scan" =~ (^|[^a-zA-Z_])tee[[:space:]] ]] && deny '(^|[^a-zA-Z_])tee \b'
+    [[ "$scan" =~ sed[[:space:]]+-i([[:space:]]|$) ]] && deny 'sed -i\b'
 
     # redirect mutations — `> file` / `>> file` writes file content directly.
     # Allow fd duplications (2>&1, >&2, >&-) and redirects to /dev/null or
@@ -152,13 +188,13 @@ case "$tool" in
     # must be held in a variable so bash does not parse it as a shell operator.
     file_redirect_re='>[[:space:]]*[^/&[:space:]]'
     fd_to_file_re='(>&|&>)[[:space:]]*[^-/0-9[:space:]]'
-    if [[ "$command" =~ $file_redirect_re ]] && [[ ! "$command" =~ \>[[:space:]]*/dev/null ]]; then
+    if [[ "$scan" =~ $file_redirect_re ]] && [[ ! "$scan" =~ \>[[:space:]]*/dev/null ]]; then
       deny '> [file redirect]'
     fi
-    if [[ "$command" =~ $fd_to_file_re ]]; then
+    if [[ "$scan" =~ $fd_to_file_re ]]; then
       deny '>& [file redirect]'
     fi
-    [[ "$command" =~ \>\> ]] && deny '>>'
+    [[ "$scan" =~ \>\> ]] && deny '>>'
 
     # No pattern matched — allow (delivery/management Bash falls through here:
     # git commit/push/rebase, npm/bun/pnpm/yarn installs, make, gh, sudo, …)
