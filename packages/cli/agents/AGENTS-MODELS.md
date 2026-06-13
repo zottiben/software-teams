@@ -2,9 +2,14 @@
 
 This file is the human-readable aide-memoire for the `model:` and `tools:`
 frontmatter pinned on every `framework/agents/software-teams-*.md` spec. Pre-plan gate
-PAQ-06 made both fields mandatory; the converter (software-teams sync-agents) treats
-the per-agent frontmatter as the single source of truth and writes
-`.claude/agents/{name}.md` mechanically from it.
+PAQ-06 made both fields mandatory. At `software-teams sync-agents` time the converter
+resolves each agent's model using this precedence:
+
+1. **config.yaml `models:` profile override** (if the active profile names the agent) — highest priority.
+2. **Per-agent frontmatter `model:`** — fallback default used only when the active profile (and any override) does not name the agent.
+
+The converter writes `.claude/agents/{name}.md` mechanically from the resolved value.
+Frontmatter is no longer the sole source of truth; it is the fallback.
 
 When you add a new agent or change a role's responsibilities, update both
 this table AND the agent's frontmatter in the same commit.
@@ -49,6 +54,7 @@ Researcher roles need outbound web access and write research reports.
 | software-teams-codebase-mapper    | sonnet | planning/file-writing |
 | software-teams-committer          | haiku  | implementation        |
 | software-teams-debugger           | haiku  | implementation        |
+| software-teams-dev-planner        | sonnet | planning/file-writing |
 | software-teams-devops             | sonnet | implementation        |
 | software-teams-feedback-learner   | sonnet | implementation        |
 | software-teams-frontend           | sonnet | implementation        |
@@ -88,3 +94,5 @@ Notes:
 - `software-teams-security` is read-only by design — it recommends and audits, it
   never patches code. Pair with `software-teams-programmer` for fixes.
 - The eight game-* specialists are gameplay/Unity/AI-art-pipeline/store-cert/production roles for game development projects; they follow the same model/role-class conventions as the other agents.
+- **Profile-overrides-frontmatter precedence:** `config.yaml models:` profiles override the per-agent frontmatter `model:` at `software-teams sync-agents` time. The frontmatter value is the fallback default used only when the active profile (and any override) does not name the agent. The `balanced` profile maps `software-teams-dev-planner` to `claude-opus-4-6`; its frontmatter default is `sonnet`.
+- **Orchestrator caveat:** The orchestrator is the main Claude Code session, not a spawned subagent — it cannot be configured via `config.yaml`. Out of scope; documented here only.

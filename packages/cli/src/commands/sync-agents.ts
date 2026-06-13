@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { convertAgents } from "../utils/convert-agents";
+import { loadModelMap } from "../utils/models-config";
 
 /**
  * Read `features.native_subagents` from `.software-teams/config/software-teams-config.yaml` if it
@@ -59,11 +60,13 @@ export const syncAgentsCommand = defineCommand({
       return;
     }
 
+    const models = await loadModelMap(cwd);
     const result = await convertAgents({
       cwd,
       sourceDir: args["source-dir"],
       targetDir: args["target-dir"],
       dryRun: args["dry-run"] === true,
+      models,
     });
 
     const verb = args["dry-run"] ? "Would write" : "Wrote";

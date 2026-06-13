@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
+import { loadModelMap } from "../utils/models-config";
 
 export const initCommand = defineCommand({
   meta: {
@@ -109,6 +110,7 @@ export const initCommand = defineCommand({
           );
         }
       } else {
+        const models = await loadModelMap(cwd);
         const conv = await convertAgents({
           cwd,
           // Resolve agent specs from the package's `agents/` dir.
@@ -121,6 +123,7 @@ export const initCommand = defineCommand({
           // `--force` reverts to the previous behaviour for users who
           // need a hard refresh.
           onConflict: args.force ? "overwrite" : "preserve-user-owned",
+          models,
         });
         if (!args.ci && conv.skipped.length > 0) {
           consola.info(
