@@ -585,6 +585,33 @@ describe("CLI-wrapper skills for the new commands", () => {
   test("implement-plan --workflow branch delegates to compile-workflow", () => {
     expect(readFrameworkFile("commands/implement-plan.md")).toContain("compile-workflow");
   });
+
+  test("statusline renderer ships, is executable, and is stdlib-only (no PyYAML)", () => {
+    const fullPath = resolveFrameworkPath(
+      join("templates", ".claude", "statusline", "software-teams-statusline.py"),
+    );
+    expect(existsSync(fullPath), "statusline renderer missing").toBe(true);
+    const mode = statSync(fullPath).mode;
+    expect(mode & 0o111, "statusline renderer must be executable").toBeGreaterThan(0);
+    const content = readFileSync(fullPath, "utf-8");
+    expect(content, "renderer must be stdlib-only (no PyYAML dependency)").not.toMatch(/^\s*import\s+yaml/m);
+  });
+
+  test("/st:statusline skill exists and invokes $ST_CLI statusline", () => {
+    const content = readFrameworkFile("commands/statusline.md");
+    expect(content).toContain("$ST_CLI statusline");
+  });
+
+  test("/st:worktree-merge skill exists and invokes $ST_CLI worktree-merge", () => {
+    const content = readFrameworkFile("commands/worktree-merge.md");
+    expect(content).toContain("$ST_CLI worktree-merge");
+  });
+
+  test("implement-plan documents the --isolate worktree flow", () => {
+    const content = readFrameworkFile("commands/implement-plan.md");
+    expect(content).toContain("--isolate");
+    expect(content).toContain("worktree-merge");
+  });
 });
 
 describe("wave-2 per-command native subagent presence", () => {

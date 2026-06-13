@@ -205,6 +205,7 @@ export const initCommand = defineCommand({
       consola.info("  /st:create-plan \"your feature\"");
       consola.info("  /st:review-plan          (quality-check a plan before approving)");
       consola.info("  /st:quick \"small fix\"");
+      consola.info("  /st:statusline           (optional: plan/phase/task in your statusline — needs python3)");
     }
   },
 });
