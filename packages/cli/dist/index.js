@@ -11673,6 +11673,7 @@ function mergeHooks(existing, additions) {
 }
 var QUALITY_GATE_HOOK_COMMAND = ".claude/hooks/quality-gate.sh";
 var SESSION_CONTEXT_HOOK_COMMAND = ".claude/hooks/state-session-context.sh";
+var TEAM_TASK_GATE_HOOK_COMMAND = ".claude/hooks/team-task-quality-gate.sh";
 function ensureMatcherlessHook(existing, event, command) {
   const eventHooks = existing.hooks?.[event] ?? [];
   const alreadyWired = eventHooks.some((entry) => entry?.hooks?.some((h2) => h2.command === command));
@@ -11687,6 +11688,9 @@ function ensureSubagentStopHook(existing, command = QUALITY_GATE_HOOK_COMMAND) {
 }
 function ensureSessionStartHook(existing, command = SESSION_CONTEXT_HOOK_COMMAND) {
   return ensureMatcherlessHook(existing, "SessionStart", command);
+}
+function ensureTaskCompletedHook(existing, command = TEAM_TASK_GATE_HOOK_COMMAND) {
+  return ensureMatcherlessHook(existing, "TaskCompleted", command);
 }
 function removeHooks(existing, removals) {
   return removals.reduce((result, { event, matcher, command }) => {
@@ -11809,7 +11813,7 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
   }
   const settingsForHook = join2(cwd, ".claude", "settings.json");
   const currentSettings = await readSettings(settingsForHook);
-  const wiredSettings = ensureSessionStartHook(ensureSubagentStopHook(currentSettings));
+  const wiredSettings = ensureTaskCompletedHook(ensureSessionStartHook(ensureSubagentStopHook(currentSettings)));
   if (wiredSettings !== currentSettings) {
     await writeSettings(settingsForHook, wiredSettings);
   }
@@ -12218,7 +12222,8 @@ When operating within an Agent Team (spawned by coordinator):
 **Team Mode Rules:**
 - NEVER write to state.yaml (coordinator handles this)
 - ALWAYS SendMessage results to coordinator before TaskUpdate(completed)
-- Use **SendMessage** to communicate \u2014 plain text is not visible to teammates.`
+- Use **SendMessage** to communicate \u2014 plain text is not visible to teammates.
+- **Collaborate with peers directly.** If you need something another specialist owns \u2014 a contract, interface, design decision, or "is X ready yet" \u2014 \`SendMessage(to: "{peer-name}")\` that teammate DIRECTLY (find names in \`~/.claude/teams/{team}/config.json\`, \`members[].name\`). Keep working while you wait; the reply arrives as a turn. Message the LEAD only for blockers, scope changes, or missing dependencies. See \`the AgentTeamsOrchestration component\` \xA7 PeerCollaboration.`
     }
   },
   defaultOrder: [
@@ -12600,6 +12605,52 @@ var AgentTeamsOrchestration = {
 5. **Coordinate** \u2014 Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
 6. **Cleanup** \u2014 shutdown_request to all \u2192 TeamDelete \u2192 set status "complete" \u2192 report (include which specialist ran which task and any downgrade events)`
     },
+    PeerCollaboration: {
+      name: "PeerCollaboration",
+      description: "Specialist-to-specialist collaboration + lead duties + experimental-feature caveats",
+      body: `Teammates collaborate DIRECTLY, not only through the lead \u2014 this is what makes
+a team better than one-shot fan-out.
+
+### Specialist-to-specialist DMs
+
+When a teammate hits a question another specialist owns \u2014 e.g. a
+\`software-teams-programmer\` needs an interface decision from
+\`software-teams-architect\`, or \`software-teams-frontend\` needs a contract shape
+from \`software-teams-backend\` \u2014 DM that peer DIRECTLY by name with
+\`SendMessage(to: "{peer-name}", ...)\` instead of stalling or round-tripping the
+lead. Find peer names in the team config (\`~/.claude/teams/{team}/config.json\`,
+\`members[].name\`). Keep working while you wait if you can; the reply arrives
+automatically as a turn. The lead sees a brief summary of peer DMs via idle
+notifications, so you do NOT need to CC the lead.
+
+**Peer vs. lead \u2014 who to message:**
+- **Peer** \u2014 a scoped technical question or handoff the peer owns: contracts,
+  interfaces, shared types, "is X ready yet".
+- **Lead** \u2014 blockers needing a decision or scope change, a missing dependency,
+  or anything that should change the plan.
+
+### Lead duties (the producer / team lead)
+
+Beyond spawning teammates and committing results:
+- **Monitor for lag.** Agent teams sometimes fail to mark a task complete, which
+  blocks dependents. Periodically call \`TaskList\`; if a task sits
+  \`in_progress\` with an idle owner and no recent progress, DM the owner to
+  confirm or complete it (or reassign). Do NOT assume idle == done \u2014 idle just
+  means waiting; check the task status.
+- **Unblock.** If every available task is \`blockedBy\` open work, resolve or
+  reprioritise the blockers so teammates aren't stuck.
+
+### Experimental-feature caveats (handle these explicitly)
+
+Agent teams are an experimental Claude Code feature. Two limitations matter:
+- **Enablement.** Teams require \`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\` in
+  settings/env. If \`TeamCreate\` is unavailable or fails, teams are not enabled \u2014
+  tell the user to add that flag, and fall back to single-agent mode for now.
+- **No resume.** In-process teammates do NOT survive \`/resume\` or \`/rewind\`;
+  the lead may end up messaging teammates that no longer exist. On resume, treat
+  the team as gone: re-create it (\`TeamCreate\`) and respawn teammates from the
+  still-current \`state.yaml\` / task board rather than messaging stale names.`
+    },
     TaskRoutingTable: {
       name: "TaskRoutingTable",
       description: "Fallback routing table when tasks have no agent pin",
@@ -12691,6 +12742,7 @@ Collect results \u2192 Deferred ops \u2192 shutdown_request \u2192 TeamDelete
   },
   defaultOrder: [
     "CorePattern",
+    "PeerCollaboration",
     "TaskRoutingTable",
     "SpawnTemplates",
     "PostAgentOps",
@@ -24834,7 +24886,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.11.0",
+  version: "0.12.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
