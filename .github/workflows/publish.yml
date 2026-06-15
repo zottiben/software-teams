@@ -69,6 +69,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # n8n community nodes must be self-contained (no runtime/peer deps beyond
+      # n8n-workflow). The build inlines @websitelabs/software-teams into dist;
+      # guard that a bare require never slips through to a published, broken node.
+      - name: n8n self-contained guard (no bare shared-lib require in dist)
+        run: |
+          if grep -rln 'require("@websitelabs/software-teams")' packages/n8n/dist/ ; then
+            echo "::error::Built n8n dist still requires @websitelabs/software-teams at runtime — the bundle step (scripts/bundle-shared-lib.cjs) did not inline it. Refusing to publish a runtime-broken node."
+            exit 1
+          fi
+          echo "n8n dist is self-contained (shared lib inlined)."
+
+      - name: Dry-run publish (@websitelabs/n8n-nodes-software-teams)
+        working-directory: packages/n8n
+        run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   publish:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -205,3 +222,71 @@ jobs:
             --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Publish the n8n community node package. Independent of the CLI publish: the
+  # node package is SELF-CONTAINED (the build inlines @websitelabs/software-teams
+  # into dist), so it has no runtime dependency on the CLI package and the two
+  # jobs can run in parallel. The tag + GitHub release are owned by the CLI
+  # publish job above (both packages share the version), so this job does not tag.
+  publish-n8n:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # Idempotent: publish only when this version is not yet on npm (retries a
+      # failed publish; skips a no-op re-run). First publish auto-creates the
+      # scoped package — no npm dashboard setup required.
+      - name: Check n8n version needs publishing
+        id: version
+        run: |
+          CURRENT=$(jq -r .version packages/n8n/package.json)
+          PUBLISHED=$(npm view "@websitelabs/n8n-nodes-software-teams@$CURRENT" version 2>/dev/null || true)
+          if [ -n "$PUBLISHED" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "n8n-nodes version $CURRENT already on npm — skipping publish"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+            echo "n8n-nodes version $CURRENT not on npm — publishing"
+          fi
+
+      - uses: oven-sh/setup-bun@v2
+        if: steps.version.outputs.changed == 'true'
+        with:
+          bun-version: "1.3.7"
+
+      - run: bun install --frozen-lockfile
+        if: steps.version.outputs.changed == 'true'
+
+      - run: bun run build
+        if: steps.version.outputs.changed == 'true'
+
+      # Every node + credential entry must load under Node (not just Bun).
+      - name: Node-load gate (11/11 entries load under Node)
+        if: steps.version.outputs.changed == 'true'
+        run: bun run --cwd packages/n8n verify:node-load
+
+      # Refuse to ship a runtime-broken node: the build must have inlined the
+      # shared lib (no bare require of @websitelabs/software-teams in dist).
+      - name: Self-contained guard (shared lib inlined)
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          if grep -rln 'require("@websitelabs/software-teams")' packages/n8n/dist/ ; then
+            echo "::error::Built n8n dist still requires @websitelabs/software-teams at runtime — the bundle step (scripts/bundle-shared-lib.cjs) did not inline it. Refusing to publish a runtime-broken node."
+            exit 1
+          fi
+          echo "n8n dist is self-contained (shared lib inlined)."
+
+      - uses: actions/setup-node@v6
+        if: steps.version.outputs.changed == 'true'
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Publish (@websitelabs/n8n-nodes-software-teams)
+        if: steps.version.outputs.changed == 'true'
+        working-directory: packages/n8n
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

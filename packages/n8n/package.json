@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/n8n-nodes-software-teams",
-  "version": "0.12.2",
+  "version": "0.12.3",
   "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only — requires the claude binary and ANTHROPIC_API_KEY on the n8n worker.",
   "author": { "name": "WebsiteLabs" },
   "license": "MIT",
@@ -13,7 +13,7 @@
   ],
   "main": "dist/credentials/SoftwareTeamsApi.credentials.js",
   "scripts": {
-    "build": "n8n-node build && node scripts/bundle-specs.cjs",
+    "build": "n8n-node build && node scripts/bundle-specs.cjs && node scripts/bundle-shared-lib.cjs",
     "prepack": "npm run build",
     "build:watch": "n8n-node build --watch",
     "dev": "n8n-node dev",
@@ -21,7 +21,7 @@
     "lint:fix": "n8n-node lint --fix",
     "test": "bun test --timeout 120000",
     "typecheck": "tsc --noEmit",
-    "verify:node-load": "n8n-node build && node scripts/bundle-specs.cjs && node scripts/verify-node-load.cjs"
+    "verify:node-load": "n8n-node build && node scripts/bundle-specs.cjs && node scripts/bundle-shared-lib.cjs && node scripts/verify-node-load.cjs"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
@@ -57,6 +57,7 @@
   "devDependencies": {
     "@n8n/node-cli": "latest",
     "@websitelabs/software-teams": "workspace:*",
+    "esbuild": "^0.25.0",
     "eslint": "9.29.0",
     "n8n-workflow": "^2.16.0",
     "typescript": "^5.9.3"
@@ -66,7 +67,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/websitelabs/software-teams.git",
+    "url": "https://github.com/zottiben/software-teams.git",
     "directory": "packages/n8n"
   }
 }

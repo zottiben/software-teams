@@ -24979,7 +24979,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.12.2",
+  version: "0.12.3",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
@@ -24989,9 +24989,9 @@ var package_default = {
   types: "./lib/n8n-api.d.ts",
   exports: {
     ".": {
+      types: "./lib/n8n-api.d.ts",
       require: "./lib/n8n-api.js",
-      import: "./src/n8n-api.ts",
-      types: "./lib/n8n-api.d.ts"
+      import: "./src/n8n-api.ts"
     },
     "./storage": "./src/storage/index.ts"
   },
@@ -25018,6 +25018,7 @@ var package_default = {
   },
   files: [
     "dist",
+    "lib",
     "action",
     "agents",
     "commands",
