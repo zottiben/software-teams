@@ -36,4 +36,9 @@ export {
 
 export { slugify } from "./shared/slugify";
 
-export type { NodeEnvelope, ArtifactRef, RepoDescriptor, ChangeRef } from "./contract/envelope";
+export {
+  CORRELATION_TAG_PREFIX,
+  buildCorrelationTag,
+  parseCorrelationTag,
+} from "./contract/envelope";
+export type { NodeEnvelope, ArtifactRef, RepoDescriptor, ChangeRef, FeedbackComment } from "./contract/envelope";

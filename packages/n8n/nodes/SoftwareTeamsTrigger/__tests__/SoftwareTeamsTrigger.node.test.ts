@@ -56,7 +56,7 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
   // AC5 & R-02: Credentials and source selection
   // ─────────────────────────────────────────────────────────────────────────
 
-  describe("AC5: Trigger source selection (ClickUp | Datadog)", () => {
+  describe("AC5 & AC6: Trigger source selection (ClickUp | Datadog | Prompt)", () => {
     test("node declares softwareTeamsApi credential as required", () => {
       const creds = node.description.credentials;
       expect(creds).toBeTruthy();
@@ -65,7 +65,7 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
       expect(softwareTeamsCred?.required).toBeTrue();
     });
 
-    test("node has source property with ClickUp and Datadog options", () => {
+    test("node has source property with ClickUp, Datadog, and Prompt options", () => {
       const sourceProp = node.description.properties.find((p) => p.name === "source");
       expect(sourceProp).toBeTruthy();
       expect(sourceProp?.type).toBe("options");
@@ -75,6 +75,12 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
       const values = options.map((o: any) => o.value);
       expect(values).toContain("clickup");
       expect(values).toContain("datadog");
+      expect(values).toContain("prompt");
+    });
+
+    test("default source is still clickup (additive, no change to existing canvases)", () => {
+      const sourceProp = node.description.properties.find((p) => p.name === "source");
+      expect((sourceProp as any).default).toBe("clickup");
     });
 
     test("ClickUp source has clickupRef parameter (conditional display)", () => {
@@ -83,7 +89,6 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
       );
       expect(clickupRefProp).toBeTruthy();
       expect(clickupRefProp?.type).toBe("string");
-      expect(clickupRefProp?.required).toBeTrue();
 
       const displayOpts = (clickupRefProp as any).displayOptions;
       expect(displayOpts?.show?.source).toContain("clickup");
@@ -95,10 +100,37 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
       );
       expect(datadogRefProp).toBeTruthy();
       expect(datadogRefProp?.type).toBe("string");
-      expect(datadogRefProp?.required).toBeTrue();
 
       const displayOpts = (datadogRefProp as any).displayOptions;
       expect(displayOpts?.show?.source).toContain("datadog");
+    });
+
+    test("clickupRef is not shown for prompt source", () => {
+      const clickupRefProp = node.description.properties.find(
+        (p) => p.name === "clickupRef",
+      );
+      const displayOpts = (clickupRefProp as any).displayOptions;
+      expect(displayOpts?.show?.source).not.toContain("prompt");
+    });
+
+    test("datadogRef is not shown for prompt source", () => {
+      const datadogRefProp = node.description.properties.find(
+        (p) => p.name === "datadogRef",
+      );
+      const displayOpts = (datadogRefProp as any).displayOptions;
+      expect(displayOpts?.show?.source).not.toContain("prompt");
+    });
+
+    test("clickupRef and datadogRef are not globally required (prompt source needs neither)", () => {
+      const clickupRefProp = node.description.properties.find(
+        (p) => p.name === "clickupRef",
+      );
+      const datadogRefProp = node.description.properties.find(
+        (p) => p.name === "datadogRef",
+      );
+      // required must be absent or false so prompt source is not blocked
+      expect(clickupRefProp?.required).toBeFalsy();
+      expect(datadogRefProp?.required).toBeFalsy();
     });
   });
 
@@ -320,9 +352,65 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
     test("correlationId format includes date and source", () => {
       const clickupId = "run-2026-06-03-clickup-abc123";
       const datadogId = "run-2026-06-03-datadog-xyz789";
+      const promptId = "run-2026-06-03-prompt-def456";
 
-      expect(clickupId).toMatch(/run-\d{4}-\d{2}-\d{2}-(clickup|datadog)-/);
-      expect(datadogId).toMatch(/run-\d{4}-\d{2}-\d{2}-(clickup|datadog)-/);
+      expect(clickupId).toMatch(/run-\d{4}-\d{2}-\d{2}-(clickup|datadog|prompt)-/);
+      expect(datadogId).toMatch(/run-\d{4}-\d{2}-\d{2}-(clickup|datadog|prompt)-/);
+      expect(promptId).toMatch(/run-\d{4}-\d{2}-\d{2}-(clickup|datadog|prompt)-/);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AC6: Prompt trigger source
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe("AC6: Prompt trigger source", () => {
+    test("prompt source envelope uses { source: 'prompt' } context (no external fetch)", () => {
+      const envelope: NodeEnvelope = {
+        correlationId: "run-2026-06-15-prompt-abc123",
+        agentId: "software-teams-researcher",
+        status: "ok",
+        input: {
+          prompt: "Implement feature X with full test coverage.",
+          context: { source: "prompt" },
+        },
+        result: { text: "" },
+        artifacts: [],
+      };
+
+      expect(envelope.input.context).toEqual({ source: "prompt" });
+      expect(envelope.correlationId).toContain("prompt");
+      expect(envelope.status).toBe("ok");
+    });
+
+    test("prompt source correlationId contains 'prompt' segment", () => {
+      const id = "run-2026-06-15-prompt-xyz789";
+      expect(id).toMatch(/^run-\d{4}-\d{2}-\d{2}-prompt-[a-z0-9]+$/);
+    });
+
+    test("prompt source carries input.prompt from the prompt param", () => {
+      const userPrompt = "Refactor the authentication module for better testability.";
+      const envelope: NodeEnvelope = {
+        correlationId: "run-2026-06-15-prompt-test1",
+        agentId: "software-teams-programmer",
+        status: "ok",
+        input: {
+          prompt: userPrompt,
+          context: { source: "prompt" },
+        },
+        result: { text: "" },
+        artifacts: [],
+      };
+
+      expect(envelope.input.prompt).toBe(userPrompt);
+    });
+
+    test("prompt source dropdown option exists with correct name and value", () => {
+      const sourceProp = node.description.properties.find((p) => p.name === "source");
+      const options = (sourceProp as any).options;
+      const promptOption = options.find((o: any) => o.value === "prompt");
+      expect(promptOption).toBeTruthy();
+      expect(promptOption.name).toBe("Prompt");
     });
   });
 

@@ -10148,10 +10148,26 @@ var require_slugify = __commonJS((exports) => {
   }
 });
 
+// lib/contract/envelope.js
+var require_envelope = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.CORRELATION_TAG_PREFIX = undefined;
+  exports.buildCorrelationTag = buildCorrelationTag;
+  exports.parseCorrelationTag = parseCorrelationTag;
+  exports.CORRELATION_TAG_PREFIX = "software-teams:correlationId=";
+  function buildCorrelationTag(correlationId) {
+    return `<!-- ${exports.CORRELATION_TAG_PREFIX}${correlationId} -->`;
+  }
+  function parseCorrelationTag(body) {
+    const m2 = body.match(/<!--\s*software-teams:correlationId=([^\s>]+)\s*-->/);
+    return m2 ? m2[1] : null;
+  }
+});
+
 // lib/n8n-api.js
 var require_n8n_api = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.slugify = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
+  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
   var clickup_1 = require_clickup();
   Object.defineProperty(exports, "extractClickUpRef", { enumerable: true, get: function() {
     return clickup_1.extractClickUpRef;
@@ -10196,6 +10212,16 @@ var require_n8n_api = __commonJS((exports) => {
   var slugify_1 = require_slugify();
   Object.defineProperty(exports, "slugify", { enumerable: true, get: function() {
     return slugify_1.slugify;
+  } });
+  var envelope_1 = require_envelope();
+  Object.defineProperty(exports, "CORRELATION_TAG_PREFIX", { enumerable: true, get: function() {
+    return envelope_1.CORRELATION_TAG_PREFIX;
+  } });
+  Object.defineProperty(exports, "buildCorrelationTag", { enumerable: true, get: function() {
+    return envelope_1.buildCorrelationTag;
+  } });
+  Object.defineProperty(exports, "parseCorrelationTag", { enumerable: true, get: function() {
+    return envelope_1.parseCorrelationTag;
   } });
 });
 
@@ -17538,6 +17564,125 @@ ${data.body}` : ""
 
 // src/commands/feedback.ts
 init_git();
+
+// src/commands/_envelope-io.ts
+var stderrLog = createConsola2({
+  stdout: process.stderr,
+  stderr: process.stderr
+});
+function redirectConsolaToStderr() {
+  consola.options.stdout = process.stderr;
+}
+function isNodeEnvelope(obj) {
+  if (typeof obj !== "object" || obj === null)
+    return false;
+  const e2 = obj;
+  if (typeof e2.correlationId !== "string" || e2.correlationId.length === 0)
+    return false;
+  if (typeof e2.agentId !== "string")
+    return false;
+  if (!["ok", "error", "needs-input"].includes(e2.status))
+    return false;
+  if (typeof e2.input !== "object" || e2.input === null)
+    return false;
+  if (typeof e2.input.prompt !== "string")
+    return false;
+  if (typeof e2.result !== "object" || e2.result === null)
+    return false;
+  if (typeof e2.result.text !== "string")
+    return false;
+  if (!Array.isArray(e2.artifacts))
+    return false;
+  return true;
+}
+function tryParseJson(raw) {
+  try {
+    return { ok: true, value: JSON.parse(raw) };
+  } catch {
+    return { ok: false };
+  }
+}
+async function readInputEnvelope(args, options) {
+  const readStdin = options?.readStdin ?? (() => Bun.stdin.text());
+  if (args.envelope !== undefined) {
+    const parseResult2 = tryParseJson(args.envelope);
+    if (!parseResult2.ok)
+      return { error: "--envelope value is not valid JSON" };
+    if (!isNodeEnvelope(parseResult2.value)) {
+      return { error: "--envelope value does not satisfy NodeEnvelope invariants" };
+    }
+    return { envelope: parseResult2.value };
+  }
+  if (process.stdin.isTTY) {
+    return {
+      error: "No input envelope: stdin is a TTY and --envelope was not supplied"
+    };
+  }
+  const stdinResult = await readStdin().then((t2) => ({ ok: true, text: t2.trim() })).catch(() => ({ ok: false }));
+  if (!stdinResult.ok)
+    return { error: "Failed to read stdin" };
+  const stdinText = stdinResult.text;
+  if (stdinText.length === 0) {
+    return { error: "No input envelope: stdin was empty and --envelope was not supplied" };
+  }
+  const parseResult = tryParseJson(stdinText);
+  if (!parseResult.ok)
+    return { error: "stdin content is not valid JSON" };
+  if (!isNodeEnvelope(parseResult.value)) {
+    return { error: "stdin content does not satisfy NodeEnvelope invariants" };
+  }
+  return { envelope: parseResult.value };
+}
+function writeResult(env2, opts) {
+  if (opts.json) {
+    process.stdout.write(JSON.stringify(env2) + `
+`);
+    return;
+  }
+  const preview = env2.result.text.length > 200 ? env2.result.text.slice(0, 200) + "\u2026" : env2.result.text;
+  stderrLog.info(`[${env2.agentId}] status: ${env2.status}`);
+  if (preview)
+    stderrLog.info(`result: ${preview}`);
+  for (const artifact of env2.artifacts) {
+    stderrLog.info(`artifact: ${artifact.type}${artifact.url ? " \u2192 " + artifact.url : ""}`);
+  }
+}
+function statusToExitCode(env2) {
+  switch (env2.status) {
+    case "ok":
+    case "needs-input":
+      return 0;
+    case "error":
+      return 1;
+    default:
+      return 1;
+  }
+}
+async function runVerb(args, engineFn) {
+  const json = args.json ?? false;
+  if (json)
+    redirectConsolaToStderr();
+  const inputResult = await readInputEnvelope(args);
+  if ("error" in inputResult) {
+    stderrLog.error(`Input error: ${inputResult.error}`);
+    process.exit(2);
+  }
+  const fake = process.env.STO_FAKE_ENGINE;
+  if (fake) {
+    const status = fake === "needs-input" ? "needs-input" : fake === "error" ? "error" : "ok";
+    const resultEnv2 = { ...inputResult.envelope, status };
+    writeResult(resultEnv2, { json });
+    process.exit(statusToExitCode(resultEnv2));
+  }
+  const resultEnv = await engineFn(inputResult.envelope).catch((err) => {
+    stderrLog.error(`Engine error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  });
+  writeResult(resultEnv, { json });
+  process.exit(statusToExitCode(resultEnv));
+}
+
+// src/commands/feedback.ts
 function categorise(body) {
   const lower = body.toLowerCase();
   if (lower.includes("must") || lower.includes("blocking") || lower.includes("critical") || lower.includes("required")) {
@@ -17575,6 +17720,9 @@ var feedbackCommand = defineCommand({
     }
   },
   async run({ args }) {
+    if (args.json) {
+      redirectConsolaToStderr();
+    }
     const { exitCode: ghCheck } = await exec(["which", "gh"]);
     if (ghCheck !== 0) {
       consola.error("GitHub CLI (gh) is required. Install from https://cli.github.com");
@@ -17634,6 +17782,10 @@ var feedbackCommand = defineCommand({
       }
     }
     if (comments.length === 0) {
+      if (args.json) {
+        console.log(JSON.stringify([]));
+        return;
+      }
       consola.info(`No review comments found for PR #${prNum}.`);
       return;
     }
@@ -23841,123 +23993,6 @@ var askQuestionsCommand = defineCommand({
   }
 });
 
-// src/commands/_envelope-io.ts
-var stderrLog = createConsola2({
-  stdout: process.stderr,
-  stderr: process.stderr
-});
-function redirectConsolaToStderr() {
-  consola.options.stdout = process.stderr;
-}
-function isNodeEnvelope(obj) {
-  if (typeof obj !== "object" || obj === null)
-    return false;
-  const e2 = obj;
-  if (typeof e2.correlationId !== "string" || e2.correlationId.length === 0)
-    return false;
-  if (typeof e2.agentId !== "string")
-    return false;
-  if (!["ok", "error", "needs-input"].includes(e2.status))
-    return false;
-  if (typeof e2.input !== "object" || e2.input === null)
-    return false;
-  if (typeof e2.input.prompt !== "string")
-    return false;
-  if (typeof e2.result !== "object" || e2.result === null)
-    return false;
-  if (typeof e2.result.text !== "string")
-    return false;
-  if (!Array.isArray(e2.artifacts))
-    return false;
-  return true;
-}
-function tryParseJson(raw) {
-  try {
-    return { ok: true, value: JSON.parse(raw) };
-  } catch {
-    return { ok: false };
-  }
-}
-async function readInputEnvelope(args, options) {
-  const readStdin = options?.readStdin ?? (() => Bun.stdin.text());
-  if (args.envelope !== undefined) {
-    const parseResult2 = tryParseJson(args.envelope);
-    if (!parseResult2.ok)
-      return { error: "--envelope value is not valid JSON" };
-    if (!isNodeEnvelope(parseResult2.value)) {
-      return { error: "--envelope value does not satisfy NodeEnvelope invariants" };
-    }
-    return { envelope: parseResult2.value };
-  }
-  if (process.stdin.isTTY) {
-    return {
-      error: "No input envelope: stdin is a TTY and --envelope was not supplied"
-    };
-  }
-  const stdinResult = await readStdin().then((t2) => ({ ok: true, text: t2.trim() })).catch(() => ({ ok: false }));
-  if (!stdinResult.ok)
-    return { error: "Failed to read stdin" };
-  const stdinText = stdinResult.text;
-  if (stdinText.length === 0) {
-    return { error: "No input envelope: stdin was empty and --envelope was not supplied" };
-  }
-  const parseResult = tryParseJson(stdinText);
-  if (!parseResult.ok)
-    return { error: "stdin content is not valid JSON" };
-  if (!isNodeEnvelope(parseResult.value)) {
-    return { error: "stdin content does not satisfy NodeEnvelope invariants" };
-  }
-  return { envelope: parseResult.value };
-}
-function writeResult(env2, opts) {
-  if (opts.json) {
-    process.stdout.write(JSON.stringify(env2) + `
-`);
-    return;
-  }
-  const preview = env2.result.text.length > 200 ? env2.result.text.slice(0, 200) + "\u2026" : env2.result.text;
-  stderrLog.info(`[${env2.agentId}] status: ${env2.status}`);
-  if (preview)
-    stderrLog.info(`result: ${preview}`);
-  for (const artifact of env2.artifacts) {
-    stderrLog.info(`artifact: ${artifact.type}${artifact.url ? " \u2192 " + artifact.url : ""}`);
-  }
-}
-function statusToExitCode(env2) {
-  switch (env2.status) {
-    case "ok":
-    case "needs-input":
-      return 0;
-    case "error":
-      return 1;
-    default:
-      return 1;
-  }
-}
-async function runVerb(args, engineFn) {
-  const json = args.json ?? false;
-  if (json)
-    redirectConsolaToStderr();
-  const inputResult = await readInputEnvelope(args);
-  if ("error" in inputResult) {
-    stderrLog.error(`Input error: ${inputResult.error}`);
-    process.exit(2);
-  }
-  const fake = process.env.STO_FAKE_ENGINE;
-  if (fake) {
-    const status3 = fake === "needs-input" ? "needs-input" : fake === "error" ? "error" : "ok";
-    const resultEnv2 = { ...inputResult.envelope, status: status3 };
-    writeResult(resultEnv2, { json });
-    process.exit(statusToExitCode(resultEnv2));
-  }
-  const resultEnv = await engineFn(inputResult.envelope).catch((err) => {
-    stderrLog.error(`Engine error: ${err instanceof Error ? err.message : String(err)}`);
-    process.exit(1);
-  });
-  writeResult(resultEnv, { json });
-  process.exit(statusToExitCode(resultEnv));
-}
-
 // ../n8n/src/execution/single-turn.ts
 import { join as join33 } from "path";
 import { existsSync as existsSync40, readFileSync as readFileSync12 } from "fs";
@@ -24227,6 +24262,7 @@ function initRunState(correlationId, tasks) {
     createdAt: new Date().toISOString(),
     tasks: tasks.map((t2) => ({
       taskId: t2.taskId,
+      ...t2.name ? { name: t2.name } : {},
       agent: t2.agent,
       wave: t2.wave,
       dependsOn: [...t2.dependsOn],
@@ -24335,6 +24371,37 @@ async function planEpic(epic, correlationId, adapter) {
 function serialiseRunState(state) {
   return JSON.parse(JSON.stringify(state));
 }
+// ../n8n/src/orchestration/run-state/readiness.ts
+var READINESS_INSTRUCTION = [
+  "You are validating a generated orchestration plan for ONE-SHOT READINESS.",
+  "Assess every task against the following criteria:",
+  "",
+  "1. **Brief clarity** \u2014 each task's `brief` is non-empty and clearly describes",
+  "   what the specialist must deliver and how success is measured.",
+  "2. **Agent pin** \u2014 every task has a non-empty `agent` field naming a valid",
+  "   Software Teams specialist (e.g. software-teams-frontend, software-teams-backend).",
+  "3. **Dependencies present & acyclic** \u2014 every taskId referenced in `dependsOn`",
+  "   exists in the plan; the dependency graph is acyclic.",
+  "4. **Valid waves** \u2014 every task has a `wave` >= 1.",
+  "",
+  "Respond with EXACTLY this format (machine-parsed, no extra prose before the header):",
+  "",
+  "```",
+  "READINESS: ready",
+  "```",
+  "",
+  "OR, if any criterion fails:",
+  "",
+  "```",
+  "READINESS: blocked",
+  "gaps:",
+  "- <gap description 1>",
+  "- <gap description 2>",
+  "```",
+  "",
+  "List EVERY blocking gap. Be specific: name the taskId and the failing criterion."
+].join(`
+`);
 // src/commands/orchestrator-turn.ts
 function getPlanEpicFn() {
   if (process.env.ST_CLI_TEST_STUB === "1") {
@@ -24912,7 +24979,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.12.1",
+  version: "0.12.2",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {

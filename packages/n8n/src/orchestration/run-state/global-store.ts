@@ -24,3 +24,13 @@ export function writeRunState(
 ): void {
   getRunStore(staticData)[correlationId] = serialiseRunState(state);
 }
+
+export function deleteRunState(
+  staticData: Record<string, unknown>,
+  correlationId: string,
+): boolean {
+  const runs = getRunStore(staticData);
+  if (!(correlationId in runs)) return false;
+  delete runs[correlationId];
+  return true;
+}

@@ -147,8 +147,8 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
   });
 
   describe("field count and naming", () => {
-    test("declares exactly 6 properties (1 required + 5 optional)", () => {
-      expect(credential.properties).toHaveLength(6);
+    test("declares exactly 8 properties (1 required + 7 optional)", () => {
+      expect(credential.properties).toHaveLength(8);
     });
 
     test("all property names follow camelCase convention", () => {

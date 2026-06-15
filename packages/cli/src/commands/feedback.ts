@@ -1,8 +1,9 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
 import { exec } from "../utils/git";
+import { redirectConsolaToStderr } from "./_envelope-io";
 
-interface ReviewComment {
+export interface ReviewComment {
   path: string;
   line: number | null;
   body: string;
@@ -51,6 +52,12 @@ export const feedbackCommand = defineCommand({
     },
   },
   async run({ args }) {
+    // When --json is set, redirect all consola output to stderr so stdout
+    // contains ONLY the JSON array (headless / machine-parseable mode).
+    if (args.json) {
+      redirectConsolaToStderr();
+    }
+
     // Check gh CLI
     const { exitCode: ghCheck } = await exec(["which", "gh"]);
     if (ghCheck !== 0) {
@@ -125,6 +132,10 @@ export const feedbackCommand = defineCommand({
     }
 
     if (comments.length === 0) {
+      if (args.json) {
+        console.log(JSON.stringify([]));
+        return;
+      }
       consola.info(`No review comments found for PR #${prNum}.`);
       return;
     }

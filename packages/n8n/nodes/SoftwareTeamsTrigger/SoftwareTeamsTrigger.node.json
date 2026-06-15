@@ -10,5 +10,5 @@
       }
     ]
   },
-  "alias": ["software teams trigger", "clickup trigger", "datadog trigger", "ticket ingestion"]
+  "alias": ["software teams trigger", "clickup trigger", "datadog trigger", "prompt trigger", "ticket ingestion"]
 }

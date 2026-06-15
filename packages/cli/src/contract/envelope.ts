@@ -10,6 +10,29 @@
  * needs only this contract — nothing about the upstream node's internals.
  */
 
+// ---------------------------------------------------------------------------
+// PR correlation tag — canonical format + helpers (plan 1-01 T3, AC2/R-06)
+// ---------------------------------------------------------------------------
+
+/** Machine-parseable marker stamped into a PR body so the PR-Feedback node can
+ *  recover the originating run. HTML comment so it renders invisibly. */
+export const CORRELATION_TAG_PREFIX = "software-teams:correlationId=";
+
+/** Build the HTML-comment correlation tag for a given correlationId. */
+export function buildCorrelationTag(correlationId: string): string {
+  return `<!-- ${CORRELATION_TAG_PREFIX}${correlationId} -->`;
+}
+
+/** Parse a correlationId out of a PR body string. Returns `null` if no tag is present. */
+export function parseCorrelationTag(body: string): string | null {
+  const m = body.match(/<!--\s*software-teams:correlationId=([^\s>]+)\s*-->/);
+  return m ? m[1] : null;
+}
+
+// ---------------------------------------------------------------------------
+// Envelope types
+// ---------------------------------------------------------------------------
+
 /** A produced reference (PR, issue, comment, branch, etc.) */
 export interface ArtifactRef {
   /** e.g. "pr" | "issue" | "comment" | "branch" — open vocabulary. */
@@ -44,6 +67,25 @@ export interface ChangeRef {
   readonly kind: "format-patch";
   /** base64 of `git format-patch` bytes; re-applied on any worker (queue-safe). */
   readonly patchBase64: string;
+}
+
+/**
+ * A single categorised PR-review comment carried by the `feedback` envelope field.
+ * Shape mirrors the `feedback --json` CLI output (plan 1-01 T4).
+ */
+export interface FeedbackComment {
+  /** File path the comment targets (relative to repo root). */
+  path: string;
+  /** Line number the comment targets, or `null` for file-level / general comments. */
+  line: number | null;
+  /** The review comment body text. */
+  body: string;
+  /** GitHub username of the reviewer. */
+  author: string;
+  /** Category assigned during ingestion (e.g. "bug", "style", "question"). */
+  category: string;
+  /** Suggested action (e.g. "fix", "discuss", "acknowledge"). */
+  action: string;
 }
 
 /**
@@ -93,4 +135,17 @@ export interface NodeEnvelope {
    *  transition (T8) and the Finaliser (T9). Top-level sibling of `input`; `assemblePrompt`
    *  reads only `input`, so this field is never serialised into the model prompt. */
   changeRef?: ChangeRef;
+
+  /** Categorised PR-review comments from the PR-Feedback node (plan 1-01 T7).
+   *  Carries feedback into the Orchestrator continue-run path. Additive, optional —
+   *  absent when the envelope is not a PR-feedback re-entry. Top-level sibling of
+   *  `input`; `assemblePrompt` reads only `input`, so this field is never serialised
+   *  into the model prompt. */
+  feedback?: { comments: FeedbackComment[] };
+
+  /** Upstream hint for which HITL channel to use. The HITL node's own param still
+   *  wins; this is a default/hint only. Additive, optional — absent when no channel
+   *  preference is specified. Top-level sibling of `input`; `assemblePrompt` reads
+   *  only `input`, so this field is never serialised into the model prompt. */
+  hitlChannel?: "slack" | "email" | "notify" | "discord";
 }

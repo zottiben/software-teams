@@ -93,5 +93,30 @@ export class SoftwareTeamsApi implements ICredentialType {
         'Slack Bot OAuth token (xoxb-…). Used by the HITL state machine (T10) ' +
         'to post agent questions and receive human replies via Slack webhooks.',
     },
+
+    {
+      displayName: 'Discord Bot Token',
+      name: 'discordBotToken',
+      type: 'string',
+      typeOptions: { password: true },
+      default: '',
+      description:
+        'Discord Bot Token. Used by the channel-agnostic HITL node (T8) to ' +
+        'post agent questions and acknowledgements to a Discord channel via the ' +
+        'Discord REST API. The bot must have Send Messages permission in the target channel.',
+    },
+
+    {
+      displayName: 'SMTP URL',
+      name: 'smtpUrl',
+      type: 'string',
+      typeOptions: { password: true },
+      default: '',
+      description:
+        'Single SMTP connection string (e.g. smtp://user:pass@host:port or ' +
+        'smtps://user:pass@host:465). Used by the channel-agnostic HITL node (T8) ' +
+        'to send agent questions and acknowledgements via email. Encodes all SMTP ' +
+        'credentials in one URL — do NOT add separate host/user/password fields.',
+    },
   ];
 }

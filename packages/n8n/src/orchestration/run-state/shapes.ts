@@ -24,6 +24,11 @@ export type RunTaskStatus =
 
 export interface RunTaskState {
   taskId: string;
+  /** The task brief text — copied from `OrchestrationTask.name` at plan time so
+   *  it is available for the readiness gate without re-invoking the planner.
+   *  Additive + optional so existing serialised run-states without `name` still
+   *  deserialise cleanly. */
+  name?: string;
   agent: string;
   wave: number;
   dependsOn: string[];

@@ -1,0 +1,18 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsPrFeedback",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Development", "AI"],
+  "subcategories": {
+    "Development": ["Source Control"],
+    "AI": ["Agents"]
+  },
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/n8n#pr-feedback-node"
+      }
+    ]
+  },
+  "alias": ["software teams pr feedback", "github pr review", "pr comments", "feedback ingestion"]
+}

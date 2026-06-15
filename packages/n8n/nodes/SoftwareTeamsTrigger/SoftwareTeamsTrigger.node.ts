@@ -18,7 +18,7 @@ import {
 } from "@websitelabs/software-teams";
 import { toDataObject } from "../../src/n8n-cast";
 
-function newCorrelationId(source: "clickup" | "datadog"): string {
+function newCorrelationId(source: "clickup" | "datadog" | "prompt"): string {
   const date = new Date().toISOString().slice(0, 10);
   const rand = Math.random().toString(36).slice(2, 10);
   return `run-${date}-${source}-${rand}`;
@@ -32,9 +32,11 @@ export class SoftwareTeamsTrigger implements INodeType {
     group: ["transform"],
     version: 1,
     description:
-      "Fetches context from a ClickUp ticket or Datadog issue and creates an initial " +
-      "Software Teams workflow envelope. Place this node after a ClickUp, Datadog, or " +
-      "Schedule trigger to enrich the workflow with PII-scrubbed ticket/issue context.",
+      "Fetches context from a ClickUp ticket or Datadog issue, or accepts a plain " +
+      "free-text prompt, and creates an initial Software Teams workflow envelope. " +
+      "Place this node after a ClickUp, Datadog, or Schedule trigger to enrich the " +
+      "workflow with PII-scrubbed ticket/issue context, or use the Prompt source " +
+      "to start a workflow from a free-text instruction.",
     subtitle: '={{ $parameter["source"] }}',
     defaults: {
       name: "Software Teams Trigger Ingestion",
@@ -55,20 +57,20 @@ export class SoftwareTeamsTrigger implements INodeType {
         options: [
           { name: "ClickUp", value: "clickup" },
           { name: "Datadog", value: "datadog" },
+          { name: "Prompt", value: "prompt" },
         ],
         default: "clickup",
         required: true,
         noDataExpression: false,
         description:
-          "The integration source to fetch context from. " +
-          "Determines which credential fields and ref format are used.",
+          "The integration source to fetch context from. ClickUp and Datadog fetch " +
+          "external context; Prompt uses the workflow prompt directly with no external call.",
       },
       {
         displayName: "ClickUp Task Ref",
         name: "clickupRef",
         type: "string",
         default: "",
-        required: true,
         displayOptions: {
           show: { source: ["clickup"] },
         },
@@ -81,7 +83,6 @@ export class SoftwareTeamsTrigger implements INodeType {
         name: "datadogRef",
         type: "string",
         default: "",
-        required: true,
         displayOptions: {
           show: { source: ["datadog"] },
         },
@@ -123,7 +124,7 @@ export class SoftwareTeamsTrigger implements INodeType {
     // n8n per-item + continueOnFail pattern; entries() avoids a let counter.
     for (const [i] of items.entries()) {
       try {
-        const source = this.getNodeParameter("source", i) as "clickup" | "datadog";
+        const source = this.getNodeParameter("source", i) as "clickup" | "datadog" | "prompt";
         const prompt = this.getNodeParameter("prompt", i) as string;
         const agentId = (this.getNodeParameter("agentId", i) as string) || "software-teams-trigger";
 
@@ -175,12 +176,17 @@ export class SoftwareTeamsTrigger implements INodeType {
  * (graceful degradation per spec AC5).
  */
 async function fetchContext(
-  source: "clickup" | "datadog",
+  source: "clickup" | "datadog" | "prompt",
   i: number,
   node: IExecuteFunctions,
   clickupCreds: { clickupApiKey: string },
   datadogCreds: { datadogApiKey: string; datadogAppKey: string },
 ): Promise<unknown> {
+  if (source === "prompt") {
+    // No external fetch — the prompt param IS the task instruction.
+    return { source: "prompt" };
+  }
+
   if (source === "clickup") {
     const refStr = (node.getNodeParameter("clickupRef", i) as string).trim();
     const ref = extractClickUpRef(refStr) ?? { taskId: refStr };

@@ -356,3 +356,95 @@ The GitHub token is **never** a field on the envelope or in `RepoContext` (R-02)
 travels only via the `SoftwareTeamsApi` credential into the child-process env (T3). The
 `contract-check` gate and existing tests MUST stay green; a changed existing test
 signals a regression, not a test to edit.
+
+---
+
+## 7. Addendum — PR-feedback and HITL additive fields (plan `1-01`, AC2/AC7)
+
+> **Status:** Accepted. Pairs with plan `1-01-n8n-e2e-gaps`.
+> **Implemented by** T3 (contract surface), T7 (PR-Feedback node), T11 (Output node tag writer).
+> **Registration and node-load gate verified by** T12 (`software-teams-devops`).
+> **Architecture decision:** see [`ARCHITECTURE.md`](./ARCHITECTURE.md) ADR-005 (PR-tag
+> correlationId re-entry + merge-triggered cleanup) for the full decision record covering
+> the PR-tag mechanism (Decision P), PR-feedback re-entry (Decision Q), multi-round
+> multi-channel HITL (Decision R), and cleanup (Decision S).
+> **Additive and optional ONLY.**
+
+### 7.1 The six top-level invariants are UNCHANGED
+
+The six fields of §1 (`correlationId`, `agentId`, `status`, `input`, `result`,
+`artifacts`), their types, the invariants the `contract-check` gate asserts (§1), and
+the **§4 upstream-context merge are all unchanged**. Existing envelope/contract tests
+stay green.
+
+Two additive optional top-level fields are introduced below (`feedback`, `hitlChannel`).
+Because they are top-level siblings of `input` — and `assemblePrompt` reads only
+`input` — neither field is ever serialised into the model prompt.
+
+### 7.2 `feedback` — categorised PR-review comments (additive, optional)
+
+The PR-Feedback node (T7) ingests GitHub PR review comments, categorises them (reusing
+`feedback --json` from T4), and emits a continue-run `NodeEnvelope` carrying the
+categorised comments in the optional `feedback` field. This is how PR review feedback
+re-enters the Orchestrator's continue path (AC2).
+
+```ts
+/** A single categorised PR-review comment. */
+export interface FeedbackComment {
+  path: string;
+  line: number | null;
+  body: string;
+  author: string;
+  category: string;
+  action: string;
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `feedback` | `{ comments: FeedbackComment[] }` | **no** (optional) | Categorised PR-review comments from the PR-Feedback node. Absent on envelopes that are not PR-feedback re-entries. |
+
+### 7.3 `hitlChannel` — upstream HITL channel hint (additive, optional)
+
+An upstream node may hint which HITL channel should be used for human interaction. The
+HITL node's own parameter always wins; this field is a default/hint only.
+
+```ts
+hitlChannel?: 'slack' | 'email' | 'notify' | 'discord';
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `hitlChannel` | `'slack' \| 'email' \| 'notify' \| 'discord'` | **no** (optional) | Upstream hint for HITL channel selection. The HITL node param overrides. |
+
+### 7.4 PR correlation tag
+
+The Output node stamps a machine-parseable `correlationId` tag into the PR body when
+it opens a PR. The PR-Feedback node parses that tag to recover the originating run's
+`correlationId`, enabling the feedback re-entry loop (AC2).
+
+The tag is an invisible HTML comment:
+
+```
+<!-- software-teams:correlationId=run-2026-06-03-CU-4821 -->
+```
+
+Two canonical helpers are exported from the shared contract
+(`packages/cli/src/contract/envelope.ts`) so that writer (Output node, T11) and
+reader (PR-Feedback node, T7) import the same code (R-06):
+
+| Helper | Signature | Purpose |
+|--------|-----------|---------|
+| `buildCorrelationTag` | `(correlationId: string) => string` | Wraps the id in an HTML comment. Used by the Output node when building the PR body. |
+| `parseCorrelationTag` | `(body: string) => string \| null` | Extracts the correlationId from a PR body. Returns `null` if no tag is present. Used by the PR-Feedback node. |
+| `CORRELATION_TAG_PREFIX` | `string` (constant) | The prefix string `"software-teams:correlationId="`. |
+
+Round-trip invariant: `parseCorrelationTag(buildCorrelationTag(id)) === id` for any
+non-empty `id` that contains no whitespace or `>`.
+
+### 7.5 Additive-only rule (binding on all `1-01` slices)
+
+Any new field introduced by `1-01` is **additive and optional**. No slice may make an
+existing field optional, change a type, add a required field, or alter the §4 merge.
+The `contract-check` gate and existing tests MUST stay green; a changed existing test
+signals a regression, not a test to edit.

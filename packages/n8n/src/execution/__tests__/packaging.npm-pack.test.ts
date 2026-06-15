@@ -15,6 +15,9 @@ const NODE_BASENAMES = [
   "SoftwareTeamsSlackHitl",
   "SoftwareTeamsWorkspace",
   "SoftwareTeamsFinaliser",
+  "SoftwareTeamsPrFeedback",
+  "SoftwareTeamsHitl",
+  "SoftwareTeamsCleanup",
 ];
 
 const tarState = { files: [] as string[], packDir: "" };
@@ -64,16 +67,16 @@ describe("npm pack — publish-ready tarball contents (AC7, AC10)", () => {
   });
 
   describe("tarball CONTAINS dist nodes + credential (AC10)", () => {
-    test("all seven built node bundles are packed", () => {
+    test("all ten built node bundles are packed", () => {
       for (const base of NODE_BASENAMES) {
         const expected = `dist/nodes/${base}/${base}.node.js`;
         expect(tarState.files).toContain(expected);
       }
     });
 
-    test("exactly seven *.node.js entries ship (no more, no fewer)", () => {
+    test("exactly ten *.node.js entries ship (no more, no fewer)", () => {
       const nodeJs = tarState.files.filter((p) => p.endsWith(".node.js"));
-      expect(nodeJs.length).toBe(7);
+      expect(nodeJs.length).toBe(10);
     });
 
     test("the credential entry-point is packed", () => {

@@ -10,15 +10,18 @@ import {
 import { randomUUID } from 'node:crypto';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 import {
+  buildReadinessEnvelope,
   deserialiseRunState,
   enumerateAgentResults,
   getRunStore,
   isNodeEnvelope,
+  parseReadinessVerdict,
   planEpic,
   readRunState,
   recordAgentResult,
   serialiseRunState,
   summarise,
+  writeRunState,
   type PlanResult,
 } from '../../src/orchestration/run-state';
 import { toDataObject } from '../../src/n8n-cast';
@@ -84,6 +87,12 @@ export class SoftwareTeamsOrchestrator implements INodeType {
             action: 'Break an epic into a waved task breakdown and fan out one envelope per task',
           },
           {
+            name: 'Review',
+            value: 'review',
+            description: 'Validate a generated plan for one-shot readiness before fan-out (AC1 readiness gate)',
+            action: 'Validate a generated plan for one shot readiness before fan out',
+          },
+          {
             name: 'Summary',
             value: 'summary',
             description: 'Read aggregated run-state for a completed or in-flight run and emit an Orchestrator-centric human summary of what each agent did',
@@ -91,7 +100,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           },
         ],
         default: 'plan',
-        description: 'Whether to plan a new epic or summarise an existing run',
+        description: 'Whether to plan a new epic, review a plan, or summarise an existing run',
       },
       {
         displayName: 'Epic / Sprint Goal',
@@ -221,6 +230,180 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           },
           pairedItem: { item: i },
         });
+        continue;
+      }
+
+      // -------------------------------------------------------------------
+      // review — one-shot readiness gate (AC1, T6)
+      // -------------------------------------------------------------------
+      if (operation === 'review') {
+        const upstreamCorrelationId =
+          isNodeEnvelope(upstream) ? (upstream.correlationId as string) : '';
+        const correlationIdParam = (
+          this.getNodeParameter('correlationId', i, '') as string
+        ).trim();
+        const resolvedId = upstreamCorrelationId || correlationIdParam;
+
+        if (!resolvedId) {
+          const errEnv: NodeEnvelope = {
+            correlationId: '',
+            agentId: 'software-teams-quality',
+            status: 'needs-input',
+            input: { prompt: '', context: null },
+            result: { text: 'Review requires a correlationId — the run must be planned first.' },
+            artifacts: [],
+          };
+          returnData.push({ json: toDataObject(errEnv), pairedItem: { item: i } });
+          continue;
+        }
+
+        const epic = (this.getNodeParameter('epic', i) as string)?.trim();
+
+        const model = this.getNodeParameter('model', i, 'claude-sonnet-4-5') as string;
+        if (model) {
+          process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
+        }
+
+        // Maximum 2 refine attempts (re-plan + re-review); after that, park via HITL.
+        const MAX_REFINE_ATTEMPTS = 2;
+        let accumulatedGaps: string[] = [];
+
+        for (let attempt = 0; attempt <= MAX_REFINE_ATTEMPTS; attempt++) {
+          const runState = readRunState(staticData, resolvedId);
+          if (runState === null) {
+            const errEnv: NodeEnvelope = {
+              correlationId: resolvedId,
+              agentId: 'software-teams-quality',
+              status: 'needs-input',
+              input: { prompt: '', context: null },
+              result: { text: `No run-state found for correlationId "${resolvedId}" — the run must be planned first.` },
+              artifacts: [],
+            };
+            returnData.push({ json: toDataObject(errEnv), pairedItem: { item: i } });
+            break;
+          }
+
+          // Run the single-turn quality pass
+          const readinessEnv = buildReadinessEnvelope(runState, resolvedId);
+          let qualityResponse: NodeEnvelope;
+          try {
+            qualityResponse = await boundRunAgentTurn(readinessEnv);
+          } catch (err) {
+            if (this.continueOnFail()) {
+              returnData.push({
+                json: { error: err instanceof Error ? err.message : String(err) },
+                pairedItem: { item: i },
+              });
+              break;
+            }
+            throw new NodeOperationError(
+              this.getNode(),
+              `Readiness review failed: ${err instanceof Error ? err.message : String(err)}`,
+              { itemIndex: i },
+            );
+          }
+
+          const verdict = parseReadinessVerdict(qualityResponse.result.text);
+
+          if (verdict.ready) {
+            // PASS — emit green "ready" signal for downstream fan-out gate
+            const readyEnv: NodeEnvelope = {
+              correlationId: resolvedId,
+              agentId: 'software-teams-quality',
+              status: 'ok',
+              input: { prompt: '', context: { operation: 'review' } },
+              result: { text: 'Readiness gate: PASS — plan is ready for fan-out.' },
+              artifacts: [],
+            };
+            returnData.push({
+              json: {
+                ...toDataObject(readyEnv),
+                review: { ready: true },
+              },
+              pairedItem: { item: i },
+            });
+            break;
+          }
+
+          // BLOCKED — accumulate gaps
+          accumulatedGaps = [...accumulatedGaps, ...verdict.gaps];
+
+          // If we have exhausted refine attempts, park via HITL
+          if (attempt >= MAX_REFINE_ATTEMPTS) {
+            const parkedEnv: NodeEnvelope = {
+              correlationId: resolvedId,
+              agentId: 'software-teams-quality',
+              status: 'needs-input',
+              input: { prompt: '', context: { operation: 'review' } },
+              result: {
+                text: `Readiness gate: BLOCKED after ${MAX_REFINE_ATTEMPTS} refine attempt(s).\n\nBlocking gaps:\n${accumulatedGaps.map((g) => `- ${g}`).join('\n')}`,
+              },
+              artifacts: [],
+            };
+            returnData.push({
+              json: {
+                ...toDataObject(parkedEnv),
+                review: { ready: false, gaps: accumulatedGaps },
+              },
+              pairedItem: { item: i },
+            });
+            break;
+          }
+
+          // Auto-refine: re-invoke planEpic with gaps appended to the epic
+          if (!epic) {
+            // Cannot refine without the epic text — park immediately
+            const parkedEnv: NodeEnvelope = {
+              correlationId: resolvedId,
+              agentId: 'software-teams-quality',
+              status: 'needs-input',
+              input: { prompt: '', context: { operation: 'review' } },
+              result: {
+                text: `Readiness gate: BLOCKED — cannot auto-refine without an epic.\n\nBlocking gaps:\n${accumulatedGaps.map((g) => `- ${g}`).join('\n')}`,
+              },
+              artifacts: [],
+            };
+            returnData.push({
+              json: {
+                ...toDataObject(parkedEnv),
+                review: { ready: false, gaps: accumulatedGaps },
+              },
+              pairedItem: { item: i },
+            });
+            break;
+          }
+
+          const refinedEpic = `${epic}\n\n## Readiness gaps to address\n${verdict.gaps.join('\n')}`;
+          let refinedPlan: PlanResult;
+          try {
+            refinedPlan = await planEpic(refinedEpic, resolvedId, boundRunAgentTurn);
+          } catch (err) {
+            if (this.continueOnFail()) {
+              returnData.push({
+                json: { error: err instanceof Error ? err.message : String(err) },
+                pairedItem: { item: i },
+              });
+              break;
+            }
+            throw new NodeOperationError(
+              this.getNode(),
+              `Readiness refine (attempt ${attempt + 1}) failed: ${err instanceof Error ? err.message : String(err)}`,
+              { itemIndex: i },
+            );
+          }
+
+          if (refinedPlan.plannerNeedsInput) {
+            returnData.push({
+              json: toDataObject(refinedPlan.plannerNeedsInput),
+              pairedItem: { item: i },
+            });
+            break;
+          }
+
+          // Persist the refined plan (overwrites the prior plan)
+          writeRunState(staticData, resolvedId, refinedPlan.state);
+          // Loop back to re-review the refreshed plan
+        }
         continue;
       }
 

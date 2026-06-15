@@ -3,6 +3,9 @@ import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 
+/** Supported HITL delivery channels. */
+export type HitlChannel = 'slack' | 'email' | 'notify' | 'discord';
+
 /** All the state the HITL node needs to resume a parked run. */
 export interface ConversationState {
   correlationId: string;
@@ -12,6 +15,25 @@ export interface ConversationState {
   resumeUrl: string;
   question: string;
   createdAt: number;
+
+  /**
+   * Which delivery channel this conversation is using.
+   * Optional for back-compat — omitted states are implicitly Slack.
+   */
+  channel?: HitlChannel;
+
+  /**
+   * Current round number (1-based). Omitted states default to round 1.
+   * Callers increment via `nextRound()` and re-save to continue the loop.
+   */
+  round?: number;
+
+  /**
+   * Generic bag for non-Slack channel delivery coordinates (e.g. Discord
+   * channel/message id, email thread id). Avoids adding new top-level
+   * fields for every channel.
+   */
+  delivery?: Record<string, unknown>;
 }
 
 type StateStore = Record<string, ConversationState>;
@@ -68,4 +90,12 @@ export function deleteState(correlationId: string): void {
 /** Return all stored states (useful for auditing / expiry sweeps). */
 export function allStates(): ConversationState[] {
   return Object.values(readStore());
+}
+
+/**
+ * Return the next round number for a conversation state.
+ * States with no `round` field are treated as round 1, so the next is 2.
+ */
+export function nextRound(state: ConversationState): number {
+  return (state.round ?? 1) + 1;
 }

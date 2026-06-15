@@ -41,5 +41,12 @@ export {
   getRunStore,
   readRunState,
   writeRunState,
+  deleteRunState,
   type RunStore,
 } from "./run-state/global-store";
+
+export {
+  buildReadinessEnvelope,
+  parseReadinessVerdict,
+  type ReadinessVerdict,
+} from "./run-state/readiness";

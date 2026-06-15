@@ -34,7 +34,7 @@ In your self-hosted n8n instance:
    ```
 
 3. Accept the security prompt and wait for the install to complete.
-4. The seven nodes (Agent, Trigger Ingestion, Orchestrator, Slack HITL, Output, Workspace, Finaliser) appear in the **Software Teams** section of the node palette.
+4. The ten nodes (Agent, Trigger Ingestion, Orchestrator, Slack HITL, HITL, PR Feedback, Output, Workspace, Finaliser, Cleanup) appear in the **Software Teams** section of the node palette.
 5. Create and configure the **Software Teams API** credential (see below).
 
 > **CLI alternative:** on the worker host run `npm install @websitelabs/n8n-nodes-software-teams` in n8n's `~/.n8n/nodes/` custom-nodes directory, then restart n8n.
@@ -53,8 +53,10 @@ Create the credential at **Credentials → New → Software Teams API**.
 | **ClickUp API Token** | for ClickUp triggers | ClickUp personal API token. Used by the Trigger Ingestion node to fetch ticket context. |
 | **Datadog API Key** | for Datadog triggers | Datadog API key for issue context fetch. |
 | **Datadog Application Key** | for Datadog triggers | Required alongside the API key for certain Datadog endpoints. |
-| **GitHub Token** | for GitHub output | Personal access token (or fine-grained PAT) with `repo` + PR write scopes. Used by the Output node to open PRs and issues. |
-| **Slack Bot Token** | for Slack HITL | Bot OAuth token (`xoxb-…`). Required by the Slack HITL node to post questions and handle resume. |
+| **GitHub Token** | for GitHub output + PR feedback + cleanup | Personal access token (or fine-grained PAT) with `repo` + PR write scopes. Used by the Output node to open PRs, the PR Feedback node to fetch review comments, and the Cleanup node to verify merge status. |
+| **Slack Bot Token** | for Slack HITL | Bot OAuth token (`xoxb-…`). Required by the Slack HITL and legacy Slack HITL nodes when the `slack` channel is selected. |
+| **Discord Bot Token** | for Discord HITL | Discord bot token (`Bot …`). Required by the HITL node when the `discord` channel is selected (the priority channel for the first live test). Injected as `DISCORD_BOT_TOKEN` — never on the envelope or in logs (AC8). |
+| **SMTP URL** | for Email HITL | SMTP connection string (e.g. `smtps://user:pass@smtp.example.com`). Required by the HITL node when the `email` channel is selected. Injected as `SMTP_URL` — never on the envelope or in logs (AC8). |
 
 After saving, n8n will test the Anthropic key by listing available models. A ✓ confirms connectivity.
 
@@ -62,30 +64,33 @@ After saving, n8n will test the Anthropic key by listing available models. A ✓
 
 ## Nodes
 
-All seven nodes share the **Software Teams API** credential and pass a single typed `NodeEnvelope` object between them. See [`CONTRACT.md`](./CONTRACT.md) for the full inter-node data contract.
+All ten nodes share the **Software Teams API** credential and pass a single typed `NodeEnvelope` object between them. See [`CONTRACT.md`](./CONTRACT.md) for the full inter-node data contract.
 
 ### Software Teams Trigger Ingestion
 
-**Purpose:** Fetches context from a ClickUp ticket or Datadog issue and emits an initial `NodeEnvelope` — the starting point of every Software Teams workflow.
+**Purpose:** Fetches context from a ClickUp ticket, Datadog issue, or a **plain free-text prompt** (AC6) and emits an initial `NodeEnvelope` — the starting point of every Software Teams workflow.
 
-Place this node **after** a native n8n ClickUp, Datadog, or Schedule trigger; it enriches the upstream data with PII-scrubbed ticket/issue context.
+Place this node **after** a native n8n ClickUp, Datadog, Schedule, or Form trigger; it enriches the upstream data with PII-scrubbed ticket/issue context, or passes through the raw prompt directly when using the `prompt` source.
 
 | Port | Direction | Type | Notes |
 |------|-----------|------|-------|
 | (none) | Input | — | No input port; receives data from n8n trigger node before it |
-| Main | Output | `NodeEnvelope` | Fresh envelope with `correlationId`, `status: 'ok'`, and `input.context` populated from the fetched ticket/issue |
+| Main | Output | `NodeEnvelope` | Fresh envelope with `correlationId`, `status: 'ok'`, and `input.context` populated from the fetched ticket/issue or the raw prompt |
 
 **Parameters:**
 
 | Parameter | Description |
 |-----------|-------------|
-| Source | `ClickUp` or `Datadog` |
+| Source | `ClickUp`, `Datadog`, or **`Prompt`** (AC6 — a plain free-text prompt as a first-class trigger source) |
+| Prompt | Free-text task prompt (used when `Source = Prompt`; supports n8n expressions for Form Trigger integration) |
 | ClickUp Task Ref | Task URL or bare task ID (supports n8n expressions) |
 | Datadog Issue URL | Issue URL with `issueId` param (supports n8n expressions) |
 | Workflow Prompt | Initial task instruction for the first downstream Agent node |
 | First Agent ID | Specialist hint for the first downstream node (e.g. `software-teams-researcher`) |
 
 If the credential keys are missing or the ref is unreachable the node proceeds with `context: null` and logs a diagnostic — it does not block the workflow.
+
+**Prompt source (AC6):** when `Source = Prompt`, the node uses the literal `Prompt` parameter value as the task context — no external API call is made. This makes a plain free-text prompt a first-class trigger alongside ClickUp and Datadog, enabling simple Form Trigger → Trigger Ingestion → Orchestrator flows without any external ticket system.
 
 ---
 
@@ -111,22 +116,31 @@ If the credential keys are missing or the ref is unreachable the node proceeds w
 
 ### Software Teams Orchestrator
 
-**Purpose:** Accepts an epic/sprint goal, runs a planning turn as `software-teams-planner`, and **emits one `NodeEnvelope` per wave-task** in dependency order — the canvas delegation mechanism. Downstream Agent nodes consume these items (static wiring or a Switch keyed on `agentId`). Also bubbles `needs-input` and `error` envelopes from sub-agents up to the Slack HITL / error branch.
+**Purpose:** Accepts an epic/sprint goal, runs a planning turn as `software-teams-planner`, and **emits one `NodeEnvelope` per wave-task** in dependency order — the canvas delegation mechanism. Downstream Agent nodes consume these items (static wiring or a Switch keyed on `agentId`). Also bubbles `needs-input` and `error` envelopes from sub-agents up to the HITL / error branch.
+
+Supports three operations selectable via the `Operation` parameter:
+
+| Operation | Description |
+|-----------|-------------|
+| `plan` (default) | Runs a planning turn and fans out one envelope per wave-task |
+| `review` | **Readiness gate (AC1):** runs a single-turn, Task-disabled `software-teams-quality` pass that validates the generated plan for one-shot readiness (clear briefs, deps, agent pins, acceptance criteria) BEFORE fan-out. On pass it allows fan-out; on fail it surfaces blocking gaps and either auto-refines within ≤2 attempts or parks via the HITL path. `planEpic()` behaviour is unchanged. |
+| `summary` | Reads aggregated run-state and emits a human-facing run summary (per-agent results + overall outcome) |
 
 | Port | Direction | Type | Notes |
 |------|-----------|------|-------|
 | Main | Input | `NodeEnvelope` or plain | Upstream trigger/ingestion output. A `needs-input` or `error` envelope is passed through unchanged for HITL/error routing. |
-| Main | Output | `NodeEnvelope[]` | One item per wave-task, each a full envelope with the task prompt and `agentId` preset to the planned specialist. Also includes a `run` meta-block (`correlationId`, `taskCount`). |
+| Main | Output | `NodeEnvelope[]` | `plan`/`review` operations: one item per wave-task with `agentId` preset. `summary` operation: one summary envelope. |
 
 **Parameters:**
 
 | Parameter | Description |
 |-----------|-------------|
+| Operation | `plan`, `review`, or `summary` |
 | Epic / Sprint Goal | The epic, user story, or project goal to plan. Supports n8n expressions. |
 | Correlation ID | Leave blank to auto-generate. Reuse an upstream envelope's `correlationId` to continue an existing run. |
 | Planner Model | Claude model for the planning turn |
 
-Run state (waves, task statuses) is persisted to workflow static data keyed by `correlationId` so partial failures are resumable (R-05).
+Run state (waves, task statuses) is persisted to workflow global static data keyed by `correlationId` so partial failures are resumable (R-05).
 
 ---
 
@@ -230,6 +244,103 @@ that includes the conflicting file list; no branch is pushed and no infinite loo
 
 ---
 
+### Software Teams PR Feedback
+
+**Purpose:** Ingests GitHub PR review comments back into a running Software Teams workflow. Triggered by a GitHub webhook (PR review or review-comment event), it fetches and categorises the review comments (reusing the `feedback --json` CLI), extracts the originating run's `correlationId` from the machine-parseable tag the Output node stamped into the PR body, and emits a continue-run `NodeEnvelope` that re-enters the Orchestrator's existing continue path (AC2).
+
+The tag in the PR body has the form:
+
+```
+<!-- software-teams:correlationId=run-2026-06-03-CU-4821 -->
+```
+
+The `parseCorrelationTag` helper (shared contract, `packages/cli/src/contract/envelope.ts`) extracts the id; the `buildCorrelationTag` helper (Output node, T11) writes it. The round-trip invariant `parseCorrelationTag(buildCorrelationTag(id)) === id` is asserted in the contract tests.
+
+| Port | Direction | Type | Notes |
+|------|-----------|------|-------|
+| Main | Input | any | Receives the GitHub webhook payload |
+| Main | Output | `NodeEnvelope` | Continue-run envelope carrying the original `correlationId` and categorised `feedback.comments` |
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| PR Number | The PR number to fetch review comments from (supports n8n expressions from the webhook payload) |
+| Repository | `owner/repo` of the target repository |
+
+**Secrets:** uses the `GitHub Token` from the `SoftwareTeamsApi` credential. The token is injected into the child process env — never in node output, the envelope, or logs (AC8).
+
+---
+
+### Software Teams HITL
+
+**Purpose:** Multi-channel, multi-round Human-in-the-Loop node. Extends the original `SlackHitl` with support for four channels — **Slack, Email, n8n-notification, and Discord** (Discord is the priority channel for the first live test). Unlike the legacy Slack HITL node, it re-parks state on each resume for genuine multi-round back-and-forth: on resume it re-saves conversation state so a follow-up question can be posed without starting a new run.
+
+Three execution modes determined at runtime:
+
+| Mode | Trigger | What happens |
+|------|---------|--------------|
+| **Ask** | Input envelope `status === 'needs-input'` | Posts the question on the selected channel, persists multi-round conversation state keyed by `correlationId`, calls `putExecutionToWait()` |
+| **Resume** | Inbound resume payload with `hitlAnswer` + `correlationId` | Loads state, re-invokes `runAgentTurn`, re-parks for the next round or emits a terminal envelope |
+| **Pass-through** | `status === 'ok'` or `'error'` | Passes envelope unchanged |
+
+**Channel selection order:**
+
+1. The `Channel` node parameter (explicit override wins).
+2. The optional `hitlChannel` field on the inbound envelope (hint from an upstream node).
+3. Default: `discord`.
+
+| Port | Direction | Type | Notes |
+|------|-----------|------|-------|
+| Main | Input | `NodeEnvelope` | See modes above |
+| Main | Output | `NodeEnvelope` | Ask mode: waiting envelope. Resume mode: continued agent envelope, possibly re-parked. |
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| Channel | `auto` (use envelope hint or default), `slack`, `discord`, `email`, or `notify` |
+| Wait Timeout (Hours) | Max hours to wait before execution times out (default 24) |
+
+**Secrets:** the channel tokens (`discordBotToken`, `smtpUrl`, `slackBotToken`) are read from the `SoftwareTeamsApi` credential and injected into the channel delivery function. They are never written to the envelope, node output, or logs (AC8).
+
+> **Self-hosted requirement:** set `WEBHOOK_URL=https://n8n.yourdomain.com` on the n8n worker so the signed resume URL is reachable from your HITL channel's servers.
+
+---
+
+### Software Teams Cleanup
+
+**Purpose:** Post-merge teardown node. Triggered by a GitHub PR MERGE webhook, it idempotently and safely removes all state associated with a completed run — run-state, conversation state, git worktrees, repo clones, agent memories, and `.software-teams/` plan artefacts — so the workflow is immediately reusable for a new task (AC5).
+
+**Idempotency:** running the Cleanup node twice for the same `correlationId` is a no-op the second time. Each cleanup operation checks whether the resource exists before attempting removal.
+
+| Port | Direction | Type | Notes |
+|------|-----------|------|-------|
+| Main | Input | any | Receives the GitHub merge webhook payload |
+| Main | Output | `NodeEnvelope` | Cleanup result envelope with `status: 'ok'` + summary in `result.text` |
+
+**What gets cleaned up (in order):**
+
+| Resource | How |
+|----------|-----|
+| Run-state (`runs[correlationId]`) | `deleteRunState` — removes the entry from workflow global static data |
+| Conversation state | `deleteState` — removes the HITL resume record keyed by `correlationId` |
+| Git worktrees | Calls the `worktree-remove` CLI primitive for each registered worktree |
+| Repo clones | Removes the run-scoped clone directory |
+| Agent memories | Clears per-agent memory files scoped to the `correlationId` |
+| Plan / task artefacts | Removes `.software-teams/` plan and task files for the run |
+
+**Parameters:**
+
+| Parameter | Description |
+|-----------|-------------|
+| Correlation ID | The run's `correlationId` — parse from the merged PR body using `parseCorrelationTag` |
+| Repository | `owner/repo` used to verify the PR was actually merged before cleanup |
+
+**Secrets:** uses the `GitHub Token` from the `SoftwareTeamsApi` credential for merge verification. Never written to node output or the envelope (AC8).
+
+---
+
 ## Inter-node data contract
 
 Every node emits and accepts a single `NodeEnvelope` JSON object:
@@ -269,7 +380,7 @@ Or from the package directory:
 bun run --cwd packages/n8n verify:node-load
 ```
 
-The gate builds first (`n8n-node build`), then loads all 8 entries (7 nodes + 1 credential) under Node.
+The gate builds first (`n8n-node build`), then loads all 11 entries (10 nodes + 1 credential) under Node.
 
 ### Why it runs as a distinct CI step (not inside the Bun test run)
 
@@ -347,7 +458,7 @@ the ClickUp label → Orchestrator → two agents → Slack HITL → GitHub PR e
 
 Import the ready-made workflow from [`examples/it-support-pr.workflow.json`](./examples/it-support-pr.workflow.json).
 
-### Repo execution: repo + prompt → real code changes → PR (seven-node canvas)
+### Repo execution: repo + prompt → real code changes → PR (full canvas)
 
 For workflows that make real file changes against a target repository, use the two new nodes
 (**Workspace** and **Finaliser**) alongside the existing five.

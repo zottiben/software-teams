@@ -1038,3 +1038,195 @@ run-state module):**
 2. Apply T2's hand-off note (under Decision J: no wiring change). Refresh the example/docs.
 3. Keep the existing Manual Trigger → Workspace → Orchestrator entry working byte-for-byte; any
    param ergonomics are additive only (no new required params, no `epic`-semantics change).
+
+---
+---
+
+# ADR-005: PR-tag correlationId re-entry + merge-triggered cleanup
+
+> **Status:** Accepted (plan `1-01-n8n-e2e-gaps`, T12, `software-teams-devops`).
+> Extends ADR-001/ADR-002/ADR-003/ADR-004 — none is re-opened. **This is the single
+> source of truth for the PR-tag mechanism and the merge-triggered cleanup.** Pairs with
+> [`CONTRACT.md`](./CONTRACT.md) §7 (PR-feedback and HITL additive fields).
+> **Decides:** AC2 (PR-feedback re-entry), AC5 (merge-triggered cleanup), AC8
+> (secrets isolation). **Honours:** ADR-001 forward-only DAG (no return edge), ADR-002
+> `correlationId` run-state join key, ADR-003 CJS load boundary, ADR-004 global static
+> data and additive-only contract.
+
+---
+
+## Context
+
+Two gaps remain open after the repo-execution work (1-04, ADR-002/ADR-004):
+
+1. **No PR-feedback re-entry.** When humans request changes via a GitHub PR review, no node
+   reads them back into the run. The Orchestrator's `continue-run` path exists but has no
+   producer feeding it the original `correlationId` from a PR.
+2. **No teardown.** After a human merges the PR there is no automatic cleanup of run-state,
+   conversation-state, worktrees/clones, agent memories, or plan/task artefacts, so the
+   workflow is not immediately reusable.
+
+This ADR fixes both gaps with three new nodes (`SoftwareTeamsPrFeedback`,
+`SoftwareTeamsHitl`, `SoftwareTeamsCleanup`) and one contract extension (the PR-tag in the
+Output node's PR body). It re-opens no decisions from ADR-001..004.
+
+---
+
+## Decision P — PR→run mapping via an HTML-comment tag in the PR body
+
+**CHOSEN: an invisible HTML-comment tag embedded in the PR body by the Output node.**
+The tag format is:
+
+```
+<!-- software-teams:correlationId=<correlationId> -->
+```
+
+Two canonical helpers are exported from the shared contract (`packages/cli/src/contract/envelope.ts`):
+
+| Helper | Signature | Purpose |
+|--------|-----------|---------|
+| `buildCorrelationTag` | `(correlationId: string) => string` | Writer (Output node, T11) |
+| `parseCorrelationTag` | `(body: string) => string \| null` | Reader (PR-Feedback + Cleanup nodes) |
+| `CORRELATION_TAG_PREFIX` | `string` | The prefix `"software-teams:correlationId="` |
+
+Round-trip invariant: `parseCorrelationTag(buildCorrelationTag(id)) === id` for any non-empty
+`id` without whitespace or `>`. The PR body is the ONE shared channel — no separate database
+record, no webhook payload field, no envelope field.
+
+**Why HTML comment:** invisible to human readers, immune to Markdown rendering, stable across
+GitHub's PR body edit UI, and parseable by a simple regex on the raw body text. The format is
+machine-readable and human-ignorable.
+
+**Rejected alternatives:**
+
+- **Envelope field:** would require surfacing the PR number/URL to an envelope producer that
+  does not yet know it; the Output node emits the envelope BEFORE the PR is opened. A post-open
+  tag in the PR body is the only write path that does not mutate the envelope retroactively.
+- **External database lookup:** adds a stateful store not part of n8n's built-in primitives.
+  The PR body is already the canonical, durable record of the PR, stored by GitHub with no extra
+  infrastructure. (ADR invariant: reuse existing primitives over adding new stores.)
+
+---
+
+## Decision Q — PR-feedback re-entry: forward-only continue path, no return edge (AC2; honours ADR-001 Decision C)
+
+The PR-Feedback node (`SoftwareTeamsPrFeedback`) is triggered by a GitHub PR review webhook
+and emits a **continue-run `NodeEnvelope`** that re-enters the Orchestrator's existing
+`continue-run` path — the same path that handles a resumed `correlationId` after HITL (the
+`recordAgentResult` / `run-state merge` transition at `SoftwareTeamsOrchestrator.node.ts:164-182`).
+
+**No new return edge is added.** The PR-Feedback node is a new webhook-triggered SOURCE node.
+Its output is a standard `NodeEnvelope` with the ORIGINAL `correlationId` (recovered from the
+PR tag via `parseCorrelationTag`) and the categorised feedback in the optional `feedback` field
+(CONTRACT.md §7.2). It flows FORWARD into the Orchestrator's continue path — the same forward
+flow that carries any resumed envelope. The DAG remains forward-only (ADR-001 Decision C,
+ADR-002 Decision F).
+
+**Feedback categorisation:** the PR-Feedback node shells out to `feedback --json` (the existing
+CLI primitive from `packages/cli/src/commands/feedback.ts:132-133`) to headlessly categorise
+the review comments into the `FeedbackComment[]` shape before emitting. This reuses existing
+tested logic — the node adds no new categorisation code.
+
+**Secrets (AC8):** the GitHub token is read from the `SoftwareTeamsApi` credential and injected
+into the child process env (`GITHUB_TOKEN`). It never appears on the envelope, node output, logs,
+or the model prompt.
+
+---
+
+## Decision R — Multi-round HITL: re-park on resume instead of delete-on-resume (AC3, AC4)
+
+The `SoftwareTeamsHitl` node replaces the single-round `SlackHitl` pattern with genuine
+multi-round back-and-forth by changing ONE behaviour: on resume it **re-saves conversation
+state** (for the next round) instead of deleting it.
+
+**State machine:**
+
+```
+status: 'needs-input'
+  │
+  ▼
+saveState(correlationId, ...)     ← Ask mode: persist state
+putExecutionToWait()
+
+  (human replies on the channel)
+
+  ▼
+loadState(correlationId)          ← Resume mode: load state
+runAgentTurn(...)
+  │
+  ├── status: 'needs-input' → saveState again (re-park for next round)
+  │                           putExecutionToWait()
+  └── status: 'ok' / 'error' → emit terminal envelope (conversation done)
+```
+
+The `deleteState` call from the legacy Slack HITL (which fired on the FIRST resume) is moved to
+the Cleanup node — it is called as part of the merge-triggered cleanup (Decision S), not on
+resume. This ensures a multi-round conversation can progress without losing state between rounds.
+
+**Multi-channel (AC4):** the `SoftwareTeamsHitl` node supports `slack`, `email` (`smtpUrl`),
+`notify` (n8n native notification), and `discord` (priority for the first live test). Channel
+selection: (1) the explicit node `Channel` param; (2) the optional `hitlChannel` envelope field
+(CONTRACT.md §7.3); (3) default `discord`. Channel tokens are read from the `SoftwareTeamsApi`
+credential — `discordBotToken` and `smtpUrl` (added in the T8 credential extension, T12 verifies
+they load in the rebuilt dist). Tokens are never on the envelope, output, or logs (AC8).
+
+**Why not refactor `SlackHitl`:** the legacy `SoftwareTeamsSlackHitl` node is preserved
+unchanged. It is an existing contract surface used in deployed workflows. The new `SoftwareTeamsHitl`
+is additive — existing `SlackHitl`-based workflows are unaffected (ADR invariant: additive only).
+
+---
+
+## Decision S — Merge-triggered cleanup: idempotent + safe (AC5)
+
+The `SoftwareTeamsCleanup` node is triggered by a GitHub MERGE webhook and performs an
+**idempotent, safe teardown** of all state for the `correlationId` extracted from the merged
+PR's body tag (Decision P).
+
+**Cleanup order (idempotent — each step is a no-op if already absent):**
+
+1. `deleteRunState(correlationId)` — removes `runs[correlationId]` from workflow global static
+   data (the new `deleteRunState` function, symmetric to `writeRunState`/`readRunState`).
+2. `deleteState(correlationId)` — removes the HITL conversation-state record from `HITL_STATE_PATH`.
+3. Worktree removal — calls the `worktree-remove` CLI primitive for each registered worktree scoped
+   to the `correlationId`. Uses the existing `worktree-remove.ts` / `worktree-merge.ts` primitives
+   (`packages/cli/src/commands/`).
+4. Repo clone removal — removes the run-scoped checkout directory (the shallow clone the Workspace
+   node created).
+5. Agent memory removal — clears per-agent memory files scoped to the `correlationId`.
+6. Plan/task artefact removal — removes `.software-teams/` plan and task files for the run.
+
+**Idempotency:** each step checks for existence before acting. Running the Cleanup node twice for
+the same `correlationId` is a no-op on the second call.
+
+**Safety constraints (R-02):** the GitHub token is used ONLY to verify the PR was actually merged
+(not just closed) before cleanup starts. It is never written to the envelope, node output, or logs.
+No run-state or plan content is logged.
+
+**Triggered by MERGE, not by CLOSE:** a closed (but not merged) PR does NOT trigger cleanup.
+The Cleanup node verifies merge status via the GitHub API before proceeding.
+
+---
+
+## ADR-001..004 invariants honoured
+
+| Invariant | Source | How this ADR honours it |
+|-----------|--------|------------------------|
+| Forward-only DAG — no return edge from Agent to Orchestrator | ADR-001 Decision C | PR-Feedback is a new SOURCE node (webhook-triggered). Its output flows FORWARD into the existing Orchestrator continue path. No Agent→Orchestrator edge is added. |
+| `correlationId` is the run/conversation join key | ADR-001 Decision C, ADR-002 Decision D | PR-Feedback recovers `correlationId` from the PR body tag (Decision P). Cleanup uses it to scope all teardown operations. HITL uses it for conversation-state keying (unchanged from ADR-001). |
+| Run-state lives in global static data (`'global'`) | ADR-004 Decision J | `deleteRunState` operates on `getWorkflowStaticData('global')['runs']` — symmetric to the existing read/write operations. |
+| Additive-only contract | ADR-004 Decision N | The `feedback` and `hitlChannel` envelope fields are optional (CONTRACT.md §7). The PR-tag is written to the PR body, not the envelope. No existing field is changed. |
+| Secrets via credential only, never on envelope/logs | ADR-001 Decision B (R-02), ADR-002 Decision I | Discord token, SMTP URL, and GitHub token live in `SoftwareTeamsApi` credential. Channel delivery functions receive tokens as function arguments from the credential — never from the envelope or node params. |
+| CJS load boundary — every node loads under Node (not just Bun) | ADR-003 Decision 5 | All three new nodes are registered in `n8n.nodes[]` and verified by the `verify:node-load` gate (`bun run verify:node-load`, CWD = `packages/n8n/`). Gate passes green (11/11). |
+
+---
+
+## Non-goals (explicit — no implementer re-opens these)
+
+- **No new return edge** from any node to the Orchestrator. PR-feedback re-enters via a SOURCE
+  node (PR-Feedback) feeding the existing continue path, not via a backward edge.
+- **No refactor of `SoftwareTeamsSlackHitl`.** It is preserved unchanged. `SoftwareTeamsHitl`
+  is the additive multi-channel, multi-round replacement.
+- **No canvas wiring guide / example workflow JSON.** Deferred to a separate
+  `/st:create-dev-plan` follow-up after these gaps ship (spec Out of Scope).
+- **No new credential.** Discord and email tokens are additional fields on the existing
+  `SoftwareTeamsApi` credential — no new credential type is introduced.

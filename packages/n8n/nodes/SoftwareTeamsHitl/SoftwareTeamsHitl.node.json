@@ -1,0 +1,18 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsHitl",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI", "Communication"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/n8n"
+      }
+    ]
+  },
+  "alias": ["hitl", "human in the loop", "wait", "resume", "approval", "software teams", "discord", "slack", "email", "notification", "multi-round"],
+  "subcategories": {
+    "AI": ["Agents"],
+    "Communication": ["Human in the Loop"]
+  }
+}

@@ -17,6 +17,7 @@ export function initRunState(
     createdAt: new Date().toISOString(),
     tasks: tasks.map((t) => ({
       taskId: t.taskId,
+      ...(t.name ? { name: t.name } : {}),
       agent: t.agent,
       wave: t.wave,
       dependsOn: [...t.dependsOn],

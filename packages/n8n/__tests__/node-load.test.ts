@@ -36,19 +36,19 @@ function runVerifier(): { exitCode: number; stdout: string; stderr: string } {
 }
 
 describe("node-load (AC1/AC6) — all nodes + credential load under Node", () => {
-  test("T3 verifier exits 0 and reports 8/8 loaded", () => {
+  test("T3 verifier exits 0 and reports all loaded", () => {
     const { exitCode, stdout } = runVerifier();
     expect(exitCode).toBe(0);
-    expect(stdout).toMatch(/8\/8 loaded successfully/);
+    expect(stdout).toMatch(/11\/11 loaded successfully/);
     for (const entry of allEntries) {
       expect(stdout).toContain(`PASS  ${entry}`);
     }
   });
 
-  test("all 7 node entries + 1 credential are covered (8 total)", () => {
-    expect(allEntries).toHaveLength(8);
+  test("all 10 node entries + 1 credential are covered (11 total)", () => {
+    expect(allEntries).toHaveLength(11);
     expect(pkg.n8n.credentials).toHaveLength(1);
-    expect(pkg.n8n.nodes).toHaveLength(7);
+    expect(pkg.n8n.nodes).toHaveLength(10);
   });
 });
 

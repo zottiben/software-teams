@@ -21,7 +21,9 @@ import {
   deleteState,
   allStates,
   getStorePath,
+  nextRound,
   type ConversationState,
+  type HitlChannel,
 } from '../conversation-state';
 
 // Override the store path to a temp file for tests
@@ -229,5 +231,135 @@ describe('R-05: state persists across the ask→wait gap (simulated)', () => {
     // After resume, state is deleted
     deleteState('run-hitl-e2e');
     expect(loadState('run-hitl-e2e')).toBeNull();
+  });
+});
+
+// ── T2: multi-round + multi-channel fields ──────────────────────────────────
+
+describe('T2: back-compat — old Slack-shaped states load without error', () => {
+  test('state without channel/round/delivery loads and round-trips', () => {
+    const state = makeState('run-legacy');
+    // Intentionally no channel, round, or delivery
+    saveState(state);
+
+    const loaded = loadState('run-legacy');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.channel).toBeUndefined();
+    expect(loaded!.round).toBeUndefined();
+    expect(loaded!.delivery).toBeUndefined();
+    // All original fields intact
+    expect(loaded!.slackChannel).toBe('C0123456');
+    expect(loaded!.slackThreadTs).toBe('1717000000.123456');
+    expect(loaded!.resumeUrl).toContain('run-legacy');
+  });
+});
+
+describe('T2: channel field', () => {
+  test('saves and loads channel for each supported value', () => {
+    const channels: HitlChannel[] = ['slack', 'email', 'notify', 'discord'];
+    for (const ch of channels) {
+      const state: ConversationState = { ...makeState(`run-${ch}`), channel: ch };
+      saveState(state);
+      const loaded = loadState(`run-${ch}`);
+      expect(loaded!.channel).toBe(ch);
+    }
+  });
+});
+
+describe('T2: round field + nextRound helper', () => {
+  test('saves and loads round number', () => {
+    const state: ConversationState = { ...makeState('run-round'), round: 3 };
+    saveState(state);
+    const loaded = loadState('run-round');
+    expect(loaded!.round).toBe(3);
+  });
+
+  test('nextRound returns 2 for a state with no round (default-to-1)', () => {
+    const state = makeState('run-no-round');
+    expect(nextRound(state)).toBe(2);
+  });
+
+  test('nextRound returns n+1 for a state with round: n', () => {
+    expect(nextRound({ ...makeState('run-r1'), round: 1 })).toBe(2);
+    expect(nextRound({ ...makeState('run-r5'), round: 5 })).toBe(6);
+    expect(nextRound({ ...makeState('run-r99'), round: 99 })).toBe(100);
+  });
+
+  test('multi-round workflow: save → bump → re-save → load reflects new round', () => {
+    const state: ConversationState = { ...makeState('run-multi'), channel: 'slack', round: 1 };
+    saveState(state);
+
+    // Simulate resume: load, bump round, re-save
+    const loaded = loadState('run-multi')!;
+    const bumped: ConversationState = { ...loaded, round: nextRound(loaded) };
+    saveState(bumped);
+
+    const reloaded = loadState('run-multi');
+    expect(reloaded!.round).toBe(2);
+  });
+});
+
+describe('T2: delivery bag', () => {
+  test('saves and loads a generic delivery record', () => {
+    const state: ConversationState = {
+      ...makeState('run-discord'),
+      channel: 'discord',
+      delivery: {
+        guildId: '123456789',
+        channelId: '987654321',
+        messageId: 'msg-42',
+      },
+    };
+    saveState(state);
+
+    const loaded = loadState('run-discord');
+    expect(loaded!.delivery).toBeDefined();
+    expect(loaded!.delivery!['guildId']).toBe('123456789');
+    expect(loaded!.delivery!['channelId']).toBe('987654321');
+    expect(loaded!.delivery!['messageId']).toBe('msg-42');
+  });
+
+  test('delivery bag round-trips nested objects', () => {
+    const state: ConversationState = {
+      ...makeState('run-email'),
+      channel: 'email',
+      delivery: {
+        threadId: 'th-abc',
+        headers: { 'In-Reply-To': '<abc@example.com>' },
+      },
+    };
+    saveState(state);
+
+    const loaded = loadState('run-email');
+    const headers = loaded!.delivery!['headers'] as Record<string, string>;
+    expect(headers['In-Reply-To']).toBe('<abc@example.com>');
+  });
+});
+
+describe('T2: store function signatures unchanged', () => {
+  test('saveState accepts ConversationState and returns void', () => {
+    const result = saveState(makeState('run-sig'));
+    expect(result).toBeUndefined();
+  });
+
+  test('loadState returns ConversationState | null', () => {
+    const missing = loadState('run-nonexistent');
+    expect(missing).toBeNull();
+
+    saveState(makeState('run-sig-load'));
+    const found = loadState('run-sig-load');
+    expect(found).not.toBeNull();
+    expect(found!.correlationId).toBe('run-sig-load');
+  });
+
+  test('deleteState returns void', () => {
+    saveState(makeState('run-sig-del'));
+    const result = deleteState('run-sig-del');
+    expect(result).toBeUndefined();
+  });
+
+  test('allStates returns ConversationState[]', () => {
+    const all = allStates();
+    expect(Array.isArray(all)).toBe(true);
   });
 });
