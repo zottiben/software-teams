@@ -208,6 +208,7 @@ For each task in the topologically sorted task graph:
 
 2. **Spawn the pinned agent natively.** Use `subagent_type="{task.agent}"` (post-T6 native migration — Claude Code resolves the spec from `.claude/agents/{task.agent}.md` directly). Spawn under `mode: "acceptEdits"` with the scoped allowlist from `.claude/settings.json`. The prompt MUST include:
    - A `## Project Context` block (type, tech stack, quality gates, working directory)
+   - A `## Coding Standards` block containing `DISCOVERED_STATE.standards` **verbatim** (the project's rules files + CLAUDE.md standards). The agent does not inherit the orchestrator's CLAUDE.md; omit this block and the agent codes blind to the project's conventions.
    - `TASK_FILE: {slice path}` — the agent reads it itself
    - The SPEC sections to read (pass the section anchors, NOT the file contents inline)
    - Instruction: _"Read only your TASK_FILE and the SPEC sections cited in its `**Read first:**` line. Do NOT load the full spec, the full orchestration, or other task files. Cap exploration to the files your slice names."_
@@ -283,8 +284,9 @@ Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that com
 - `.software-teams/codebase/summary.md` if it exists
 - `.software-teams/rules/general.md` (always)
 - Domain-specific rules based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
+- The project's `.claude/CLAUDE.md` (repo root, and the nearest one to the target code if nested) — the canonical home for the project's coding standards
 
-Rules override defaults. Record which rules files were found in `DISCOVERED_STATE.rules_loaded`.
+Rules override defaults. Record which rules files were found in `DISCOVERED_STATE.rules_loaded`, and store the **concatenated text** of the non-empty rules files plus the CLAUDE.md standards in `DISCOVERED_STATE.standards`. Spawned subagents do **NOT** inherit the orchestrator's `.claude/CLAUDE.md` — the only way the project's standards reach a specialist is if you inject them into the spawn prompt (see §8 and §3T.8). If every rules file is an empty stub and no CLAUDE.md standards exist, set `DISCOVERED_STATE.standards` to this default: "Match the surrounding code (read 2–3 sibling files first); prefer the root-cause fix over a workaround; no dead code, no silenced types (`as any`/`@ts-ignore`), no swallowed errors, no `// TODO` placeholders."
 
 ### 2. Load Plan
 
@@ -379,6 +381,7 @@ Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_F
 - Give exact file paths. Cap exploration explicitly: "read only your TASK_FILE and the files it names."
 - Request short reports (<400 words). Agents can be truncated mid-task; scoped prompts survive the budget ceiling.
 - Include a `## Project Context` block in every spawn prompt: type, tech stack, quality gates, working directory. Saves 2-3 discovery tool calls per spawn.
+- Include a `## Coding Standards` block in every spawn prompt: paste `DISCOVERED_STATE.standards` verbatim (the project's rules files + CLAUDE.md standards). Subagents do **not** inherit the orchestrator's CLAUDE.md — without this block they code blind to the project's conventions, which is the root cause of "doesn't follow our patterns" regressions.
 - For split plans, the agent reads the `TASK_FILE` itself — do not inline task content into the prompt.
 
 **Test task execution:** When spawning a `type: test` task:

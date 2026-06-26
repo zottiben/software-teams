@@ -53,3 +53,4 @@ Always match the project's existing test file patterns:
 - Do NOT assume a test framework — always use what SilentDiscovery detected
 - Do NOT skip the test run — writing tests without running them has no value
 - Do NOT place test files in locations that break the project's existing convention
+- Do NOT report a failing test as "pre-existing" without proof — run it on a clean baseline (`git stash --include-untracked && {test}; git stash pop`) and capture both outputs, or treat the failure as caused by the change under test

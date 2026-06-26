@@ -103,7 +103,9 @@ models:
       verifier: claude-sonnet-4-6
       committer: claude-haiku-4-5
       debugger: claude-haiku-4-5
-      qa-tester: claude-haiku-4-5
+      # qa-tester owns evidence-based verification (baseline proofs, contract +
+      # a11y judgement) — it needs reasoning, not the cheapest model. sonnet.
+      qa-tester: claude-sonnet-4-6
       game-designer: claude-opus-4-6
       game-producer: claude-opus-4-6
       game-engineer: claude-sonnet-4-6
