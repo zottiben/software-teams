@@ -192,7 +192,7 @@ Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI stat
 **Agent Teams is experimental — handle it explicitly** (see `@ST:AgentTeamsOrchestration` § PeerCollaboration for the full protocol):
 - **Enablement.** If `TeamCreate` is unavailable or errors, the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag is off. Tell the user to add it to `.claude/settings.json`, and fall back to single-agent mode for this run — do NOT abort the plan.
 - **Peer collaboration.** Teammates DM peers DIRECTLY for cross-domain questions (contracts, interfaces, "is X ready") instead of stalling or routing everything through you; you get peer-DM summaries via idle notifications.
-- **Lead monitoring.** Periodically `TaskList`: if a task sits `in_progress` with an idle owner and no progress, DM the owner to confirm/complete (teams sometimes fail to mark tasks done, blocking dependents). Idle ≠ done.
+- **Lead monitoring (deterministic, not by vibes).** Run `$ST_CLI spawn-log reap --max-idle-min 30` (resolve the CLI per `commands/_shared/cli-invocation.md`) to list spawns past their deadline/idle window. For each stale `task_id` it returns: `SendMessage` the owner to confirm/complete; if it stays dormant, `TaskStop` it and re-spawn or escalate — never let an agent sit `in_progress` for hours. Cross-check `TaskList` for tasks whose work finished but were never marked complete (teams sometimes fail to, blocking dependents). Idle ≠ done.
 - **No resume.** In-process teammates do NOT survive `/resume`/`/rewind`. On resume, treat the team as gone — re-create it and respawn from the current task board; do not message stale teammate names.
 - **Per-task quality gate.** The `TaskCompleted` hook (`.claude/hooks/team-task-quality-gate.sh`) runs the fast gates and surfaces failures to the team as it completes tasks; it is **advisory** in a shared tree (won't false-block on a peer's in-progress files). For hard per-task blocking, run the team with per-task worktree isolation.
 
@@ -215,17 +215,18 @@ For each task in the topologically sorted task graph:
    - The `done_when:` block from the slice (verbatim) so the agent knows the completion contract
    - Short-report instruction (<400 words) per `@ST:AgentBase` Budget Discipline
 
-   **Optional (R-06 follow-up)**: Before each spawn, record the prompt context size so future plans get real per-spawn numbers instead of static estimates:
+   **Register the spawn (lifecycle tracking).** Before each spawn, open a ledger entry so a stalled agent can be reaped (see § Lead monitoring) and so future plans get real per-spawn cost numbers:
 
    ```
-   bun run src/index.ts spawn-log record --task-id {task.id} --agent {task.agent} --bytes $(wc -c < {slice}) --slice {slice} --tier three-tier --plan-id {plan.id}
+   bun run src/index.ts spawn-log record --task-id {task.id} --agent {task.agent} --bytes $(wc -c < {slice}) --slice {slice} --tier three-tier --plan-id {plan.id} --deadline-min 30
    ```
 
-   This populates `.software-teams/persistence/spawn-ledger.jsonl`, after which `$ST_CLI spawn-log report` (resolve per `commands/_shared/cli-invocation.md`) produces real aggregate numbers, replacing the static estimate that T13 of plan `1-01-native-subagents` had to fall back to.
+   This opens an entry in `.software-teams/persistence/spawn-ledger.jsonl` with a 30-minute deadline. `$ST_CLI spawn-log report` (resolve per `commands/_shared/cli-invocation.md`) produces aggregate cost numbers; `$ST_CLI spawn-log reap` lists entries that blew their deadline. The matching `spawn-log complete` call in step 3 closes the entry.
 
 3. **Capture structured return — and verify it against reality.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, `standards_self_review`, and any `deviations`. Then, before trusting it:
    - **Cross-check against git:** run `git status --porcelain` and confirm every claimed `files_modified` path is actually dirty, and no un-claimed source file is dirty. A mismatch means the return is truncated, stale, or fabricated — do NOT aggregate it; re-spawn the task or surface the discrepancy to the user.
    - **Branch on `standards_self_review`:** if it is `fail`, return to the specialist with the specific standard violated and have it fixed BEFORE running QA — do not advance.
+   - **Close the registry entry:** the agent has returned, so run `$ST_CLI spawn-log complete --task-id {task.id} --status done` (use `--status failed` if it returned `status: blocked`/`error`). This stops `spawn-log reap` from flagging a finished spawn as stale.
    - The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
 
 4. **Spawn `software-teams-qa-tester` in `post-task-verify` mode.** Pass the slice's `done_when:` block as the verification spec, plus `files_modified` from the agent's return. Same skip rules as §10 below: `--skip-qa`, doc-only `files_modified`, or `qa_verification_needed: false` skip the verify; contract-bearing YAML/JSON specs still trigger `contract-check`.
@@ -253,7 +254,7 @@ Mechanism is identical to the single-tier loop's **§10. Post-Task Verify**. The
 
 Same as **§11. Execute Deferred Ops** below — execute `commits_pending` via `git add` + `git commit`, create any `files_to_create` entries via the Write tool. Do NOT skip this step.
 
-**Tear down the team (Agent Teams mode only).** After all commits are written, call `TeamDelete` for the team created in §3T.8 (team name `{slug}-team`). Single-agent mode skips this step.
+**Tear down the team (Agent Teams mode only) — unconditional.** Teardown is a `finally` step, not a happy-path one: call `TeamDelete` for the team created in §3T.8 (team name `{slug}-team`) after commits are written **and on any early exit** (halt at §3T.15, blocker, or error) so no teammate outlives the run — orphaned teammates are what sit dormant for hours. Single-agent mode skips this step.
 
 ### 3T.12. Run Verification Gates
 
@@ -375,7 +376,7 @@ TeamCreate(team_name: "{slug}-team")
 
 Team name pattern: `{slug}-team`. The `{slug}` value comes from `current_plan.slug` in `state.yaml` (see step §2). This pattern is deliberate and identical in the three-tier path (§3T.8) so the team is predictable and FleetView-discoverable.
 
-**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if `TeamCreate` errors, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
+**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if `TeamCreate` errors, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead reaps stale spawns (`$ST_CLI spawn-log reap`) and monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
 
 Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
@@ -442,7 +443,7 @@ After each task's programmer returns, invoke `software-teams-qa-tester` in `post
 
 Agents create files directly (spawned under `acceptEdits` with the scoped allowlist from `.claude/settings.json`), so `files_to_create` should be empty. If any agent does return `files_to_create` entries, create them via Write tool. Execute `commits_pending` via `git add` + `git commit`. Do NOT skip this step.
 
-**Tear down the team.** If Agent Teams mode was used, call `TeamDelete` for the team created in §8 (team name `{slug}-team`) after all commits have been written. Single-agent mode skips this step (no team exists).
+**Tear down the team — unconditional.** If Agent Teams mode was used, call `TeamDelete` for the team created in §8 (team name `{slug}-team`) after commits are written **and on any early exit** (halt, blocker, or error) — teardown is a `finally` step so no teammate outlives the run. Single-agent mode skips this step (no team exists).
 
 ### 12. Run Verification Gates
 

@@ -19,6 +19,16 @@ export type SpawnEntry = {
   slice_path?: string; // .software-teams/plans/{slug}.T{n}.md
   spec_sections?: string[]; // ["Acceptance Criteria", "Out of Scope"]
   tier: "three-tier" | "single-tier";
+  // ── Lifecycle (registry) fields ──────────────────────────────────────────
+  // The ledger doubles as a spawn REGISTRY so the orchestrator can detect and
+  // reap stalled/dormant agents. A "spawn" event opens an entry; a later
+  // "complete" event for the same task_id closes it. Entries with no event
+  // (pre-registry rows) are treated as spawns. Completion events are excluded
+  // from cost aggregation (prompt_bytes is 0 on them).
+  event?: "spawn" | "complete"; // default "spawn"
+  status?: "running" | "done" | "failed" | "stalled";
+  deadline_at?: string; // ISO-8601 — running past this without a completion = stale
+  ended_at?: string; // ISO-8601 — set on completion
 };
 
 /** Aggregated view returned by `summariseLedger`. */
@@ -31,6 +41,21 @@ export type LedgerSummary = {
   per_plan: Record<string, { entries: number; bytes: number; tokens_approx: number }>;
   entries: SpawnEntry[];
 };
+
+/** A spawn that opened but has not yet recorded a completion event. */
+export type ActiveSpawn = {
+  task_id: string;
+  agent: string;
+  plan_id?: string;
+  spawned_at: string; // ISO-8601 (the spawn event's timestamp)
+  deadline_at?: string;
+};
+
+/** An active spawn whose deadline (or idle window) has elapsed. */
+export type StaleSpawn = ActiveSpawn & { idle_ms: number };
+
+/** Default idle window before an entry with no explicit deadline is stale. */
+const DEFAULT_MAX_IDLE_MS = 30 * 60 * 1000; // 30 minutes
 
 const DEFAULT_LEDGER_PATH = join(".software-teams", "persistence", "spawn-ledger.jsonl");
 
@@ -88,7 +113,9 @@ export async function summariseLedger(
   opts?: { ledgerPath?: string; planId?: string },
 ): Promise<LedgerSummary> {
   const all = await readLedger({ ledgerPath: opts?.ledgerPath });
-  const entries = opts?.planId ? all.filter((e) => e.plan_id === opts.planId) : all;
+  // Completion events are lifecycle markers, not spawns — never count them.
+  const spawns = all.filter((e) => e.event !== "complete");
+  const entries = opts?.planId ? spawns.filter((e) => e.plan_id === opts.planId) : spawns;
 
   const summary: LedgerSummary = {
     total_entries: entries.length,
@@ -157,4 +184,96 @@ export async function clearLedger(
   );
   const text = remaining.map((e) => JSON.stringify(e)).join("\n");
   await Bun.write(path, text.length > 0 ? text + "\n" : "");
+}
+
+/**
+ * Append a completion event for a previously-recorded spawn. This closes the
+ * registry entry for `task_id` so it no longer counts as active/stale.
+ * Completion events carry zero prompt cost (they are excluded from
+ * `summariseLedger`).
+ */
+export async function recordCompletion(
+  opts: {
+    task_id: string;
+    agent?: string;
+    plan_id?: string;
+    status?: "done" | "failed";
+    timestamp?: string;
+  },
+  fileOpts?: { ledgerPath?: string },
+): Promise<void> {
+  const ts = opts.timestamp ?? new Date().toISOString();
+  const entry: SpawnEntry = {
+    timestamp: ts,
+    event: "complete",
+    task_id: opts.task_id,
+    agent: opts.agent ?? "",
+    prompt_bytes: 0,
+    prompt_tokens_approx: 0,
+    tier: "single-tier",
+    status: opts.status ?? "done",
+    ended_at: ts,
+  };
+  if (opts.plan_id) entry.plan_id = opts.plan_id;
+  await recordSpawn(entry, fileOpts);
+}
+
+/**
+ * Fold the event log by `task_id` and return the spawns that opened but never
+ * recorded a completion. A re-spawn of the same `task_id` re-opens it (a retry
+ * is active again until it too completes).
+ */
+export async function getActiveSpawns(
+  opts?: { ledgerPath?: string; planId?: string },
+): Promise<ActiveSpawn[]> {
+  const all = await readLedger({ ledgerPath: opts?.ledgerPath });
+  const entries = opts?.planId ? all.filter((e) => e.plan_id === opts.planId) : all;
+
+  // task_id → latest open spawn, or null once a completion closes it.
+  const open = new Map<string, ActiveSpawn | null>();
+  for (const e of entries) {
+    if (e.event === "complete") {
+      open.set(e.task_id, null);
+      continue;
+    }
+    open.set(e.task_id, {
+      task_id: e.task_id,
+      agent: e.agent,
+      plan_id: e.plan_id,
+      spawned_at: e.timestamp,
+      deadline_at: e.deadline_at,
+    });
+  }
+
+  const active: ActiveSpawn[] = [];
+  for (const v of open.values()) {
+    if (v) active.push(v);
+  }
+  return active;
+}
+
+/**
+ * Active spawns whose deadline has passed (or, absent an explicit deadline,
+ * that have been idle longer than `maxIdleMs`). These are the dormant agents
+ * the orchestrator should `TaskStop`/`shutdown_request` and mark stalled.
+ */
+export async function findStaleSpawns(
+  opts?: { ledgerPath?: string; planId?: string; now?: Date; maxIdleMs?: number },
+): Promise<StaleSpawn[]> {
+  const active = await getActiveSpawns({ ledgerPath: opts?.ledgerPath, planId: opts?.planId });
+  const nowMs = (opts?.now ?? new Date()).getTime();
+  const maxIdleMs = opts?.maxIdleMs ?? DEFAULT_MAX_IDLE_MS;
+
+  const stale: StaleSpawn[] = [];
+  for (const a of active) {
+    const spawnedMs = Date.parse(a.spawned_at);
+    const idleMs = Number.isFinite(spawnedMs) ? nowMs - spawnedMs : 0;
+    const deadlineMs = a.deadline_at ? Date.parse(a.deadline_at) : NaN;
+    const overDeadline = Number.isFinite(deadlineMs) && nowMs >= deadlineMs;
+    const overIdle = !a.deadline_at && idleMs > maxIdleMs;
+    if (overDeadline || overIdle) {
+      stale.push({ ...a, idle_ms: idleMs });
+    }
+  }
+  return stale;
 }
