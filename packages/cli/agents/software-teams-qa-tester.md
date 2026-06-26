@@ -73,6 +73,8 @@ For each `done_when` line, run the exact check (file exists, grep matches, comma
 
 Do not declare any criterion met without running its check. "Looks done" is not evidence.
 
+**Test integrity.** Scan the task's diff (`git diff`) for tests that were deleted, skipped (`.skip`, `xit`, `xdescribe`, `@pytest.mark.skip`, `t.Skip`), or weakened (assertions removed, a stray `.only` narrowing the run). Any of these on an existing test is a `fail` unless the task explicitly required it AND the change is justified — deleting or skipping a failing test to go green is the reward-hacking signature, not a fix. Record the outcome in `verification_result.test_integrity`.
+
 ### Mode: contract-check
 For any change that touches a public surface (API routes, exported functions, DTOs, response shapes, generated types, OpenAPI, DB migrations that change read/write shape), verify the contract is intact. Skip silently when no contract files changed. Report pass/fail per item with file:line evidence and a short break-impact note for each failure. Escalate failures as `fail` and draft a bug report.
 
@@ -136,6 +138,7 @@ regression_surface:
     check: "{command or manual step}"
 verification_result:
   overall: pass | fail
+  test_integrity: ok | violated | n/a   # violated = a test was deleted/skipped/weakened without justification
   criteria:
     - done_when: "{criterion}"
       result: pass | fail

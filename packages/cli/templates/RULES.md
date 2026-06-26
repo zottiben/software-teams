@@ -73,6 +73,8 @@ Do not skip QA because "it's a small change" — the gate exists precisely so sm
 
 **Green to advance is non-negotiable.** A red test suite blocks the next task/wave regardless of cause. If a failure is genuinely pre-existing and out of scope (proven via baseline — see Doctrine "Prove 'pre-existing' before you blame it"), escalate it to the user; do NOT advance over red on the strength of an unproven "it was already broken" claim. Set `ST_QUALITY_GATE_TESTS=1` to make the Layer-1 hook run the full suite on every specialist stop, so a broken suite surfaces the moment it breaks rather than at the wave gate.
 
+**Layer 3 — independent review (fresh context).** Before a plan completes, an agent that did NOT write the code reviews it: `software-teams-head-engineering` for standards / quality and `software-teams-verifier` for goal-backward + test-integrity checks. The author cannot see its own blind spots — a fresh reviewer catches the convention drift and the "deleted the failing test" shortcut the implementing agent will rationalise. `must_fix` issues block completion. Skippable for throwaway work via `--skip-review`.
+
 ## Picking an Agent
 
 1. Read `AGENTS.md` for the catalogue.
