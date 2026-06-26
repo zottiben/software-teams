@@ -223,7 +223,10 @@ For each task in the topologically sorted task graph:
 
    This populates `.software-teams/persistence/spawn-ledger.jsonl`, after which `$ST_CLI spawn-log report` (resolve per `commands/_shared/cli-invocation.md`) produces real aggregate numbers, replacing the static estimate that T13 of plan `1-01-native-subagents` had to fall back to.
 
-3. **Capture structured return.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, and any `deviations`. The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
+3. **Capture structured return — and verify it against reality.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, `standards_self_review`, and any `deviations`. Then, before trusting it:
+   - **Cross-check against git:** run `git status --porcelain` and confirm every claimed `files_modified` path is actually dirty, and no un-claimed source file is dirty. A mismatch means the return is truncated, stale, or fabricated — do NOT aggregate it; re-spawn the task or surface the discrepancy to the user.
+   - **Branch on `standards_self_review`:** if it is `fail`, return to the specialist with the specific standard violated and have it fixed BEFORE running QA — do not advance.
+   - The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
 
 4. **Spawn `software-teams-qa-tester` in `post-task-verify` mode.** Pass the slice's `done_when:` block as the verification spec, plus `files_modified` from the agent's return. Same skip rules as §10 below: `--skip-qa`, doc-only `files_modified`, or `qa_verification_needed: false` skip the verify; contract-bearing YAML/JSON specs still trigger `contract-check`.
 

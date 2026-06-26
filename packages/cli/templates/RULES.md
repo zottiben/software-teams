@@ -71,6 +71,8 @@ criteria plus the full test suite — before the orchestrator advances:
 
 Do not skip QA because "it's a small change" — the gate exists precisely so small changes don't accumulate silent regressions.
 
+**Green to advance is non-negotiable.** A red test suite blocks the next task/wave regardless of cause. If a failure is genuinely pre-existing and out of scope (proven via baseline — see Doctrine "Prove 'pre-existing' before you blame it"), escalate it to the user; do NOT advance over red on the strength of an unproven "it was already broken" claim. Set `ST_QUALITY_GATE_TESTS=1` to make the Layer-1 hook run the full suite on every specialist stop, so a broken suite surfaces the moment it breaks rather than at the wave gate.
+
 ## Picking an Agent
 
 1. Read `AGENTS.md` for the catalogue.
@@ -89,6 +91,7 @@ Common picks:
 ## Reporting & State
 
 Specialists return YAML with `status`, `files_modified`, `files_created`, `commits_pending`, and any agent-specific fields. The orchestrator:
+- **Verifies the return against reality before trusting it** — runs `git status --porcelain` and confirms the claimed `files_modified` are actually dirty and no unclaimed source file changed. A mismatch means a truncated, stale, or fabricated return: re-spawn or surface it. Never aggregate a return you have not reconciled with git — a silently-dropped return is how half-finished work slips through.
 - Records outputs in `.software-teams/state.yaml` if running under a Software Teams plan.
 - Executes `commits_pending` after the task fully completes (specialists do NOT commit).
 - Surfaces deviations and blockers to the user — do not silently absorb them.

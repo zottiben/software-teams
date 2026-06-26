@@ -22,7 +22,10 @@
 #   2. Otherwise run `software-teams verify --skip "$ST_QUALITY_GATE_SKIP"
 #      --quiet`. The default skip set is `test`: the full suite is the QA
 #      tester's job; lint / analyse / typecheck-style gates run here for fast
-#      per-specialist feedback.
+#      per-specialist feedback. Set ST_QUALITY_GATE_TESTS=1 to also run the
+#      full suite on every stop — slower, but a broken suite is caught the
+#      instant a specialist stops, so it can never be passed off later as a
+#      "pre-existing failure".
 #   3. On gate failure: print the failing output and exit 2, surfacing the
 #      failure back to the agent. On pass / no gates / CLI missing: exit 0.
 #
@@ -34,6 +37,8 @@
 #
 #   ST_QUALITY_GATE_SKIP   comma-separated gate names to skip (default: test)
 #   ST_QUALITY_GATE_ONLY   comma-separated gate names to run exclusively
+#   ST_QUALITY_GATE_TESTS  set to any value to ALSO run the full test suite
+#                          (clears the default `test` skip)
 #   ST_BIN                 explicit path to the software-teams binary
 #   ST_QUALITY_GATE_OFF    set to any value to disable this hook entirely
 #
@@ -86,7 +91,11 @@ verify_args=(verify --quiet)
 if [[ -n "${ST_QUALITY_GATE_ONLY:-}" ]]; then
   verify_args+=(--gate "${ST_QUALITY_GATE_ONLY}")
 fi
-verify_args+=(--skip "${ST_QUALITY_GATE_SKIP:-test}")
+# Default skips the full suite (QA tester's Layer-2 job — see RULES.md "Quality
+# Gates"). ST_QUALITY_GATE_TESTS=1 clears the skip so tests run here too.
+skip_set="${ST_QUALITY_GATE_SKIP:-test}"
+[[ -n "${ST_QUALITY_GATE_TESTS:-}" ]] && skip_set=""
+verify_args+=(--skip "${skip_set}")
 
 output=$("$st_bin" "${verify_args[@]}" 2>&1)
 code=$?

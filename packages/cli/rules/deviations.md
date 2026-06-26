@@ -16,6 +16,23 @@ Handle deviations systematically, not randomly.
 
 ---
 
+## Fix Correctly, Not Quickly
+
+Every auto-fix under Rules 1–3 must be the **root-cause fix**, not a band-aid.
+Forbidden shortcuts: silenced types (`as any`, `@ts-ignore`, an `eslint-disable`
+to dodge a real error), swallowed exceptions, duplicated logic you could
+refactor, `// TODO` placeholders, or deleting/skipping a test to go green.
+
+If the only fix that fits the current task scope is a workaround, escalate via
+**Rule 4** with the correct fix described — do **not** ship the shortcut
+silently and log it as a Rule 1/2/3 deviation. A quick fix that creates tech
+debt is a worse outcome than an honest escalation.
+
+When you record a Rule 1/2/3 deviation, state **why the chosen fix addresses
+the root cause** (not just what you changed).
+
+---
+
 ## The Four Rules
 
 ### Rule 1: Auto-Fix Bugs
@@ -143,6 +160,7 @@ When a deviation occurs, record:
       "title": "{brief description}",
       "description": "{what was found}",
       "action": "{what was done}",
+      "root_cause": "{why this fix addresses the cause, not just the symptom}",
       "files_affected": ["{list}"],
       "commit_hash": "{if committed separately}"
     }

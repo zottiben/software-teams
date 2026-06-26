@@ -123,6 +123,7 @@ commits_pending:
     files: [path/to/file1.ts]
 qa_verification_needed: true | false   # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke software-teams-qa-tester
 visual_verified: true | false | n/a    # for UI-affecting tasks: true only if you rendered the change; n/a for non-UI tasks
+standards_self_review: pass | fail     # pass ONLY if: matches surrounding conventions + the injected ## Coding Standards block, no dead code / commented-out blocks / stray TODOs, no silenced types, root-cause fix not a workaround
 verification_notes: |
   Distinguish "confirmed by reading file:line / running test X" from "theorised — not run."
   If visual_verified is false on a UI task, name exactly what still needs human/QA visual confirmation.
