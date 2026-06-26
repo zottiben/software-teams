@@ -2,6 +2,9 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 import {
   recordSpawn,
+  recordCompletion,
+  getActiveSpawns,
+  findStaleSpawns,
   summariseLedger,
   clearLedger,
   type SpawnEntry,
@@ -52,6 +55,10 @@ const recordCmd = defineCommand({
       type: "string",
       description: "Plan identifier (e.g. 1-01)",
     },
+    "deadline-min": {
+      type: "string",
+      description: "Minutes until this spawn is considered stale by `reap` (default: 30)",
+    },
     "ledger-path": {
       type: "string",
       description: "Override ledger path (default: .software-teams/persistence/spawn-ledger.jsonl)",
@@ -80,8 +87,18 @@ const recordCmd = defineCommand({
       ? args["spec-sections"].split(",").map((s) => s.trim()).filter((s) => s.length > 0)
       : undefined;
 
+    const deadlineMin = args["deadline-min"] != null ? Number(args["deadline-min"]) : 30;
+    if (!Number.isFinite(deadlineMin) || deadlineMin <= 0) {
+      consola.error(`--deadline-min must be a positive number (got: ${args["deadline-min"]})`);
+      process.exit(1);
+    }
+
+    const now = new Date();
     const entry: SpawnEntry = {
-      timestamp: new Date().toISOString(),
+      timestamp: now.toISOString(),
+      event: "spawn",
+      status: "running",
+      deadline_at: new Date(now.getTime() + deadlineMin * 60_000).toISOString(),
       task_id: args["task-id"],
       agent: args.agent,
       prompt_bytes: bytes,
@@ -94,8 +111,152 @@ const recordCmd = defineCommand({
 
     await recordSpawn(entry, { ledgerPath: args["ledger-path"] });
     consola.success(
-      `Recorded spawn: ${entry.task_id} (${entry.agent}) — ${bytes} B / ~${tokens} tok`,
+      `Recorded spawn: ${entry.task_id} (${entry.agent}) — ${bytes} B / ~${tokens} tok — deadline +${deadlineMin}m`,
     );
+  },
+});
+
+const VALID_COMPLETE_STATUS = new Set(["done", "failed"]);
+
+const completeCmd = defineCommand({
+  meta: {
+    name: "complete",
+    description: "Close a spawn's registry entry when its agent returns (done | failed)",
+  },
+  args: {
+    "task-id": {
+      type: "string",
+      description: "Task ID whose spawn is completing",
+      required: true,
+    },
+    status: {
+      type: "string",
+      description: "Completion status (done | failed)",
+      default: "done",
+    },
+    agent: {
+      type: "string",
+      description: "Agent name (optional, for the record)",
+    },
+    "plan-id": {
+      type: "string",
+      description: "Plan identifier (optional)",
+    },
+    "ledger-path": {
+      type: "string",
+      description: "Override ledger path",
+    },
+  },
+  async run({ args }) {
+    const status = args.status as "done" | "failed";
+    if (!VALID_COMPLETE_STATUS.has(status)) {
+      consola.error(`--status must be one of: done, failed (got: ${args.status})`);
+      process.exit(1);
+    }
+    await recordCompletion(
+      {
+        task_id: args["task-id"],
+        agent: args.agent,
+        plan_id: args["plan-id"],
+        status,
+      },
+      { ledgerPath: args["ledger-path"] },
+    );
+    consola.success(`Closed spawn: ${args["task-id"]} (${status})`);
+  },
+});
+
+const activeCmd = defineCommand({
+  meta: {
+    name: "active",
+    description: "List spawns that opened but have not recorded a completion",
+  },
+  args: {
+    "plan-id": {
+      type: "string",
+      description: "Filter by plan_id",
+    },
+    format: {
+      type: "string",
+      description: "Output format (text | json)",
+      default: "text",
+    },
+    "ledger-path": {
+      type: "string",
+      description: "Override ledger path",
+    },
+  },
+  async run({ args }) {
+    const active = await getActiveSpawns({
+      ledgerPath: args["ledger-path"],
+      planId: args["plan-id"],
+    });
+    if (args.format === "json") {
+      console.log(JSON.stringify(active, null, 2));
+      return;
+    }
+    if (active.length === 0) {
+      consola.info("No active spawns.");
+      return;
+    }
+    for (const a of active) {
+      console.log(
+        `${a.task_id}\t${a.agent}\tspawned ${a.spawned_at}\tdeadline ${a.deadline_at ?? "(none)"}`,
+      );
+    }
+  },
+});
+
+const reapCmd = defineCommand({
+  meta: {
+    name: "reap",
+    description:
+      "List stalled spawns (past deadline or idle window) for the orchestrator to TaskStop and mark stalled",
+  },
+  args: {
+    "max-idle-min": {
+      type: "string",
+      description: "Idle minutes before a deadline-less spawn is stale (default: 30)",
+    },
+    "plan-id": {
+      type: "string",
+      description: "Filter by plan_id",
+    },
+    format: {
+      type: "string",
+      description: "Output format (text | json)",
+      default: "text",
+    },
+    "ledger-path": {
+      type: "string",
+      description: "Override ledger path",
+    },
+  },
+  async run({ args }) {
+    const maxIdleMin = args["max-idle-min"] != null ? Number(args["max-idle-min"]) : 30;
+    if (!Number.isFinite(maxIdleMin) || maxIdleMin <= 0) {
+      consola.error(`--max-idle-min must be a positive number (got: ${args["max-idle-min"]})`);
+      process.exit(1);
+    }
+    const stale = await findStaleSpawns({
+      ledgerPath: args["ledger-path"],
+      planId: args["plan-id"],
+      maxIdleMs: maxIdleMin * 60_000,
+    });
+    if (args.format === "json") {
+      console.log(JSON.stringify(stale, null, 2));
+      return;
+    }
+    if (stale.length === 0) {
+      consola.info("No stalled spawns.");
+      return;
+    }
+    consola.warn(`${stale.length} stalled spawn(s) — TaskStop these and mark them stalled:`);
+    for (const s of stale) {
+      console.log(
+        `${s.task_id}\t${s.agent}\tidle ${Math.round(s.idle_ms / 60000)}m\tspawned ${s.spawned_at}`,
+      );
+    }
   },
 });
 
@@ -226,10 +387,14 @@ const clearCmd = defineCommand({
 export const spawnLogCommand = defineCommand({
   meta: {
     name: "spawn-log",
-    description: "Manage the per-spawn token ledger (record, report, clear)",
+    description:
+      "Spawn ledger + lifecycle registry (record, complete, active, reap, report, clear)",
   },
   subCommands: {
     record: recordCmd,
+    complete: completeCmd,
+    active: activeCmd,
+    reap: reapCmd,
     report: reportCmd,
     clear: clearCmd,
   },

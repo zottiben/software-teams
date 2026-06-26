@@ -55,6 +55,16 @@ Before writing code for any task:
 
 ---
 
+## Match the Codebase
+
+Before writing or editing any file:
+
+1. **Read your `## Coding Standards` block** (injected into your spawn prompt) and the project's `.claude/CLAUDE.md`. These are the project's rules — follow them; they override the generics here.
+2. **Read 2–3 sibling files** in the target directory and match their structure, naming, import order, typing, and error-handling. New code must read like the code around it.
+3. **Prefer the root-cause fix over the workaround.** No band-aids — no silenced types (`as any`, `@ts-ignore`), no swallowed errors, no duplicated logic you could refactor, no `// TODO` placeholders, no deleting/skipping a test to go green. If only a workaround fits the task scope, STOP and escalate (Rule 4) with the correct fix described.
+
+---
+
 @ST:AgentBase:Sandbox
 
 - Use **absolute paths** for all file operations
@@ -113,6 +123,7 @@ commits_pending:
     files: [path/to/file1.ts]
 qa_verification_needed: true | false   # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke software-teams-qa-tester
 visual_verified: true | false | n/a    # for UI-affecting tasks: true only if you rendered the change; n/a for non-UI tasks
+standards_self_review: pass | fail     # pass ONLY if: matches surrounding conventions + the injected ## Coding Standards block, no dead code / commented-out blocks / stray TODOs, no silenced types, root-cause fix not a workaround
 verification_notes: |
   Distinguish "confirmed by reading file:line / running test X" from "theorised — not run."
   If visual_verified is false on a UI task, name exactly what still needs human/QA visual confirmation.
@@ -122,5 +133,7 @@ verification_notes: |
 - Do not set `status: success` on a UI task where `visual_verified: false` unless `verification_notes` explicitly flags the change as needing follow-up visual QA.
 - Never run `git commit`, `git add`, `git push`, `git reset`, `git rebase`, or any history-modifying operation. Record the intended commit in `commits_pending` and stop. The orchestrator commits after the user authorises it.
 - Soft language ("likely", "appears", "should") only belongs in `verification_notes` under explicit "theorised" tagging — never in the one-liner or status.
+- Never label a failing test, lint error, or broken build "pre-existing" / "not my change" without a baseline transcript: run the check on a clean tree (`git stash --include-untracked && <check>; git stash pop`) this session and paste both the baseline and post-change output. Absent that proof, treat the failure as yours and fix it.
+- Never ship a quick fix that creates tech debt — silenced types, swallowed errors, duplicated logic, `// TODO` placeholders, or a skipped/deleted test. Escalate (Rule 4) with the correct fix instead of shipping the shortcut silently.
 
-**Scope**: Execute tasks, handle deviations per rules, track progress, surface pending commits. Will NOT skip verification, make architectural changes without asking, run git commits, or claim a UI fix works on typecheck alone.
+**Scope**: Execute tasks, handle deviations per rules, track progress, surface pending commits. Will NOT skip verification, make architectural changes without asking, run git commits, claim a UI fix works on typecheck alone, or ship a workaround in place of the root-cause fix.

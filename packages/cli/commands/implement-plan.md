@@ -2,7 +2,7 @@
 name: implement-plan
 description: "Software Teams: Execute implementation plan"
 allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
-argument-hint: "[--team | --single | --dry-run | --skip-qa]"
+argument-hint: "[--team | --single | --dry-run | --skip-qa | --skip-review]"
 context: |
   !cat .software-teams/state.yaml 2>/dev/null | head -30
 ---
@@ -21,6 +21,7 @@ Execute an approved plan with complexity-based routing. Deterministic workflow �
 - `--single` — Force single-agent mode regardless of complexity signals
 - `--dry-run` — Preview without writing: list files that would change and agents that would be spawned, then STOP
 - `--skip-qa` — Skip the post-task `software-teams-qa-tester` verification pass
+- `--skip-review` — Skip the Layer-3 independent review (`software-teams-head-engineering` + `software-teams-verifier`) at plan completion (§12a). Use only for throwaway / prototype work.
 - `--workflow` — Compile the three-tier plan to a deterministic Claude Code Workflow script and run that instead of the inline wave loop. Requires Workflow-tool opt-in; see "Optional: Deterministic execution" below.
 - `--isolate` — Run this plan inside a dedicated git worktree (staged off your main working tree) and merge it back cleanly once it completes and passes QA. See "Optional: Isolated execution" below.
 
@@ -192,7 +193,7 @@ Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI stat
 **Agent Teams is experimental — handle it explicitly** (see `@ST:AgentTeamsOrchestration` § PeerCollaboration for the full protocol):
 - **Enablement.** If `TeamCreate` is unavailable or errors, the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag is off. Tell the user to add it to `.claude/settings.json`, and fall back to single-agent mode for this run — do NOT abort the plan.
 - **Peer collaboration.** Teammates DM peers DIRECTLY for cross-domain questions (contracts, interfaces, "is X ready") instead of stalling or routing everything through you; you get peer-DM summaries via idle notifications.
-- **Lead monitoring.** Periodically `TaskList`: if a task sits `in_progress` with an idle owner and no progress, DM the owner to confirm/complete (teams sometimes fail to mark tasks done, blocking dependents). Idle ≠ done.
+- **Lead monitoring (deterministic, not by vibes).** Run `$ST_CLI spawn-log reap --max-idle-min 30` (resolve the CLI per `commands/_shared/cli-invocation.md`) to list spawns past their deadline/idle window. For each stale `task_id` it returns: `SendMessage` the owner to confirm/complete; if it stays dormant, `TaskStop` it and re-spawn or escalate — never let an agent sit `in_progress` for hours. Cross-check `TaskList` for tasks whose work finished but were never marked complete (teams sometimes fail to, blocking dependents). Idle ≠ done.
 - **No resume.** In-process teammates do NOT survive `/resume`/`/rewind`. On resume, treat the team as gone — re-create it and respawn from the current task board; do not message stale teammate names.
 - **Per-task quality gate.** The `TaskCompleted` hook (`.claude/hooks/team-task-quality-gate.sh`) runs the fast gates and surfaces failures to the team as it completes tasks; it is **advisory** in a shared tree (won't false-block on a peer's in-progress files). For hard per-task blocking, run the team with per-task worktree isolation.
 
@@ -208,21 +209,26 @@ For each task in the topologically sorted task graph:
 
 2. **Spawn the pinned agent natively.** Use `subagent_type="{task.agent}"` (post-T6 native migration — Claude Code resolves the spec from `.claude/agents/{task.agent}.md` directly). Spawn under `mode: "acceptEdits"` with the scoped allowlist from `.claude/settings.json`. The prompt MUST include:
    - A `## Project Context` block (type, tech stack, quality gates, working directory)
+   - A `## Coding Standards` block containing `DISCOVERED_STATE.standards` **verbatim** (the project's rules files + CLAUDE.md standards). The agent does not inherit the orchestrator's CLAUDE.md; omit this block and the agent codes blind to the project's conventions.
    - `TASK_FILE: {slice path}` — the agent reads it itself
    - The SPEC sections to read (pass the section anchors, NOT the file contents inline)
    - Instruction: _"Read only your TASK_FILE and the SPEC sections cited in its `**Read first:**` line. Do NOT load the full spec, the full orchestration, or other task files. Cap exploration to the files your slice names."_
    - The `done_when:` block from the slice (verbatim) so the agent knows the completion contract
    - Short-report instruction (<400 words) per `@ST:AgentBase` Budget Discipline
 
-   **Optional (R-06 follow-up)**: Before each spawn, record the prompt context size so future plans get real per-spawn numbers instead of static estimates:
+   **Register the spawn (lifecycle tracking).** Before each spawn, open a ledger entry so a stalled agent can be reaped (see § Lead monitoring) and so future plans get real per-spawn cost numbers:
 
    ```
-   bun run src/index.ts spawn-log record --task-id {task.id} --agent {task.agent} --bytes $(wc -c < {slice}) --slice {slice} --tier three-tier --plan-id {plan.id}
+   bun run src/index.ts spawn-log record --task-id {task.id} --agent {task.agent} --bytes $(wc -c < {slice}) --slice {slice} --tier three-tier --plan-id {plan.id} --deadline-min 30
    ```
 
-   This populates `.software-teams/persistence/spawn-ledger.jsonl`, after which `$ST_CLI spawn-log report` (resolve per `commands/_shared/cli-invocation.md`) produces real aggregate numbers, replacing the static estimate that T13 of plan `1-01-native-subagents` had to fall back to.
+   This opens an entry in `.software-teams/persistence/spawn-ledger.jsonl` with a 30-minute deadline. `$ST_CLI spawn-log report` (resolve per `commands/_shared/cli-invocation.md`) produces aggregate cost numbers; `$ST_CLI spawn-log reap` lists entries that blew their deadline. The matching `spawn-log complete` call in step 3 closes the entry.
 
-3. **Capture structured return.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, and any `deviations`. The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
+3. **Capture structured return — and verify it against reality.** Read `files_modified`, `files_created`, `commits_pending`, `qa_verification_needed`, `standards_self_review`, and any `deviations`. Then, before trusting it:
+   - **Cross-check against git:** run `git status --porcelain` and confirm every claimed `files_modified` path is actually dirty, and no un-claimed source file is dirty. A mismatch means the return is truncated, stale, or fabricated — do NOT aggregate it; re-spawn the task or surface the discrepancy to the user.
+   - **Branch on `standards_self_review`:** if it is `fail`, return to the specialist with the specific standard violated and have it fixed BEFORE running QA — do not advance.
+   - **Close the registry entry:** the agent has returned, so run `$ST_CLI spawn-log complete --task-id {task.id} --status done` (use `--status failed` if it returned `status: blocked`/`error`). This stops `spawn-log reap` from flagging a finished spawn as stale.
+   - The agent must NOT have run `git commit` itself — commits are deferred (§3T.11).
 
 4. **Spawn `software-teams-qa-tester` in `post-task-verify` mode.** Pass the slice's `done_when:` block as the verification spec, plus `files_modified` from the agent's return. Same skip rules as §10 below: `--skip-qa`, doc-only `files_modified`, or `qa_verification_needed: false` skip the verify; contract-bearing YAML/JSON specs still trigger `contract-check`.
 
@@ -249,11 +255,11 @@ Mechanism is identical to the single-tier loop's **§10. Post-Task Verify**. The
 
 Same as **§11. Execute Deferred Ops** below — execute `commits_pending` via `git add` + `git commit`, create any `files_to_create` entries via the Write tool. Do NOT skip this step.
 
-**Tear down the team (Agent Teams mode only).** After all commits are written, call `TeamDelete` for the team created in §3T.8 (team name `{slug}-team`). Single-agent mode skips this step.
+**Tear down the team (Agent Teams mode only) — unconditional.** Teardown is a `finally` step, not a happy-path one: call `TeamDelete` for the team created in §3T.8 (team name `{slug}-team`) after commits are written **and on any early exit** (halt at §3T.15, blocker, or error) so no teammate outlives the run — orphaned teammates are what sit dormant for hours. Single-agent mode skips this step.
 
 ### 3T.12. Run Verification Gates
 
-Same as **§12. Run Verification Gates** below. The plan-level quality gates from `DISCOVERED_STATE.quality_gates` apply in addition to the wave-level integration checks already run inside the loop.
+Same as **§12. Run Verification Gates** below, followed by **§12a. Independent Review** (`software-teams-head-engineering` + `software-teams-verifier`, unless `--skip-review`). The plan-level quality gates from `DISCOVERED_STATE.quality_gates` apply in addition to the wave-level integration checks already run inside the loop.
 
 ### 3T.13. Advance State to Complete
 
@@ -283,8 +289,9 @@ Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that com
 - `.software-teams/codebase/summary.md` if it exists
 - `.software-teams/rules/general.md` (always)
 - Domain-specific rules based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
+- The project's `.claude/CLAUDE.md` (repo root, and the nearest one to the target code if nested) — the canonical home for the project's coding standards
 
-Rules override defaults. Record which rules files were found in `DISCOVERED_STATE.rules_loaded`.
+Rules override defaults. Record which rules files were found in `DISCOVERED_STATE.rules_loaded`, and store the **concatenated text** of the non-empty rules files plus the CLAUDE.md standards in `DISCOVERED_STATE.standards`. Spawned subagents do **NOT** inherit the orchestrator's `.claude/CLAUDE.md` — the only way the project's standards reach a specialist is if you inject them into the spawn prompt (see §8 and §3T.8). If every rules file is an empty stub and no CLAUDE.md standards exist, set `DISCOVERED_STATE.standards` to this default: "Match the surrounding code (read 2–3 sibling files first); prefer the root-cause fix over a workaround; no dead code, no silenced types (`as any`/`@ts-ignore`), no swallowed errors, no `// TODO` placeholders."
 
 ### 2. Load Plan
 
@@ -370,7 +377,7 @@ TeamCreate(team_name: "{slug}-team")
 
 Team name pattern: `{slug}-team`. The `{slug}` value comes from `current_plan.slug` in `state.yaml` (see step §2). This pattern is deliberate and identical in the three-tier path (§3T.8) so the team is predictable and FleetView-discoverable.
 
-**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if `TeamCreate` errors, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
+**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if `TeamCreate` errors, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead reaps stale spawns (`$ST_CLI spawn-log reap`) and monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
 
 Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
@@ -379,6 +386,7 @@ Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_F
 - Give exact file paths. Cap exploration explicitly: "read only your TASK_FILE and the files it names."
 - Request short reports (<400 words). Agents can be truncated mid-task; scoped prompts survive the budget ceiling.
 - Include a `## Project Context` block in every spawn prompt: type, tech stack, quality gates, working directory. Saves 2-3 discovery tool calls per spawn.
+- Include a `## Coding Standards` block in every spawn prompt: paste `DISCOVERED_STATE.standards` verbatim (the project's rules files + CLAUDE.md standards). Subagents do **not** inherit the orchestrator's CLAUDE.md — without this block they code blind to the project's conventions, which is the root cause of "doesn't follow our patterns" regressions.
 - For split plans, the agent reads the `TASK_FILE` itself — do not inline task content into the prompt.
 
 **Test task execution:** When spawning a `type: test` task:
@@ -436,13 +444,22 @@ After each task's programmer returns, invoke `software-teams-qa-tester` in `post
 
 Agents create files directly (spawned under `acceptEdits` with the scoped allowlist from `.claude/settings.json`), so `files_to_create` should be empty. If any agent does return `files_to_create` entries, create them via Write tool. Execute `commits_pending` via `git add` + `git commit`. Do NOT skip this step.
 
-**Tear down the team.** If Agent Teams mode was used, call `TeamDelete` for the team created in §8 (team name `{slug}-team`) after all commits have been written. Single-agent mode skips this step (no team exists).
+**Tear down the team — unconditional.** If Agent Teams mode was used, call `TeamDelete` for the team created in §8 (team name `{slug}-team`) after commits are written **and on any early exit** (halt, blocker, or error) — teardown is a `finally` step so no teammate outlives the run. Single-agent mode skips this step (no team exists).
 
 ### 12. Run Verification Gates
 
 Execute the project's quality gates in order: tests, lint, typecheck (exact commands come from `DISCOVERED_STATE.quality_gates`). Record pass/fail per gate.
 
 If any gate fails, STOP — do not advance state to `complete`. Report the failure and enter the review loop at step 14.
+
+### 12a. Independent Review (Layer 3 — fresh context)
+
+Unless `--skip-review` is passed, run an INDEPENDENT review by agents that did NOT write the code before completing the plan. A fresh context catches what the author cannot see — convention drift, and the "deleted the failing test" shortcut the implementing agent will rationalise (the writer/reviewer pattern):
+
+1. **Code-quality / standards review.** Spawn `software-teams-head-engineering` (read-only) with the plan's accumulated diff (`git diff {plan-base}...HEAD --stat` plus the changed files) and the project's `## Coding Standards`. It returns `issues: [{ severity, description }]`. Any `must_fix` → enter the review loop at §15 and route the fix back to the implementing specialist. Do NOT advance to `complete` with an open `must_fix`.
+2. **Goal-backward verification.** If `agents.verifier` is enabled in `.software-teams/config/config.yaml` (default true), spawn `software-teams-verifier` for plan-scope verification (existence / substantive / wired / quality, plus **test integrity** — confirm no test was deleted, skipped, or weakened to go green). A `status: fail` → review loop at §15.
+
+Both reviewers are read-only — they report; the implementing specialist applies any fix. Record both results in the summary (§14).
 
 ### 13. Advance State to Complete
 
@@ -503,11 +520,12 @@ Pre-written responses for known deviations. When one applies, follow the scripte
 
 ## HARD STOP — Verification Gate
 
-Before presenting the summary (step 14), all three must be true:
+Before presenting the summary (step 14), all four must be true:
 
 1. Every task has either `advance-task` applied OR a documented failure in the summary
 2. Every QA verification trigger that fired has a recorded result
 3. Every quality gate has passed OR been explicitly flagged as failing in the summary
+4. The Layer-3 independent review (§12a) passed with no open `must_fix`, OR `--skip-review` was explicitly passed
 
 If ANY of these is not true, STOP. Do not present a summary that implies success when work remains. Silent gaps are the failure mode this gate exists to prevent.
 

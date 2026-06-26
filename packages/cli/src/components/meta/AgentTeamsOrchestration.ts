@@ -27,7 +27,7 @@ const AgentTeamsOrchestration: Component = {
     - Verify the agent spec is registered before spawning. Check \`.claude/agents/{name}.md\` (project-local) or \`~/.claude/agents/{name}.md\` (user-global). Missing spec → downgrade to \`general-purpose\` (legacy fallback documented in \`AgentRouter.md\` §4) and record \`agent_downgrade:\` in the summary.
     - Include in prompt: team context and task assignments. Do NOT inject \`"You are {task.agent}. Read agents/..."\` preamble — Claude Code auto-loads the spec when spawned by name. **Scope tightly** — one task per spawn, exact file targets, capped exploration, short reports (<400 words). See \`AgentBase.md\` § Budget Discipline.
 5. **Coordinate** — Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
-6. **Cleanup** — shutdown_request to all → TeamDelete → set status "complete" → report (include which specialist ran which task and any downgrade events)`,
+6. **Cleanup (unconditional — runs even on halt / blocker / error).** Treat teardown as a \`finally\` block, NOT a happy-path step: \`shutdown_request\` to all teammates → \`TeamDelete\` → set status. A team must never outlive the run that created it — orphaned teammates are why agents sit dormant for hours. On \`/resume\` the team is already gone (see § Experimental-feature caveats → No resume): re-create from the task board, never message stale names. Report which specialist ran which task and any downgrade events.`,
     },
     PeerCollaboration: {
       name: "PeerCollaboration",
@@ -56,11 +56,13 @@ notifications, so you do NOT need to CC the lead.
 ### Lead duties (the producer / team lead)
 
 Beyond spawning teammates and committing results:
-- **Monitor for lag.** Agent teams sometimes fail to mark a task complete, which
-  blocks dependents. Periodically call \`TaskList\`; if a task sits
-  \`in_progress\` with an idle owner and no recent progress, DM the owner to
-  confirm or complete it (or reassign). Do NOT assume idle == done — idle just
-  means waiting; check the task status.
+- **Monitor for lag (deterministic, not by vibes).** Run
+  \`software-teams spawn-log reap --max-idle-min 30\` to list spawns that blew
+  their deadline/idle window. For each stale \`task_id\`: \`SendMessage\` the
+  owner to confirm/complete; if it stays dormant, \`TaskStop\` it and re-spawn
+  or escalate — never let a teammate sit dormant for hours. Cross-check
+  \`TaskList\` for tasks whose work finished but were never marked complete
+  (teams sometimes fail to, blocking dependents). Do NOT assume idle == done.
 - **Unblock.** If every available task is \`blockedBy\` open work, resolve or
   reprioritise the blockers so teammates aren't stuck.
 
@@ -159,9 +161,13 @@ preamble. Software Teams specialists land in \`.claude/agents/\` via \`software-
       name: "TeamLifecycle",
       description: "Lifecycle stages for an Agent Team",
       body: `\`\`\`
-TeamCreate → Spawn agents → Monitor (auto message delivery) →
+TeamCreate → Spawn agents → Monitor + reap stale (spawn-log reap) →
 Collect results → Deferred ops → shutdown_request → TeamDelete
-\`\`\``,
+\`\`\`
+
+Teardown (shutdown_request → TeamDelete) is a \`finally\` block: it runs on
+normal completion AND on early exit (halt, blocker, error). A team must never
+outlive its run.`,
     },
   },
   defaultOrder: [

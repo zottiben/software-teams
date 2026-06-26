@@ -4,6 +4,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   recordSpawn,
+  recordCompletion,
+  getActiveSpawns,
+  findStaleSpawns,
   readLedger,
   summariseLedger,
   clearLedger,
@@ -192,6 +195,82 @@ describe("clearLedger", () => {
     await withLedger(async (ledgerPath) => {
       await clearLedger({ ledgerPath });
       expect(existsSync(ledgerPath)).toBe(false);
+    });
+  });
+});
+
+describe("lifecycle registry", () => {
+  test("getActiveSpawns returns spawns with no completion", async () => {
+    await withLedger(async (ledgerPath) => {
+      await recordSpawn(makeEntry({ task_id: "1-01-T1" }), { ledgerPath });
+      await recordSpawn(makeEntry({ task_id: "1-01-T2", agent: "software-teams-backend" }), { ledgerPath });
+      await recordCompletion({ task_id: "1-01-T1", status: "done" }, { ledgerPath });
+
+      const active = await getActiveSpawns({ ledgerPath });
+      expect(active).toHaveLength(1);
+      expect(active[0]?.task_id).toBe("1-01-T2");
+    });
+  });
+
+  test("a re-spawn after completion re-opens the entry", async () => {
+    await withLedger(async (ledgerPath) => {
+      await recordSpawn(makeEntry({ task_id: "1-01-T1" }), { ledgerPath });
+      await recordCompletion({ task_id: "1-01-T1", status: "done" }, { ledgerPath });
+      await recordSpawn(makeEntry({ task_id: "1-01-T1" }), { ledgerPath });
+
+      const active = await getActiveSpawns({ ledgerPath });
+      expect(active.map((a) => a.task_id)).toEqual(["1-01-T1"]);
+    });
+  });
+
+  test("findStaleSpawns flags spawns past their deadline", async () => {
+    await withLedger(async (ledgerPath) => {
+      await recordSpawn(
+        makeEntry({
+          task_id: "1-01-T1",
+          timestamp: "2026-04-30T10:00:00.000Z",
+          deadline_at: "2026-04-30T10:30:00.000Z",
+        }),
+        { ledgerPath },
+      );
+      await recordSpawn(
+        makeEntry({
+          task_id: "1-01-T2",
+          timestamp: "2026-04-30T10:00:00.000Z",
+          deadline_at: "2026-04-30T12:00:00.000Z",
+        }),
+        { ledgerPath },
+      );
+
+      // now = 11:00 → T1 (deadline 10:30) is stale, T2 (deadline 12:00) is not.
+      const stale = await findStaleSpawns({ ledgerPath, now: new Date("2026-04-30T11:00:00.000Z") });
+      expect(stale.map((s) => s.task_id)).toEqual(["1-01-T1"]);
+      expect(stale[0]?.idle_ms).toBe(60 * 60 * 1000);
+    });
+  });
+
+  test("findStaleSpawns uses the idle window when no deadline is set", async () => {
+    await withLedger(async (ledgerPath) => {
+      await recordSpawn(makeEntry({ task_id: "1-01-T1", timestamp: "2026-04-30T10:00:00.000Z" }), { ledgerPath });
+
+      const stale = await findStaleSpawns({
+        ledgerPath,
+        now: new Date("2026-04-30T10:40:00.000Z"),
+        maxIdleMs: 30 * 60 * 1000,
+      });
+      expect(stale).toHaveLength(1);
+      expect(stale[0]?.task_id).toBe("1-01-T1");
+    });
+  });
+
+  test("completion events are excluded from cost aggregation", async () => {
+    await withLedger(async (ledgerPath) => {
+      await recordSpawn(makeEntry({ task_id: "1-01-T1", prompt_bytes: 1000, prompt_tokens_approx: 250 }), { ledgerPath });
+      await recordCompletion({ task_id: "1-01-T1", status: "done" }, { ledgerPath });
+
+      const summary = await summariseLedger({ ledgerPath });
+      expect(summary.total_entries).toBe(1);
+      expect(summary.total_bytes).toBe(1000);
     });
   });
 });

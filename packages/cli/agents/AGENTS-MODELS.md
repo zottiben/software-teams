@@ -22,7 +22,7 @@ this table AND the agent's frontmatter in the same commit.
 |        | judgement, oversight that gates downstream work.                  |
 | sonnet | Default — implementation, research, review, specialist work.      |
 | haiku  | Mechanical / narrow-scope tasks (committer, debugger triage,      |
-|        | qa-tester case enumeration, plan checklist validation).           |
+|        | plan checklist validation).                                       |
 
 Never silently downgrade opus → sonnet on an existing spec; raise it as a
 deliberate decision.
@@ -76,7 +76,7 @@ Researcher roles need outbound web access and write research reports.
 | software-teams-producer           | opus   | planning/file-writing |
 | software-teams-product-lead       | opus   | read-only advisor     |
 | software-teams-programmer         | sonnet | implementation        |
-| software-teams-qa-tester          | haiku  | implementation        |
+| software-teams-qa-tester          | sonnet | implementation        |
 | software-teams-quality            | sonnet | implementation        |
 | software-teams-researcher         | sonnet | researcher (full)     |
 | software-teams-security           | sonnet | read-only advisor     |
@@ -93,6 +93,11 @@ Notes:
   skips file writes by behaviour, not by tool restriction.
 - `software-teams-security` is read-only by design — it recommends and audits, it
   never patches code. Pair with `software-teams-programmer` for fixes.
+- `software-teams-qa-tester` is `sonnet` (raised from `haiku`): it owns
+  evidence-based verification — baseline-proving "pre-existing" failures,
+  contract-check, and a11y judgement — which needs reasoning, not the cheapest
+  model. The `quality` and `balanced` profiles use sonnet; the `budget` profile
+  keeps it on `haiku` as the explicit cost trade-off.
 - The eight game-* specialists are gameplay/Unity/AI-art-pipeline/store-cert/production roles for game development projects; they follow the same model/role-class conventions as the other agents.
 - **Profile-overrides-frontmatter precedence:** `config.yaml models:` profiles override the per-agent frontmatter `model:` at `software-teams sync-agents` time. The frontmatter value is the fallback default used only when the active profile (and any override) does not name the agent. The `balanced` profile maps `software-teams-dev-planner` to `claude-opus-4-6`; its frontmatter default is `sonnet`.
 - **Orchestrator caveat:** The orchestrator is the main Claude Code session, not a spawned subagent — it cannot be configured via `config.yaml`. Out of scope; documented here only.

@@ -71,6 +71,10 @@ criteria plus the full test suite — before the orchestrator advances:
 
 Do not skip QA because "it's a small change" — the gate exists precisely so small changes don't accumulate silent regressions.
 
+**Green to advance is non-negotiable.** A red test suite blocks the next task/wave regardless of cause. If a failure is genuinely pre-existing and out of scope (proven via baseline — see Doctrine "Prove 'pre-existing' before you blame it"), escalate it to the user; do NOT advance over red on the strength of an unproven "it was already broken" claim. Set `ST_QUALITY_GATE_TESTS=1` to make the Layer-1 hook run the full suite on every specialist stop, so a broken suite surfaces the moment it breaks rather than at the wave gate.
+
+**Layer 3 — independent review (fresh context).** Before a plan completes, an agent that did NOT write the code reviews it: `software-teams-head-engineering` for standards / quality and `software-teams-verifier` for goal-backward + test-integrity checks. The author cannot see its own blind spots — a fresh reviewer catches the convention drift and the "deleted the failing test" shortcut the implementing agent will rationalise. `must_fix` issues block completion. Skippable for throwaway work via `--skip-review`.
+
 ## Picking an Agent
 
 1. Read `AGENTS.md` for the catalogue.
@@ -89,6 +93,7 @@ Common picks:
 ## Reporting & State
 
 Specialists return YAML with `status`, `files_modified`, `files_created`, `commits_pending`, and any agent-specific fields. The orchestrator:
+- **Verifies the return against reality before trusting it** — runs `git status --porcelain` and confirms the claimed `files_modified` are actually dirty and no unclaimed source file changed. A mismatch means a truncated, stale, or fabricated return: re-spawn or surface it. Never aggregate a return you have not reconciled with git — a silently-dropped return is how half-finished work slips through.
 - Records outputs in `.software-teams/state.yaml` if running under a Software Teams plan.
 - Executes `commits_pending` after the task fully completes (specialists do NOT commit).
 - Surfaces deviations and blockers to the user — do not silently absorb them.
@@ -112,6 +117,15 @@ For layout, positioning, z-index, sticky behaviour, scroll, animation, focus, an
 ### Stop on regression
 If your fix breaks another test, screen, or feature: **STOP**. Report the regression. Do **not** paper over it with a second fix. Two stacked fixes on a broken foundation compound, they don't repair. The right move is to revert and re-diagnose, not to layer.
 
+### Prove "pre-existing" before you blame it
+A failing test, lint error, or broken build is **yours to fix by default**. You may label a failure "pre-existing" / "not caused by my change" **only if you prove it**: in this session, run the same check on a clean baseline (`git stash --include-untracked && <the exact check> ; git stash pop`) and paste **both** the baseline output and the post-change output. No baseline transcript → the claim is invalid → treat the failure as caused by your change and fix it. "It was already failing" asserted as free text, with no captured before/after, is the single most common dishonest report — it is never accepted. If you genuinely cannot fix a proven pre-existing failure within scope, say so explicitly and stop; do not silently leave it red and move on.
+
+### Prefer the root-cause fix over the workaround
+Band-aids are forbidden: silenced types (`as any`, `@ts-ignore`, `// eslint-disable` to dodge a real error), swallowed exceptions, duplicated logic you could refactor, `// TODO` placeholders, or deleting/skipping a test to make the suite green. If only a workaround fits the task scope, **STOP and escalate** (deviation Rule 4) with the correct fix described — do not ship the shortcut silently. A quick fix that creates tech debt is a worse outcome than an honest escalation.
+
+### Match the surrounding code
+Before writing or editing, read 2–3 sibling files in the target directory and match their structure, naming, import order, typing, and error-handling. New code must read like the code around it. The project's standards live in `.claude/CLAUDE.md` and the `.software-teams/rules/*.md` files — follow them. If you are a spawned specialist, your conventions arrive in the `## Coding Standards` block of your prompt; honour it.
+
 ### NEVER commit without explicit request
 Specialists do **NOT** run `git commit`, `git add`, `git push`, `git reset`, `git rebase`, or any history-modifying operation. Leave changes in the working tree; record the intended commit message in `commits_pending`. The orchestrator commits when the user authorises it, in the user's preferred boundaries. **No exceptions, no narrative justifications.** If you find yourself constructing a story for why this commit is fine, that itself is the warning sign — stop. A commit you make is a regression the user cannot undo invisibly.
 
@@ -132,6 +146,8 @@ Before applying a pattern from another file/screen/module: **read 2–3 instance
 - **Stacking a second fix on top of a regression** — revert and re-diagnose, don't layer.
 - **Constructing a narrative to justify an unauthorised action** — if you need a story for why an action was fine, you shouldn't have taken it.
 - **Fabricating cross-file consistency claims** — asserting "the convention is X" or "all other files do Y" without having actually read those files in-session. If you can't cite `path:line`, the finding does not exist.
+- **Blaming a failure on "pre-existing" state without a baseline transcript** — "the test was already red" is invalid unless you ran it on a clean baseline (`git stash`) this session and pasted both outputs. Absent proof, the failure is yours to fix.
+- **Shipping the quick fix that creates tech debt** — silenced types, swallowed errors, duplicated logic, `// TODO` placeholders, or skipped/deleted tests. Escalate (Rule 4) with the correct fix instead of shipping the shortcut silently.
 
 ## See Also
 

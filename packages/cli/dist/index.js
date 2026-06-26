@@ -5,43 +5,25 @@ var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-function __accessProp(key) {
-  return this[key];
-}
-var __toESMCache_node;
-var __toESMCache_esm;
 var __toESM = (mod, isNodeMode, target) => {
-  var canCache = mod != null && typeof mod === "object";
-  if (canCache) {
-    var cache = isNodeMode ? __toESMCache_node ??= new WeakMap : __toESMCache_esm ??= new WeakMap;
-    var cached = cache.get(mod);
-    if (cached)
-      return cached;
-  }
   target = mod != null ? __create(__getProtoOf(mod)) : {};
   const to = isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target;
   for (let key of __getOwnPropNames(mod))
     if (!__hasOwnProp.call(to, key))
       __defProp(to, key, {
-        get: __accessProp.bind(mod, key),
+        get: () => mod[key],
         enumerable: true
       });
-  if (canCache)
-    cache.set(mod, to);
   return to;
 };
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
-var __returnValue = (v) => v;
-function __exportSetter(name, newValue) {
-  this[name] = __returnValue.bind(null, newValue);
-}
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, {
       get: all[name],
       enumerable: true,
       configurable: true,
-      set: __exportSetter.bind(all, name)
+      set: (newValue) => all[name] = () => newValue
     });
 };
 var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
@@ -12629,7 +12611,7 @@ var AgentTeamsOrchestration = {
     - Verify the agent spec is registered before spawning. Check \`.claude/agents/{name}.md\` (project-local) or \`~/.claude/agents/{name}.md\` (user-global). Missing spec \u2192 downgrade to \`general-purpose\` (legacy fallback documented in \`AgentRouter.md\` \xA74) and record \`agent_downgrade:\` in the summary.
     - Include in prompt: team context and task assignments. Do NOT inject \`"You are {task.agent}. Read agents/..."\` preamble \u2014 Claude Code auto-loads the spec when spawned by name. **Scope tightly** \u2014 one task per spawn, exact file targets, capped exploration, short reports (<400 words). See \`AgentBase.md\` \xA7 Budget Discipline.
 5. **Coordinate** \u2014 Automatic message delivery for results, TaskList to monitor, SendMessage to guide/unblock
-6. **Cleanup** \u2014 shutdown_request to all \u2192 TeamDelete \u2192 set status "complete" \u2192 report (include which specialist ran which task and any downgrade events)`
+6. **Cleanup (unconditional \u2014 runs even on halt / blocker / error).** Treat teardown as a \`finally\` block, NOT a happy-path step: \`shutdown_request\` to all teammates \u2192 \`TeamDelete\` \u2192 set status. A team must never outlive the run that created it \u2014 orphaned teammates are why agents sit dormant for hours. On \`/resume\` the team is already gone (see \xA7 Experimental-feature caveats \u2192 No resume): re-create from the task board, never message stale names. Report which specialist ran which task and any downgrade events.`
     },
     PeerCollaboration: {
       name: "PeerCollaboration",
@@ -12658,11 +12640,13 @@ notifications, so you do NOT need to CC the lead.
 ### Lead duties (the producer / team lead)
 
 Beyond spawning teammates and committing results:
-- **Monitor for lag.** Agent teams sometimes fail to mark a task complete, which
-  blocks dependents. Periodically call \`TaskList\`; if a task sits
-  \`in_progress\` with an idle owner and no recent progress, DM the owner to
-  confirm or complete it (or reassign). Do NOT assume idle == done \u2014 idle just
-  means waiting; check the task status.
+- **Monitor for lag (deterministic, not by vibes).** Run
+  \`software-teams spawn-log reap --max-idle-min 30\` to list spawns that blew
+  their deadline/idle window. For each stale \`task_id\`: \`SendMessage\` the
+  owner to confirm/complete; if it stays dormant, \`TaskStop\` it and re-spawn
+  or escalate \u2014 never let a teammate sit dormant for hours. Cross-check
+  \`TaskList\` for tasks whose work finished but were never marked complete
+  (teams sometimes fail to, blocking dependents). Do NOT assume idle == done.
 - **Unblock.** If every available task is \`blockedBy\` open work, resolve or
   reprioritise the blockers so teammates aren't stuck.
 
@@ -12761,9 +12745,13 @@ preamble. Software Teams specialists land in \`.claude/agents/\` via \`software-
       name: "TeamLifecycle",
       description: "Lifecycle stages for an Agent Team",
       body: `\`\`\`
-TeamCreate \u2192 Spawn agents \u2192 Monitor (auto message delivery) \u2192
+TeamCreate \u2192 Spawn agents \u2192 Monitor + reap stale (spawn-log reap) \u2192
 Collect results \u2192 Deferred ops \u2192 shutdown_request \u2192 TeamDelete
-\`\`\``
+\`\`\`
+
+Teardown (shutdown_request \u2192 TeamDelete) is a \`finally\` block: it runs on
+normal completion AND on early exit (halt, blocker, error). A team must never
+outlive its run.`
     }
   },
   defaultOrder: [
@@ -22782,6 +22770,7 @@ var syncFrameworkCommand = defineCommand({
 import { mkdir as mkdir3 } from "fs/promises";
 import { existsSync as existsSync37 } from "fs";
 import { dirname as dirname11, join as join30 } from "path";
+var DEFAULT_MAX_IDLE_MS = 30 * 60 * 1000;
 var DEFAULT_LEDGER_PATH = join30(".software-teams", "persistence", "spawn-ledger.jsonl");
 function resolveLedgerPath(opts) {
   return opts?.ledgerPath ?? DEFAULT_LEDGER_PATH;
@@ -22812,7 +22801,8 @@ async function readLedger(opts) {
 }
 async function summariseLedger(opts) {
   const all = await readLedger({ ledgerPath: opts?.ledgerPath });
-  const entries = opts?.planId ? all.filter((e2) => e2.plan_id === opts.planId) : all;
+  const spawns = all.filter((e2) => e2.event !== "complete");
+  const entries = opts?.planId ? spawns.filter((e2) => e2.plan_id === opts.planId) : spawns;
   const summary = {
     total_entries: entries.length,
     total_bytes: 0,
@@ -22868,6 +22858,64 @@ async function clearLedger(opts) {
   await Bun.write(path, text.length > 0 ? text + `
 ` : "");
 }
+async function recordCompletion(opts, fileOpts) {
+  const ts = opts.timestamp ?? new Date().toISOString();
+  const entry = {
+    timestamp: ts,
+    event: "complete",
+    task_id: opts.task_id,
+    agent: opts.agent ?? "",
+    prompt_bytes: 0,
+    prompt_tokens_approx: 0,
+    tier: "single-tier",
+    status: opts.status ?? "done",
+    ended_at: ts
+  };
+  if (opts.plan_id)
+    entry.plan_id = opts.plan_id;
+  await recordSpawn(entry, fileOpts);
+}
+async function getActiveSpawns(opts) {
+  const all = await readLedger({ ledgerPath: opts?.ledgerPath });
+  const entries = opts?.planId ? all.filter((e2) => e2.plan_id === opts.planId) : all;
+  const open = new Map;
+  for (const e2 of entries) {
+    if (e2.event === "complete") {
+      open.set(e2.task_id, null);
+      continue;
+    }
+    open.set(e2.task_id, {
+      task_id: e2.task_id,
+      agent: e2.agent,
+      plan_id: e2.plan_id,
+      spawned_at: e2.timestamp,
+      deadline_at: e2.deadline_at
+    });
+  }
+  const active = [];
+  for (const v2 of open.values()) {
+    if (v2)
+      active.push(v2);
+  }
+  return active;
+}
+async function findStaleSpawns(opts) {
+  const active = await getActiveSpawns({ ledgerPath: opts?.ledgerPath, planId: opts?.planId });
+  const nowMs = (opts?.now ?? new Date).getTime();
+  const maxIdleMs = opts?.maxIdleMs ?? DEFAULT_MAX_IDLE_MS;
+  const stale = [];
+  for (const a2 of active) {
+    const spawnedMs = Date.parse(a2.spawned_at);
+    const idleMs = Number.isFinite(spawnedMs) ? nowMs - spawnedMs : 0;
+    const deadlineMs = a2.deadline_at ? Date.parse(a2.deadline_at) : NaN;
+    const overDeadline = Number.isFinite(deadlineMs) && nowMs >= deadlineMs;
+    const overIdle = !a2.deadline_at && idleMs > maxIdleMs;
+    if (overDeadline || overIdle) {
+      stale.push({ ...a2, idle_ms: idleMs });
+    }
+  }
+  return stale;
+}
 
 // src/commands/spawn-log.ts
 var VALID_TIERS = new Set(["three-tier", "single-tier"]);
@@ -22913,6 +22961,10 @@ var recordCmd = defineCommand({
       type: "string",
       description: "Plan identifier (e.g. 1-01)"
     },
+    "deadline-min": {
+      type: "string",
+      description: "Minutes until this spawn is considered stale by `reap` (default: 30)"
+    },
     "ledger-path": {
       type: "string",
       description: "Override ledger path (default: .software-teams/persistence/spawn-ledger.jsonl)"
@@ -22935,8 +22987,17 @@ var recordCmd = defineCommand({
       process.exit(1);
     }
     const specSections = args["spec-sections"] ? args["spec-sections"].split(",").map((s2) => s2.trim()).filter((s2) => s2.length > 0) : undefined;
+    const deadlineMin = args["deadline-min"] != null ? Number(args["deadline-min"]) : 30;
+    if (!Number.isFinite(deadlineMin) || deadlineMin <= 0) {
+      consola.error(`--deadline-min must be a positive number (got: ${args["deadline-min"]})`);
+      process.exit(1);
+    }
+    const now = new Date;
     const entry = {
-      timestamp: new Date().toISOString(),
+      timestamp: now.toISOString(),
+      event: "spawn",
+      status: "running",
+      deadline_at: new Date(now.getTime() + deadlineMin * 60000).toISOString(),
       task_id: args["task-id"],
       agent: args.agent,
       prompt_bytes: bytes,
@@ -22950,7 +23011,139 @@ var recordCmd = defineCommand({
     if (specSections && specSections.length > 0)
       entry.spec_sections = specSections;
     await recordSpawn(entry, { ledgerPath: args["ledger-path"] });
-    consola.success(`Recorded spawn: ${entry.task_id} (${entry.agent}) \u2014 ${bytes} B / ~${tokens} tok`);
+    consola.success(`Recorded spawn: ${entry.task_id} (${entry.agent}) \u2014 ${bytes} B / ~${tokens} tok \u2014 deadline +${deadlineMin}m`);
+  }
+});
+var VALID_COMPLETE_STATUS = new Set(["done", "failed"]);
+var completeCmd = defineCommand({
+  meta: {
+    name: "complete",
+    description: "Close a spawn's registry entry when its agent returns (done | failed)"
+  },
+  args: {
+    "task-id": {
+      type: "string",
+      description: "Task ID whose spawn is completing",
+      required: true
+    },
+    status: {
+      type: "string",
+      description: "Completion status (done | failed)",
+      default: "done"
+    },
+    agent: {
+      type: "string",
+      description: "Agent name (optional, for the record)"
+    },
+    "plan-id": {
+      type: "string",
+      description: "Plan identifier (optional)"
+    },
+    "ledger-path": {
+      type: "string",
+      description: "Override ledger path"
+    }
+  },
+  async run({ args }) {
+    const status = args.status;
+    if (!VALID_COMPLETE_STATUS.has(status)) {
+      consola.error(`--status must be one of: done, failed (got: ${args.status})`);
+      process.exit(1);
+    }
+    await recordCompletion({
+      task_id: args["task-id"],
+      agent: args.agent,
+      plan_id: args["plan-id"],
+      status
+    }, { ledgerPath: args["ledger-path"] });
+    consola.success(`Closed spawn: ${args["task-id"]} (${status})`);
+  }
+});
+var activeCmd = defineCommand({
+  meta: {
+    name: "active",
+    description: "List spawns that opened but have not recorded a completion"
+  },
+  args: {
+    "plan-id": {
+      type: "string",
+      description: "Filter by plan_id"
+    },
+    format: {
+      type: "string",
+      description: "Output format (text | json)",
+      default: "text"
+    },
+    "ledger-path": {
+      type: "string",
+      description: "Override ledger path"
+    }
+  },
+  async run({ args }) {
+    const active = await getActiveSpawns({
+      ledgerPath: args["ledger-path"],
+      planId: args["plan-id"]
+    });
+    if (args.format === "json") {
+      console.log(JSON.stringify(active, null, 2));
+      return;
+    }
+    if (active.length === 0) {
+      consola.info("No active spawns.");
+      return;
+    }
+    for (const a2 of active) {
+      console.log(`${a2.task_id}	${a2.agent}	spawned ${a2.spawned_at}	deadline ${a2.deadline_at ?? "(none)"}`);
+    }
+  }
+});
+var reapCmd = defineCommand({
+  meta: {
+    name: "reap",
+    description: "List stalled spawns (past deadline or idle window) for the orchestrator to TaskStop and mark stalled"
+  },
+  args: {
+    "max-idle-min": {
+      type: "string",
+      description: "Idle minutes before a deadline-less spawn is stale (default: 30)"
+    },
+    "plan-id": {
+      type: "string",
+      description: "Filter by plan_id"
+    },
+    format: {
+      type: "string",
+      description: "Output format (text | json)",
+      default: "text"
+    },
+    "ledger-path": {
+      type: "string",
+      description: "Override ledger path"
+    }
+  },
+  async run({ args }) {
+    const maxIdleMin = args["max-idle-min"] != null ? Number(args["max-idle-min"]) : 30;
+    if (!Number.isFinite(maxIdleMin) || maxIdleMin <= 0) {
+      consola.error(`--max-idle-min must be a positive number (got: ${args["max-idle-min"]})`);
+      process.exit(1);
+    }
+    const stale = await findStaleSpawns({
+      ledgerPath: args["ledger-path"],
+      planId: args["plan-id"],
+      maxIdleMs: maxIdleMin * 60000
+    });
+    if (args.format === "json") {
+      console.log(JSON.stringify(stale, null, 2));
+      return;
+    }
+    if (stale.length === 0) {
+      consola.info("No stalled spawns.");
+      return;
+    }
+    consola.warn(`${stale.length} stalled spawn(s) \u2014 TaskStop these and mark them stalled:`);
+    for (const s2 of stale) {
+      console.log(`${s2.task_id}	${s2.agent}	idle ${Math.round(s2.idle_ms / 60000)}m	spawned ${s2.spawned_at}`);
+    }
   }
 });
 var VALID_FORMATS = new Set(["json", "markdown"]);
@@ -23062,10 +23255,13 @@ var clearCmd = defineCommand({
 var spawnLogCommand = defineCommand({
   meta: {
     name: "spawn-log",
-    description: "Manage the per-spawn token ledger (record, report, clear)"
+    description: "Spawn ledger + lifecycle registry (record, complete, active, reap, report, clear)"
   },
   subCommands: {
     record: recordCmd,
+    complete: completeCmd,
+    active: activeCmd,
+    reap: reapCmd,
     report: reportCmd,
     clear: clearCmd
   }
@@ -23996,7 +24192,7 @@ var askQuestionsCommand = defineCommand({
 // ../n8n/src/execution/single-turn.ts
 import { join as join33 } from "path";
 import { existsSync as existsSync40, readFileSync as readFileSync12 } from "fs";
-var __dirname = "/Users/medusa/Developer/software-teams/packages/n8n/src/execution";
+var __dirname = "/Users/benzotti/src/software-teams/packages/n8n/src/execution";
 var sharedApi = require_n8n_api();
 var { sanitizeUserInput: sanitizeUserInput2, fenceUserInput: fenceUserInput2, SINGLE_TURN_ALLOWED_TOOLS: SINGLE_TURN_ALLOWED_TOOLS2 } = sharedApi;
 var NEEDS_INPUT_RE = /^NEEDS_INPUT:\s*(.+)$/m;
@@ -24979,7 +25175,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "0.12.3",
+  version: "0.13.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {

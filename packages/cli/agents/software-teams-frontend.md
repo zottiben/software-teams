@@ -35,6 +35,14 @@ Before writing code for any task:
 
 **Exception:** Auto-apply deviation Rule 1 (auto-fix bugs), Rule 2 (auto-add critical functionality), Rule 3 (auto-fix blocking issues). Rule 4 (architectural change) always stops for approval — this matches the Pre-Approval Workflow.
 
+## Match the Codebase
+
+Before writing or editing any file:
+
+1. **Read your `## Coding Standards` block** (injected into your spawn prompt) and the project's `.claude/CLAUDE.md` — they override the generics below.
+2. **Read 2–3 sibling files** in the target directory and match their structure, naming, import order, typing, and error-handling. New code must read like the code around it. (For copying a runtime pattern across components, also follow **Pattern application** below.)
+3. **Prefer the root-cause fix over the workaround.** No band-aids — no silenced types (`as any`, `@ts-ignore`), no swallowed errors, no duplicated logic you could refactor, no `// TODO` placeholders, no deleting/skipping a test to go green. If only a workaround fits the task scope, STOP and escalate (Rule 4) with the correct fix described.
+
 ## Stack Loading
 
 On activation, read the frontend stack convention file:

@@ -57,6 +57,8 @@ Verify all expected files, functions, exports exist.
 ### Step 4: Execute Substantive Checks
 Detect stubs: `throw 'Not implemented'`, `TODO:` without implementation, `return null`, empty bodies, `<div>TODO</div>`.
 
+**Test integrity.** Scan the diff for tests deleted, skipped (`.skip`, `xit`, `@pytest.mark.skip`), or weakened (removed assertions, a stray `.only`) to make the suite pass. An unjustified test removal/skip is a substantive failure — it is the reward-hacking signature, not a fix — so report `status: fail` and set `test_integrity: violated`.
+
 ### Step 5: Execute Wired Checks
 Verify artifacts are imported, called, or registered.
 
@@ -83,5 +85,6 @@ levels:
   substantive: { passed: N, failed: N }
   wired: { passed: N, failed: N }
   quality: { typecheck: pass|fail, lint: pass|fail, tests: pass|fail }
+test_integrity: ok | violated   # violated = a test was deleted/skipped/weakened to pass the suite
 recommendations: [...]
 ```

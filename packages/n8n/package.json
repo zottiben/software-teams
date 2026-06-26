@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/n8n-nodes-software-teams",
-  "version": "0.12.3",
+  "version": "0.13.0",
   "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only — requires the claude binary and ANTHROPIC_API_KEY on the n8n worker.",
   "author": { "name": "WebsiteLabs" },
   "license": "MIT",
