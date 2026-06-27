@@ -23,6 +23,46 @@ html, body {
   font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-size: 13px;
 }
+body { display: flex; flex-direction: column; }
+
+/* Tabs (one team per tab) */
+.tabbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 38px;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+}
+.tabbar .tab, .tabbar .newtab { -webkit-app-region: no-drag; }
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  padding: 4px 8px 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tab.active { border-color: var(--accent); background: #0e141b; }
+.tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0 2px;
+  font-size: 15px;
+  line-height: 1;
+}
+.tab-close:hover { color: var(--danger); border: none; }
+.newtab { background: transparent; padding: 4px 11px; font-size: 15px; line-height: 1; }
+
+.tabpanels { position: relative; flex: 1; min-height: 0; }
+.tabpanel { position: absolute; inset: 0; }
 
 button {
   background: var(--panel);
@@ -60,8 +100,8 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
 }
 .hint { font-size: 12px; }
 
-/* Cockpit */
-.cockpit { display: flex; flex-direction: column; height: 100vh; }
+/* Cockpit (fills its tab panel) */
+.cockpit { display: flex; flex-direction: column; height: 100%; }
 .topbar {
   display: flex;
   align-items: center;

@@ -5,9 +5,9 @@ import {
   type NoticeMsg,
   type PaneOutputMsg,
   type RosterMsg,
+  type SessionsStateResponse,
   type TeamApi,
   type TeamReadyMsg,
-  type TeamStateResponse,
 } from '../shared/ipc';
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -17,15 +17,20 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 }
 
 const api: TeamApi = {
-  getState: () => ipcRenderer.invoke(IPC.getState) as Promise<TeamStateResponse>,
+  getState: () => ipcRenderer.invoke(IPC.getState) as Promise<SessionsStateResponse>,
   pickRepo: () => ipcRenderer.invoke(IPC.pickRepo) as Promise<string | null>,
-  startTeam: (repoRoot) =>
-    ipcRenderer.invoke(IPC.startTeam, { repoRoot }) as Promise<{ ok: boolean; error?: string }>,
-  stopTeam: () => ipcRenderer.invoke(IPC.stopTeam) as Promise<{ ok: boolean }>,
-  sendInput: (agent, data) => ipcRenderer.send(IPC.paneInput, { agent, data }),
-  resize: (agent, cols, rows) => ipcRenderer.send(IPC.resize, { agent, cols, rows }),
-  clear: (agent) => ipcRenderer.send(IPC.clear, { agent }),
-  clearAll: () => ipcRenderer.send(IPC.clearAll),
+  startTeam: (sessionId, repoRoot) =>
+    ipcRenderer.invoke(IPC.startTeam, { sessionId, repoRoot }) as Promise<{
+      ok: boolean;
+      error?: string;
+    }>,
+  stopTeam: (sessionId) =>
+    ipcRenderer.invoke(IPC.stopTeam, { sessionId }) as Promise<{ ok: boolean }>,
+  sendInput: (sessionId, agent, data) => ipcRenderer.send(IPC.paneInput, { sessionId, agent, data }),
+  resize: (sessionId, agent, cols, rows) =>
+    ipcRenderer.send(IPC.resize, { sessionId, agent, cols, rows }),
+  clear: (sessionId, agent) => ipcRenderer.send(IPC.clear, { sessionId, agent }),
+  clearAll: (sessionId) => ipcRenderer.send(IPC.clearAll, { sessionId }),
   onReady: (cb) => subscribe<TeamReadyMsg>(IPC.ready, cb),
   onPaneOutput: (cb) => subscribe<PaneOutputMsg>(IPC.paneOutput, cb),
   onActivity: (cb) => subscribe<ActivityMsg>(IPC.activity, cb),

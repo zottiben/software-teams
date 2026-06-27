@@ -25,6 +25,8 @@ bun run --cwd apps/electron dev   # builds the engine bundles + the app, then la
 
 In the window: paste or browse to a git repo, **Start team**. The orchestrator + 8 specialists launch. Talk to the orchestrator; it delegates to the specialist panes, which work in their own worktrees and report back.
 
+**Tabs** — open more teams in new tabs (the ＋ button or ⌘T); each tab is an independent team on its own repo, with its own broker, control server, and worktrees. Close a tab (×) to stop that team. Switching tabs keeps every team running in the background.
+
 > Heads up: this launches several real `claude` sessions at once — it uses your Claude auth and consumes tokens. The persistent panes hold context until you clear them (use the per-pane / clear-all buttons).
 
 ## Architecture

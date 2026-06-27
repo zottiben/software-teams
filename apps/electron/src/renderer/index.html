@@ -8,36 +8,10 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div id="start" class="start">
-      <h1>Software Teams Cockpit</h1>
-      <p class="muted">Open a live team of Software Teams agents for a project — and lead them.</p>
-      <div class="row">
-        <input id="repo" type="text" placeholder="/path/to/your/repo" />
-        <button id="pick">Browse…</button>
-      </div>
-      <button id="start-btn" class="primary">Start team</button>
-      <p id="start-error" class="error"></p>
-      <p class="hint muted">Each specialist opens in its own pane and git worktree. The orchestrator delegates to them; you lead.</p>
+    <div id="tabbar" class="tabbar">
+      <button id="newtab" class="newtab" title="New team tab (⌘T)">＋</button>
     </div>
-
-    <div id="cockpit" class="cockpit" hidden>
-      <header class="topbar">
-        <span class="brand">Software Teams Cockpit</span>
-        <span id="repo-label" class="muted"></span>
-        <span class="spacer"></span>
-        <button id="clear-all">Clear all context</button>
-        <button id="stop" class="danger">Stop team</button>
-      </header>
-      <main class="layout">
-        <section id="lead" class="lead"></section>
-        <section id="grid" class="grid"></section>
-        <aside class="feed">
-          <h2>Team activity</h2>
-          <ul id="feed-list" class="feed-list"></ul>
-        </aside>
-      </main>
-    </div>
-
+    <div id="tabpanels" class="tabpanels"></div>
     <script type="module" src="renderer.js"></script>
   </body>
 </html>

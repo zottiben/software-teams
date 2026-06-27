@@ -1,10 +1,19 @@
 import type { TeamEngine, Unsubscribe } from '@websitelabs/software-teams-engine';
-import type {
-  ActivityMsg,
-  AgentDescriptor,
-  PaneOutputMsg,
-  RosterMemberMsg,
-} from '../shared/ipc';
+import type { AgentDescriptor, RosterMemberMsg } from '../shared/ipc';
+
+/** Session-less chunks; `main` stamps the tab's sessionId before sending to the renderer. */
+export interface PaneChunk {
+  readonly agent: string;
+  readonly chunk: string;
+}
+
+export interface ActivityChunk {
+  readonly seq: number;
+  readonly from: string;
+  readonly to: string | null;
+  readonly kind: string;
+  readonly summary: string;
+}
 
 /**
  * Wraps a running {@link TeamEngine} for the GUI: it bridges each pane's terminal
@@ -25,14 +34,14 @@ export class TeamSession {
   }
 
   /** Stream every pane's raw terminal output to `listener`. */
-  onOutput(listener: (output: PaneOutputMsg) => void): void {
+  onOutput(listener: (output: PaneChunk) => void): void {
     for (const [name, pane] of this.engine.panes) {
       this.unsubs.push(pane.onOutput((chunk) => listener({ agent: name, chunk })));
     }
   }
 
   /** Stream inter-agent activity to `listener` (the orchestrator's awareness feed). */
-  onActivity(listener: (activity: ActivityMsg) => void): void {
+  onActivity(listener: (activity: ActivityChunk) => void): void {
     this.unsubs.push(
       this.engine.broker.onActivity((entry) =>
         listener({
