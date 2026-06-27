@@ -72,8 +72,23 @@ the App Store Connect API. Provide credentials by environment (never commit them
 
 Set `appId` (currently `com.websitelabs.software-teams-cockpit`) in
 `electron-builder.yml` to your own bundle identifier before the first signed build.
-Output lands in `apps/electron/release/`. Publishing to GitHub Releases is wired
-(`publish:` block); run `dist` with `--publish always` (and a `GH_TOKEN`) to upload.
+Output lands in `apps/electron/release/`.
+
+### Releasing on GitHub
+
+The cockpit has its own version line — it does **not** reuse the CLI's `v…` tags;
+releases are tagged `cockpit-v<version>`.
+
+```bash
+# 1. build the signed + notarized DMG (see above) → apps/electron/release/
+# 2. cut a DRAFT release with the cockpit-prefixed tag and attach the artifacts:
+V=$(node -p "require('./apps/electron/package.json').version")
+gh release create "cockpit-v$V" --draft --target main \
+  --title "Software Teams Cockpit $V" \
+  --notes "Desktop cockpit for Software Teams." \
+  apps/electron/release/*.dmg apps/electron/release/*.zip
+# 3. review the draft on GitHub, then publish.
+```
 
 ### End-user prerequisites
 
