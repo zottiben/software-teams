@@ -168,45 +168,54 @@ export class TeamEngine {
     });
     await control.start();
 
-    const mcpDir = join(stateDir, 'mcp');
-    const personaDir = join(stateDir, 'personas');
-    const settingsDir = join(stateDir, 'settings');
-    mkdirSync(personaDir, { recursive: true });
+    // If anything below throws (e.g. a pane fails to spawn), tear down what we
+    // already started so we don't leak the bound control server or live panes.
+    try {
+      const mcpDir = join(stateDir, 'mcp');
+      const personaDir = join(stateDir, 'personas');
+      const settingsDir = join(stateDir, 'settings');
+      mkdirSync(personaDir, { recursive: true });
 
-    // The roster the Task-route hook consults: every agent running as a live pane.
-    const rosterPath = join(stateDir, 'roster.json');
-    writeFileSync(rosterPath, `${JSON.stringify(specs.map((spec) => spec.name), null, 2)}\n`);
-    const taskRoute = { hookScript: routeHookPath, rosterPath };
+      // The roster the Task-route hook consults: every agent running as a live pane.
+      const rosterPath = join(stateDir, 'roster.json');
+      writeFileSync(rosterPath, `${JSON.stringify(specs.map((spec) => spec.name), null, 2)}\n`);
+      const taskRoute = { hookScript: routeHookPath, rosterPath };
 
-    for (const spec of specs) {
-      const token = agentToken.get(spec.name) ?? '';
-      const mcpConfigPath = writeMcpConfig(mcpDir, spec.name, {
-        proxyPath,
-        controlUrl: control.url(),
-        token,
-      });
-      const personaFile = join(personaDir, `${spec.name}.md`);
-      writeFileSync(personaFile, spec.persona);
-      const settingsPath = writePaneSettings(settingsDir, spec.name, {
-        controlUrl: control.url(),
-        token,
-        taskRoute,
-      });
-      const config: PaneConfig = {
-        agent: spec,
-        cwd: cwdFor(spec),
-        mcpConfigPath,
-        personaFile,
-        settingsPath,
-        permissionMode,
-        env: { ST_AGENT: spec.name },
-      };
-      const pane = createPane(config, adapter.buildLaunch(config));
-      broker.registerPane(spec, pane);
-      panes.set(spec.name, pane);
+      for (const spec of specs) {
+        const token = agentToken.get(spec.name) ?? '';
+        const mcpConfigPath = writeMcpConfig(mcpDir, spec.name, {
+          proxyPath,
+          controlUrl: control.url(),
+          token,
+        });
+        const personaFile = join(personaDir, `${spec.name}.md`);
+        writeFileSync(personaFile, spec.persona);
+        const settingsPath = writePaneSettings(settingsDir, spec.name, {
+          controlUrl: control.url(),
+          token,
+          taskRoute,
+        });
+        const config: PaneConfig = {
+          agent: spec,
+          cwd: cwdFor(spec),
+          mcpConfigPath,
+          personaFile,
+          settingsPath,
+          permissionMode,
+          env: { ST_AGENT: spec.name },
+        };
+        const pane = createPane(config, adapter.buildLaunch(config));
+        broker.registerPane(spec, pane);
+        panes.set(spec.name, pane);
+      }
+
+      return new TeamEngine(broker, control, panes, worktrees, options.repoRoot);
+    } catch (error) {
+      await Promise.all([...panes.values()].map((pane) => pane.dispose().catch(() => undefined)));
+      broker.dispose();
+      await control.stop();
+      throw error;
     }
-
-    return new TeamEngine(broker, control, panes, worktrees, options.repoRoot);
   }
 
   /** Reset one pane's context (process survives). */

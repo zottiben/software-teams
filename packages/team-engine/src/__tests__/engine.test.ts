@@ -113,4 +113,25 @@ describe('TeamEngine.start (assembly)', () => {
     engine = undefined; // already stopped
     expect(existsSync(backendCwd)).toBe(false);
   });
+
+  test('tears down already-spawned panes when a later pane fails to spawn', async () => {
+    const created = new Map<string, FakePane>();
+    const failing: PaneFactory = (config) => {
+      if (config.agent.name === 'software-teams-backend') throw new Error('spawn boom');
+      const pane = new FakePane(config.agent.name);
+      created.set(config.agent.name, pane);
+      return pane;
+    };
+    await expect(
+      TeamEngine.start({
+        repoRoot: repo,
+        roster: [{ role: 'backend', agent: 'software-teams-backend' }],
+        proxyPath: '/nonexistent/mcp-proxy.mjs',
+        routeHookPath: '/nonexistent/team-route-hook.mjs',
+        createPane: failing,
+      }),
+    ).rejects.toThrow('spawn boom');
+    // the orchestrator pane was created before backend threw → it must be disposed
+    expect(created.get('software-teams-orchestrator')?.status()).toBe('exited');
+  });
 });
