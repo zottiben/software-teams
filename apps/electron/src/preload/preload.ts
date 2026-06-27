@@ -7,6 +7,7 @@ import {
   type RosterMsg,
   type TeamApi,
   type TeamReadyMsg,
+  type TeamStateResponse,
 } from '../shared/ipc';
 
 function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
@@ -16,6 +17,7 @@ function subscribe<T>(channel: string, cb: (payload: T) => void): () => void {
 }
 
 const api: TeamApi = {
+  getState: () => ipcRenderer.invoke(IPC.getState) as Promise<TeamStateResponse>,
   pickRepo: () => ipcRenderer.invoke(IPC.pickRepo) as Promise<string | null>,
   startTeam: (repoRoot) =>
     ipcRenderer.invoke(IPC.startTeam, { repoRoot }) as Promise<{ ok: boolean; error?: string }>,

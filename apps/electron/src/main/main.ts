@@ -18,8 +18,9 @@ const appDir = join(here, '..'); // apps/electron
 const state: {
   window: BrowserWindow | undefined;
   session: TeamSession | undefined;
+  repoRoot: string | undefined;
   rosterTimer: ReturnType<typeof setInterval> | undefined;
-} = { window: undefined, session: undefined, rosterTimer: undefined };
+} = { window: undefined, session: undefined, repoRoot: undefined, rosterTimer: undefined };
 
 function send(channel: string, payload: unknown): void {
   state.window?.webContents.send(channel, payload);
@@ -56,6 +57,7 @@ async function startTeam(request: StartTeamRequest): Promise<void> {
   });
   const session = new TeamSession(engine);
   state.session = session;
+  state.repoRoot = request.repoRoot;
   session.onOutput((output) => send(IPC.paneOutput, output));
   session.onActivity((activity) => send(IPC.activity, activity));
   send(IPC.ready, { agents: session.agents(), repoRoot: request.repoRoot });
@@ -69,10 +71,16 @@ async function stopTeam(): Promise<void> {
   }
   const session = state.session;
   state.session = undefined;
+  state.repoRoot = undefined;
   if (session) await session.stop();
 }
 
 function wireIpc(): void {
+  ipcMain.handle(IPC.getState, () => ({
+    running: state.session !== undefined,
+    agents: state.session?.agents() ?? [],
+    repoRoot: state.repoRoot ?? '',
+  }));
   ipcMain.handle(IPC.pickRepo, async () => {
     if (!state.window) return null;
     const result = await dialog.showOpenDialog(state.window, { properties: ['openDirectory'] });

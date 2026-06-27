@@ -5,6 +5,8 @@
  */
 
 export const IPC = {
+  /** renderer → main: get the current team state (for reconnect after a reload). */
+  getState: 'team:get-state',
   /** renderer → main: start a team against a repo path. */
   startTeam: 'team:start',
   /** renderer → main: pick a repo directory (returns a path or null). */
@@ -42,6 +44,12 @@ export interface StartTeamRequest {
 }
 
 export interface TeamReadyMsg {
+  readonly agents: readonly AgentDescriptor[];
+  readonly repoRoot: string;
+}
+
+export interface TeamStateResponse {
+  readonly running: boolean;
   readonly agents: readonly AgentDescriptor[];
   readonly repoRoot: string;
 }
@@ -93,6 +101,7 @@ export interface NoticeMsg {
 
 /** The safe API the preload bridge exposes on `window.teamApi` for the renderer. */
 export interface TeamApi {
+  getState(): Promise<TeamStateResponse>;
   pickRepo(): Promise<string | null>;
   startTeam(repoRoot: string): Promise<{ ok: boolean; error?: string }>;
   stopTeam(): Promise<{ ok: boolean }>;

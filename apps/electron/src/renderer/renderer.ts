@@ -135,13 +135,18 @@ function wireControls(): void {
   window.addEventListener('resize', fitAll);
 }
 
-function main(): void {
+async function main(): Promise<void> {
   wireControls();
   api.onReady((msg) => buildCockpit(msg.agents, msg.repoRoot));
   api.onPaneOutput((msg) => panes.get(msg.agent)?.term.write(msg.chunk));
   api.onRoster((msg) => updateRoster(msg.roster));
   api.onActivity((msg) => pushActivity(`${msg.from} → ${msg.to ?? 'all'} · ${msg.kind}: ${msg.summary}`));
   api.onNotice((msg) => pushActivity(`[${msg.level}] ${msg.text}`));
+
+  // Reconnect after a renderer reload (Cmd-R): if a team is already running in
+  // the main process, rebuild the cockpit instead of showing the start screen.
+  const current = await api.getState();
+  if (current.running) buildCockpit(current.agents, current.repoRoot);
 }
 
-main();
+void main();
