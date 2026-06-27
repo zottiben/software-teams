@@ -45,6 +45,26 @@ function loadNodePty(): NodePtyModule {
   return require('node-pty') as NodePtyModule;
 }
 
+const PASTE_START = '\x1b[200~';
+const PASTE_END = '\x1b[201~';
+
+/** Delay between writing a turn's body and its submit keystroke (ms). */
+const SUBMIT_DELAY_MS = 40;
+
+/**
+ * Wrap a turn's text for injection into an interactive harness over a PTY.
+ *
+ * A multi-line turn is wrapped in a bracketed paste (`ESC[200~ … ESC[201~`) so the
+ * harness treats the embedded newlines as pasted input rather than a series of
+ * Enter presses — otherwise the message lands in the input box but never submits.
+ * Single-line turns (e.g. `/clear`) are returned unchanged. The submit keystroke
+ * is sent SEPARATELY (a beat later) by {@link PtyPane.submit}, mirroring a real
+ * paste-then-Enter so the harness finishes ingesting the paste before it sees Enter.
+ */
+export function wrapForPaste(text: string): string {
+  return text.includes('\n') ? `${PASTE_START}${text}${PASTE_END}` : text;
+}
+
 /**
  * A {@link Pane} backed by a real interactive harness process over a PTY. Output is
  * streamed to subscribers and fed to an {@link IdleDetector}; the broker delivers a
@@ -88,9 +108,14 @@ export class PtyPane implements Pane {
 
   submit(text: string): void {
     if (this.state === 'exited') return;
-    this.pty.write(`${text}${this.submitKey}`);
+    this.pty.write(wrapForPaste(text));
     this.state = 'busy';
     this.idle.bump();
+    // Send Enter as a separate keystroke a beat later, so the harness has finished
+    // ingesting the (possibly pasted, multi-line) input before it sees the submit.
+    setTimeout(() => {
+      if (this.state !== 'exited') this.pty.write(this.submitKey);
+    }, SUBMIT_DELAY_MS);
   }
 
   write(text: string): void {
