@@ -112,43 +112,25 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
 .brand { font-weight: 600; }
 .spacer { flex: 1; }
 
-/* Orchestrator (left) | focused specialist (center) | teammate rail (right) */
+/* Orchestrator (left, full height) | specialists (right, tall scrolling stack) */
 .cockpit-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr 220px;
+  grid-template-columns: 1fr 1.2fr;
   gap: 8px;
   padding: 8px;
   min-height: 0;
 }
 .lead { display: flex; min-height: 0; min-width: 0; }
-.focus { display: flex; min-height: 0; min-width: 0; }
-
-.rail {
+.stack {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px;
-  overflow: auto;
-}
-.rail h2 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 2px 0 8px; }
-.rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
-.rail-chip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  cursor: pointer;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
-.rail-chip:hover { border-color: var(--accent); }
-.rail-chip.active { border-color: var(--accent); background: #0e141b; }
-.rail-name { font-weight: 600; text-transform: capitalize; }
 
 .pane {
   display: flex;
@@ -160,7 +142,9 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
   min-height: 0;
   min-width: 0;
 }
-.pane-lead, .pane-focus { flex: 1; }
+.pane-lead { flex: 1; }
+/* Each specialist card is tall enough to read; the column scrolls. */
+.pane-stacked { flex: 0 0 auto; height: 380px; }
 .pane-header {
   display: flex;
   align-items: center;

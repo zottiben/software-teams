@@ -14,12 +14,6 @@ interface PaneView {
   readonly term: Terminal;
   readonly fit: FitAddon;
   readonly badge: HTMLElement;
-  readonly card: HTMLElement;
-}
-
-interface RailChip {
-  readonly el: HTMLElement;
-  readonly badge: HTMLElement;
 }
 
 interface TabRefs {
@@ -29,8 +23,7 @@ interface TabRefs {
   readonly cockpitEl: HTMLElement;
   readonly repoLabel: HTMLElement;
   readonly leadEl: HTMLElement;
-  readonly focusEl: HTMLElement;
-  readonly railListEl: HTMLElement;
+  readonly stackEl: HTMLElement;
   readonly drawerEl: HTMLElement;
   readonly feedListEl: HTMLElement;
 }
@@ -39,13 +32,11 @@ interface Tab {
   readonly id: string;
   running: boolean;
   repoRoot: string | undefined;
-  focused: string | undefined;
   readonly button: HTMLElement;
   readonly label: HTMLElement;
   readonly panel: HTMLElement;
   readonly refs: TabRefs;
   readonly panes: Map<string, PaneView>;
-  readonly railChips: Map<string, RailChip>;
 }
 
 const tabs = new Map<string, Tab>();
@@ -106,11 +97,8 @@ function buildTabPanel(id: string, panel: HTMLElement): TabRefs {
 
   const body = el('div', 'cockpit-body');
   const leadEl = el('section', 'lead');
-  const focusEl = el('section', 'focus');
-  const rail = el('aside', 'rail');
-  const railListEl = el('ul', 'rail-list');
-  rail.append(el('h2', '', 'Team'), railListEl);
-  body.append(leadEl, focusEl, rail);
+  const stackEl = el('section', 'stack');
+  body.append(leadEl, stackEl);
 
   const drawerEl = el('aside', 'drawer');
   drawerEl.hidden = true;
@@ -137,7 +125,7 @@ function buildTabPanel(id: string, panel: HTMLElement): TabRefs {
     resetTabToStart(id);
   });
 
-  return { startEl, repoInput, startError, cockpitEl, repoLabel, leadEl, focusEl, railListEl, drawerEl, feedListEl };
+  return { startEl, repoInput, startError, cockpitEl, repoLabel, leadEl, stackEl, drawerEl, feedListEl };
 }
 
 function createTab(): Tab {
@@ -162,13 +150,11 @@ function createTab(): Tab {
     id,
     running: false,
     repoRoot: undefined,
-    focused: undefined,
     button,
     label,
     panel,
     refs: buildTabPanel(id, panel),
     panes: new Map(),
-    railChips: new Map(),
   };
   tabs.set(id, tab);
   activateTab(id);
@@ -219,8 +205,8 @@ function makeTerminal(): { term: Terminal; fit: FitAddon } {
   return { term, fit };
 }
 
-function createPaneCard(id: string, tab: Tab, agent: AgentDescriptor, container: HTMLElement): PaneView {
-  const card = el('div', `pane ${agent.isLead ? 'pane-lead' : 'pane-focus'}`);
+function createPaneCard(id: string, tab: Tab, agent: AgentDescriptor, container: HTMLElement): void {
+  const card = el('div', `pane ${agent.isLead ? 'pane-lead' : 'pane-stacked'}`);
   const header = el('div', 'pane-header');
   const title = el('span', 'pane-title', agent.isLead ? `${agent.role} (lead)` : agent.role);
   const badge = el('span', 'badge badge-starting', 'starting');
@@ -235,45 +221,14 @@ function createPaneCard(id: string, tab: Tab, agent: AgentDescriptor, container:
   const { term, fit } = makeTerminal();
   requestAnimationFrame(() => {
     term.open(bodyEl);
-    if (active.id === id && !card.hidden) {
+    if (active.id === id) {
       fit.fit();
       api.resize(id, agent.name, term.cols, term.rows);
     }
   });
   term.onData((data) => api.sendInput(id, agent.name, data));
 
-  const view: PaneView = { term, fit, badge, card };
-  tab.panes.set(agent.name, view);
-  return view;
-}
-
-function createRailChip(id: string, tab: Tab, agent: AgentDescriptor): void {
-  const chip = el('li', 'rail-chip');
-  const name = el('span', 'rail-name', agent.role);
-  const badge = el('span', 'badge badge-starting', 'starting');
-  chip.append(name, badge);
-  chip.addEventListener('click', () => focusAgent(id, agent.name));
-  tab.refs.railListEl.append(chip);
-  tab.railChips.set(agent.name, { el: chip, badge });
-}
-
-function focusAgent(id: string, name: string): void {
-  const tab = tabs.get(id);
-  if (!tab) return;
-  tab.focused = name;
-  for (const [paneName, view] of tab.panes) {
-    if (view.card.classList.contains('pane-focus')) view.card.hidden = paneName !== name;
-  }
-  for (const [chipName, chip] of tab.railChips) {
-    chip.el.classList.toggle('active', chipName === name);
-  }
-  const view = tab.panes.get(name);
-  if (view && active.id === id) {
-    requestAnimationFrame(() => {
-      view.fit.fit();
-      api.resize(id, name, view.term.cols, view.term.rows);
-    });
-  }
+  tab.panes.set(agent.name, { term, fit, badge });
 }
 
 function buildCockpit(id: string, agents: readonly AgentDescriptor[], repoRoot: string): void {
@@ -287,24 +242,12 @@ function buildCockpit(id: string, agents: readonly AgentDescriptor[], repoRoot: 
   tab.refs.startEl.hidden = true;
   tab.refs.cockpitEl.hidden = false;
   tab.refs.leadEl.replaceChildren();
-  tab.refs.focusEl.replaceChildren();
-  tab.refs.railListEl.replaceChildren();
+  tab.refs.stackEl.replaceChildren();
   tab.panes.clear();
-  tab.railChips.clear();
 
-  const specialists: AgentDescriptor[] = [];
   for (const agent of agents) {
-    if (agent.isLead) {
-      createPaneCard(id, tab, agent, tab.refs.leadEl);
-    } else {
-      const view = createPaneCard(id, tab, agent, tab.refs.focusEl);
-      view.card.hidden = true;
-      createRailChip(id, tab, agent);
-      specialists.push(agent);
-    }
+    createPaneCard(id, tab, agent, agent.isLead ? tab.refs.leadEl : tab.refs.stackEl);
   }
-  const first = specialists[0];
-  if (first) focusAgent(id, first.name);
   if (active.id === id) requestAnimationFrame(() => fitTab(tab));
 }
 
@@ -313,13 +256,10 @@ function resetTabToStart(id: string): void {
   if (!tab) return;
   tab.running = false;
   tab.repoRoot = undefined;
-  tab.focused = undefined;
   for (const view of tab.panes.values()) view.term.dispose();
   tab.panes.clear();
-  tab.railChips.clear();
   tab.refs.leadEl.replaceChildren();
-  tab.refs.focusEl.replaceChildren();
-  tab.refs.railListEl.replaceChildren();
+  tab.refs.stackEl.replaceChildren();
   tab.refs.feedListEl.replaceChildren();
   tab.refs.drawerEl.hidden = true;
   tab.refs.cockpitEl.hidden = true;
@@ -339,7 +279,6 @@ async function startTeamForTab(id: string): Promise<void> {
 
 function fitTab(tab: Tab): void {
   for (const [name, view] of tab.panes) {
-    if (view.card.hidden) continue;
     view.fit.fit();
     api.resize(tab.id, name, view.term.cols, view.term.rows);
   }
@@ -347,18 +286,11 @@ function fitTab(tab: Tab): void {
 
 function updateRoster(tab: Tab, roster: readonly RosterMemberMsg[]): void {
   for (const member of roster) {
+    const view = tab.panes.get(member.name);
+    if (!view) continue;
     const queued = member.queued > 0 ? ` ·${member.queued}` : '';
-    const label = `${member.status}${queued}`;
-    const pane = tab.panes.get(member.name);
-    if (pane) {
-      pane.badge.textContent = label;
-      pane.badge.className = `badge badge-${member.status}`;
-    }
-    const chip = tab.railChips.get(member.name);
-    if (chip) {
-      chip.badge.textContent = label;
-      chip.badge.className = `badge badge-${member.status}`;
-    }
+    view.badge.textContent = `${member.status}${queued}`;
+    view.badge.className = `badge badge-${member.status}`;
   }
 }
 
