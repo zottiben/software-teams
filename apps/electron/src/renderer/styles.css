@@ -101,7 +101,7 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
 .hint { font-size: 12px; }
 
 /* Cockpit (fills its tab panel) */
-.cockpit { display: flex; flex-direction: column; height: 100%; }
+.cockpit { display: flex; flex-direction: column; height: 100%; position: relative; }
 .topbar {
   display: flex;
   align-items: center;
@@ -112,22 +112,43 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
 .brand { font-weight: 600; }
 .spacer { flex: 1; }
 
-.layout {
+/* Orchestrator (left) | focused specialist (center) | teammate rail (right) */
+.cockpit-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1.4fr 2fr 320px;
+  grid-template-columns: 1fr 1fr 220px;
   gap: 8px;
   padding: 8px;
   min-height: 0;
 }
-.lead { display: flex; min-height: 0; }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: 1fr;
-  gap: 8px;
+.lead { display: flex; min-height: 0; min-width: 0; }
+.focus { display: flex; min-height: 0; min-width: 0; }
+
+.rail {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  overflow: auto;
 }
+.rail h2 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 2px 0 8px; }
+.rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.rail-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.rail-chip:hover { border-color: var(--accent); }
+.rail-chip.active { border-color: var(--accent); background: #0e141b; }
+.rail-name { font-weight: 600; text-transform: capitalize; }
 
 .pane {
   display: flex;
@@ -139,7 +160,7 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
   min-height: 0;
   min-width: 0;
 }
-.pane-lead { flex: 1; }
+.pane-lead, .pane-focus { flex: 1; }
 .pane-header {
   display: flex;
   align-items: center;
@@ -168,15 +189,21 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
 .badge-starting { color: var(--muted); }
 .badge-exited { color: var(--danger); border-color: var(--danger); }
 
-.feed {
+/* Activity drawer — overlays the right side, toggled from the top bar */
+.drawer {
+  position: absolute;
+  top: 49px;
+  right: 0;
+  bottom: 0;
+  width: 340px;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-left: 1px solid var(--line);
+  padding: 10px 12px;
   overflow: auto;
-  min-height: 0;
+  z-index: 5;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
 }
-.feed h2 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
+.drawer h2 { font-size: 12px; text-transform: uppercase; color: var(--muted); margin: 4px 0 8px; }
 .feed-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .feed-item {
   font-size: 12px;
