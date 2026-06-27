@@ -42,6 +42,49 @@ In the window: paste or browse to a git repo, **Start team**. The orchestrator +
 
 `node-pty` (the PTYs) lives in the engine and runs in the Electron **main** process; its N-API prebuilds load under Electron without a rebuild.
 
-## Not yet
+## Packaging a distributable (macOS)
 
-Packaging/distribution (electron-builder) is a later phase — this is the runnable dev app.
+electron-builder produces a `.dmg` + `.zip`. The engine bundles and personas are
+copied into the app's `Resources/` (`extraResources`), and `src/main/engine-paths.ts`
+resolves them from there when packaged. `node-pty` is materialized from Bun's store
+into a real `node_modules` dir before packing (`scripts/prepare-native.ts`).
+
+```bash
+# unsigned, for local testing (builds release/mac-arm64/…app):
+bun run --cwd apps/electron pack
+
+# signed + notarized .dmg + .zip (needs your Apple credentials, see below):
+bun run --cwd apps/electron dist
+```
+
+### Signing + notarization (Apple Developer account required)
+
+`dist` signs with your **Developer ID Application** certificate and notarizes via
+the App Store Connect API. Provide credentials by environment (never commit them):
+
+- **Signing** — have the Developer ID Application cert in your login keychain
+  (electron-builder auto-discovers it), or in CI set `CSC_LINK` (base64/path of a
+  `.p12`) and `CSC_KEY_PASSWORD`.
+- **Notarization** — an App Store Connect API key:
+  - `APPLE_API_KEY` — path to the `AuthKey_XXXX.p8`
+  - `APPLE_API_KEY_ID` — the key id
+  - `APPLE_API_ISSUER` — the issuer id
+
+Set `appId` (currently `com.websitelabs.software-teams-cockpit`) in
+`electron-builder.yml` to your own bundle identifier before the first signed build.
+Output lands in `apps/electron/release/`. Publishing to GitHub Releases is wired
+(`publish:` block); run `dist` with `--publish always` (and a `GH_TOKEN`) to upload.
+
+### End-user prerequisites
+
+The cockpit shells out to local tools, so a user running the packaged app needs
+**`claude` (Claude Code, authenticated)** and **`node`** on their `PATH` — the panes
+run real `claude`, and the team's MCP proxy / route hook run via `node`. (This is a
+developer tool; both are expected.)
+
+### Homebrew
+
+Homebrew doesn't host the binary — a Cask just points at the hosted `.dmg`. Host the
+signed/notarized DMG (GitHub Releases recommended), then publish a Cask in your own
+tap (`brew install --cask <you>/tap/software-teams-cockpit`). The official
+`homebrew/cask` has a notability bar; pursue it once the app is widely used.

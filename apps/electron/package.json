@@ -3,6 +3,7 @@
   "version": "0.13.0",
   "private": true,
   "description": "Software Teams Cockpit — an Electron desktop app that opens a live team of Software Teams agents as terminal panes you lead.",
+  "author": "WebsiteLabs",
   "type": "commonjs",
   "main": "dist/main.mjs",
   "scripts": {
@@ -14,21 +15,25 @@
     "start": "electron dist/main.mjs",
     "build:engine": "bun run --cwd ../../packages/team-engine build:proxy && bun run --cwd ../../packages/team-engine build:hook",
     "dev": "bun run build:engine && bun run build && electron dist/main.mjs",
+    "prepare:native": "bun run scripts/prepare-native.ts",
+    "pack": "bun run build:engine && bun run build && bun run prepare:native && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir",
+    "dist": "bun run build:engine && bun run build && bun run prepare:native && electron-builder --mac",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "test": "bun test ./src --timeout 120000"
   },
   "dependencies": {
-    "@websitelabs/software-teams-engine": "workspace:*",
-    "@xterm/addon-fit": "^0.10.0",
-    "@xterm/xterm": "^5.5.0",
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@types/bun": "latest",
+    "@websitelabs/software-teams-engine": "workspace:*",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
     "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
     "eslint": "9.29.0",
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.35.0"

@@ -21,12 +21,33 @@ function findUp(start: string, rel: string): string | undefined {
 }
 
 /**
- * Locate the team-engine bundles and persona directory in the monorepo, starting
- * from `start` (the app directory). Bundled into the Electron app, the engine's own
- * auto-resolution can't find its sibling package, so the app passes these paths
- * explicitly to TeamEngine.start. (Packaged builds will ship these — Phase 5.)
+ * In a packaged build, electron-builder copies the engine bundles to
+ * `<Resources>/engine` and the personas to `<Resources>/agents` (see
+ * electron-builder.yml `extraResources`). `process.resourcesPath` points at the
+ * app's Resources directory only in a packaged Electron app; in dev it points at
+ * Electron's own resources (which won't contain these), so this returns undefined
+ * and we fall back to the monorepo layout.
+ */
+function packagedPaths(): EnginePaths | undefined {
+  const resources = (process as { resourcesPath?: string }).resourcesPath;
+  if (!resources) return undefined;
+  const proxyPath = join(resources, 'engine', 'mcp-proxy.mjs');
+  if (!existsSync(proxyPath)) return undefined;
+  return {
+    proxyPath,
+    routeHookPath: join(resources, 'engine', 'team-route-hook.mjs'),
+    agentsDir: join(resources, 'agents'),
+  };
+}
+
+/**
+ * Locate the team-engine bundles and persona directory: from the packaged app's
+ * Resources when packaged, else by walking up the monorepo from `start` (dev).
  */
 export function resolveEnginePaths(start: string): EnginePaths {
+  const packaged = packagedPaths();
+  if (packaged) return packaged;
+
   const engineRoot = findUp(start, join('packages', 'team-engine'));
   const agentsDir = findUp(start, join('packages', 'cli', 'agents'));
   if (!engineRoot || !agentsDir) {

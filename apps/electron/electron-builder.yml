@@ -1,0 +1,58 @@
+appId: com.websitelabs.software-teams-cockpit
+productName: Software Teams Cockpit
+copyright: © WebsiteLabs
+
+# node-pty ships N-API prebuilds that load under Electron as-is, so don't rebuild
+# native modules from source (avoids needing node-gyp / a build toolchain).
+npmRebuild: false
+
+directories:
+  output: release
+  buildResources: build
+
+# The renderer/main/preload are self-contained bundles, so the only runtime
+# node_module needed is node-pty (native). Everything else is bundled into dist/.
+files:
+  - dist/**
+  - package.json
+  - node_modules/node-pty/**
+
+# node-pty's native binary + spawn-helper must live on disk, not inside the asar.
+asarUnpack:
+  - node_modules/node-pty/**
+
+# The engine bundles + personas live in the monorepo; copy them into the app so
+# the packaged main process can find them (see src/main/engine-paths.ts).
+extraResources:
+  - from: ../../packages/team-engine/dist/mcp-proxy.mjs
+    to: engine/mcp-proxy.mjs
+  - from: ../../packages/team-engine/dist/team-route-hook.mjs
+    to: engine/team-route-hook.mjs
+  - from: ../../packages/cli/agents
+    to: agents
+    filter:
+      - '*.md'
+
+mac:
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Notarize with App Store Connect API creds from env (APPLE_API_KEY,
+  # APPLE_API_KEY_ID, APPLE_API_ISSUER). Skipped automatically by `pack` (--dir).
+  notarize: true
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+# Used by `electron-builder --publish` and for electron-updater feeds.
+publish:
+  provider: github
+  owner: zottiben
+  repo: software-teams
