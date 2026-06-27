@@ -17,11 +17,11 @@ import {
 const here = dirname(fileURLToPath(import.meta.url)); // dist/
 const appDir = join(here, '..'); // apps/electron
 
-// Panes run hands-off by default: bypassPermissions executes tools/bash without
-// approval prompts (the whole point of a self-driving team). Override with
-// ST_PERMISSION_MODE=acceptEdits|auto|default for a more cautious run.
+// Panes run in "auto" mode by default — the same hands-off-but-guarded mode you
+// drive Claude Code in: it auto-approves routine work and only stops for genuinely
+// risky actions. Override with ST_PERMISSION_MODE=acceptEdits|default|bypassPermissions.
 const PERMISSION_MODE =
-  (process.env.ST_PERMISSION_MODE as PermissionMode | undefined) ?? 'bypassPermissions';
+  (process.env.ST_PERMISSION_MODE as PermissionMode | undefined) ?? 'auto';
 
 interface Tab {
   readonly session: TeamSession;
