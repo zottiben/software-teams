@@ -42,6 +42,11 @@ export class TmuxPane implements Pane {
     this.tmux.pasteText(this.target, text, false);
   }
 
+  // tmux owns the terminal geometry (layout/attached client); nothing to resize here.
+  resize(): void {
+    /* no-op */
+  }
+
   // tmux owns the terminal; the engine does not stream a pane's output.
   onOutput(): Unsubscribe {
     return () => undefined;

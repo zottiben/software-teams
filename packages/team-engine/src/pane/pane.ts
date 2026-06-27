@@ -28,6 +28,9 @@ export interface Pane {
   /** Raw stdin write with no submit (control sequences, partial input). */
   write(text: string): void;
 
+  /** Resize the underlying terminal to match the view (cols × rows). */
+  resize(cols: number, rows: number): void;
+
   /** Subscribe to raw output chunks streamed from the pane. */
   onOutput(listener: (chunk: string) => void): Unsubscribe;
 

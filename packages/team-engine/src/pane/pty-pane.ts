@@ -98,6 +98,11 @@ export class PtyPane implements Pane {
     this.pty.write(text);
   }
 
+  resize(cols: number, rows: number): void {
+    if (this.state === 'exited' || cols < 1 || rows < 1) return;
+    this.pty.resize(cols, rows);
+  }
+
   onOutput(listener: (chunk: string) => void): Unsubscribe {
     this.outputListeners.add(listener);
     return () => this.outputListeners.delete(listener);

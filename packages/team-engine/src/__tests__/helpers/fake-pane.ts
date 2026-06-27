@@ -9,6 +9,7 @@ import type { PaneStatus } from '../../types';
 export class FakePane implements Pane {
   readonly submitted: string[] = [];
   readonly written: string[] = [];
+  lastResize: { cols: number; rows: number } | undefined;
   private state: PaneStatus;
   private readonly idleListeners = new Set<() => void>();
   private readonly outputListeners = new Set<(chunk: string) => void>();
@@ -33,6 +34,10 @@ export class FakePane implements Pane {
 
   write(text: string): void {
     this.written.push(text);
+  }
+
+  resize(cols: number, rows: number): void {
+    this.lastResize = { cols, rows };
   }
 
   onOutput(listener: (chunk: string) => void): Unsubscribe {
