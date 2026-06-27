@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BrowserWindow, app, dialog, ipcMain } from 'electron';
-import { TeamEngine } from '@websitelabs/software-teams-engine';
+import { TeamEngine, type PermissionMode } from '@websitelabs/software-teams-engine';
 import { resolveEnginePaths } from './engine-paths';
 import { TeamSession } from './team-session';
 import {
@@ -16,6 +16,12 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url)); // dist/
 const appDir = join(here, '..'); // apps/electron
+
+// Panes run hands-off by default: bypassPermissions executes tools/bash without
+// approval prompts (the whole point of a self-driving team). Override with
+// ST_PERMISSION_MODE=acceptEdits|auto|default for a more cautious run.
+const PERMISSION_MODE =
+  (process.env.ST_PERMISSION_MODE as PermissionMode | undefined) ?? 'bypassPermissions';
 
 interface Tab {
   readonly session: TeamSession;
@@ -56,6 +62,7 @@ async function startTeam(sessionId: string, repoRoot: string): Promise<void> {
   const paths = resolveEnginePaths(appDir);
   const engine = await TeamEngine.start({
     repoRoot,
+    permissionMode: PERMISSION_MODE,
     proxyPath: paths.proxyPath,
     routeHookPath: paths.routeHookPath,
     agentsDir: paths.agentsDir,
