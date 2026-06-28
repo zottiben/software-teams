@@ -25,10 +25,13 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        # --ignore-scripts: skip native postinstall builds we don't need. The
+        # monorepo pulls in isolated-vm (an n8n transitive dep) which fails to
+        # compile against the runner's Node; the cockpit never loads it, and
+        # node-pty works from its shipped prebuilds, so skipping build scripts is
+        # safe and avoids the failing native compile.
+        run: bun install --frozen-lockfile --ignore-scripts
         env:
-          # electron-builder downloads its own Electron for packaging; we don't
-          # need the npm `electron` binary, so skip it for a faster install.
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
       - name: Version from tag
