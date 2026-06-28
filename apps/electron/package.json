@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/software-teams-cockpit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Software Teams Cockpit — an Electron desktop app that opens a live team of Software Teams agents as terminal panes you lead.",
   "author": "WebsiteLabs",
