@@ -8,6 +8,8 @@ export interface EnginePaths {
   readonly routeHookPath: string;
   /** Canonical persona directory (`packages/cli/agents`). */
   readonly agentsDir: string;
+  /** Fallback `config.yaml` for per-agent model resolution, if present. */
+  readonly configPath?: string;
 }
 
 function findUp(start: string, rel: string): string | undefined {
@@ -33,10 +35,12 @@ function packagedPaths(): EnginePaths | undefined {
   if (!resources) return undefined;
   const proxyPath = join(resources, 'engine', 'mcp-proxy.mjs');
   if (!existsSync(proxyPath)) return undefined;
+  const configPath = join(resources, 'config.yaml');
   return {
     proxyPath,
     routeHookPath: join(resources, 'engine', 'team-route-hook.mjs'),
     agentsDir: join(resources, 'agents'),
+    ...(existsSync(configPath) ? { configPath } : {}),
   };
 }
 
@@ -56,9 +60,11 @@ export function resolveEnginePaths(start: string): EnginePaths {
         'Run `bun run --cwd packages/team-engine build` first.',
     );
   }
+  const configPath = findUp(start, join('packages', 'cli', 'config', 'config.yaml'));
   return {
     proxyPath: join(engineRoot, 'dist', 'mcp-proxy.mjs'),
     routeHookPath: join(engineRoot, 'dist', 'team-route-hook.mjs'),
     agentsDir,
+    ...(configPath ? { configPath } : {}),
   };
 }

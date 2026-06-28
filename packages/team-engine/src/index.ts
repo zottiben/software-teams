@@ -58,6 +58,12 @@ export {
   buildOrchestratorPersona,
   buildSpecialistPersona,
 } from './persona/overlay';
+export {
+  loadModelMap,
+  resolveAgentModel,
+  defaultConfigPath,
+  type ModelMapOptions,
+} from './persona/models';
 
 export { decideTaskRoute, type HookPayload, type RouteDecision } from './hooks/route';
 

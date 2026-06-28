@@ -113,3 +113,18 @@ describe('ClaudeCodeAdapter.buildLaunch file-based persona + settings', () => {
     expect(launch.args[i + 1]).toBe('/tmp/settings/frontend.settings.json');
   });
 });
+
+describe('ClaudeCodeAdapter.buildLaunch model pinning', () => {
+  test('adds --model when the agent has a resolved model', () => {
+    const launch = new ClaudeCodeAdapter().buildLaunch({
+      ...config,
+      agent: { ...agent, model: 'claude-sonnet-4-6' },
+    });
+    expect(argAfter(launch.args, '--model')).toBe('claude-sonnet-4-6');
+  });
+
+  test('omits --model when the agent has no model (harness default)', () => {
+    const launch = new ClaudeCodeAdapter().buildLaunch(config);
+    expect(launch.args).not.toContain('--model');
+  });
+});

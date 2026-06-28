@@ -41,8 +41,10 @@ export class ClaudeCodeAdapter implements HarnessAdapter {
       ? ['--append-system-prompt-file', config.personaFile]
       : ['--append-system-prompt', config.agent.persona];
     const settingsArgs = config.settingsPath ? ['--settings', config.settingsPath] : [];
+    const modelArgs = config.agent.model ? ['--model', config.agent.model] : [];
     const args: readonly string[] = [
       ...personaArgs,
+      ...modelArgs,
       '--mcp-config',
       config.mcpConfigPath,
       '--strict-mcp-config',

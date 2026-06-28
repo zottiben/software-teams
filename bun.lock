@@ -11,7 +11,7 @@
     },
     "apps/electron": {
       "name": "@websitelabs/software-teams-cockpit",
-      "version": "0.13.0",
+      "version": "0.1.0",
       "dependencies": {
         "node-pty": "^1.0.0",
       },
@@ -69,6 +69,7 @@
         "@modelcontextprotocol/sdk": "^1.0.0",
         "@websitelabs/software-teams": "workspace:*",
         "node-pty": "^1.0.0",
+        "yaml": "^2.9.0",
         "zod": "^3.25.0",
       },
       "devDependencies": {

@@ -66,6 +66,7 @@ async function startTeam(sessionId: string, repoRoot: string): Promise<void> {
     proxyPath: paths.proxyPath,
     routeHookPath: paths.routeHookPath,
     agentsDir: paths.agentsDir,
+    ...(paths.configPath ? { configPath: paths.configPath } : {}),
   });
   const session = new TeamSession(engine);
   session.onOutput((output) => send(IPC.paneOutput, { sessionId, ...output }));
