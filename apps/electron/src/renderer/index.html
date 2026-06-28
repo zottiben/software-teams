@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Software Teams Cockpit</title>
+    <link rel="stylesheet" href="xterm.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="tabbar" class="tabbar">
+      <button id="newtab" class="newtab" title="New team tab (⌘T)">＋</button>
+    </div>
+    <div id="tabpanels" class="tabpanels"></div>
+    <script type="module" src="renderer.js"></script>
+  </body>
+</html>

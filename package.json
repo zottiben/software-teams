@@ -1,16 +1,21 @@
 {
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "build": "bun run --cwd packages/cli build && bun run --cwd packages/n8n build",
-    "test": "bun run --cwd packages/cli test && bun run --cwd packages/n8n test",
-    "typecheck": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli typecheck && bun run --cwd packages/n8n typecheck",
-    "lint": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli lint && bun run --cwd packages/n8n lint",
+    "build": "bun run --cwd packages/cli build && bun run --cwd packages/n8n build && bun run --cwd packages/team-engine build && bun run --cwd apps/electron build",
+    "test": "bun run --cwd packages/cli test && bun run --cwd packages/n8n test && bun run --cwd packages/team-engine test && bun run --cwd apps/electron test",
+    "typecheck": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli typecheck && bun run --cwd packages/n8n typecheck && bun run --cwd packages/team-engine typecheck && bun run --cwd apps/electron typecheck",
+    "lint": "bun run --cwd packages/cli build:lib && bun run --cwd packages/cli lint && bun run --cwd packages/n8n lint && bun run --cwd packages/team-engine lint && bun run --cwd apps/electron lint",
     "dev": "bun run --cwd packages/cli dev",
     "verify:node-load": "bun run --cwd packages/n8n verify:node-load"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.8.0"
+  },
+  "overrides": {
+    "@types/node": "25.9.1",
+    "@n8n/node-cli": "0.34.0",
+    "@n8n/eslint-plugin-community-nodes": "0.19.0"
   }
 }
