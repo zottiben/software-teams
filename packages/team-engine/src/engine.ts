@@ -16,6 +16,7 @@ import {
   buildOrchestratorPersona,
   buildSpecialistPersona,
 } from './persona/overlay';
+import { loadModelMap, resolveAgentModel } from './persona/models';
 import type { AgentSpec, LaunchSpec, PaneConfig, PermissionMode } from './types';
 import { WorktreeManager, type WorktreeInfo } from './worktree/worktree';
 
@@ -37,6 +38,10 @@ export interface TeamEngineOptions {
   readonly proxyPath?: string;
   /** Absolute path to the bundled Task-route hook (default auto-resolved). */
   readonly routeHookPath?: string;
+  /** Fallback `config.yaml` for per-agent model resolution (a project-local one wins). */
+  readonly configPath?: string;
+  /** Model for the orchestrator/lead pane (default: the harness default). */
+  readonly orchestratorModel?: string;
   readonly permissionMode?: PermissionMode;
   /** Per-specialist git worktrees (default) or all panes in the repo root. */
   readonly isolation?: 'worktree' | 'shared';
@@ -121,20 +126,29 @@ export class TeamEngine {
     const stateDir = options.stateDir ?? join(options.repoRoot, '.software-teams', 'team');
     const createPane = options.createPane ?? defaultPaneFactory;
 
+    const modelMap = loadModelMap({ repoRoot: options.repoRoot, configPath: options.configPath });
+    const orchestratorModel = resolveAgentModel(
+      ORCHESTRATOR_NAME,
+      options.orchestratorModel,
+      modelMap,
+    );
     const specs: AgentSpec[] = [
       {
         name: ORCHESTRATOR_NAME,
         role: 'orchestrator',
         persona: options.orchestratorPersona ?? buildOrchestratorPersona(roster),
         isLead: true,
+        ...(orchestratorModel ? { model: orchestratorModel } : {}),
       },
       ...roster.map((slot): AgentSpec => {
         const base = loadPersona(slot.agent, agentsDir);
+        const model = resolveAgentModel(slot.agent, base.model, modelMap);
         return {
           name: slot.agent,
           role: slot.role,
           persona: buildSpecialistPersona(slot.agent, slot.role, base.persona),
           isLead: false,
+          ...(model ? { model } : {}),
         };
       }),
     ];

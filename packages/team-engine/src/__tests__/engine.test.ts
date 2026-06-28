@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { TeamEngine } from '../engine';
 import type { PaneFactory } from '../engine';
+import { loadModelMap } from '../persona/models';
 import type { PaneConfig } from '../types';
 import { FakePane } from './helpers/fake-pane';
 
@@ -17,17 +18,20 @@ describe('TeamEngine.start (assembly)', () => {
   let engine: TeamEngine | undefined;
   const panes = new Map<string, FakePane>();
   const cwds = new Map<string, string>();
+  const models = new Map<string, string | undefined>();
 
   const factory: PaneFactory = (config: PaneConfig) => {
     const pane = new FakePane(config.agent.name);
     panes.set(config.agent.name, pane);
     cwds.set(config.agent.name, config.cwd);
+    models.set(config.agent.name, config.agent.model);
     return pane;
   };
 
   beforeEach(() => {
     panes.clear();
     cwds.clear();
+    models.clear();
     repo = mkdtempSync(join(tmpdir(), 'st-engine-'));
     git(repo, ['init', '-q', '-b', 'main']);
     git(repo, ['config', 'user.email', 't@example.com']);
@@ -61,6 +65,15 @@ describe('TeamEngine.start (assembly)', () => {
     expect(engine.panes.size).toBe(3);
     expect(engine.panes.has('software-teams-orchestrator')).toBe(true);
     expect(engine.panes.has('software-teams-backend')).toBe(true);
+  });
+
+  test('pins each specialist to its configured model (not the harness default)', async () => {
+    engine = await startTeam();
+    const expected = loadModelMap();
+    expect(models.get('software-teams-backend')).toBe(expected.backend);
+    expect(models.get('software-teams-backend')).toBeDefined();
+    // the lead has no config/frontmatter model → harness default (undefined)
+    expect(models.get('software-teams-orchestrator')).toBeUndefined();
   });
 
   test('lead works in the repo root; specialists get their own worktree', async () => {

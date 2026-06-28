@@ -30,6 +30,12 @@ export interface AgentSpec {
   readonly persona: string;
   /** True for the single pane the human drives directly (the orchestrator). */
   readonly isLead: boolean;
+  /**
+   * Model to launch this pane on (e.g. `claude-sonnet-4-6` or an alias like
+   * `opus`), resolved from the config profile / agent frontmatter. Undefined means
+   * use the harness default.
+   */
+  readonly model?: string;
 }
 
 /**

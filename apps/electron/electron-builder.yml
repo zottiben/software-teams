@@ -32,6 +32,8 @@ extraResources:
     to: agents
     filter:
       - '*.md'
+  - from: ../../packages/cli/config/config.yaml
+    to: config.yaml
 
 mac:
   category: public.app-category.developer-tools

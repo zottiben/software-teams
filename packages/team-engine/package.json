@@ -29,6 +29,7 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@websitelabs/software-teams": "workspace:*",
     "node-pty": "^1.0.0",
+    "yaml": "^2.9.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
