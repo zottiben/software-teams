@@ -153,7 +153,7 @@ Both prefixes invoke the same skills — pick by how you installed.
 | `status` | `/st:status` | `/software-teams:status` | Show current state and next action |
 | `statusline` | `/st:statusline` | `/software-teams:statusline` | Install/remove a statusline showing plan · phase · wave · task (needs python3) |
 | `routines` | `/st:routines` | `/software-teams:routines` | Recommended recurring routines via `/loop` (local) and `/schedule` (cloud) |
-| `orchestrator-mode` | `/st:orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate **code changes** while still letting it manage and ship the work (commit, push, install, build, open PRs); `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash (`sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, destructive git) are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Task` are unaffected. Per-project only. |
+| `orchestrator-mode` | `/st:orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate **code changes** while still letting it manage and ship the work (commit, push, install, build, open PRs); `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash (`sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, destructive git) are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Agent` are unaffected. Per-project only. |
 | `ask-questions` | `/st:ask-questions` | `/software-teams:ask-questions` | Toggle the Ask Clarifying Questions policy (`on\|off\|status`) — overrides the Claude Code harness's hardcoded auto-mode reminder that tells Claude to "work without stopping for clarifying questions." When `on`, Claude and sub-agents are told to ask substantive questions about ambiguous architectural/scope decisions even in auto permission mode. No hooks — pure prompt-layer policy. Per-project only. |
 
 ---
@@ -199,7 +199,7 @@ Five nodes appear under the **Software Teams** palette section. They share one e
 | Node | What it does |
 |------|--------------|
 | **Trigger Ingestion** | Fetches PII-scrubbed context from a ClickUp ticket or Datadog issue and emits the initial envelope |
-| **Agent** | Runs one specialist for one turn via `claude` (Task tool disabled); chain A→B for multi-agent handoff |
+| **Agent** | Runs one specialist for one turn via `claude` (Agent tool disabled); chain A→B for multi-agent handoff |
 | **Orchestrator** | Plans an epic and emits one envelope per wave-task in dependency order; run state persists for resumable partial failures |
 | **Slack HITL** | Posts a question to Slack, pauses the workflow, and resumes the agent with the human's reply folded into context |
 | **Output** | Opens a GitHub PR (or issue) from the final envelope |

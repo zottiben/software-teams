@@ -1,7 +1,7 @@
 ---
 name: create-plan
 description: "Software Teams: Create implementation plan"
-allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
+allowed-tools: Read, Glob, Bash, Write, Edit, Agent, AskUserQuestion
 argument-hint: "<feature to plan> [--worktree | --worktree-lightweight | --status | --single-tier]"
 context: |
   !cat .software-teams/state.yaml 2>/dev/null | head -25

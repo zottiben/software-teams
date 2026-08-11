@@ -10099,15 +10099,14 @@ var require_sanitize = __commonJS((exports) => {
 // lib/shared/agent-tools.js
 var require_agent_tools = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = undefined;
+  exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = undefined;
   exports.DEFAULT_ALLOWED_TOOLS = [
     "Read",
     "Write",
     "Edit",
-    "MultiEdit",
     "Glob",
     "Grep",
-    "Task",
+    "Agent",
     "Bash(bun:*)",
     "Bash(git:*)",
     "Bash(gh:*)",
@@ -10117,7 +10116,120 @@ var require_agent_tools = __commonJS((exports) => {
     "Bash(rm:*)",
     "Bash(software-teams:*)"
   ];
-  exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS.filter((tool) => tool !== "Task");
+  exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS.filter((tool) => tool !== "Agent");
+  exports.SINGLE_TURN_DISALLOWED_TOOLS = ["Agent"];
+});
+
+// lib/shared/claude-code-surface.js
+var require_claude_code_surface = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.RETIRED_MODEL_PREFIXES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
+  exports.retiredModelReplacement = retiredModelReplacement2;
+  exports.isValidModel = isValidModel2;
+  exports.isValidToolName = isValidToolName2;
+  exports.CLAUDE_CODE_TOOLS = [
+    "Agent",
+    "Artifact",
+    "AskUserQuestion",
+    "Bash",
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "Edit",
+    "EndConversation",
+    "EnterPlanMode",
+    "EnterWorktree",
+    "ExitPlanMode",
+    "ExitWorktree",
+    "Glob",
+    "Grep",
+    "LSP",
+    "ListAgents",
+    "ListMcpResourcesTool",
+    "Monitor",
+    "NotebookEdit",
+    "PowerShell",
+    "PushNotification",
+    "Read",
+    "ReadMcpResourceTool",
+    "RemoteTrigger",
+    "ReportFindings",
+    "ScheduleWakeup",
+    "SendMessage",
+    "SendUserFile",
+    "ShareOnboardingGuide",
+    "Skill",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate",
+    "TodoWrite",
+    "ToolSearch",
+    "WaitForMcpServers",
+    "WebFetch",
+    "WebSearch",
+    "Workflow",
+    "Write"
+  ];
+  exports.SUBAGENT_STRIPPED_TOOLS = [
+    "AskUserQuestion",
+    "EndConversation",
+    "EnterPlanMode",
+    "ScheduleWakeup",
+    "TaskOutput",
+    "WaitForMcpServers",
+    "Workflow"
+  ];
+  exports.RETIRED_TOOL_REPLACEMENTS = {
+    Task: "Agent",
+    MultiEdit: "Edit"
+  };
+  exports.MODEL_ALIASES = [
+    "default",
+    "best",
+    "fable",
+    "opus",
+    "sonnet",
+    "haiku",
+    "opus[1m]",
+    "sonnet[1m]",
+    "opusplan",
+    "inherit"
+  ];
+  exports.EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+  exports.RETIRED_MODEL_PREFIXES = {
+    "claude-opus-3": "opus",
+    "claude-opus-4": "opus",
+    "claude-sonnet-3": "sonnet",
+    "claude-sonnet-4": "sonnet",
+    "claude-haiku-3": "haiku",
+    "claude-3": "haiku",
+    "claude-2": "sonnet",
+    "claude-instant": "haiku"
+  };
+  function retiredModelReplacement2(value) {
+    const hit = Object.keys(exports.RETIRED_MODEL_PREFIXES).find((prefix) => value.startsWith(prefix));
+    return hit ? exports.RETIRED_MODEL_PREFIXES[hit] : undefined;
+  }
+  function isValidModel2(value) {
+    return exports.MODEL_ALIASES.includes(value) || value.startsWith("claude-");
+  }
+  function isValidToolName2(value) {
+    return exports.CLAUDE_CODE_TOOLS.includes(value);
+  }
+  exports.N8N_MODEL_OPTIONS = [
+    { name: "Inherit Session Default", value: "" },
+    { name: "Sonnet (Latest)", value: "sonnet" },
+    { name: "Opus (Latest)", value: "opus" },
+    { name: "Haiku (Latest)", value: "haiku" },
+    { name: "Fable (Latest)", value: "fable" },
+    { name: "Claude Opus 5", value: "claude-opus-5" },
+    { name: "Claude Sonnet 5", value: "claude-sonnet-5" },
+    { name: "Claude Haiku 4.5", value: "claude-haiku-4-5" }
+  ];
+  exports.N8N_DEFAULT_MODEL = "sonnet";
 });
 
 // lib/shared/slugify.js
@@ -10149,7 +10261,7 @@ var require_envelope = __commonJS((exports) => {
 // lib/n8n-api.js
 var require_n8n_api = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
+  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.isValidToolName = exports.isValidModel = exports.N8N_MODEL_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
   var clickup_1 = require_clickup();
   Object.defineProperty(exports, "extractClickUpRef", { enumerable: true, get: function() {
     return clickup_1.extractClickUpRef;
@@ -10190,6 +10302,31 @@ var require_n8n_api = __commonJS((exports) => {
   } });
   Object.defineProperty(exports, "SINGLE_TURN_ALLOWED_TOOLS", { enumerable: true, get: function() {
     return agent_tools_1.SINGLE_TURN_ALLOWED_TOOLS;
+  } });
+  Object.defineProperty(exports, "SINGLE_TURN_DISALLOWED_TOOLS", { enumerable: true, get: function() {
+    return agent_tools_1.SINGLE_TURN_DISALLOWED_TOOLS;
+  } });
+  var claude_code_surface_1 = require_claude_code_surface();
+  Object.defineProperty(exports, "CLAUDE_CODE_TOOLS", { enumerable: true, get: function() {
+    return claude_code_surface_1.CLAUDE_CODE_TOOLS;
+  } });
+  Object.defineProperty(exports, "EFFORT_LEVELS", { enumerable: true, get: function() {
+    return claude_code_surface_1.EFFORT_LEVELS;
+  } });
+  Object.defineProperty(exports, "MODEL_ALIASES", { enumerable: true, get: function() {
+    return claude_code_surface_1.MODEL_ALIASES;
+  } });
+  Object.defineProperty(exports, "N8N_DEFAULT_MODEL", { enumerable: true, get: function() {
+    return claude_code_surface_1.N8N_DEFAULT_MODEL;
+  } });
+  Object.defineProperty(exports, "N8N_MODEL_OPTIONS", { enumerable: true, get: function() {
+    return claude_code_surface_1.N8N_MODEL_OPTIONS;
+  } });
+  Object.defineProperty(exports, "isValidModel", { enumerable: true, get: function() {
+    return claude_code_surface_1.isValidModel;
+  } });
+  Object.defineProperty(exports, "isValidToolName", { enumerable: true, get: function() {
+    return claude_code_surface_1.isValidToolName;
   } });
   var slugify_1 = require_slugify();
   Object.defineProperty(exports, "slugify", { enumerable: true, get: function() {
@@ -11907,7 +12044,7 @@ The list of registered specialists and the orchestration / quality rules for thi
 
 ${routingHeader}
 
-For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
+For any non-trivial task, delegate to an appropriate specialist agent via the Agent tool rather than performing the work yourself. Solo work is acceptable only for:
 
 - Trivial edits (single file, single grep, single shell command).
 - Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.
@@ -12178,7 +12315,7 @@ You are now active as {agent-name}. {Action verb} as requested.
       description: "File operation rules and structured return format for sandboxed agents",
       body: `## File Operations
 
-You are spawned with \`mode: "acceptEdits"\` and a scoped \`allowedTools\` allowlist (declared in \`.claude/settings.json\` and mirrored in \`src/utils/claude.ts\`). The allowlist covers Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped \`Bash(bun:*)\`, \`Bash(git:*)\`, \`Bash(gh:*)\`, \`Bash(npm:*)\`, \`Bash(npx:*)\`, \`Bash(mkdir:*)\`, \`Bash(rm:*)\`, \`Bash(software-teams:*)\`. All standard tools work within that scope:
+You are spawned with \`mode: "acceptEdits"\` and a scoped allowlist (declared under \`permissions.allow\` in \`.claude/settings.json\` and mirrored in \`src/shared/agent-tools.ts\`). The allowlist covers Read/Write/Edit/Glob/Grep/Agent plus scoped \`Bash(bun:*)\`, \`Bash(git:*)\`, \`Bash(gh:*)\`, \`Bash(npm:*)\`, \`Bash(npx:*)\`, \`Bash(mkdir:*)\`, \`Bash(rm:*)\`, \`Bash(software-teams:*)\`. All standard tools work within that scope:
 
 | Operation | Tool / Method | Notes |
 |-----------|--------------|-------|
@@ -12463,7 +12600,7 @@ this specialist. Reviewers can use it to challenge bad routings.`
       description: "How implement-plan honours agent pins when spawning",
       body: `**Native subagents are the default.** \`convertAgents()\` (invoked by \`software-teams sync-agents\` and \`software-teams init\`) populates \`.claude/agents/\` with Claude Code-compatible specs converted from \`agents/software-teams-*.md\`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under \`.claude/agents/\` and \`~/.claude/agents/\` are equally first-class.
 
-\`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Task tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically \u2014 no identity preamble in the prompt body.
+\`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Agent tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically \u2014 no identity preamble in the prompt body.
 
 ### Source-aware spawn pattern
 
@@ -12515,7 +12652,7 @@ Tasks with no \`agent:\` field fall back to the domain default (\`software-teams
 ### Legacy fallback \u2014 identity injection (fresh-clone bootstrap)
 
 <!-- lint-allow: legacy-injection -->
-> Used **only** when \`.claude/agents/\` has not yet been generated (typical fresh-clone state before \`software-teams init\` / \`software-teams sync-agents\` has run). Claude Code's Task tool validates \`subagent_type\` against its registered list, so unregistered names error with \`classifyHandoffIfNeeded is not defined\`. The fallback spawns \`general-purpose\` and injects the Software Teams agent's identity via prompt text:
+> Used **only** when \`.claude/agents/\` has not yet been generated (typical fresh-clone state before \`software-teams init\` / \`software-teams sync-agents\` has run). Claude Code's Agent tool validates \`subagent_type\` against its registered list, so unregistered names error with \`classifyHandoffIfNeeded is not defined\`. The fallback spawns \`general-purpose\` and injects the Software Teams agent's identity via prompt text:
 >
 > \`\`\`
 > # source: software-teams \u2014 fresh clone, .claude/agents/ not yet generated
@@ -12605,7 +12742,7 @@ var AgentTeamsOrchestration = {
       body: `1. **Pre-flight** \u2014 Read command spec, \`@ST:CodebaseContext\`, read state.yaml, set status to "executing". Read each task file's \`agent:\` frontmatter field so you know which specialist to spawn per task (see \`the AgentRouter component\`).
 2. **Create Team** \u2014 \`TeamCreate(team_name: "{slug}-team")\` where \`{slug}\` is the \`current_plan.slug\` field from \`state.yaml\` (set by \`software-teams-planner\` at plan-write time). The literal \`{slug}-team\` pattern is the convention shared by both single-tier (\xA78) and three-tier (\xA73T.8) execution paths in \`commands/implement-plan.md\` \u2014 do not invent a different team-name format.
 3. **Create Tasks** \u2014 TaskCreate per work unit, set \`addBlockedBy\` dependencies
-4. **Spawn Teammates** \u2014 Task tool, one call per task. **Native spawn is the default** for both \`source: software-teams\` and \`source: claude-code\` agents (see \`AgentRouter.md\` \xA74):
+4. **Spawn Teammates** \u2014 Agent tool, one call per task. **Native spawn is the default** for both \`source: software-teams\` and \`source: claude-code\` agents (see \`AgentRouter.md\` \xA74):
     - **\`source: software-teams\`** (Software Teams framework specialists like \`software-teams-backend\`, \`software-teams-frontend\`, \`software-teams-qa-tester\`) \u2014 \`subagent_type: "{task.agent}"\` directly; Claude Code loads the spec from \`.claude/agents/{task.agent}.md\`, generated by \`software-teams sync-agents\` from \`agents/\`.
     - **\`source: claude-code\`** (user-added registered subagents like \`unity-ui-specialist\`) \u2014 \`subagent_type: "{task.agent}"\` directly; Claude Code loads the spec natively.
     - Verify the agent spec is registered before spawning. Check \`.claude/agents/{name}.md\` (project-local) or \`~/.claude/agents/{name}.md\` (user-global). Missing spec \u2192 downgrade to \`general-purpose\` (legacy fallback documented in \`AgentRouter.md\` \xA74) and record \`agent_downgrade:\` in the summary.
@@ -12678,7 +12815,7 @@ by \`software-teams-planner\` via \`AgentRouter\` at plan time. The table below 
 
 **Examples of honouring pins** (real values \u2014 not fallbacks):
 
-| Task pin | Subagent type passed to Task tool |
+| Task pin | Subagent type passed to Agent tool |
 |----------|-----------------------------------|
 | \`agent: unity-specialist\` | \`unity-specialist\` |
 | \`agent: unity-ui-specialist\` | \`unity-ui-specialist\` |
@@ -12715,7 +12852,7 @@ starting.
 
 1. Implement using Edit tool (existing files) and Write tool (new files)
 2. SendMessage to coordinator with structured return
-3. Mark task completed via TaskUpdate
+3. Mark task completed via AgentUpdate
 
 Report: files_modified, files_created, commits_pending.
 No git commit (use commits_pending).
@@ -12803,7 +12940,7 @@ reasoning: "{why this mode was chosen}"
     SingleAgentMode: {
       name: "SingleAgentMode",
       description: "How to spawn a single specialist agent for simple plans",
-      body: `Spawn one specialist agent directly via Task tool, **natively by name**.
+      body: `Spawn one specialist agent directly via Agent tool, **natively by name**.
 
 > **Three-tier plans (post-T9/T10):** when the plan has an \`orchestration.md\`
 > artefact, single-agent mode loads SPEC + ORCHESTRATION as the **orchestrator
@@ -15226,7 +15363,7 @@ function renderAgentOutput(parsed, sourcePath) {
 }
 var CATALOGUE_BANNER = "<!-- AUTO-GENERATED by software-teams sync-agents \u2014 edit agents/*.md and templates/AGENTS.md.template (if used) and re-run -->";
 var RULES_BANNER = "<!-- AUTO-GENERATED by software-teams sync-agents \u2014 edit templates/RULES.md and re-run -->";
-var CATALOGUE_PREAMBLE = "These agents are spawned via `Task subagent_type=<name>`. Each agent's full spec is in `.claude/agents/<name>.md` (auto-generated from `agents/<name>.md`). See `RULES.md` for orchestration doctrine.";
+var CATALOGUE_PREAMBLE = "These agents are spawned via `Agent subagent_type=<name>`. Each agent's full spec is in `.claude/agents/<name>.md` (auto-generated from `agents/<name>.md`). See `RULES.md` for orchestration doctrine.";
 function escapeTableCell(value) {
   return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
 }
@@ -15655,10 +15792,9 @@ var DEFAULT_ALLOWED_TOOLS = [
   "Read",
   "Write",
   "Edit",
-  "MultiEdit",
   "Glob",
   "Grep",
-  "Task",
+  "Agent",
   "Bash(bun:*)",
   "Bash(git:*)",
   "Bash(gh:*)",
@@ -15668,7 +15804,7 @@ var DEFAULT_ALLOWED_TOOLS = [
   "Bash(rm:*)",
   "Bash(software-teams:*)"
 ];
-var SINGLE_TURN_ALLOWED_TOOLS = DEFAULT_ALLOWED_TOOLS.filter((tool) => tool !== "Task");
+var SINGLE_TURN_ALLOWED_TOOLS = DEFAULT_ALLOWED_TOOLS.filter((tool) => tool !== "Agent");
 // src/utils/claude.ts
 var PROMPT_LENGTH_THRESHOLD = 1e5;
 async function findClaude() {
@@ -17259,14 +17395,348 @@ var componentCommand = defineCommand({
   }
 });
 
+// src/commands/validate-frontmatter.ts
+import { existsSync as existsSync20 } from "fs";
+import { readFile as readFile2 } from "fs/promises";
+import { dirname as dirname7, join as join18, resolve as resolve8 } from "path";
+import { fileURLToPath } from "url";
+var import_yaml10 = __toESM(require_dist(), 1);
+
+// src/utils/validate-frontmatter.ts
+import { readdir as readdir2, readFile } from "fs/promises";
+import { join as join17 } from "path";
+
+// src/shared/claude-code-surface.ts
+var CLAUDE_CODE_TOOLS = [
+  "Agent",
+  "Artifact",
+  "AskUserQuestion",
+  "Bash",
+  "CronCreate",
+  "CronDelete",
+  "CronList",
+  "Edit",
+  "EndConversation",
+  "EnterPlanMode",
+  "EnterWorktree",
+  "ExitPlanMode",
+  "ExitWorktree",
+  "Glob",
+  "Grep",
+  "LSP",
+  "ListAgents",
+  "ListMcpResourcesTool",
+  "Monitor",
+  "NotebookEdit",
+  "PowerShell",
+  "PushNotification",
+  "Read",
+  "ReadMcpResourceTool",
+  "RemoteTrigger",
+  "ReportFindings",
+  "ScheduleWakeup",
+  "SendMessage",
+  "SendUserFile",
+  "ShareOnboardingGuide",
+  "Skill",
+  "TaskCreate",
+  "TaskGet",
+  "TaskList",
+  "TaskOutput",
+  "TaskStop",
+  "TaskUpdate",
+  "TodoWrite",
+  "ToolSearch",
+  "WaitForMcpServers",
+  "WebFetch",
+  "WebSearch",
+  "Workflow",
+  "Write"
+];
+var SUBAGENT_STRIPPED_TOOLS = [
+  "AskUserQuestion",
+  "EndConversation",
+  "EnterPlanMode",
+  "ScheduleWakeup",
+  "TaskOutput",
+  "WaitForMcpServers",
+  "Workflow"
+];
+var RETIRED_TOOL_REPLACEMENTS = {
+  Task: "Agent",
+  MultiEdit: "Edit"
+};
+var MODEL_ALIASES = [
+  "default",
+  "best",
+  "fable",
+  "opus",
+  "sonnet",
+  "haiku",
+  "opus[1m]",
+  "sonnet[1m]",
+  "opusplan",
+  "inherit"
+];
+var EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+var RETIRED_MODEL_PREFIXES = {
+  "claude-opus-3": "opus",
+  "claude-opus-4": "opus",
+  "claude-sonnet-3": "sonnet",
+  "claude-sonnet-4": "sonnet",
+  "claude-haiku-3": "haiku",
+  "claude-3": "haiku",
+  "claude-2": "sonnet",
+  "claude-instant": "haiku"
+};
+function retiredModelReplacement(value) {
+  const hit = Object.keys(RETIRED_MODEL_PREFIXES).find((prefix) => value.startsWith(prefix));
+  return hit ? RETIRED_MODEL_PREFIXES[hit] : undefined;
+}
+function isValidModel(value) {
+  return MODEL_ALIASES.includes(value) || value.startsWith("claude-");
+}
+function isValidToolName(value) {
+  return CLAUDE_CODE_TOOLS.includes(value);
+}
+
+// src/utils/validate-frontmatter.ts
+var FRONTMATTER_RE2 = /^---\r?\n([\s\S]*?)\r?\n---/;
+function parseFrontmatter2(source) {
+  const match = FRONTMATTER_RE2.exec(source);
+  if (!match?.[1])
+    return {};
+  const out = {};
+  const lines = match[1].split(/\r?\n/);
+  const state = { key: "", list: [] };
+  const flush = () => {
+    if (state.key && state.list.length > 0)
+      out[state.key] = [...state.list];
+    state.list = [];
+  };
+  for (const line of lines) {
+    const item = /^\s+-\s+(.*)$/.exec(line)?.[1];
+    if (item !== undefined && state.key) {
+      state.list.push(stripQuotes(item.trim()));
+      continue;
+    }
+    const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
+    const key = pair?.[1];
+    const rawValue = pair?.[2];
+    if (key === undefined || rawValue === undefined)
+      continue;
+    flush();
+    state.key = key;
+    const value = rawValue.trim();
+    if (value)
+      out[key] = stripQuotes(value);
+  }
+  flush();
+  return out;
+}
+function stripQuotes(value) {
+  return /^(['"])(.*)\1$/.exec(value)?.[2] ?? value;
+}
+function baseToolName(entry) {
+  return entry.replace(/\(.*\)$/, "").trim();
+}
+function checkTools(file, field, entries, isSubagent, errors, warnings) {
+  for (const entry of entries) {
+    const name = baseToolName(entry);
+    if (!name || name.startsWith("mcp__"))
+      continue;
+    const replacement = RETIRED_TOOL_REPLACEMENTS[name];
+    if (replacement) {
+      errors.push({
+        file,
+        field,
+        value: entry,
+        message: `"${name}" is not a Claude Code tool any more. Use "${replacement}".`
+      });
+      continue;
+    }
+    if (!isValidToolName(name)) {
+      errors.push({
+        file,
+        field,
+        value: entry,
+        message: `"${name}" is not a Claude Code tool. Check shared/claude-code-surface.ts for the canonical list.`
+      });
+      continue;
+    }
+    if (isSubagent && field === "tools" && SUBAGENT_STRIPPED_TOOLS.includes(name)) {
+      warnings.push({
+        file,
+        field,
+        value: entry,
+        message: `"${name}" is stripped from every subagent by the harness, so granting it has no effect.`
+      });
+    }
+  }
+}
+async function readMarkdown(dir) {
+  const entries = await readdir2(dir, { withFileTypes: true }).catch(() => []);
+  const files = entries.filter((e2) => e2.isFile() && e2.name.endsWith(".md"));
+  return Promise.all(files.map(async (e2) => ({
+    file: join17(dir, e2.name),
+    source: await readFile(join17(dir, e2.name), "utf8")
+  })));
+}
+function asList(value) {
+  if (value === undefined)
+    return [];
+  if (Array.isArray(value))
+    return value;
+  return value.split(",").map((v2) => v2.trim()).filter(Boolean);
+}
+async function validateFrontmatter(opts) {
+  const errors = [];
+  const warnings = [];
+  const agentFiles = await readMarkdown(opts.agentsDir);
+  const commandFiles = (await Promise.all(opts.commandDirs.map((d2) => readMarkdown(d2)))).flat();
+  const all = [
+    ...agentFiles.map((f3) => ({ ...f3, isSubagent: true })),
+    ...commandFiles.map((f3) => ({ ...f3, isSubagent: false }))
+  ];
+  for (const { file, source, isSubagent } of all) {
+    const fm = parseFrontmatter2(source);
+    checkTools(file, "tools", asList(fm["tools"]), isSubagent, errors, warnings);
+    checkTools(file, "allowed-tools", asList(fm["allowed-tools"]), isSubagent, errors, warnings);
+    checkTools(file, "disallowed-tools", asList(fm["disallowed-tools"]), isSubagent, errors, warnings);
+    checkTools(file, "disallowedTools", asList(fm["disallowedTools"]), isSubagent, errors, warnings);
+    const model = fm["model"];
+    if (typeof model === "string") {
+      const finding = checkModel(file, "model", model);
+      if (finding)
+        errors.push(finding);
+    }
+    const effort = fm["effort"];
+    if (typeof effort === "string" && !EFFORT_LEVELS.includes(effort)) {
+      errors.push({
+        file,
+        field: "effort",
+        value: effort,
+        message: `"${effort}" is not an effort level (${EFFORT_LEVELS.join(", ")}).`
+      });
+    }
+  }
+  return { errors, warnings, filesChecked: all.length };
+}
+function validateModelConfig(config) {
+  const findings = [];
+  const models = readRecord(readRecord(config)?.["models"]);
+  if (!models)
+    return findings;
+  const profiles = readRecord(models["profiles"]) ?? {};
+  for (const [profileName, profile] of Object.entries(profiles)) {
+    for (const [agent, value] of Object.entries(readRecord(profile) ?? {})) {
+      if (typeof value !== "string")
+        continue;
+      const finding = checkModel("config/config.yaml", `models.profiles.${profileName}.${agent}`, value);
+      if (finding)
+        findings.push(finding);
+    }
+  }
+  for (const [agent, value] of Object.entries(readRecord(models["overrides"]) ?? {})) {
+    if (typeof value !== "string")
+      continue;
+    const finding = checkModel("config/config.yaml", `models.overrides.${agent}`, value);
+    if (finding)
+      findings.push(finding);
+  }
+  return findings;
+}
+function checkModel(file, field, value) {
+  const replacement = retiredModelReplacement(value);
+  if (replacement) {
+    return {
+      file,
+      field,
+      value,
+      message: `"${value}" is a superseded model. Use the "${replacement}" alias, which tracks the current version.`
+    };
+  }
+  if (!isValidModel(value)) {
+    return {
+      file,
+      field,
+      value,
+      message: `"${value}" is not a model alias or a claude-* model ID.`
+    };
+  }
+  return;
+}
+function readRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return;
+  return value;
+}
+
+// src/commands/validate-frontmatter.ts
+function resolvePackageRoot() {
+  const start = dirname7(fileURLToPath(import.meta.url));
+  const candidates = ["..", "../..", "../../..", "../../../.."];
+  const found = candidates.map((c3) => resolve8(start, c3)).find((dir) => existsSync20(join18(dir, "agents")) && existsSync20(join18(dir, "commands")));
+  return found ?? resolve8(start, "../..");
+}
+function report(label, findings) {
+  for (const f3 of findings) {
+    consola.log(`  ${label} ${f3.file}`);
+    consola.log(`      ${f3.field}: ${f3.value} \u2014 ${f3.message}`);
+  }
+}
+var validateFrontmatterCommand = defineCommand({
+  meta: {
+    name: "validate-frontmatter",
+    description: "Validate agent/command frontmatter and model profiles against the real Claude Code surface"
+  },
+  args: {
+    root: {
+      type: "string",
+      description: "Package root to validate (defaults to the installed package)",
+      required: false
+    },
+    "warnings-as-errors": {
+      type: "boolean",
+      description: "Exit non-zero on warnings as well as errors",
+      default: false
+    }
+  },
+  async run({ args }) {
+    const root = args.root ? resolve8(String(args.root)) : resolvePackageRoot();
+    const result = await validateFrontmatter({
+      agentsDir: join18(root, "agents"),
+      commandDirs: [join18(root, "commands"), join18(root, "skills")]
+    });
+    const configPath = join18(root, "config", "config.yaml");
+    const configFindings = existsSync20(configPath) ? validateModelConfig(import_yaml10.parse(await readFile2(configPath, "utf8"))) : [];
+    const errors = [...result.errors, ...configFindings];
+    const { warnings } = result;
+    if (errors.length > 0) {
+      consola.error(`Frontmatter validation failed (${errors.length} error(s)):`);
+      report("\u2717", errors);
+    }
+    if (warnings.length > 0) {
+      consola.warn(`${warnings.length} warning(s):`);
+      report("!", warnings);
+    }
+    if (errors.length === 0 && warnings.length === 0) {
+      consola.success(`Frontmatter valid across ${result.filesChecked} file(s) and the model profiles.`);
+    }
+    const failed = errors.length > 0 || args["warnings-as-errors"] && warnings.length > 0;
+    if (failed)
+      process.exit(1);
+  }
+});
+
 // src/commands/commit.ts
 init_git();
-import { dirname as dirname7 } from "path";
+import { dirname as dirname8 } from "path";
 function detectScope(files) {
   if (files.length === 0)
     return null;
   const dirs = files.map((f3) => {
-    const d2 = dirname7(f3);
+    const d2 = dirname8(f3);
     return d2 === "." ? null : d2.split("/")[0];
   }).filter(Boolean);
   const unique = [...new Set(dirs)];
@@ -17360,8 +17830,8 @@ Use --all to stage and commit all, or stage files manually.`);
 // src/commands/pr.ts
 init_git();
 init_state();
-import { existsSync as existsSync20 } from "fs";
-import { join as join17 } from "path";
+import { existsSync as existsSync21 } from "fs";
+import { join as join19 } from "path";
 async function hasGhCli() {
   const { exitCode } = await exec(["which", "gh"]);
   return exitCode === 0;
@@ -17411,8 +17881,8 @@ var prCommand = defineCommand({
       const planPath = state?.current_plan?.path;
       if (!planPath)
         return { context: "", name: state?.position?.plan_name ?? "", checks: [] };
-      const fullPlanPath = join17(cwd, planPath);
-      if (!existsSync20(fullPlanPath))
+      const fullPlanPath = join19(cwd, planPath);
+      if (!existsSync21(fullPlanPath))
         return { context: "", name: state?.position?.plan_name ?? "", checks: [] };
       const planContent = await Bun.file(fullPlanPath).text().catch(() => null);
       if (!planContent)
@@ -17432,7 +17902,7 @@ ${taskLines.map((l2) => `- ${l2.split("|").slice(2, 3).join("").trim()}`).join(`
     })();
     const planName = planContext.name;
     const verificationChecks = planContext.checks;
-    const template = existsSync20(join17(cwd, ".github", "pull_request_template.md")) ? await Bun.file(join17(cwd, ".github", "pull_request_template.md")).text() : "";
+    const template = existsSync21(join19(cwd, ".github", "pull_request_template.md")) ? await Bun.file(join19(cwd, ".github", "pull_request_template.md")).text() : "";
     const title = branch.replace(/^(feat|fix|chore|docs|refactor|test|ci)\//, "").replace(/[-_]/g, " ").replace(/^\w/, (c3) => c3.toUpperCase());
     const commits = log.split(`
 `).filter(Boolean).map((l2) => `- ${l2}`).join(`
@@ -17481,7 +17951,7 @@ ${body}`);
 
 // src/commands/review.ts
 init_git();
-import { resolve as resolve8 } from "path";
+import { resolve as resolve9 } from "path";
 var reviewCommand = defineCommand({
   meta: {
     name: "review",
@@ -17536,7 +18006,7 @@ ${data.body}` : ""
     const ctx = await gatherPromptContext(process.cwd());
     const prompt2 = buildReviewPrompt(ctx, String(prNum), meta, diffResult.stdout);
     if (args.output) {
-      await Bun.write(resolve8(process.cwd(), args.output), prompt2);
+      await Bun.write(resolve9(process.cwd(), args.output), prompt2);
       consola.success(`Review prompt written to ${args.output}`);
     } else if (args.print) {
       console.log(prompt2);
@@ -17802,7 +18272,7 @@ var feedbackCommand = defineCommand({
 });
 
 // src/commands/quick.ts
-import { resolve as resolve9 } from "path";
+import { resolve as resolve10 } from "path";
 var quickCommand = defineCommand({
   meta: {
     name: "quick",
@@ -17835,7 +18305,7 @@ var quickCommand = defineCommand({
     const basePrompt = buildQuickPrompt(ctx, args.description);
     const prompt2 = args["dry-run"] ? applyDryRunMode(basePrompt) : basePrompt;
     if (args.output) {
-      await Bun.write(resolve9(cwd, args.output), prompt2);
+      await Bun.write(resolve10(cwd, args.output), prompt2);
       consola.success(`Prompt written to ${args.output}`);
     } else if (args.print) {
       console.log(prompt2);
@@ -17852,7 +18322,7 @@ var quickCommand = defineCommand({
 
 // src/commands/worktree.ts
 init_git();
-import { existsSync as existsSync21 } from "fs";
+import { existsSync as existsSync22 } from "fs";
 init_state();
 function slugify3(name) {
   return name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -17887,7 +18357,7 @@ var worktreeCommand = defineCommand({
     }
     const slug = slugify3(args.name);
     const worktreePath = `${root}/.worktrees/${slug}`;
-    if (existsSync21(worktreePath)) {
+    if (existsSync22(worktreePath)) {
       consola.error(`Worktree already exists at ${worktreePath}`);
       return;
     }
@@ -18059,7 +18529,7 @@ Specify a worktree name: software-teams worktree-remove <name>`);
 // src/commands/worktree-merge.ts
 init_git();
 init_state();
-import { existsSync as existsSync22 } from "fs";
+import { existsSync as existsSync23 } from "fs";
 async function resolveWorktree(root, nameArg) {
   if (nameArg)
     return { name: nameArg, path: `${root}/.worktrees/${nameArg}` };
@@ -18079,7 +18549,7 @@ async function mergeWorktree(root, opts) {
   if (cur === branch) {
     return { merged: false, branch, reason: "same-branch" };
   }
-  if (existsSync22(wt.path)) {
+  if (existsSync23(wt.path)) {
     const { stdout: dirty } = await exec(["git", "-C", wt.path, "status", "--porcelain"]);
     if (dirty.trim().length > 0) {
       return { merged: false, branch, reason: "uncommitted" };
@@ -18173,8 +18643,8 @@ var worktreeMergeCommand = defineCommand({
 
 // src/commands/plan-review.ts
 init_state();
-import { resolve as resolve10 } from "path";
-import { existsSync as existsSync23 } from "fs";
+import { resolve as resolve11 } from "path";
+import { existsSync as existsSync24 } from "fs";
 function parsePlanSummary(content) {
   const nameMatch = content.match(/^# .+?: (.+)$/m);
   const name = nameMatch?.[1] ?? "Unknown";
@@ -18204,12 +18674,12 @@ var planReviewCommand = defineCommand({
   async run({ args }) {
     const cwd = process.cwd();
     const state = await readState(cwd);
-    const planPath = args.plan ? resolve10(cwd, args.plan) : state?.current_plan?.path ? resolve10(cwd, state.current_plan.path) : null;
+    const planPath = args.plan ? resolve11(cwd, args.plan) : state?.current_plan?.path ? resolve11(cwd, state.current_plan.path) : null;
     if (!planPath) {
       consola.error("No plan found. Run `software-teams plan` first.");
       return;
     }
-    if (!existsSync23(planPath)) {
+    if (!existsSync24(planPath)) {
       consola.error(`Plan not found: ${planPath}`);
       return;
     }
@@ -18286,7 +18756,7 @@ Tasks (${tasks.length}):`);
       ].join(`
 `);
       if (args.output) {
-        await Bun.write(resolve10(cwd, args.output), prompt2);
+        await Bun.write(resolve11(cwd, args.output), prompt2);
         consola.success(`Refinement prompt written to ${args.output}`);
       } else {
         consola.info(`
@@ -18300,8 +18770,8 @@ Tasks (${tasks.length}):`);
 
 // src/commands/plan-approve.ts
 init_state();
-import { resolve as resolve11 } from "path";
-import { existsSync as existsSync24 } from "fs";
+import { resolve as resolve12 } from "path";
+import { existsSync as existsSync25 } from "fs";
 var planApproveCommand = defineCommand({
   meta: {
     name: "plan-approve",
@@ -18321,12 +18791,12 @@ var planApproveCommand = defineCommand({
       consola.error("No Software Teams state found. Run `software-teams init` first.");
       return;
     }
-    const planPath = args.plan ? resolve11(cwd, args.plan) : state.current_plan?.path ? resolve11(cwd, state.current_plan.path) : null;
+    const planPath = args.plan ? resolve12(cwd, args.plan) : state.current_plan?.path ? resolve12(cwd, state.current_plan.path) : null;
     if (!planPath) {
       consola.error("No plan to approve. Run `software-teams plan` first.");
       return;
     }
-    if (!existsSync24(planPath)) {
+    if (!existsSync25(planPath)) {
       consola.error(`Plan not found: ${planPath}`);
       return;
     }
@@ -18550,8 +19020,8 @@ async function checkAuthorization(repo, username, allowedUsers) {
 
 // src/utils/github.ts
 init_git();
-import { existsSync as existsSync25, readFileSync as readFileSync5 } from "fs";
-import { join as join18 } from "path";
+import { existsSync as existsSync26, readFileSync as readFileSync5 } from "fs";
+import { join as join20 } from "path";
 var PR_TEMPLATE_PATHS = [
   ".github/PULL_REQUEST_TEMPLATE.md",
   ".github/pull_request_template.md",
@@ -18562,8 +19032,8 @@ var PR_TEMPLATE_PATHS = [
 ];
 function findPrTemplate(cwd) {
   for (const rel of PR_TEMPLATE_PATHS) {
-    const full = join18(cwd, rel);
-    if (existsSync25(full)) {
+    const full = join20(cwd, rel);
+    if (existsSync26(full)) {
       try {
         const body = readFileSync5(full, "utf-8");
         if (body.trim())
@@ -19037,16 +19507,16 @@ async function loadExternalContexts(searchText) {
 }
 
 // src/utils/orchestration.ts
-var import_yaml10 = __toESM(require_dist(), 1);
-import { existsSync as existsSync26, readdirSync as readdirSync3, readFileSync as readFileSync6, statSync } from "fs";
-import { join as join19, basename as basename4, dirname as dirname8 } from "path";
-var FRONTMATTER_RE2 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
-function parseFrontmatter2(content) {
-  const match = content.match(FRONTMATTER_RE2);
+var import_yaml11 = __toESM(require_dist(), 1);
+import { existsSync as existsSync27, readdirSync as readdirSync3, readFileSync as readFileSync6, statSync } from "fs";
+import { join as join21, basename as basename4, dirname as dirname9 } from "path";
+var FRONTMATTER_RE3 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+function parseFrontmatter3(content) {
+  const match = content.match(FRONTMATTER_RE3);
   if (!match)
     return null;
   try {
-    return import_yaml10.parse(match[1]) ?? {};
+    return import_yaml11.parse(match[1]) ?? {};
   } catch {
     return null;
   }
@@ -19060,16 +19530,16 @@ function asString(value) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 async function locateOrchestrationFile(cwd, issueNumber) {
-  const plansDir2 = join19(cwd, ".software-teams", "plans");
-  if (!existsSync26(plansDir2))
+  const plansDir2 = join21(cwd, ".software-teams", "plans");
+  if (!existsSync27(plansDir2))
     return null;
-  const allOrchestrations = readdirSync3(plansDir2).filter((name) => name.endsWith(".orchestration.md")).map((name) => join19(plansDir2, name));
+  const allOrchestrations = readdirSync3(plansDir2).filter((name) => name.endsWith(".orchestration.md")).map((name) => join21(plansDir2, name));
   if (allOrchestrations.length === 0)
     return null;
   if (issueNumber && issueNumber > 0) {
     for (const path of allOrchestrations) {
       const content = readFileSync6(path, "utf-8");
-      const fm = parseFrontmatter2(content);
+      const fm = parseFrontmatter3(content);
       const tagged = typeof fm?.issue === "number" ? fm.issue : Number(fm?.issue);
       if (Number.isFinite(tagged) && tagged === issueNumber) {
         return path;
@@ -19095,17 +19565,17 @@ async function findActiveOrchestration(cwd, issueNumber) {
   if (!contentResult.ok)
     return null;
   const content = contentResult.value;
-  const fm = parseFrontmatter2(content);
+  const fm = parseFrontmatter3(content);
   if (!fm)
     return null;
   const taskFiles = asStringArray(fm.task_files);
   if (taskFiles.length === 0)
     return null;
-  const plansDir2 = dirname8(orchestrationAbs);
+  const plansDir2 = dirname9(orchestrationAbs);
   const slices = [];
   for (const entry of taskFiles) {
-    const sliceAbs = entry.includes("/") ? entry.startsWith("/") ? entry : join19(cwd, entry) : join19(plansDir2, basename4(entry));
-    if (!existsSync26(sliceAbs))
+    const sliceAbs = entry.includes("/") ? entry.startsWith("/") ? entry : join21(cwd, entry) : join21(plansDir2, basename4(entry));
+    if (!existsSync27(sliceAbs))
       continue;
     const sliceReadResult = (() => {
       try {
@@ -19117,7 +19587,7 @@ async function findActiveOrchestration(cwd, issueNumber) {
     if (!sliceReadResult.ok)
       continue;
     const sliceContent = sliceReadResult.value;
-    const sliceFm = parseFrontmatter2(sliceContent);
+    const sliceFm = parseFrontmatter3(sliceContent);
     const agentType = asString(sliceFm?.agent);
     if (!agentType)
       continue;
@@ -19129,12 +19599,12 @@ async function findActiveOrchestration(cwd, issueNumber) {
   const toRel = (abs) => abs.startsWith(cwd + "/") ? abs.slice(cwd.length + 1) : abs;
   const specLink = asString(fm.spec_link);
   const specPathFromLink = specLink ? (() => {
-    const abs = specLink.startsWith("/") ? specLink : join19(cwd, specLink);
-    return existsSync26(abs) ? toRel(abs) : undefined;
+    const abs = specLink.startsWith("/") ? specLink : join21(cwd, specLink);
+    return existsSync27(abs) ? toRel(abs) : undefined;
   })() : undefined;
   const specPathDerived = (() => {
     const derived = orchestrationAbs.replace(/\.orchestration\.md$/, ".spec.md");
-    return existsSync26(derived) ? toRel(derived) : undefined;
+    return existsSync27(derived) ? toRel(derived) : undefined;
   })();
   const specPath = specPathFromLink ?? specPathDerived;
   return { orchestrationPath: orchestrationRel, specPath, slices };
@@ -19174,8 +19644,8 @@ function agentTypeToRoleLabel(agentType) {
 }
 
 // src/utils/plan-files-comment.ts
-import { existsSync as existsSync27, readFileSync as readFileSync7 } from "fs";
-import { join as join20 } from "path";
+import { existsSync as existsSync28, readFileSync as readFileSync7 } from "fs";
+import { join as join22 } from "path";
 var SOFT_BUDGET_CHARS = 50000;
 var PER_FILE_TRUNCATION_TARGET = 8000;
 var PER_FILE_MIN_CHARS = 2000;
@@ -19192,8 +19662,8 @@ function readPlanFiles(cwd, orch) {
   return entries;
 }
 function readEntry(cwd, label, relPath) {
-  const absPath = relPath.startsWith("/") ? relPath : join20(cwd, relPath);
-  if (!existsSync27(absPath)) {
+  const absPath = relPath.startsWith("/") ? relPath : join22(cwd, relPath);
+  if (!existsSync28(absPath)) {
     return { label, path: relPath, content: "", missing: true };
   }
   try {
@@ -19378,7 +19848,7 @@ function buildPrePlanDiscoveryBrief(ctx) {
     ``,
     `## Scope rules (strict)`,
     ``,
-    `- READ-ONLY. Do NOT use Edit, Write, MultiEdit. Do NOT run \`git commit\`, \`git push\`, or any state-changing shell command.`,
+    `- READ-ONLY. Do NOT use Edit or Write. Do NOT run \`git commit\`, \`git push\`, or any state-changing shell command.`,
     `- Budget: at most ~20 file reads + a handful of \`Glob\` / \`Grep\` passes on a fresh feature issue. Raise the budget to ~35 reads + unlimited \`git log\` / \`git blame\` / grep passes when EITHER (a) the issue is a bug / runtime error / unexpected-behaviour report requiring root-cause investigation, OR (b) you have a previous-comment answer to produce. A thin answer with no evidence is worse than no answer; a "likely / probably" diagnosis is worse than a verified one.`,
     `- \`Bash\` is allowed only for read-only inspection (\`git log\`, \`git diff\`, \`git blame\`, \`ls\`, \`cat\`).`,
     `- Keep your final response \u2264 80 lines on a fresh feature issue, \u2264 180 lines on a bug-investigation or conversational pass (root-cause analysis + fix-hierarchy options eat budget \u2014 that's fine, that's what they're for).`,
@@ -19759,7 +20229,7 @@ function buildImplementBrief(ctx) {
   return [
     `## Implementation Task`,
     ...planPathLines,
-    `4. Implement each task directly via Edit/Write \u2014 do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Task tool \u2014 execute every slice in this single context.)`,
+    `4. Implement each task directly via Edit/Write \u2014 do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Agent tool \u2014 execute every slice in this single context.)`,
     `5. Update \`state.yaml\` \`current_plan.completed_tasks\` as you finish each task.`,
     ``,
     `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,
@@ -19880,9 +20350,9 @@ function buildOrchestratorPrompt(ctx) {
     return [
       `### Spawn ${i2 + 1}: \`${slice.agentType}\` \u2014 \`${slice.slicePath}\``,
       ``,
-      `Task tool call:`,
+      `Agent tool call:`,
       "```",
-      `Task(`,
+      `Agent(`,
       `  subagent_type: "${slice.agentType}",`,
       `  description: "Implement ${slice.slicePath.split("/").pop()}",`,
       `  prompt: <<<EOF`,
@@ -19936,7 +20406,7 @@ function buildOrchestratorPrompt(ctx) {
   return [
     `# Software Teams Action \u2014 Implementation Orchestrator`,
     ``,
-    `You are the parent process for a GitHub Actions implementation run. This plan has **${orch.slices.length} per-agent slices** that you MUST dispatch in parallel. You ARE the orchestrator \u2014 the agents you spawn are workers without the Task tool; they cannot delegate further.`,
+    `You are the parent process for a GitHub Actions implementation run. This plan has **${orch.slices.length} per-agent slices** that you MUST dispatch in parallel. You ARE the orchestrator \u2014 the agents you spawn are workers without the Agent tool; they cannot delegate further.`,
     ``,
     `## Context`,
     ``,
@@ -19956,7 +20426,7 @@ function buildOrchestratorPrompt(ctx) {
     ``,
     `## Step 1 \u2014 Spawn ALL ${orch.slices.length} tasks in a SINGLE assistant message`,
     ``,
-    `Multiple Task tool calls inside one assistant message run **concurrently**. Sequential messages do NOT \u2014 they serialise. You MUST emit all ${orch.slices.length} Task calls below in ONE message:`,
+    `Multiple Agent tool calls inside one assistant message run **concurrently**. Sequential messages do NOT \u2014 they serialise. You MUST emit all ${orch.slices.length} Task calls below in ONE message:`,
     ``,
     ...sliceBlocks,
     ``,
@@ -20582,10 +21052,10 @@ _Reviewing your request..._`).catch(() => null) : null;
 
 // src/commands/action/run/approval-ping.ts
 init_state();
-async function readInstalledVersion(cwd, existsSync28, join21) {
+async function readInstalledVersion(cwd, existsSync29, join23) {
   try {
-    const pkgPath = join21(cwd, "node_modules/@websitelabs/software-teams/package.json");
-    if (existsSync28(pkgPath)) {
+    const pkgPath = join23(cwd, "node_modules/@websitelabs/software-teams/package.json");
+    if (existsSync29(pkgPath)) {
       const pkg = JSON.parse(await Bun.file(pkgPath).text());
       return pkg.version;
     }
@@ -20628,13 +21098,13 @@ Say **\`Hey Software Teams implement\`** when you're ready to go.`;
 }
 async function runPingHandler(opts) {
   const { cwd, repo, issueNumber, commentId, placeholderCommentId } = opts;
-  const { existsSync: existsSync28 } = await import("fs");
-  const { join: join21 } = await import("path");
-  const frameworkExists = existsSync28(join21(cwd, ".software-teams/framework"));
-  const claudeMdExists = existsSync28(join21(cwd, ".claude/CLAUDE.md"));
-  const stateExists = existsSync28(join21(cwd, ".software-teams/config/state.yaml"));
-  const rulesExists = existsSync28(join21(cwd, ".software-teams/rules"));
-  const version = await readInstalledVersion(cwd, existsSync28, join21);
+  const { existsSync: existsSync29 } = await import("fs");
+  const { join: join23 } = await import("path");
+  const frameworkExists = existsSync29(join23(cwd, ".software-teams/framework"));
+  const claudeMdExists = existsSync29(join23(cwd, ".claude/CLAUDE.md"));
+  const stateExists = existsSync29(join23(cwd, ".software-teams/config/state.yaml"));
+  const rulesExists = existsSync29(join23(cwd, ".software-teams/rules"));
+  const version = await readInstalledVersion(cwd, existsSync29, join23);
   const statusBody = [
     `**Framework Status**`,
     ``,
@@ -21037,12 +21507,12 @@ var resolveBranchCommand = defineCommand({
 });
 
 // src/commands/action/bootstrap.ts
-import { existsSync as existsSync28, mkdirSync as mkdirSync6, readFileSync as readFileSync8, writeFileSync, rmSync, readdirSync as readdirSync4 } from "fs";
-import { join as join21 } from "path";
+import { existsSync as existsSync29, mkdirSync as mkdirSync6, readFileSync as readFileSync8, writeFileSync, rmSync, readdirSync as readdirSync4 } from "fs";
+import { join as join23 } from "path";
 function ensureFramework(cwd) {
-  const phaseBState = join21(cwd, ".software-teams/state.yaml");
-  const legacyState = join21(cwd, ".software-teams/config/state.yaml");
-  const needsInit = !existsSync28(phaseBState) && !existsSync28(legacyState);
+  const phaseBState = join23(cwd, ".software-teams/state.yaml");
+  const legacyState = join23(cwd, ".software-teams/config/state.yaml");
+  const needsInit = !existsSync29(phaseBState) && !existsSync29(legacyState);
   if (needsInit) {
     consola.info("Framework not found \u2014 initializing...");
     const result = Bun.spawnSync(["bunx", "@websitelabs/software-teams@latest", "init", "--ci"], {
@@ -21055,25 +21525,25 @@ function ensureFramework(cwd) {
       process.exit(1);
     }
   }
-  mkdirSync6(join21(cwd, ".software-teams/persistence"), { recursive: true });
+  mkdirSync6(join23(cwd, ".software-teams/persistence"), { recursive: true });
 }
 function clearStaleState(cwd) {
-  const plansDir2 = join21(cwd, ".software-teams/plans");
-  if (existsSync28(plansDir2)) {
+  const plansDir2 = join23(cwd, ".software-teams/plans");
+  if (existsSync29(plansDir2)) {
     for (const entry of readdirSync4(plansDir2)) {
-      rmSync(join21(plansDir2, entry), { recursive: true, force: true });
+      rmSync(join23(plansDir2, entry), { recursive: true, force: true });
     }
   } else {
     mkdirSync6(plansDir2, { recursive: true });
   }
-  const configDir = join21(cwd, ".software-teams/config");
+  const configDir = join23(cwd, ".software-teams/config");
   mkdirSync6(configDir, { recursive: true });
-  const templatePath = join21(cwd, ".software-teams", "framework", "config", "state.yaml");
-  if (existsSync28(templatePath)) {
+  const templatePath = join23(cwd, ".software-teams", "framework", "config", "state.yaml");
+  if (existsSync29(templatePath)) {
     const template = readFileSync8(templatePath, "utf-8");
-    writeFileSync(join21(configDir, "state.yaml"), template);
+    writeFileSync(join23(configDir, "state.yaml"), template);
   } else {
-    writeFileSync(join21(configDir, "state.yaml"), [
+    writeFileSync(join23(configDir, "state.yaml"), [
       "position:",
       "  phase: null",
       "  phase_name: null",
@@ -21101,10 +21571,10 @@ function clearStaleState(cwd) {
   consola.info("Cache miss or fallback \u2014 cleared plan state");
 }
 function setupGitExclude(cwd) {
-  const excludeDir = join21(cwd, ".git/info");
+  const excludeDir = join23(cwd, ".git/info");
   mkdirSync6(excludeDir, { recursive: true });
-  const excludePath = join21(excludeDir, "exclude");
-  const existingContent = existsSync28(excludePath) ? readFileSync8(excludePath, "utf-8") : "";
+  const excludePath = join23(excludeDir, "exclude");
+  const existingContent = existsSync29(excludePath) ? readFileSync8(excludePath, "utf-8") : "";
   const patterns = [".software-teams/", ".claude/"];
   const finalContent = patterns.reduce((acc, pattern) => {
     const lines = acc.split(`
@@ -21151,8 +21621,8 @@ var bootstrapCommand = defineCommand({
 });
 
 // src/commands/action/fetch-rules.ts
-import { existsSync as existsSync29, mkdirSync as mkdirSync7, readdirSync as readdirSync5, readFileSync as readFileSync9, writeFileSync as writeFileSync2, copyFileSync, rmSync as rmSync2 } from "fs";
-import { join as join22 } from "path";
+import { existsSync as existsSync30, mkdirSync as mkdirSync7, readdirSync as readdirSync5, readFileSync as readFileSync9, writeFileSync as writeFileSync2, copyFileSync, rmSync as rmSync2 } from "fs";
+import { join as join24 } from "path";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 var RULE_CATEGORIES2 = [
@@ -21179,8 +21649,8 @@ function cloneRulesRepo(repo, token, tmpDir) {
     stdout: "pipe",
     stderr: "pipe"
   });
-  const path = join22(tmpDir, EXTERNAL_RULES_PATH);
-  return existsSync29(path) ? path : null;
+  const path = join24(tmpDir, EXTERNAL_RULES_PATH);
+  return existsSync30(path) ? path : null;
 }
 function normaliseRuleLine(line) {
   return line.toLowerCase().replace(/^\s*[-*+]\s+/, "").replace(/^\s*\d+\.\s+/, "").replace(/\s+/g, " ").trim();
@@ -21188,11 +21658,11 @@ function normaliseRuleLine(line) {
 function loadClaudeMdRuleSet(cwd) {
   const set = new Set;
   const candidates = [
-    join22(cwd, ".claude", "CLAUDE.md"),
-    join22(cwd, "CLAUDE.md")
+    join24(cwd, ".claude", "CLAUDE.md"),
+    join24(cwd, "CLAUDE.md")
   ];
   for (const path of candidates) {
-    if (!existsSync29(path))
+    if (!existsSync30(path))
       continue;
     const content = readFileSync9(path, "utf-8");
     for (const line of content.split(`
@@ -21209,16 +21679,16 @@ function loadClaudeMdRuleSet(cwd) {
 }
 function mergeRules(sourceDir, targetDir, cwd) {
   const result = { copied: 0, merged: 0 };
-  if (!existsSync29(sourceDir)) {
+  if (!existsSync30(sourceDir)) {
     return result;
   }
   mkdirSync7(targetDir, { recursive: true });
   const claudeMdSet = cwd ? loadClaudeMdRuleSet(cwd) : new Set;
   const files = readdirSync5(sourceDir).filter((f3) => isRuleFile(f3));
   for (const file of files) {
-    const sourcePath = join22(sourceDir, file);
-    const targetPath = join22(targetDir, file);
-    if (!existsSync29(targetPath)) {
+    const sourcePath = join24(sourceDir, file);
+    const targetPath = join24(targetDir, file);
+    if (!existsSync30(targetPath)) {
       const sourceContent = readFileSync9(sourcePath, "utf-8");
       const filtered = filterAgainstClaudeMd(sourceContent, claudeMdSet);
       if (!filtered.hasContent) {
@@ -21325,9 +21795,9 @@ var fetchRulesCommand = defineCommand({
       return;
     }
     const cwd = process.cwd();
-    const rulesDir = join22(cwd, ".software-teams/rules");
+    const rulesDir = join24(cwd, ".software-teams/rules");
     mkdirSync7(rulesDir, { recursive: true });
-    const tmpDir = mkdtempSync(join22(tmpdir(), "st-rules-"));
+    const tmpDir = mkdtempSync(join24(tmpdir(), "st-rules-"));
     try {
       const sourceDir = cloneRulesRepo(rulesRepo, token, tmpDir);
       if (!sourceDir) {
@@ -21342,8 +21812,8 @@ var fetchRulesCommand = defineCommand({
 });
 
 // src/commands/action/promote-rules.ts
-import { existsSync as existsSync30, mkdirSync as mkdirSync8, readdirSync as readdirSync6, readFileSync as readFileSync10, rmSync as rmSync3, appendFileSync as appendFileSync2 } from "fs";
-import { join as join23 } from "path";
+import { existsSync as existsSync31, mkdirSync as mkdirSync8, readdirSync as readdirSync6, readFileSync as readFileSync10, rmSync as rmSync3, appendFileSync as appendFileSync2 } from "fs";
+import { join as join25 } from "path";
 import { mkdtempSync as mkdtempSync2 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
 function writeGitHubOutput2(key, value) {
@@ -21390,12 +21860,12 @@ function checkSoftwareTeamsInvolvement(repo, sha) {
   return { skip: true };
 }
 function hasRulesContent(rulesDir) {
-  if (!existsSync30(rulesDir)) {
+  if (!existsSync31(rulesDir)) {
     return false;
   }
   const files = readdirSync6(rulesDir).filter((f3) => isRuleFile(f3));
   for (const file of files) {
-    const content = readFileSync10(join23(rulesDir, file), "utf-8");
+    const content = readFileSync10(join25(rulesDir, file), "utf-8");
     const lines = content.split(`
 `);
     for (const line of lines) {
@@ -21409,7 +21879,7 @@ function hasRulesContent(rulesDir) {
   return false;
 }
 function commitRulesToSameRepo(rulesDir, prNumber) {
-  const rulePaths = RULE_CATEGORIES2.map((c3) => join23(rulesDir, `${c3}.md`)).filter((p) => existsSync30(p));
+  const rulePaths = RULE_CATEGORIES2.map((c3) => join25(rulesDir, `${c3}.md`)).filter((p) => existsSync31(p));
   if (rulePaths.length === 0) {
     consola.info("No rule category files present \u2014 nothing to commit");
     return false;
@@ -21450,7 +21920,7 @@ These rules are accumulated from PR reviews and feedback.` : `chore(software-tea
   return true;
 }
 function commitRulesToExternalRepo(rulesDir, externalRepo, token, prNumber, sourceRepo) {
-  const tmpDir = mkdtempSync2(join23(tmpdir2(), "st-promote-"));
+  const tmpDir = mkdtempSync2(join25(tmpdir2(), "st-promote-"));
   try {
     const cloneUrl = `https://x-access-token:${token}@github.com/${externalRepo}.git`;
     const cloneResult = Bun.spawnSync(["git", "clone", "--depth", "1", cloneUrl, tmpDir], { stdout: "pipe", stderr: "pipe" });
@@ -21458,7 +21928,7 @@ function commitRulesToExternalRepo(rulesDir, externalRepo, token, prNumber, sour
       consola.warn(`Could not clone rules repo ${externalRepo} \u2014 skipping commit`);
       return false;
     }
-    const remoteSubdir = join23(tmpDir, EXTERNAL_RULES_PATH);
+    const remoteSubdir = join25(tmpDir, EXTERNAL_RULES_PATH);
     mkdirSync8(remoteSubdir, { recursive: true });
     mergeRules(rulesDir, remoteSubdir);
     Bun.spawnSync(["git", "config", "user.name", "software-teams[bot]"], { cwd: tmpDir });
@@ -21560,7 +22030,7 @@ var promoteRulesCommand = defineCommand({
       return;
     }
     const cwd = process.cwd();
-    const rulesDir = join23(cwd, ".software-teams/rules");
+    const rulesDir = join25(cwd, ".software-teams/rules");
     if (!hasRulesContent(rulesDir)) {
       consola.info("No rules content to commit \u2014 skipping");
       return;
@@ -21577,9 +22047,9 @@ var promoteRulesCommand = defineCommand({
 });
 
 // src/commands/action/prune-plans.ts
-var import_yaml11 = __toESM(require_dist(), 1);
-import { join as join24, basename as basename5 } from "path";
-import { existsSync as existsSync31, readdirSync as readdirSync7, readFileSync as readFileSync11, rmSync as rmSync4, appendFileSync as appendFileSync3 } from "fs";
+var import_yaml12 = __toESM(require_dist(), 1);
+import { join as join26, basename as basename5 } from "path";
+import { existsSync as existsSync32, readdirSync as readdirSync7, readFileSync as readFileSync11, rmSync as rmSync4, appendFileSync as appendFileSync3 } from "fs";
 init_state();
 function writeGitHubOutput3(key, value) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -21589,26 +22059,26 @@ function writeGitHubOutput3(key, value) {
   }
   console.log(`${key}=${value}`);
 }
-var FRONTMATTER_RE3 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+var FRONTMATTER_RE4 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 function parsePlanFrontmatter(content) {
-  const match = content.match(FRONTMATTER_RE3);
+  const match = content.match(FRONTMATTER_RE4);
   if (!match)
     return null;
   try {
-    return import_yaml11.parse(match[1]) ?? {};
+    return import_yaml12.parse(match[1]) ?? {};
   } catch {
     return null;
   }
 }
 function findPlansForIssues(plansDir2, issueNumbers) {
-  if (!existsSync31(plansDir2) || issueNumbers.length === 0)
+  if (!existsSync32(plansDir2) || issueNumbers.length === 0)
     return [];
   const wanted = new Set(issueNumbers);
   const matches = [];
   for (const entry of readdirSync7(plansDir2)) {
     if (!entry.endsWith(".plan.md"))
       continue;
-    const full = join24(plansDir2, entry);
+    const full = join26(plansDir2, entry);
     const fm = parsePlanFrontmatter(readFileSync11(full, "utf8"));
     if (!fm)
       continue;
@@ -21629,7 +22099,7 @@ function deletePlanAndTasks(plansDir2, planPath) {
   removed.push(planPath);
   for (const entry of readdirSync7(plansDir2)) {
     if (entry.startsWith(`${slug}.T`) && entry.endsWith(".md")) {
-      const full = join24(plansDir2, entry);
+      const full = join26(plansDir2, entry);
       rmSync4(full, { force: true });
       removed.push(full);
     }
@@ -21666,7 +22136,7 @@ async function prunePlans(opts) {
   if (issueNumbers.length === 0) {
     return { resolvedIssues: [], removed: [], stateCleared: false };
   }
-  const plansDir2 = join24(opts.cwd, ".software-teams", "plans");
+  const plansDir2 = join26(opts.cwd, ".software-teams", "plans");
   const planFiles = findPlansForIssues(plansDir2, issueNumbers);
   const removed = [];
   for (const planPath of planFiles) {
@@ -21749,8 +22219,8 @@ var actionCommand = defineCommand({
 });
 
 // src/commands/setup-action.ts
-import { join as join25, dirname as dirname9 } from "path";
-import { existsSync as existsSync32, mkdirSync as mkdirSync9 } from "fs";
+import { join as join27, dirname as dirname10 } from "path";
+import { existsSync as existsSync33, mkdirSync as mkdirSync9 } from "fs";
 var setupActionCommand = defineCommand({
   meta: {
     name: "setup-action",
@@ -21759,18 +22229,18 @@ var setupActionCommand = defineCommand({
   args: {},
   async run() {
     const cwd = process.cwd();
-    const workflowDest = join25(cwd, ".github", "workflows", "software-teams.yml");
-    if (existsSync32(workflowDest)) {
+    const workflowDest = join27(cwd, ".github", "workflows", "software-teams.yml");
+    if (existsSync33(workflowDest)) {
       consola.warn(`Workflow already exists at ${workflowDest}`);
       consola.info("Skipping workflow copy. Delete it manually to regenerate.");
     } else {
-      const templatePath = join25(import.meta.dir, "../action/workflow-template.yml");
-      if (!existsSync32(templatePath)) {
+      const templatePath = join27(import.meta.dir, "../action/workflow-template.yml");
+      if (!existsSync33(templatePath)) {
         consola.error("Workflow template not found. Ensure @websitelabs/software-teams is properly installed.");
         process.exit(1);
       }
-      const dir = dirname9(workflowDest);
-      if (!existsSync32(dir))
+      const dir = dirname10(workflowDest);
+      if (!existsSync33(dir))
         mkdirSync9(dir, { recursive: true });
       const template = await Bun.file(templatePath).text();
       await Bun.write(workflowDest, template);
@@ -22082,16 +22552,16 @@ var stateCommand = defineCommand({
 });
 
 // src/commands/sync-agents.ts
-var import_yaml12 = __toESM(require_dist(), 1);
-import { join as join26 } from "path";
-import { existsSync as existsSync33 } from "fs";
+var import_yaml13 = __toESM(require_dist(), 1);
+import { join as join28 } from "path";
+import { existsSync as existsSync34 } from "fs";
 async function readNativeSubagentsFlag(cwd) {
-  const configPath = join26(cwd, ".software-teams", "config", "software-teams-config.yaml");
-  if (!existsSync33(configPath))
+  const configPath = join28(cwd, ".software-teams", "config", "software-teams-config.yaml");
+  if (!existsSync34(configPath))
     return true;
   try {
     const content = await Bun.file(configPath).text();
-    const config = import_yaml12.parse(content) ?? {};
+    const config = import_yaml13.parse(content) ?? {};
     const features = config.features;
     if (!features || typeof features !== "object")
       return true;
@@ -22244,19 +22714,19 @@ var verifyCommand = defineCommand({
 });
 
 // src/commands/compile-workflow.ts
-import { existsSync as existsSync34 } from "fs";
-import { readdir as readdir2, stat as stat2, writeFile } from "fs/promises";
-import { join as join27 } from "path";
+import { existsSync as existsSync35 } from "fs";
+import { readdir as readdir3, stat as stat2, writeFile } from "fs/promises";
+import { join as join29 } from "path";
 
 // src/utils/parse-orchestration.ts
-var import_yaml13 = __toESM(require_dist(), 1);
-import { readFile } from "fs/promises";
+var import_yaml14 = __toESM(require_dist(), 1);
+import { readFile as readFile3 } from "fs/promises";
 async function parseOrchestration(filePath) {
-  const content = await readFile(filePath, "utf-8");
+  const content = await readFile3(filePath, "utf-8");
   const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
   if (!fmMatch)
     throw new Error(`No frontmatter in ${filePath}`);
-  const fm = import_yaml13.parse(fmMatch[1]) ?? {};
+  const fm = import_yaml14.parse(fmMatch[1]) ?? {};
   for (const key of ["plan_id", "slug", "tier"]) {
     if (typeof fm[key] !== "string" || !fm[key].length) {
       throw new Error(`Missing required frontmatter '${key}' in ${filePath}`);
@@ -22452,37 +22922,37 @@ ${ret}
 var PLANS_DIR = ".software-teams/plans";
 async function resolveOrchestrationPath(cwd, arg) {
   if (arg && arg.endsWith(".orchestration.md")) {
-    const abs = arg.startsWith("/") ? arg : join27(cwd, arg);
-    if (!existsSync34(abs))
+    const abs = arg.startsWith("/") ? arg : join29(cwd, arg);
+    if (!existsSync35(abs))
       throw new Error(`Orchestration file not found: ${arg}`);
     return abs;
   }
   if (arg) {
-    const abs = join27(cwd, PLANS_DIR, `${arg}.orchestration.md`);
-    if (!existsSync34(abs)) {
+    const abs = join29(cwd, PLANS_DIR, `${arg}.orchestration.md`);
+    if (!existsSync35(abs)) {
       throw new Error(`No orchestration plan for slug '${arg}' at ${PLANS_DIR}/${arg}.orchestration.md`);
     }
     return abs;
   }
-  const dir = join27(cwd, PLANS_DIR);
-  if (!existsSync34(dir)) {
+  const dir = join29(cwd, PLANS_DIR);
+  if (!existsSync35(dir)) {
     throw new Error(`No plans directory (${PLANS_DIR}). Run \`software-teams plan\` first.`);
   }
-  const files = (await readdir2(dir)).filter((f3) => f3.endsWith(".orchestration.md"));
+  const files = (await readdir3(dir)).filter((f3) => f3.endsWith(".orchestration.md"));
   if (files.length === 0) {
     throw new Error(`No *.orchestration.md plans found in ${PLANS_DIR}. compile-workflow needs a three-tier orchestration plan.`);
   }
   const [first] = files;
   if (files.length === 1 && first)
-    return join27(dir, first);
-  const withMtime = await Promise.all(files.map(async (f3) => ({ f: f3, m: (await stat2(join27(dir, f3))).mtimeMs })));
+    return join29(dir, first);
+  const withMtime = await Promise.all(files.map(async (f3) => ({ f: f3, m: (await stat2(join29(dir, f3))).mtimeMs })));
   withMtime.sort((a2, b2) => b2.m - a2.m);
   const chosen = withMtime[0]?.f;
   if (!chosen) {
     throw new Error(`No orchestration plan resolvable in ${PLANS_DIR}`);
   }
   consola.info(`Multiple orchestration plans found; using the most recent: ${chosen}. ` + `Pass a slug to choose explicitly.`);
-  return join27(dir, chosen);
+  return join29(dir, chosen);
 }
 async function compileWorkflow(cwd, opts) {
   const orchestrationPath = await resolveOrchestrationPath(cwd, opts.plan);
@@ -22492,7 +22962,7 @@ async function compileWorkflow(cwd, opts) {
     process.stdout.write(script);
     return 0;
   }
-  const outPath = opts.output ? opts.output.startsWith("/") ? opts.output : join27(cwd, opts.output) : join27(cwd, PLANS_DIR, `${parsed.slug}.workflow.js`);
+  const outPath = opts.output ? opts.output.startsWith("/") ? opts.output : join29(cwd, opts.output) : join29(cwd, PLANS_DIR, `${parsed.slug}.workflow.js`);
   await writeFile(outPath, script, "utf8");
   const rel = outPath.startsWith(cwd + "/") ? outPath.slice(cwd.length + 1) : outPath;
   consola.success(`Compiled workflow \u2192 ${rel}`);
@@ -22543,26 +23013,26 @@ var compileWorkflowCommand = defineCommand({
 });
 
 // src/commands/statusline.ts
-import { existsSync as existsSync35 } from "fs";
-import { mkdir as mkdir2, readFile as readFile2, writeFile as writeFile2, chmod as chmod2, stat as stat3 } from "fs/promises";
-import { join as join28, dirname as dirname10 } from "path";
+import { existsSync as existsSync36 } from "fs";
+import { mkdir as mkdir2, readFile as readFile4, writeFile as writeFile2, chmod as chmod2, stat as stat3 } from "fs/promises";
+import { join as join30, dirname as dirname11 } from "path";
 var SCRIPT_REL = ".claude/statusline/software-teams-statusline.py";
 var SETTINGS_LOCAL_REL = ".claude/settings.local.json";
-var oneUp = join28(import.meta.dir, "..");
-var twoUp = join28(import.meta.dir, "..", "..");
-var packageRoot = existsSync35(join28(oneUp, "package.json")) ? oneUp : twoUp;
+var oneUp = join30(import.meta.dir, "..");
+var twoUp = join30(import.meta.dir, "..", "..");
+var packageRoot = existsSync36(join30(oneUp, "package.json")) ? oneUp : twoUp;
 function statuslineShellCommand(cwd) {
-  return `python3 "${join28(cwd, SCRIPT_REL)}"`;
+  return `python3 "${join30(cwd, SCRIPT_REL)}"`;
 }
 async function ensureScript(cwd, force) {
-  const dest = join28(cwd, SCRIPT_REL);
-  const src2 = join28(packageRoot, "templates", SCRIPT_REL);
-  if (!existsSync35(src2)) {
+  const dest = join30(cwd, SCRIPT_REL);
+  const src2 = join30(packageRoot, "templates", SCRIPT_REL);
+  if (!existsSync36(src2)) {
     throw new Error(`statusline renderer not found in package at ${src2}`);
   }
-  if (force || !existsSync35(dest)) {
-    await mkdir2(dirname10(dest), { recursive: true });
-    await writeFile2(dest, await readFile2(src2, "utf8"), "utf8");
+  if (force || !existsSync36(dest)) {
+    await mkdir2(dirname11(dest), { recursive: true });
+    await writeFile2(dest, await readFile4(src2, "utf8"), "utf8");
     const srcStat = await stat3(src2);
     await chmod2(dest, srcStat.mode | 73);
   }
@@ -22573,7 +23043,7 @@ function pointsAtUs(settings) {
 }
 async function installStatusline(cwd, force) {
   await ensureScript(cwd, force);
-  const settingsPath = join28(cwd, SETTINGS_LOCAL_REL);
+  const settingsPath = join30(cwd, SETTINGS_LOCAL_REL);
   const settings = await readSettings(settingsPath);
   const existing = settings.statusLine;
   if (existing && !pointsAtUs(settings) && !force) {
@@ -22590,8 +23060,8 @@ async function installStatusline(cwd, force) {
   return 0;
 }
 async function uninstallStatusline(cwd) {
-  const settingsPath = join28(cwd, SETTINGS_LOCAL_REL);
-  if (!existsSync35(settingsPath)) {
+  const settingsPath = join30(cwd, SETTINGS_LOCAL_REL);
+  if (!existsSync36(settingsPath)) {
     consola.info("No settings.local.json \u2014 nothing to uninstall.");
     return 0;
   }
@@ -22609,9 +23079,9 @@ function printSnippet(cwd) {
   return JSON.stringify({ statusLine: { type: "command", command: statuslineShellCommand(cwd) } }, null, 2);
 }
 async function statuslineStatus(cwd) {
-  const settingsPath = join28(cwd, SETTINGS_LOCAL_REL);
-  const scriptPresent = existsSync35(join28(cwd, SCRIPT_REL));
-  const settings = existsSync35(settingsPath) ? await readSettings(settingsPath) : {};
+  const settingsPath = join30(cwd, SETTINGS_LOCAL_REL);
+  const scriptPresent = existsSync36(join30(cwd, SCRIPT_REL));
+  const settings = existsSync36(settingsPath) ? await readSettings(settingsPath) : {};
   const wired = pointsAtUs(settings);
   console.log("Software Teams statusline:");
   console.log(`  renderer script (${SCRIPT_REL}): ${scriptPresent ? "present" : "missing"}`);
@@ -22651,8 +23121,8 @@ var statuslineCommand = defineCommand({
 });
 
 // src/commands/sync-framework.ts
-import { join as join29 } from "path";
-import { existsSync as existsSync36 } from "fs";
+import { join as join31 } from "path";
+import { existsSync as existsSync37 } from "fs";
 var PRESERVED_STATE_FILES = [
   ".software-teams/project.yaml",
   ".software-teams/requirements.yaml",
@@ -22663,8 +23133,8 @@ var COPIED_SUBDIRS2 = ["rules"];
 async function listFrameworkFiles(packageRoot2) {
   const out = [];
   for (const sub of COPIED_SUBDIRS2) {
-    const subDir = join29(packageRoot2, sub);
-    if (!existsSync36(subDir))
+    const subDir = join31(packageRoot2, sub);
+    if (!existsSync37(subDir))
       continue;
     const subGlob = new Bun.Glob("**/*");
     for await (const file of subGlob.scan({ cwd: subDir })) {
@@ -22679,12 +23149,12 @@ async function detectFrameworkChanges(cwd, packageRoot2) {
   const changed = [];
   const files = await listFrameworkFiles(packageRoot2);
   for (const file of files) {
-    const dest = join29(cwd, ".software-teams", file);
-    if (!existsSync36(dest)) {
+    const dest = join31(cwd, ".software-teams", file);
+    if (!existsSync37(dest)) {
       missing.push(file);
       continue;
     }
-    const srcContent = await Bun.file(join29(packageRoot2, file)).text();
+    const srcContent = await Bun.file(join31(packageRoot2, file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent)
       changed.push(file);
@@ -22712,8 +23182,8 @@ var syncFrameworkCommand = defineCommand({
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
     const models = await loadModelMap(cwd);
-    const packageRoot2 = join29(import.meta.dir, "..", "..");
-    if (!existsSync36(join29(packageRoot2, "rules"))) {
+    const packageRoot2 = join31(import.meta.dir, "..", "..");
+    if (!existsSync37(join31(packageRoot2, "rules"))) {
       consola.error(`Software Teams package layout not found at ${packageRoot2}. Are you running from inside the Software Teams package?`);
       process.exit(1);
     }
@@ -22750,8 +23220,8 @@ var syncFrameworkCommand = defineCommand({
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot2);
     consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
     for (const rel of PRESERVED_STATE_FILES) {
-      const p = join29(cwd, rel);
-      if (existsSync36(p)) {
+      const p = join31(cwd, rel);
+      if (existsSync37(p)) {
         consola.info(`Preserved: ${rel}`);
       }
     }
@@ -22768,25 +23238,25 @@ var syncFrameworkCommand = defineCommand({
 
 // src/utils/spawn-ledger.ts
 import { mkdir as mkdir3 } from "fs/promises";
-import { existsSync as existsSync37 } from "fs";
-import { dirname as dirname11, join as join30 } from "path";
+import { existsSync as existsSync38 } from "fs";
+import { dirname as dirname12, join as join32 } from "path";
 var DEFAULT_MAX_IDLE_MS = 30 * 60 * 1000;
-var DEFAULT_LEDGER_PATH = join30(".software-teams", "persistence", "spawn-ledger.jsonl");
+var DEFAULT_LEDGER_PATH = join32(".software-teams", "persistence", "spawn-ledger.jsonl");
 function resolveLedgerPath(opts) {
   return opts?.ledgerPath ?? DEFAULT_LEDGER_PATH;
 }
 async function recordSpawn(entry, opts) {
   const path = resolveLedgerPath(opts);
-  await mkdir3(dirname11(path), { recursive: true });
+  await mkdir3(dirname12(path), { recursive: true });
   const line = JSON.stringify(entry) + `
 `;
   const file = Bun.file(path);
-  const existing = existsSync37(path) ? await file.text() : "";
+  const existing = existsSync38(path) ? await file.text() : "";
   await Bun.write(path, existing + line);
 }
 async function readLedger(opts) {
   const path = resolveLedgerPath(opts);
-  if (!existsSync37(path))
+  if (!existsSync38(path))
     return [];
   const text = await Bun.file(path).text();
   const lines = text.split(`
@@ -22846,7 +23316,7 @@ async function summariseLedger(opts) {
 }
 async function clearLedger(opts) {
   const path = resolveLedgerPath(opts);
-  if (!existsSync37(path))
+  if (!existsSync38(path))
     return;
   if (!opts?.planId) {
     await Bun.write(path, "");
@@ -23932,44 +24402,44 @@ var projectCommand = defineCommand({
 });
 
 // src/commands/orchestrator-mode.ts
-import { existsSync as existsSync38 } from "fs";
-import { mkdir as mkdir4, readFile as readFile3, writeFile as writeFile3, unlink, chmod as chmod3 } from "fs/promises";
-import { join as join31, dirname as dirname12 } from "path";
+import { existsSync as existsSync39 } from "fs";
+import { mkdir as mkdir4, readFile as readFile5, writeFile as writeFile3, unlink, chmod as chmod3 } from "fs/promises";
+import { join as join33, dirname as dirname13 } from "path";
 var CLAUDE_DIR = ".claude";
-var SETTINGS_PATH = join31(CLAUDE_DIR, "settings.json");
-var CLAUDE_MD_PATH = join31(CLAUDE_DIR, "CLAUDE.md");
-var DIRECTIVE_PATH = join31(CLAUDE_DIR, "orchestrator-mode.md");
-var HOOK_SCRIPT_PATH = join31(CLAUDE_DIR, "hooks", "orchestrator-deny-bash.sh");
+var SETTINGS_PATH = join33(CLAUDE_DIR, "settings.json");
+var CLAUDE_MD_PATH = join33(CLAUDE_DIR, "CLAUDE.md");
+var DIRECTIVE_PATH = join33(CLAUDE_DIR, "orchestrator-mode.md");
+var HOOK_SCRIPT_PATH = join33(CLAUDE_DIR, "hooks", "orchestrator-deny-bash.sh");
 var IMPORT_LINE = "@.claude/orchestrator-mode.md";
 var HOOK_MATCHER = "Edit|Write|NotebookEdit|Bash";
 var HOOK_COMMAND_VALUE = ".claude/hooks/orchestrator-deny-bash.sh";
-var oneUp2 = join31(import.meta.dir, "..");
-var twoUp2 = join31(import.meta.dir, "..", "..");
-var packageRoot2 = existsSync38(join31(oneUp2, "package.json")) ? oneUp2 : twoUp2;
+var oneUp2 = join33(import.meta.dir, "..");
+var twoUp2 = join33(import.meta.dir, "..", "..");
+var packageRoot2 = existsSync39(join33(oneUp2, "package.json")) ? oneUp2 : twoUp2;
 async function on() {
-  await mkdir4(join31(process.cwd(), CLAUDE_DIR), { recursive: true });
-  const absSettings = join31(process.cwd(), SETTINGS_PATH);
-  if (!existsSync38(absSettings)) {
+  await mkdir4(join33(process.cwd(), CLAUDE_DIR), { recursive: true });
+  const absSettings = join33(process.cwd(), SETTINGS_PATH);
+  if (!existsSync39(absSettings)) {
     await writeFile3(absSettings, `{}
 `, "utf8");
   }
-  const directiveSrc = join31(packageRoot2, "templates", "orchestrator-mode-directive.md");
-  const directiveContent = await readFile3(directiveSrc, "utf8");
-  const absDirective = join31(process.cwd(), DIRECTIVE_PATH);
-  await mkdir4(dirname12(absDirective), { recursive: true });
+  const directiveSrc = join33(packageRoot2, "templates", "orchestrator-mode-directive.md");
+  const directiveContent = await readFile5(directiveSrc, "utf8");
+  const absDirective = join33(process.cwd(), DIRECTIVE_PATH);
+  await mkdir4(dirname13(absDirective), { recursive: true });
   await writeFile3(absDirective, directiveContent, "utf8");
-  const absHookScript = join31(process.cwd(), HOOK_SCRIPT_PATH);
-  const hookSrc = join31(packageRoot2, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
-  const hookContent = await readFile3(hookSrc, "utf8");
-  await mkdir4(dirname12(absHookScript), { recursive: true });
+  const absHookScript = join33(process.cwd(), HOOK_SCRIPT_PATH);
+  const hookSrc = join33(packageRoot2, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
+  const hookContent = await readFile5(hookSrc, "utf8");
+  await mkdir4(dirname13(absHookScript), { recursive: true });
   await writeFile3(absHookScript, hookContent, "utf8");
   await chmod3(absHookScript, 493);
-  const absClaudeMd = join31(process.cwd(), CLAUDE_MD_PATH);
-  if (!existsSync38(absClaudeMd)) {
+  const absClaudeMd = join33(process.cwd(), CLAUDE_MD_PATH);
+  if (!existsSync39(absClaudeMd)) {
     await writeFile3(absClaudeMd, IMPORT_LINE + `
 `, "utf8");
   } else {
-    const content = await readFile3(absClaudeMd, "utf8");
+    const content = await readFile5(absClaudeMd, "utf8");
     if (!content.includes(IMPORT_LINE)) {
       const separator = content.endsWith(`
 `) ? "" : `
@@ -23990,17 +24460,17 @@ async function on() {
   return 0;
 }
 async function off() {
-  const absSettings = join31(process.cwd(), SETTINGS_PATH);
-  if (existsSync38(absSettings)) {
+  const absSettings = join33(process.cwd(), SETTINGS_PATH);
+  if (existsSync39(absSettings)) {
     const settings = await readSettings(absSettings);
     const next = removeHooks(settings, [
       { event: "PreToolUse", matcher: HOOK_MATCHER, command: HOOK_COMMAND_VALUE }
     ]);
     await writeSettings(absSettings, next);
   }
-  const absClaudeMd = join31(process.cwd(), CLAUDE_MD_PATH);
-  if (existsSync38(absClaudeMd)) {
-    const content = await readFile3(absClaudeMd, "utf8");
+  const absClaudeMd = join33(process.cwd(), CLAUDE_MD_PATH);
+  if (existsSync39(absClaudeMd)) {
+    const content = await readFile5(absClaudeMd, "utf8");
     const lines = content.split(`
 `);
     const filtered = lines.filter((line) => line !== IMPORT_LINE);
@@ -24012,8 +24482,8 @@ async function off() {
       await writeFile3(absClaudeMd, newContent, "utf8");
     }
   }
-  const absDirective = join31(process.cwd(), DIRECTIVE_PATH);
-  if (existsSync38(absDirective)) {
+  const absDirective = join33(process.cwd(), DIRECTIVE_PATH);
+  if (existsSync39(absDirective)) {
     await unlink(absDirective);
   }
   console.log("Orchestrator-Only Mode: OFF");
@@ -24023,13 +24493,13 @@ async function off() {
   return 0;
 }
 async function status() {
-  const absDirective = join31(process.cwd(), DIRECTIVE_PATH);
-  const hasDirective = existsSync38(absDirective);
-  const absClaudeMd = join31(process.cwd(), CLAUDE_MD_PATH);
-  const hasImportLine = existsSync38(absClaudeMd) && (await readFile3(absClaudeMd, "utf8")).split(`
+  const absDirective = join33(process.cwd(), DIRECTIVE_PATH);
+  const hasDirective = existsSync39(absDirective);
+  const absClaudeMd = join33(process.cwd(), CLAUDE_MD_PATH);
+  const hasImportLine = existsSync39(absClaudeMd) && (await readFile5(absClaudeMd, "utf8")).split(`
 `).includes(IMPORT_LINE);
-  const absSettings = join31(process.cwd(), SETTINGS_PATH);
-  const hasHookEntry = existsSync38(absSettings) ? await (async () => {
+  const absSettings = join33(process.cwd(), SETTINGS_PATH);
+  const hasHookEntry = existsSync39(absSettings) ? await (async () => {
     const settings = await readSettings(absSettings);
     const preToolUse = settings.hooks?.PreToolUse ?? [];
     return preToolUse.some((entry) => entry.matcher === HOOK_MATCHER && entry.hooks.some((h2) => h2.command === HOOK_COMMAND_VALUE));
@@ -24080,29 +24550,29 @@ var orchestratorModeCommand = defineCommand({
 });
 
 // src/commands/ask-questions.ts
-import { existsSync as existsSync39 } from "fs";
-import { mkdir as mkdir5, readFile as readFile4, writeFile as writeFile4, unlink as unlink2 } from "fs/promises";
-import { join as join32, dirname as dirname13 } from "path";
+import { existsSync as existsSync40 } from "fs";
+import { mkdir as mkdir5, readFile as readFile6, writeFile as writeFile4, unlink as unlink2 } from "fs/promises";
+import { join as join34, dirname as dirname14 } from "path";
 var CLAUDE_DIR2 = ".claude";
-var CLAUDE_MD_PATH2 = join32(CLAUDE_DIR2, "CLAUDE.md");
-var DIRECTIVE_PATH2 = join32(CLAUDE_DIR2, "ask-questions.md");
+var CLAUDE_MD_PATH2 = join34(CLAUDE_DIR2, "CLAUDE.md");
+var DIRECTIVE_PATH2 = join34(CLAUDE_DIR2, "ask-questions.md");
 var IMPORT_LINE2 = "@.claude/ask-questions.md";
-var oneUp3 = join32(import.meta.dir, "..");
-var twoUp3 = join32(import.meta.dir, "..", "..");
-var packageRoot3 = existsSync39(join32(oneUp3, "package.json")) ? oneUp3 : twoUp3;
+var oneUp3 = join34(import.meta.dir, "..");
+var twoUp3 = join34(import.meta.dir, "..", "..");
+var packageRoot3 = existsSync40(join34(oneUp3, "package.json")) ? oneUp3 : twoUp3;
 async function on2() {
-  await mkdir5(join32(process.cwd(), CLAUDE_DIR2), { recursive: true });
-  const directiveSrc = join32(packageRoot3, "templates", "ask-questions-directive.md");
-  const directiveContent = await readFile4(directiveSrc, "utf8");
-  const absDirective = join32(process.cwd(), DIRECTIVE_PATH2);
-  await mkdir5(dirname13(absDirective), { recursive: true });
+  await mkdir5(join34(process.cwd(), CLAUDE_DIR2), { recursive: true });
+  const directiveSrc = join34(packageRoot3, "templates", "ask-questions-directive.md");
+  const directiveContent = await readFile6(directiveSrc, "utf8");
+  const absDirective = join34(process.cwd(), DIRECTIVE_PATH2);
+  await mkdir5(dirname14(absDirective), { recursive: true });
   await writeFile4(absDirective, directiveContent, "utf8");
-  const absClaudeMd = join32(process.cwd(), CLAUDE_MD_PATH2);
-  if (!existsSync39(absClaudeMd)) {
+  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH2);
+  if (!existsSync40(absClaudeMd)) {
     await writeFile4(absClaudeMd, IMPORT_LINE2 + `
 `, "utf8");
   } else {
-    const content = await readFile4(absClaudeMd, "utf8");
+    const content = await readFile6(absClaudeMd, "utf8");
     if (!content.includes(IMPORT_LINE2)) {
       const separator = content.endsWith(`
 `) ? "" : `
@@ -24117,9 +24587,9 @@ async function on2() {
   return 0;
 }
 async function off2() {
-  const absClaudeMd = join32(process.cwd(), CLAUDE_MD_PATH2);
-  if (existsSync39(absClaudeMd)) {
-    const content = await readFile4(absClaudeMd, "utf8");
+  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH2);
+  if (existsSync40(absClaudeMd)) {
+    const content = await readFile6(absClaudeMd, "utf8");
     const lines = content.split(`
 `);
     const filtered = lines.filter((line) => line !== IMPORT_LINE2);
@@ -24131,8 +24601,8 @@ async function off2() {
       await writeFile4(absClaudeMd, newContent, "utf8");
     }
   }
-  const absDirective = join32(process.cwd(), DIRECTIVE_PATH2);
-  if (existsSync39(absDirective)) {
+  const absDirective = join34(process.cwd(), DIRECTIVE_PATH2);
+  if (existsSync40(absDirective)) {
     await unlink2(absDirective);
   }
   console.log("Ask Clarifying Questions policy: OFF");
@@ -24141,10 +24611,10 @@ async function off2() {
   return 0;
 }
 async function status2() {
-  const absDirective = join32(process.cwd(), DIRECTIVE_PATH2);
-  const hasDirective = existsSync39(absDirective);
-  const absClaudeMd = join32(process.cwd(), CLAUDE_MD_PATH2);
-  const hasImportLine = existsSync39(absClaudeMd) && (await readFile4(absClaudeMd, "utf8")).split(`
+  const absDirective = join34(process.cwd(), DIRECTIVE_PATH2);
+  const hasDirective = existsSync40(absDirective);
+  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH2);
+  const hasImportLine = existsSync40(absClaudeMd) && (await readFile6(absClaudeMd, "utf8")).split(`
 `).includes(IMPORT_LINE2);
   const fmt = (v2) => v2 ? "present" : "missing";
   console.log("Ask Clarifying Questions policy status:");
@@ -24190,11 +24660,16 @@ var askQuestionsCommand = defineCommand({
 });
 
 // ../n8n/src/execution/single-turn.ts
-import { join as join33 } from "path";
-import { existsSync as existsSync40, readFileSync as readFileSync12 } from "fs";
+import { join as join35 } from "path";
+import { existsSync as existsSync41, readFileSync as readFileSync12 } from "fs";
 var __dirname = "/Users/benzotti/src/software-teams/packages/n8n/src/execution";
 var sharedApi = require_n8n_api();
-var { sanitizeUserInput: sanitizeUserInput2, fenceUserInput: fenceUserInput2, SINGLE_TURN_ALLOWED_TOOLS: SINGLE_TURN_ALLOWED_TOOLS2 } = sharedApi;
+var {
+  sanitizeUserInput: sanitizeUserInput2,
+  fenceUserInput: fenceUserInput2,
+  SINGLE_TURN_ALLOWED_TOOLS: SINGLE_TURN_ALLOWED_TOOLS2,
+  SINGLE_TURN_DISALLOWED_TOOLS: SINGLE_TURN_DISALLOWED_TOOLS2
+} = sharedApi;
 var NEEDS_INPUT_RE = /^NEEDS_INPUT:\s*(.+)$/m;
 async function findClaude2() {
   const { execSync } = await import("child_process");
@@ -24220,12 +24695,16 @@ async function spawnClaude2(prompt2, opts) {
   ];
   const allowedTools = opts?.allowedTools ?? [...SINGLE_TURN_ALLOWED_TOOLS2];
   args.push(...allowedTools.flatMap((tool) => ["--allowedTools", tool]));
+  const disallowedTools = opts?.disallowedTools ?? [...SINGLE_TURN_DISALLOWED_TOOLS2];
+  args.push(...disallowedTools.flatMap((tool) => ["--disallowedTools", tool]));
+  if (opts?.model)
+    args.push("--model", opts.model);
   const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
   if (!useStdin) {
     args.push("--", prompt2);
   }
   const spawnEnv = opts?.githubToken ? { ...process.env, GITHUB_TOKEN: opts.githubToken } : { ...process.env };
-  return new Promise((resolve12, reject) => {
+  return new Promise((resolve13, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts?.cwd ?? process.cwd(),
       env: spawnEnv,
@@ -24260,18 +24739,18 @@ async function spawnClaude2(prompt2, opts) {
     proc.on("close", (code) => {
       if (streamState.buffer.trim())
         processLine(streamState.buffer.trim());
-      resolve12({ exitCode: code ?? 1, response: streamState.lastTextResponse });
+      resolve13({ exitCode: code ?? 1, response: streamState.lastTextResponse });
     });
     proc.on("error", reject);
   });
 }
 function resolveAgentSpecPath2(agentId) {
   const candidates = [
-    join33(__dirname, "..", "..", "agents", `${agentId}.md`),
-    join33(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
-    join33(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)
+    join35(__dirname, "..", "..", "agents", `${agentId}.md`),
+    join35(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
+    join35(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)
   ];
-  return candidates.find(existsSync40) ?? null;
+  return candidates.find(existsSync41) ?? null;
 }
 function stripSpecFrontmatter2(content) {
   const fm = content.match(/^---\n[\s\S]*?\n---\n?/);
@@ -24303,7 +24782,7 @@ function isNonEmptyContext(ctx) {
   }
   return true;
 }
-async function runAgentTurn(input, repoContext, githubToken) {
+async function runAgentTurn(input, repoContext, githubToken, options) {
   try {
     await findClaude2();
   } catch {
@@ -24325,6 +24804,8 @@ async function runAgentTurn(input, repoContext, githubToken) {
 ${taskSection}` : taskSection;
   const spawnResult = await spawnClaude2(fullPrompt, {
     allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS2],
+    disallowedTools: [...SINGLE_TURN_DISALLOWED_TOOLS2],
+    model: options?.model,
     cwd: repoContext?.worktreePath,
     githubToken
   }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
@@ -24387,7 +24868,7 @@ function makeAgentEngine(agentOverride) {
 var agentTurnCommand = defineCommand({
   meta: {
     name: "agent-turn",
-    description: "Run one specialist turn via the existing single-turn engine (Task tool disabled). " + "Reads a NodeEnvelope from --envelope or stdin, calls runAgentTurn, and emits the " + "result envelope. Exit codes: 0 (ok/needs-input), 1 (error), 2 (bad input)."
+    description: "Run one specialist turn via the existing single-turn engine (Agent tool disabled). " + "Reads a NodeEnvelope from --envelope or stdin, calls runAgentTurn, and emits the " + "result envelope. Exit codes: 0 (ok/needs-input), 1 (error), 2 (bad input)."
   },
   args: {
     json: {
@@ -25245,6 +25726,7 @@ var main = defineCommand({
     implement: implementCommand,
     status: statusCommand,
     component: componentCommand,
+    "validate-frontmatter": validateFrontmatterCommand,
     commit: commitCommand,
     pr: prCommand,
     review: reviewCommand,

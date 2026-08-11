@@ -1,7 +1,7 @@
 ---
 name: generate-pr
 description: "Software Teams: Generate comprehensive PR description and create the pull request"
-allowed-tools: Read, Bash, Task
+allowed-tools: Read, Bash, Agent
 argument-hint: "[optional context hint]"
 context: |
   !git branch --show-current 2>/dev/null

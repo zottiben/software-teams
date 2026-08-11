@@ -18,18 +18,18 @@ TypeScript is written here.
 
 Software Teams runs today in three places: an interactive Claude Code session, the
 `software-teams …` CLI, and the GitHub-Actions headless runner (`action/`). Agent
-collaboration (Task tool / SendMessage) only works *inside* a live session — it
+collaboration (Agent tool / SendMessage) only works *inside* a live session — it
 cannot be split across processes. The teams want event-driven, composable agents
 on a visual canvas with Slack HITL. n8n is the substrate; each specialist becomes
 a node and agents hand off **node-to-node** over an explicit JSON contract rather
-than through Claude's in-session Task tool.
+than through Claude's in-session Agent tool.
 
 The grounding primitive already exists: `spawnClaude()` in
 [`src/utils/claude.ts`](../src/utils/claude.ts) runs
 `claude -p --output-format stream-json` via `Bun.spawn`, streams events, and
 returns `{ exitCode, response }`. The GHA path
 ([`src/commands/action/run.ts`](../src/commands/action/run.ts) ~L820–940) drives a
-**full, multi-turn session** with `Task` enabled and a conversation-history
+**full, multi-turn session** with `Agent` enabled and a conversation-history
 prompt. n8n nodes need the opposite: **one turn, Task disabled, structured I/O.**
 
 ---
@@ -84,8 +84,8 @@ in the n8n worker, built on `spawnClaude`. The contract for the wrapper
 
 1. **Single turn.** One `claude -p` call. No conversation loop; no follow-up turns
    inside the node. A multi-step workflow is multiple nodes, not multiple turns.
-2. **Task tool disabled.** The wrapper passes an `allowedTools` list that **omits
-   `Task`** — i.e. `DEFAULT_ALLOWED_TOOLS` minus `"Task"`. This is the mechanical
+2. **Agent tool disabled.** The wrapper passes an `allowedTools` list that **omits
+   `Agent`** — i.e. `DEFAULT_ALLOWED_TOOLS` minus `"Agent"`. This is the mechanical
    enforcement of "no internal sub-agent spawning": a node cannot fan out to
    sub-agents, so all multi-agent work flows over the n8n canvas (Decision C).
 3. **Agent selection.** The node's `agentId` (e.g. `software-teams-frontend`) selects a
@@ -116,9 +116,9 @@ primitive, not a refactor of `run.ts`.
 
 ---
 
-## Decision C — Canvas handoff replaces the native Task tool (AC4, addresses R-04)
+## Decision C — Canvas handoff replaces the native Agent tool (AC4, addresses R-04)
 
-With `Task` disabled inside every node, agent-to-agent collaboration is
+With `Agent` disabled inside every node, agent-to-agent collaboration is
 re-implemented as **n8n data flow**: node A's output port → node B's input port,
 both speaking the `NodeEnvelope` (`CONTRACT.md`). Handoff = the downstream node
 folds the upstream node's `result`/`artifacts` into its own `input.context`

@@ -93,7 +93,11 @@ describe("spawnClaude", () => {
     expect(cmd).toContain("Edit");
     expect(cmd).toContain("Glob");
     expect(cmd).toContain("Grep");
-    expect(cmd).toContain("Task");
+    expect(cmd).toContain("Agent");
+    // The subagent-spawning tool is `Agent`; `Task` is not a Claude Code tool.
+    expect(cmd).not.toContain("Task");
+    // `MultiEdit` was folded into `Edit`.
+    expect(cmd).not.toContain("MultiEdit");
     // Scoped bash commands
     expect(cmd).toContain("Bash(bun:*)");
     expect(cmd).toContain("Bash(git:*)");
@@ -111,7 +115,7 @@ describe("spawnClaude", () => {
     expect(cmd).toContain("Glob");
     expect(cmd).not.toContain("Bash(bun:*)");
     expect(cmd).not.toContain("Write");
-    expect(cmd).not.toContain("Task");
+    expect(cmd).not.toContain("Agent");
   });
 
   test("never uses bypassPermissions", async () => {

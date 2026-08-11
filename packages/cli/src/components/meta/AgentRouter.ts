@@ -227,7 +227,7 @@ this specialist. Reviewers can use it to challenge bad routings.`,
       description: "How implement-plan honours agent pins when spawning",
       body: `**Native subagents are the default.** \`convertAgents()\` (invoked by \`software-teams sync-agents\` and \`software-teams init\`) populates \`.claude/agents/\` with Claude Code-compatible specs converted from \`agents/software-teams-*.md\`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under \`.claude/agents/\` and \`~/.claude/agents/\` are equally first-class.
 
-\`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Task tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically — no identity preamble in the prompt body.
+\`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Agent tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically — no identity preamble in the prompt body.
 
 ### Source-aware spawn pattern
 
@@ -279,7 +279,7 @@ Tasks with no \`agent:\` field fall back to the domain default (\`software-teams
 ### Legacy fallback — identity injection (fresh-clone bootstrap)
 
 <!-- lint-allow: legacy-injection -->
-> Used **only** when \`.claude/agents/\` has not yet been generated (typical fresh-clone state before \`software-teams init\` / \`software-teams sync-agents\` has run). Claude Code's Task tool validates \`subagent_type\` against its registered list, so unregistered names error with \`classifyHandoffIfNeeded is not defined\`. The fallback spawns \`general-purpose\` and injects the Software Teams agent's identity via prompt text:
+> Used **only** when \`.claude/agents/\` has not yet been generated (typical fresh-clone state before \`software-teams init\` / \`software-teams sync-agents\` has run). Claude Code's Agent tool validates \`subagent_type\` against its registered list, so unregistered names error with \`classifyHandoffIfNeeded is not defined\`. The fallback spawns \`general-purpose\` and injects the Software Teams agent's identity via prompt text:
 >
 > \`\`\`
 > # source: software-teams — fresh clone, .claude/agents/ not yet generated

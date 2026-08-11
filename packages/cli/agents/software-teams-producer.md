@@ -81,7 +81,7 @@ Use the `AskUserQuestion` tool to present strategic decisions as a selectable UI
 - Labels: 1-5 words. Descriptions: 1 sentence with key trade-off.
 - Add "(Recommended)" to your preferred option's label
 - For open-ended context gathering, use conversation instead
-- If running as a Task subagent, structure text so the orchestrator can present options via `AskUserQuestion`
+- If running as a subagent, structure text so the orchestrator can present options via `AskUserQuestion` (the harness strips that tool from subagents, so the orchestrator must ask on your behalf)
 
 ---
 

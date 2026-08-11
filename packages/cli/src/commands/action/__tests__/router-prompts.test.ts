@@ -380,7 +380,7 @@ describe("buildRouterPrompt — pre-plan discovery (phase D)", () => {
   test("pre-plan-discovery brief mandates read-only behaviour + structured response shape", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "pre-plan-discovery" }, issueNumber: 46 }));
     expect(prompt).toContain("## Pre-Plan Discovery (read-only)");
-    expect(prompt).toMatch(/Do NOT use Edit, Write, MultiEdit/);
+    expect(prompt).toMatch(/Do NOT use Edit or Write/);
     expect(prompt).toMatch(/Do NOT run `git commit`/);
     expect(prompt).toContain("**The Research Agent** completed pre-plan discovery for issue #46.");
     expect(prompt).toContain("### Codebase context");
@@ -537,7 +537,7 @@ describe("buildRouterPrompt — multi-spawn orchestrator (phase B)", () => {
   test("orchestrator prompt mandates a SINGLE assistant message with all N Task calls", () => {
     const prompt = buildRouterPrompt(makeMultiSpawn());
     expect(prompt).toMatch(/Spawn ALL 2 tasks in a SINGLE assistant message/);
-    expect(prompt).toMatch(/Multiple Task tool calls inside one assistant message run \*\*concurrently\*\*/);
+    expect(prompt).toMatch(/Multiple Agent tool calls inside one assistant message run \*\*concurrently\*\*/);
   });
 
   test("orchestrator prompt embeds one Task spawn block per slice with correct subagent_type", () => {
@@ -655,9 +655,9 @@ describe("buildRouterPrompt — implement brief (three-tier aware)", () => {
     expect(prompt).not.toMatch(/most recent \*\.plan\.md/);
   });
 
-  test("implement brief tells the agent it has no Task tool — execute in-context", () => {
+  test("implement brief tells the agent it has no Agent tool — execute in-context", () => {
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "implement" } }));
-    expect(prompt).toMatch(/don't have the Task tool|execute every slice in this single context/i);
+    expect(prompt).toMatch(/don't have the Agent tool|execute every slice in this single context/i);
   });
 
   test("implement brief mandates the static agent-named opener (parity with plan/review/feedback flows)", () => {

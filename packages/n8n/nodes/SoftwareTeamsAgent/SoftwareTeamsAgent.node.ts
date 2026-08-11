@@ -20,19 +20,25 @@ import { cloneRepo, createWorktree, capturePortableChange, removeWorktree } from
 import { validateOwnerRepo, validateBranchName, validateCloneUrl } from '../../src/repo/validate';
 import type { RepoContext } from '../../src/repo/repo-context';
 
+interface AgentTurnOptions {
+  readonly model?: string;
+}
+
 type RunAgentTurnFn = (
   input: NodeEnvelope,
   repoContext?: RepoContext,
   githubToken?: string,
+  options?: AgentTurnOptions,
 ) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
-const runAgentTurn: RunAgentTurnFn = (input, repoContext, githubToken) =>
+const runAgentTurn: RunAgentTurnFn = (input, repoContext, githubToken, options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require(SINGLE_TURN_MODULE) as { runAgentTurn: RunAgentTurnFn }).runAgentTurn(
     input,
     repoContext,
     githubToken,
+    options,
   );
 
 const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
@@ -71,11 +77,13 @@ const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
   { name: 'Verifier', value: 'software-teams-verifier' },
 ];
 
-const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
-  { name: 'Claude Sonnet 4.5 (Default)', value: 'claude-sonnet-4-5' },
-  { name: 'Claude Opus 4', value: 'claude-opus-4-5' },
-  { name: 'Claude Haiku 3.5', value: 'claude-haiku-3-5' },
-];
+// Sourced from the shared CLI surface so the two nodes that offer a model
+// picker cannot drift apart. See shared/claude-code-surface.ts.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL } = require('@websitelabs/software-teams') as {
+  N8N_MODEL_OPTIONS: Array<{ name: string; value: string }>;
+  N8N_DEFAULT_MODEL: string;
+};
 
 /**
  * SoftwareTeamsAgent node.
@@ -151,11 +159,13 @@ export class SoftwareTeamsAgent implements INodeType {
         name: 'model',
         type: 'options',
         noDataExpression: true,
-        options: MODEL_OPTIONS,
-        default: 'claude-sonnet-4-5',
+        options: N8N_MODEL_OPTIONS,
+        default: N8N_DEFAULT_MODEL,
         description:
-          'Claude model to use for this turn. Injected via the ' +
-          'ANTHROPIC_DEFAULT_MODEL environment variable for the Claude CLI.',
+          'Claude model for this turn, passed to the Claude CLI as --model. ' +
+          'Aliases track the latest version of each family: Sonnet for daily work, ' +
+          'Opus for complex reasoning, Haiku for fast mechanical turns, Fable for ' +
+          'long autonomous work. Inherit uses the worker session default.',
       },
     ],
 		usableAsTool: true,
@@ -177,11 +187,7 @@ export class SoftwareTeamsAgent implements INodeType {
       const specialist = this.getNodeParameter('specialist', i) as string;
       const prompt = this.getNodeParameter('prompt', i) as string;
       const contextRaw = this.getNodeParameter('context', i, '') as string;
-      const model = this.getNodeParameter('model', i, 'claude-sonnet-4-5') as string;
-
-      if (model) {
-        process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
-      }
+      const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
 
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
 
@@ -209,9 +215,10 @@ export class SoftwareTeamsAgent implements INodeType {
             repoDescriptor,
             specialist,
             githubToken,
+            model,
           });
         } else {
-          result = await runAgentTurn(envelope, undefined, githubToken);
+          result = await runAgentTurn(envelope, undefined, githubToken, { model });
         }
       } catch (err) {
         if (this.continueOnFail()) {
@@ -344,8 +351,9 @@ async function executeWithWorktree(opts: {
   readonly repoDescriptor: RepoDescriptor;
   readonly specialist: string;
   readonly githubToken: string | undefined;
+  readonly model: string | undefined;
 }): Promise<NodeEnvelope> {
-  const { envelope, repoDescriptor, specialist, githubToken } = opts;
+  const { envelope, repoDescriptor, specialist, githubToken, model } = opts;
   const { cloneUrl, ownerRepo, baseBranch } = repoDescriptor;
 
   validateOwnerRepo(ownerRepo);
@@ -377,7 +385,7 @@ async function executeWithWorktree(opts: {
   };
 
   try {
-    const agentResult = await runAgentTurn(envelope, repoContext, githubToken);
+    const agentResult = await runAgentTurn(envelope, repoContext, githubToken, { model });
     const changeRef = await capturePortableChange({ worktreePath, baseBranch });
     return changeRef ? { ...agentResult, changeRef } : agentResult;
   } finally {

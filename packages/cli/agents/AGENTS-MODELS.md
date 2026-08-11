@@ -30,8 +30,19 @@ deliberate decision.
 ## Tool Allowlist Policy (Role Classes)
 
 Tool names match Claude Code's canonical names exactly: `Read`, `Write`,
-`Edit`, `Grep`, `Glob`, `Bash`, `WebFetch`, `WebSearch`, `Task`,
-`AskUserQuestion`. No aliases, no lowercase.
+`Edit`, `Grep`, `Glob`, `Bash`, `LSP`, `WebFetch`, `WebSearch`, `Agent`.
+No aliases, no lowercase. The `ci.yml` frontmatter gate rejects anything
+outside the canonical set.
+
+Two names that used to appear here and must not come back:
+
+- **`Task` does not exist.** The subagent-spawning tool is `Agent`. Its
+  `subagent_type` parameter is unchanged, so only the tool name moved.
+- **`AskUserQuestion` cannot be granted to a subagent.** The harness strips it
+  from every subagent unconditionally, along with `EnterPlanMode`,
+  `ScheduleWakeup`, `TaskOutput`, and `Workflow`. A specialist that needs a
+  human decision returns it for the orchestrator to ask on its behalf.
+- **`MultiEdit` was folded into `Edit`.**
 
 | Role class           | Tools                                              |
 | -------------------- | -------------------------------------------------- |
@@ -99,5 +110,7 @@ Notes:
   model. The `quality` and `balanced` profiles use sonnet; the `budget` profile
   keeps it on `haiku` as the explicit cost trade-off.
 - The eight game-* specialists are gameplay/Unity/AI-art-pipeline/store-cert/production roles for game development projects; they follow the same model/role-class conventions as the other agents.
-- **Profile-overrides-frontmatter precedence:** `config.yaml models:` profiles override the per-agent frontmatter `model:` at `software-teams sync-agents` time. The frontmatter value is the fallback default used only when the active profile (and any override) does not name the agent. The `balanced` profile maps `software-teams-dev-planner` to `claude-opus-4-6`; its frontmatter default is `sonnet`.
+- **Profile-overrides-frontmatter precedence:** `config.yaml models:` profiles override the per-agent frontmatter `model:` at `software-teams sync-agents` time. The frontmatter value is the fallback default used only when the active profile (and any override) does not name the agent. The `balanced` profile maps `software-teams-dev-planner` to `opus`; its frontmatter default is `sonnet`.
+- **Profiles use aliases, not pinned IDs.** `opus`, `sonnet`, `haiku`, and `fable` each track Anthropic's current recommended version for that family, so the profiles do not go stale when a model ships. On the Anthropic API today `opus` resolves to Opus 5 and `sonnet` to Sonnet 5. Pin a full ID (`claude-opus-5`) only when a fixed version genuinely matters.
+- **This table is a capability tier, not a thoroughness tier.** Model selects how capable; `effort` selects how thorough. The two dials are independent, and `effort` is not yet wired through Software Teams (see `BUILD-PLAN.md` slice 2).
 - **Orchestrator caveat:** The orchestrator is the main Claude Code session, not a spawned subagent — it cannot be configured via `config.yaml`. Out of scope; documented here only.

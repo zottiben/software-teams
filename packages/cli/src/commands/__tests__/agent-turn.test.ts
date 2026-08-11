@@ -12,7 +12,7 @@
  *  - runVerb lifecycle (input resolution, writeResult, exit codes)
  *  - json-purity-gate (subprocess byte-for-byte stdout assertion)
  *  - exit-code-gate (subprocess exit-code assertion)
- *  - Task tool exclusion (asserted by the existing single-turn engine tests)
+ *  - Agent tool exclusion (asserted by the existing single-turn engine tests)
  */
 
 import { describe, test, expect, mock, beforeEach } from "bun:test";

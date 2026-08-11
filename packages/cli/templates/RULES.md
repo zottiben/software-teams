@@ -22,7 +22,7 @@ Doctrine for how the orchestrator (main Claude Code session) and Software Teams 
 Invoke a specialist via the `Task` tool, setting `subagent_type` to the agent's name:
 
 ```
-Task(subagent_type="software-teams-programmer", prompt="<task brief, file paths, acceptance criteria>")
+Agent(subagent_type="software-teams-programmer", prompt="<task brief, file paths, acceptance criteria>")
 ```
 
 The agent's full spec at `.claude/agents/<name>.md` is loaded automatically — your prompt only needs the task, not the role description.

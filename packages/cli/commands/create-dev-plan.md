@@ -1,7 +1,7 @@
 ---
 name: create-dev-plan
 description: "Software Teams: Generate a human-readable developer guide (single markdown file, no YAML envelopes) that a developer follows step-by-step."
-allowed-tools: Read, Glob, Bash, Write, Edit, Task
+allowed-tools: Read, Glob, Bash, Write, Edit, Agent
 argument-hint: "<feature to write a guide for>"
 ---
 
@@ -38,7 +38,7 @@ sibling directory and do NOT touch `.software-teams/plans/`.
 ### 3. Spawn the dev-planner
 
 Spawn `software-teams-dev-planner` via
-`Task(subagent_type="software-teams-dev-planner", description="Write developer guide for <feature>", prompt=...)`.
+`Agent(subagent_type="software-teams-dev-planner", description="Write developer guide for <feature>", prompt=...)`.
 
 The spawn prompt MUST include:
 

@@ -136,7 +136,12 @@ describe("SoftwareTeamsAgent node (T5 - AC1, AC2, AC3, R-02)", () => {
       expect(options.length).toBeGreaterThan(0);
 
       const values = options.map((o: any) => o.value);
-      expect(values).toContain("claude-sonnet-4-5");
+      // Aliases, not pinned IDs: they track the current version of each family.
+      expect(values).toContain("sonnet");
+      expect(values).toContain("opus");
+      expect(values).toContain("fable");
+      // `claude-opus-4-5` was never a real model ID; guard against its return.
+      expect(values).not.toContain("claude-opus-4-5");
     });
   });
 

@@ -1,7 +1,7 @@
 ---
 name: review-plan
 description: "Software Teams: Review a plan for one-shot readiness (consistency, contradictions, quality) before approval"
-allowed-tools: Read, Glob, Bash, Task, AskUserQuestion
+allowed-tools: Read, Glob, Bash, Agent, AskUserQuestion
 argument-hint: "[plan-name] [plan-part]  — defaults to the current plan"
 context: |
   !cat .software-teams/state.yaml 2>/dev/null | head -30

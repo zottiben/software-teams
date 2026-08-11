@@ -10,11 +10,17 @@ const sharedApi = require("@websitelabs/software-teams") as {
   sanitizeUserInput: (text: string, maxLength?: number) => string;
   fenceUserInput: (tag: string, content: string) => string;
   SINGLE_TURN_ALLOWED_TOOLS: readonly string[];
+  SINGLE_TURN_DISALLOWED_TOOLS: readonly string[];
 };
 
-const { sanitizeUserInput, fenceUserInput, SINGLE_TURN_ALLOWED_TOOLS } = sharedApi;
+const {
+  sanitizeUserInput,
+  fenceUserInput,
+  SINGLE_TURN_ALLOWED_TOOLS,
+  SINGLE_TURN_DISALLOWED_TOOLS,
+} = sharedApi;
 
-export { SINGLE_TURN_ALLOWED_TOOLS };
+export { SINGLE_TURN_ALLOWED_TOOLS, SINGLE_TURN_DISALLOWED_TOOLS };
 
 const NEEDS_INPUT_RE = /^NEEDS_INPUT:\s*(.+)$/m;
 
@@ -46,6 +52,8 @@ async function spawnClaude(
   prompt: string,
   opts?: {
     allowedTools?: string[];
+    disallowedTools?: string[];
+    model?: string;
     cwd?: string;
     permissionMode?: string;
     githubToken?: string;
@@ -65,6 +73,16 @@ async function spawnClaude(
 
   const allowedTools = opts?.allowedTools ?? [...SINGLE_TURN_ALLOWED_TOOLS];
   args.push(...allowedTools.flatMap((tool) => ["--allowedTools", tool]));
+
+  // `--allowedTools` only waives the permission prompt; it does not restrict the
+  // pool. Removing `Agent` is what actually holds each node to a single turn.
+  const disallowedTools = opts?.disallowedTools ?? [...SINGLE_TURN_DISALLOWED_TOOLS];
+  args.push(...disallowedTools.flatMap((tool) => ["--disallowedTools", tool]));
+
+  // Model is passed per invocation. It must never be set through the ambient
+  // environment: n8n workers are shared and long-lived, so a mutated
+  // `process.env` would leak across executions.
+  if (opts?.model) args.push("--model", opts.model);
 
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) {
@@ -172,10 +190,16 @@ function isNonEmptyContext(ctx: unknown): boolean {
   return true;
 }
 
+export interface AgentTurnOptions {
+  /** Model alias (`opus`, `sonnet`, `haiku`, `fable`) or full ID. Passed as `--model`. */
+  model?: string;
+}
+
 export async function runAgentTurn(
   input: NodeEnvelope,
   repoContext?: RepoContext,
   githubToken?: string,
+  options?: AgentTurnOptions,
 ): Promise<NodeEnvelope> {
   try {
     await findClaude();
@@ -204,6 +228,8 @@ export async function runAgentTurn(
 
   const spawnResult = await spawnClaude(fullPrompt, {
     allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS],
+    disallowedTools: [...SINGLE_TURN_DISALLOWED_TOOLS],
+    model: options?.model,
     cwd: repoContext?.worktreePath,
     githubToken,
   }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));

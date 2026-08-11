@@ -546,7 +546,7 @@ describe("review-plan command lint", () => {
     expect(m, "commands/review-plan.md missing frontmatter").toBeTruthy();
     const fm = m![1]!;
     expect(fm).toContain("name: review-plan");
-    expect(fm).toMatch(/allowed-tools:.*Task/);
+    expect(fm).toMatch(/allowed-tools:.*Agent/);
     expect(fm).toMatch(/argument-hint:/);
     expect(content).toMatch(/subagent_type\s*[=:]\s*"software-teams-quality"/);
     expect(content).toContain("$ST_CLI state plan-reviewed");

@@ -1,7 +1,7 @@
 ---
 name: pr-feedback
 description: "Software Teams: Address PR review comments systematically"
-allowed-tools: Read, Bash, Task
+allowed-tools: Read, Bash, Agent
 argument-hint: "<pr-number-or-url>"
 context: |
   !git branch --show-current 2>/dev/null

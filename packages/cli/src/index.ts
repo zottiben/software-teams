@@ -5,6 +5,7 @@ import { planCommand } from "./commands/plan";
 import { implementCommand } from "./commands/implement";
 import { statusCommand } from "./commands/status";
 import { componentCommand } from "./commands/component";
+import { validateFrontmatterCommand } from "./commands/validate-frontmatter";
 import { commitCommand } from "./commands/commit";
 import { prCommand } from "./commands/pr";
 import { reviewCommand } from "./commands/review";
@@ -47,6 +48,7 @@ const main = defineCommand({
     implement: implementCommand,
     status: statusCommand,
     component: componentCommand,
+    "validate-frontmatter": validateFrontmatterCommand,
     commit: commitCommand,
     pr: prCommand,
     review: reviewCommand,

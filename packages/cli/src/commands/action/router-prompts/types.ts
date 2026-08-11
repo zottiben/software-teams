@@ -48,7 +48,7 @@ export interface ActionContext {
 
 export interface SubagentSpawn {
   type: string;                   // subagent_type passed to Task
-  description: string;            // short description for the Task tool's `description` field
+  description: string;            // short description for the Agent tool's `description` field
 }
 
 export function pickSubagent(flow: ActionFlow): SubagentSpawn {

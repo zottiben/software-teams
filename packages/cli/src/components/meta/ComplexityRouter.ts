@@ -47,7 +47,7 @@ reasoning: "{why this mode was chosen}"
     SingleAgentMode: {
       name: "SingleAgentMode",
       description: "How to spawn a single specialist agent for simple plans",
-      body: `Spawn one specialist agent directly via Task tool, **natively by name**.
+      body: `Spawn one specialist agent directly via Agent tool, **natively by name**.
 
 > **Three-tier plans (post-T9/T10):** when the plan has an \`orchestration.md\`
 > artefact, single-agent mode loads SPEC + ORCHESTRATION as the **orchestrator

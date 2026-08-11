@@ -304,7 +304,7 @@ export function buildImplementBrief(ctx: ActionContext): string[] {
   return [
     `## Implementation Task`,
     ...planPathLines,
-    `4. Implement each task directly via Edit/Write — do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Task tool — execute every slice in this single context.)`,
+    `4. Implement each task directly via Edit/Write — do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Agent tool — execute every slice in this single context.)`,
     `5. Update \`state.yaml\` \`current_plan.completed_tasks\` as you finish each task.`,
     ``,
     `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,

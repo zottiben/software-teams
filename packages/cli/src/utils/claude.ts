@@ -3,6 +3,7 @@ import { consola } from "consola";
 export {
   DEFAULT_ALLOWED_TOOLS,
   SINGLE_TURN_ALLOWED_TOOLS,
+  SINGLE_TURN_DISALLOWED_TOOLS,
 } from "../shared/agent-tools";
 import { DEFAULT_ALLOWED_TOOLS } from "../shared/agent-tools";
 

@@ -8,7 +8,7 @@ depends_on: []
 
 # Agent routing (written by software-teams-planner via AgentRouter — see
 # framework/components/meta/AgentRouter.md). implement-plan reads `agent` and
-# passes it as `subagent_type` when spawning via the Task tool. `agent_rationale`
+# passes it as `subagent_type` when spawning via the Agent tool. `agent_rationale`
 # is a human-readable justification so reviewers can challenge the pick.
 agent: general-purpose
 agent_rationale: "{Why this specialist was chosen}"

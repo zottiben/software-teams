@@ -80,7 +80,7 @@ Return a YAML block with \`status\`, agent-specific fields, and \`next_action\` 
 
 ## File Operations
 
-You are spawned with \`mode: "acceptEdits"\` and a scoped \`allowedTools\` allowlist (declared in \`.claude/settings.json\` and mirrored in \`src/utils/claude.ts\`). The allowlist covers Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped \`Bash(bun:*)\`, \`Bash(git:*)\`, \`Bash(gh:*)\`, \`Bash(npm:*)\`, \`Bash(npx:*)\`, \`Bash(mkdir:*)\`, \`Bash(rm:*)\`, \`Bash(software-teams:*)\`. All standard tools work within that scope:
+You are spawned with \`mode: "acceptEdits"\` and a scoped allowlist (declared under \`permissions.allow\` in \`.claude/settings.json\` and mirrored in \`src/shared/agent-tools.ts\`). The allowlist covers Read/Write/Edit/Glob/Grep/Agent plus scoped \`Bash(bun:*)\`, \`Bash(git:*)\`, \`Bash(gh:*)\`, \`Bash(npm:*)\`, \`Bash(npx:*)\`, \`Bash(mkdir:*)\`, \`Bash(rm:*)\`, \`Bash(software-teams:*)\`. All standard tools work within that scope:
 
 | Operation | Tool / Method | Notes |
 |-----------|--------------|-------|
@@ -414,7 +414,7 @@ this specialist. Reviewers can use it to challenge bad routings.
 
 **Native subagents are the default.** \`convertAgents()\` (invoked by \`software-teams sync-agents\` and \`software-teams init\`) populates \`.claude/agents/\` with Claude Code-compatible specs converted from \`agents/software-teams-*.md\`, so every Software Teams specialist is a first-class registered subagent in every Software Teams-installed project. User-added subagents under \`.claude/agents/\` and \`~/.claude/agents/\` are equally first-class.
 
-\`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Task tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically — no identity preamble in the prompt body.
+\`implement-plan\` MUST read the task's \`agent:\` field and the corresponding \`source:\` from \`available_agents\`, then spawn via the Agent tool with the agent name as \`subagent_type\`. Claude Code loads the spec from \`.claude/agents/{name}.md\` automatically — no identity preamble in the prompt body.
 
 ### Source-aware spawn pattern
 
@@ -466,7 +466,7 @@ Tasks with no \`agent:\` field fall back to the domain default (\`software-teams
 ### Legacy fallback — identity injection (fresh-clone bootstrap)
 
 <!-- lint-allow: legacy-injection -->
-> Used **only** when \`.claude/agents/\` has not yet been generated (typical fresh-clone state before \`software-teams init\` / \`software-teams sync-agents\` has run). Claude Code's Task tool validates \`subagent_type\` against its registered list, so unregistered names error with \`classifyHandoffIfNeeded is not defined\`. The fallback spawns \`general-purpose\` and injects the Software Teams agent's identity via prompt text:
+> Used **only** when \`.claude/agents/\` has not yet been generated (typical fresh-clone state before \`software-teams init\` / \`software-teams sync-agents\` has run). Claude Code's Agent tool validates \`subagent_type\` against its registered list, so unregistered names error with \`classifyHandoffIfNeeded is not defined\`. The fallback spawns \`general-purpose\` and injects the Software Teams agent's identity via prompt text:
 >
 > \`\`\`
 > # source: software-teams — fresh clone, .claude/agents/ not yet generated

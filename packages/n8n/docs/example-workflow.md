@@ -131,7 +131,7 @@ The Slack app POSTs `{ hitlAnswer: "…", correlationId: "…" }` to the signed 
 1. Loads the stored conversation state.
 2. Posts a threaded `✅ Reply received` acknowledgement to Slack.
 3. Merges the human's answer into `input.context` under the `hitl` key.
-4. Re-invokes `runAgentTurn` (Task tool disabled — AC2) directly with the merged context.
+4. Re-invokes `runAgentTurn` (Agent tool disabled — AC2) directly with the merged context.
 5. Emits the continued `NodeEnvelope` downstream.
 6. Deletes the persisted state.
 

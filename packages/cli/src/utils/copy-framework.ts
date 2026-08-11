@@ -278,7 +278,7 @@ The list of registered specialists and the orchestration / quality rules for thi
 
 ${routingHeader}
 
-For any non-trivial task, delegate to an appropriate specialist agent via the Task tool rather than performing the work yourself. Solo work is acceptable only for:
+For any non-trivial task, delegate to an appropriate specialist agent via the Agent tool rather than performing the work yourself. Solo work is acceptable only for:
 
 - Trivial edits (single file, single grep, single shell command).
 - Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.

@@ -1,7 +1,7 @@
 ---
 name: commit
 description: "Software Teams: Create conventional commit"
-allowed-tools: Read, Bash, Task
+allowed-tools: Read, Bash, Agent
 argument-hint: "[optional scope hint]"
 context: |
   !git status --short 2>/dev/null | head -20

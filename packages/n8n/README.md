@@ -96,7 +96,7 @@ If the credential keys are missing or the ref is unreachable the node proceeds w
 
 ### Software Teams Agent
 
-**Purpose:** Runs exactly **one** Software Teams specialist for **one** turn via the `claude` CLI (Task tool disabled — AC2). Wire multiple Agent nodes A → B for multi-agent handoff; each hop passes the upstream result in `input.context`.
+**Purpose:** Runs exactly **one** Software Teams specialist for **one** turn via the `claude` CLI (Agent tool disabled — AC2). Wire multiple Agent nodes A → B for multi-agent handoff; each hop passes the upstream result in `input.context`.
 
 | Port | Direction | Type | Notes |
 |------|-----------|------|-------|

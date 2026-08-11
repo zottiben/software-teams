@@ -62,7 +62,7 @@ function makeSummaryContext(opts: {
       if (name === "operation") return "summary";
       if (name === "correlationId") return opts.correlationIdParam ?? "";
       if (name === "epic") return "";
-      if (name === "model") return "claude-sonnet-4-5";
+      if (name === "model") return "sonnet";
       return "";
     },
     getCredentials: async () => ({

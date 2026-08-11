@@ -8,7 +8,7 @@ argument-hint: "<on | off | status>"
 # Orchestrator-Only Mode toggle
 
 Toggle a per-project enforcement layer that restricts the MAIN Claude Code
-thread to read / plan / delegate only. Specialists invoked via the Task
+thread to read / plan / delegate only. Specialists invoked via the Agent
 tool are unaffected.
 
 ## Usage
@@ -36,13 +36,13 @@ blocked on the main thread:
 
 ## What still works (manage and deliver freely)
 
-- `Read`, `Glob`, `Grep`, `Task` — always allowed.
+- `Read`, `Glob`, `Grep`, `Agent` — always allowed.
 - **Delivery & management Bash** — `git commit`, `git push`, `git rebase`,
   `git branch -D`, `npm/bun/pnpm/yarn install|add|remove`, `make`,
   `gh pr create|edit`, `gh issue create|close|edit`, `sudo`, and all
   read-only Bash (`git log`, `git status`, `git diff`, `cat`, `grep`,
   `find`, `ls`, …). Running the team's pipeline is the orchestrator's job.
-- All specialist agents spawned via Task — their edits run in subagent
+- All specialist agents spawned via Agent — their edits run in subagent
   processes and are NOT subject to the main-thread hook.
 
 ## Implementation

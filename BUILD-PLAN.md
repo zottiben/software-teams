@@ -40,6 +40,7 @@ harness. Three things have since changed:
 | **D-3** | **Keep the 8 `game-*` specialists, out of scope for this work.** | They get the mechanical fixes in slice 1 (tool names, model IDs) but are excluded from the spec-debloat pass. Revisit later. |
 | **D-4** | **Ticket source is ClickUp.** Manual feed first; auto-pickup on a ClickUp tag is the end goal. | Slice 4 builds manual-input first and the tag trigger second, behind the same ingestion boundary. |
 | **D-5** | **Production support tickets are the priority**, so the n8n path is sequenced ahead of the CLI prose work. | Order is `1 → 2 → 3 → 4`, then `5 → 8`, then `9`. |
+| **D-6** | **Do not bump the version on intermediate slices.** | Merging to `main` publishes only when the version changes (rule 6), so leaving it at `0.13.0` means slices 1-8 can merge safely without shipping a half-migrated framework to npm. One deliberate bump to `1.0.0` in slice 9 publishes the finished result. The tracked `dist/index.js` is still rebuilt and committed per slice so the plugin path stays working. |
 
 ---
 
@@ -172,10 +173,30 @@ Dropped `packages/team-engine`, `apps/electron`, the `apps/*` workspace glob, an
 
 ---
 
-### Slice 1 - Harness truth-up
+### Slice 1 - Harness truth-up `[SHIPPED]`
 
 **Goal:** fix everything in §3.1 so the framework does what it says. No architecture change,
 no behavioural redesign. Highest value-to-risk slice, and it unblocks the rest.
+
+**What the sweep actually found.** The initial grep for tool-usage phrasings caught 12
+sites. Running the built bundle end to end and grepping the *generated* project caught
+another 30-odd that the source grep had missed, because the text was injected from a
+component (`AgentBase.ts`), a router prompt, or a hook's user-facing error message rather
+than living in the spec files. Three of them were error strings telling a user to
+"delegate to a specialist via the Task tool". Lesson worth keeping: for a payload-driven
+framework, grep the generated output, not just the sources.
+
+Two further defects surfaced during the work and were fixed in the same slice:
+
+- **The Orchestrator node had the same dead model wiring as the Agent node**, and its
+  `model` parameter turned out to be entirely unreferenced once the dead env-var write was
+  removed - it had never reached the CLI at all. Both nodes now share one model list from
+  `shared/claude-code-surface.ts` so they cannot drift again.
+- **The AC2 no-nested-spawn test was vacuous.** It asserted that
+  `SINGLE_TURN_ALLOWED_TOOLS` omits `"Task"` - a tool that does not exist, so the
+  assertion could never fail. Worse, `--allowedTools` only waives the permission prompt;
+  it does not remove a tool. Enforcement now goes through `--disallowedTools Agent`, and
+  the test asserts that.
 
 - B1: `Task` → `Agent` in all `allowed-tools` and all body prose across `agents/` and
   `commands/`. Audit `src/` for the same string.

@@ -21,6 +21,7 @@
     "src/utils/pii-scrubber.ts",
     "src/utils/sanitize.ts",
     "src/shared/agent-tools.ts",
+    "src/shared/claude-code-surface.ts",
     "src/shared/slugify.ts"
   ]
 }

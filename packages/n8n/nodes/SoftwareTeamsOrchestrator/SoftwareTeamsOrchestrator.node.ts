@@ -34,6 +34,7 @@ type RunAgentTurnFn = (
   input: NodeEnvelope,
   repoContext?: undefined,
   githubToken?: string,
+  options?: { readonly model?: string },
 ) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
@@ -42,11 +43,13 @@ const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
   runAgentTurn: RunAgentTurnFn;
 };
 
-const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
-  { name: 'Claude Sonnet 4.5 (Default)', value: 'claude-sonnet-4-5' },
-  { name: 'Claude Opus 4', value: 'claude-opus-4-5' },
-  { name: 'Claude Haiku 3.5', value: 'claude-haiku-3-5' },
-];
+// Sourced from the shared CLI surface so the two nodes that offer a model
+// picker cannot drift apart. See shared/claude-code-surface.ts.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL } = require('@websitelabs/software-teams') as {
+  N8N_MODEL_OPTIONS: Array<{ name: string; value: string }>;
+  N8N_DEFAULT_MODEL: string;
+};
 
 /**
  * SoftwareTeamsOrchestrator node (AC4, R-04, R-05).
@@ -129,11 +132,11 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         name: 'model',
         type: 'options',
         noDataExpression: true,
-        options: MODEL_OPTIONS,
-        default: 'claude-sonnet-4-5',
+        options: N8N_MODEL_OPTIONS,
+        default: N8N_DEFAULT_MODEL,
         description:
           'Claude model used for the planning turn. Injected via the ' +
-          'ANTHROPIC_DEFAULT_MODEL environment variable for the Claude CLI.',
+          '--model flag on the Claude CLI.',
       },
     ],
 		usableAsTool: true,
@@ -147,8 +150,13 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     const credentials = await this.getCredentials('softwareTeamsApi');
     process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
     const githubToken = (credentials.githubToken as string | undefined) || undefined;
-    const boundRunAgentTurn: (input: NodeEnvelope) => Promise<NodeEnvelope> = (input) =>
-      runAgentTurn(input, undefined, githubToken);
+    // `model` is read per item below, so bind lazily rather than capturing one
+    // value here. Before this, the node's model parameter was written to a
+    // non-existent env var and never reached the CLI at all.
+    const bindRunAgentTurn =
+      (model: string): ((input: NodeEnvelope) => Promise<NodeEnvelope>) =>
+      (input) =>
+        runAgentTurn(input, undefined, githubToken, { model });
 
     const staticData = this.getWorkflowStaticData('global') as IDataObject;
     const runs = getRunStore(staticData);
@@ -259,10 +267,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
 
         const epic = (this.getNodeParameter('epic', i) as string)?.trim();
 
-        const model = this.getNodeParameter('model', i, 'claude-sonnet-4-5') as string;
-        if (model) {
-          process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
-        }
+        const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
 
         // Maximum 2 refine attempts (re-plan + re-review); after that, park via HITL.
         const MAX_REFINE_ATTEMPTS = 2;
@@ -287,7 +292,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           const readinessEnv = buildReadinessEnvelope(runState, resolvedId);
           let qualityResponse: NodeEnvelope;
           try {
-            qualityResponse = await boundRunAgentTurn(readinessEnv);
+            qualityResponse = await bindRunAgentTurn(model)(readinessEnv);
           } catch (err) {
             if (this.continueOnFail()) {
               returnData.push({
@@ -376,7 +381,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           const refinedEpic = `${epic}\n\n## Readiness gaps to address\n${verdict.gaps.join('\n')}`;
           let refinedPlan: PlanResult;
           try {
-            refinedPlan = await planEpic(refinedEpic, resolvedId, boundRunAgentTurn);
+            refinedPlan = await planEpic(refinedEpic, resolvedId, bindRunAgentTurn(model));
           } catch (err) {
             if (this.continueOnFail()) {
               returnData.push({
@@ -420,14 +425,11 @@ export class SoftwareTeamsOrchestrator implements INodeType {
       ).trim();
       const correlationId = correlationIdParam || randomUUID();
 
-      const model = this.getNodeParameter('model', i, 'claude-sonnet-4-5') as string;
-      if (model) {
-        process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
-      }
+      const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
 
       let plan: PlanResult;
       try {
-        plan = await planEpic(epic, correlationId, boundRunAgentTurn);
+        plan = await planEpic(epic, correlationId, bindRunAgentTurn(model));
       } catch (err) {
         if (this.continueOnFail()) {
           returnData.push({

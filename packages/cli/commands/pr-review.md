@@ -1,7 +1,7 @@
 ---
 name: pr-review
 description: "Software Teams: Review pull request with rules-aware analysis"
-allowed-tools: Read, Bash, Task
+allowed-tools: Read, Bash, Agent
 argument-hint: "<pr-number-or-url> [--no-comments]"
 context: |
   !git branch --show-current 2>/dev/null

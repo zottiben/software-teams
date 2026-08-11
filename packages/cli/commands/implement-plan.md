@@ -1,7 +1,7 @@
 ---
 name: implement-plan
 description: "Software Teams: Execute implementation plan"
-allowed-tools: Read, Glob, Bash, Write, Edit, Task, AskUserQuestion
+allowed-tools: Read, Glob, Bash, Write, Edit, Agent, AskUserQuestion
 argument-hint: "[--team | --single | --dry-run | --skip-qa | --skip-review]"
 context: |
   !cat .software-teams/state.yaml 2>/dev/null | head -30
@@ -309,7 +309,7 @@ Read the plan index file (path from `$ARGUMENTS` or from `DISCOVERED_STATE.curre
 
 ### 3. Resolve Per-Task Agents
 
-For every task file listed in `task_files:`, record the `agent:` field from its frontmatter. This is the `subagent_type` you will pass to the Task tool when spawning.
+For every task file listed in `task_files:`, record the `agent:` field from its frontmatter. This is the `subagent_type` you will pass to the Agent tool when spawning.
 
 **Resolution order:**
 1. Task-level `agent:` pin from the task file frontmatter

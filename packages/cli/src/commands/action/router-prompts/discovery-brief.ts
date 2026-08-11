@@ -54,7 +54,7 @@ export function buildPrePlanDiscoveryBrief(ctx: ActionContext): string[] {
     ``,
     `## Scope rules (strict)`,
     ``,
-    `- READ-ONLY. Do NOT use Edit, Write, MultiEdit. Do NOT run \`git commit\`, \`git push\`, or any state-changing shell command.`,
+    `- READ-ONLY. Do NOT use Edit or Write. Do NOT run \`git commit\`, \`git push\`, or any state-changing shell command.`,
     `- Budget: at most ~20 file reads + a handful of \`Glob\` / \`Grep\` passes on a fresh feature issue. Raise the budget to ~35 reads + unlimited \`git log\` / \`git blame\` / grep passes when EITHER (a) the issue is a bug / runtime error / unexpected-behaviour report requiring root-cause investigation, OR (b) you have a previous-comment answer to produce. A thin answer with no evidence is worse than no answer; a "likely / probably" diagnosis is worse than a verified one.`,
     `- \`Bash\` is allowed only for read-only inspection (\`git log\`, \`git diff\`, \`git blame\`, \`ls\`, \`cat\`).`,
     `- Keep your final response ≤ 80 lines on a fresh feature issue, ≤ 180 lines on a bug-investigation or conversational pass (root-cause analysis + fix-hierarchy options eat budget — that's fine, that's what they're for).`,

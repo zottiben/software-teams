@@ -140,16 +140,21 @@ describe("SoftwareTeamsOrchestrator node (T9 - AC4, R-04, R-05, R-02)", () => {
       expect(options.length).toBeGreaterThan(0);
 
       const values = options.map((o: any) => o.value);
-      expect(values).toContain("claude-sonnet-4-5");
-      expect(values).toContain("claude-opus-4-5");
-      expect(values).toContain("claude-haiku-3-5");
+      // Aliases, not pinned IDs: they track the current version of each family.
+      expect(values).toContain("sonnet");
+      expect(values).toContain("opus");
+      expect(values).toContain("haiku");
+      expect(values).toContain("fable");
+      // The dead IDs this list used to offer must never come back.
+      expect(values).not.toContain("claude-opus-4-5");
+      expect(values).not.toContain("claude-haiku-3-5");
     });
 
     test("model property has default value", () => {
       const modelProp = node.description.properties.find(
         (p) => p.name === "model",
       );
-      expect((modelProp as any).default).toBe("claude-sonnet-4-5");
+      expect((modelProp as any).default).toBe("sonnet");
     });
 
     test("all properties have non-empty descriptions", () => {

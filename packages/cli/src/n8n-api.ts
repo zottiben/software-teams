@@ -32,7 +32,18 @@ export { sanitizeUserInput, fenceUserInput } from "./utils/sanitize";
 export {
   DEFAULT_ALLOWED_TOOLS,
   SINGLE_TURN_ALLOWED_TOOLS,
+  SINGLE_TURN_DISALLOWED_TOOLS,
 } from "./shared/agent-tools";
+
+export {
+  CLAUDE_CODE_TOOLS,
+  EFFORT_LEVELS,
+  MODEL_ALIASES,
+  N8N_DEFAULT_MODEL,
+  N8N_MODEL_OPTIONS,
+  isValidModel,
+  isValidToolName,
+} from "./shared/claude-code-surface";
 
 export { slugify } from "./shared/slugify";
 

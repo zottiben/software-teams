@@ -38,7 +38,7 @@ function makeMockContext(opts: {
     specialist: opts.specialist,
     prompt: "do the thing",
     context: "",
-    model: "claude-sonnet-4-5",
+    model: "sonnet",
   };
 
   return {

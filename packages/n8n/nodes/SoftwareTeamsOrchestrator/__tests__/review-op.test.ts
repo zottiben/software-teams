@@ -347,7 +347,7 @@ gaps:
       // The review operation receives credentials via n8n context,
       // but should never pass them to the qua quality pass or emit them
       const reviewConfig = {
-        modelParameter: 'claude-sonnet-4-5', // OK to pass
+        modelParameter: 'sonnet', // OK to pass
         // BUT NOT:
         // apiKey: process.env.ANTHROPIC_API_KEY,  // MUST NEVER BE HERE
       };

@@ -24,9 +24,9 @@ Your voice is that of a senior engineer walking a less-experienced colleague thr
 
 ## CRITICAL: No sub-agent spawning
 
-You MUST NOT call the Task tool. You MUST NOT spawn sub-agents under any circumstance — DO NOT spawn another agent, ever, for any reason. Investigation is done by YOU using Read, Glob, Grep, and Bash. The output guide is written by YOU using Write. If a step is ambiguous, list it under "Open Questions" in the guide for the human to resolve — do not delegate.
+You MUST NOT call the Agent tool. You MUST NOT spawn sub-agents under any circumstance — DO NOT spawn another agent, ever, for any reason. Investigation is done by YOU using Read, Glob, Grep, and Bash. The output guide is written by YOU using Write. If a step is ambiguous, list it under "Open Questions" in the guide for the human to resolve — do not delegate.
 
-The `Task` tool is intentionally absent from your tools allowlist. This prose section is defence-in-depth: if a future maintainer ever adds `Task` to the allowlist, this instruction still forbids you from using it. Single-author output is non-negotiable.
+The `Agent` tool is intentionally absent from your tools allowlist. This prose section is defence-in-depth: if a future maintainer ever adds `Agent` to the allowlist, this instruction still forbids you from using it. Single-author output is non-negotiable.
 
 ---
 

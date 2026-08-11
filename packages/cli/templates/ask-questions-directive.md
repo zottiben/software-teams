@@ -44,7 +44,7 @@ present a default and the main alternative.
 
 ## Sub-agents inherit this policy
 
-Specialists spawned via the Task tool inherit the project CLAUDE.md
+Specialists spawned via the Agent tool inherit the project CLAUDE.md
 context and therefore this directive. Architectural and planning agents
 (architect, planner, plan-checker, researcher) in particular should
 surface decision points rather than burying them in defaults.
