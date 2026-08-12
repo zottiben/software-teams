@@ -77,6 +77,7 @@ models:
       feedback-learner: opus
       quality: opus
       security: opus
+      support-triage: sonnet
       perf-analyst: opus
       verifier: opus
       committer: sonnet
@@ -126,6 +127,7 @@ models:
       feedback-learner: sonnet
       quality: sonnet
       security: sonnet
+      support-triage: sonnet
       perf-analyst: sonnet
       verifier: sonnet
       committer: haiku
@@ -176,6 +178,7 @@ models:
       feedback-learner: sonnet
       quality: sonnet
       security: sonnet
+      support-triage: haiku
       perf-analyst: sonnet
       verifier: haiku
       committer: haiku

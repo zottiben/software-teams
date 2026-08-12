@@ -111,11 +111,13 @@ describe("buildAgentDefinition", () => {
     const def = buildAgentDefinition({
       agentId: "software-teams-backend",
       baseDir: root,
-      structuredOutput: false,
-      overrides: { model: "haiku", effort: "low" },
+      structuredOutput: true,
+      overrides: { model: "haiku", effort: "low", tools: ["Read", "Grep"] },
     });
     expect(def?.model).toBe("haiku");
     expect(def?.effort).toBe("low");
+    expect(def?.tools).toEqual(["Read", "Grep", "StructuredOutput"]);
+    expect(def?.tools).not.toContain("Edit");
   });
 
   test("a spec with no tools list leaves tools unrestricted", () => {

@@ -1,0 +1,14 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsTicket",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI", "Productivity"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/packages/n8n"
+      }
+    ]
+  },
+  "alias": ["ticket", "support", "clickup", "intake", "software teams"]
+}

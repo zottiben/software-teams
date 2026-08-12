@@ -35,9 +35,10 @@ export interface DatadogContext {
 
 /**
  * Fetch a ClickUp ticket and map it onto the envelope's input.context.
- * Temporarily injects the credential token into process.env.CLICKUP_API_TOKEN
- * (the env var fetchClickUpTicket reads), then restores the previous value.
- * Returns null when the token is absent or the fetch fails (graceful degradation).
+ *
+ * The token is passed explicitly. Never write it to process.env: an n8n worker
+ * is long-lived and shared, so parallel executions could otherwise observe or
+ * overwrite one another's credentials.
  */
 export async function buildClickUpContext(
   ref: ClickUpRef,
@@ -45,10 +46,8 @@ export async function buildClickUpContext(
 ): Promise<ClickUpContext | null> {
   if (!creds.clickupApiKey) return null;
 
-  const prev = process.env.CLICKUP_API_TOKEN;
-  process.env.CLICKUP_API_TOKEN = creds.clickupApiKey;
   try {
-    const ticket = await fetchClickUpTicket(ref);
+    const ticket = await fetchClickUpTicket(ref, { token: creds.clickupApiKey });
     if (!ticket) return null;
     return {
       source: "clickup",
@@ -56,15 +55,9 @@ export async function buildClickUpContext(
       summary: formatTicketAsContext(ticket),
     };
   } catch {
-    // Security (T13 / R-02): swallow the raw exception — error messages from
+    // Security (T13 / R-02): swallow the raw exception - error messages from
     // the underlying fetch may contain HTTP response details with credential values.
     return null;
-  } finally {
-    if (prev === undefined) {
-      delete process.env.CLICKUP_API_TOKEN;
-    } else {
-      process.env.CLICKUP_API_TOKEN = prev;
-    }
   }
 }
 

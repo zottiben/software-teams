@@ -86,17 +86,6 @@ export class SoftwareTeamsApi implements ICredentialType {
     },
 
     {
-      displayName: 'ClickUp API Token',
-      name: 'clickupApiKey',
-      type: 'string',
-      typeOptions: { password: true },
-      default: '',
-      description:
-        'ClickUp personal API token. Used by trigger and context-fetch nodes ' +
-        'that pull ticket detail for PII-scrubbed context (reuses src/utils/clickup.ts).',
-    },
-
-    {
       displayName: 'Datadog API Key',
       name: 'datadogApiKey',
       type: 'string',

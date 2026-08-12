@@ -83,6 +83,14 @@ export interface AgentTurnOptions {
   fallbackModel?: string;
   /** Resume this Claude Code session instead of starting a fresh one. */
   resumeSessionId?: string;
+  /** Replace the specialist spec's tools with a concrete node policy. */
+  tools?: readonly string[];
+  /** Workflow-specific structured result. Defaults to the NodeEnvelope turn schema. */
+  jsonSchema?: Readonly<Record<string, unknown>>;
+  /** `dontAsk` is required for unattended nodes: denied tools fail rather than blocking a worker. */
+  permissionMode?: "acceptEdits" | "dontAsk";
+  /** Fail instead of silently running without identity when a selected agent spec is absent. */
+  requireAgentDefinition?: boolean;
   /** Credential for the spawned process. Defaults to inheriting the worker's environment. */
   auth?: AuthOptions;
 }
@@ -138,7 +146,6 @@ async function spawnClaude(
     maxBudgetUsd?: number;
     maxTurns?: number;
     fallbackModel?: string;
-    sessionId?: string;
     resumeSessionId?: string;
     jsonSchema?: string;
     cwd?: string;
@@ -184,10 +191,10 @@ async function spawnClaude(
   if (opts.maxTurns !== undefined) args.push("--max-turns", String(opts.maxTurns));
   if (opts.jsonSchema) args.push("--json-schema", opts.jsonSchema);
 
-  // Resuming continues the conversation a question was asked from; a fresh
-  // session id makes the run addressable for a later resume.
+  // New runs let Claude generate a fresh ID, returned in the result payload.
+  // Only continuation pins an existing session. Reusing correlationId as a
+  // session ID made ordinary execution retries collide with the first run.
   if (opts.resumeSessionId) args.push("--resume", opts.resumeSessionId);
-  else if (opts.sessionId) args.push("--session-id", opts.sessionId);
 
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) args.push("--", prompt);
@@ -279,7 +286,16 @@ function assemblePrompt(input: NodeEnvelope["input"]): string {
   if (!isNonEmptyContext(input.context)) return `## Task\n${fencedPrompt}`;
 
   const contextJson = JSON.stringify(input.context, null, 2);
-  return `## Upstream context\n\`\`\`json\n${contextJson}\n\`\`\`\n\n## Task\n${fencedPrompt}`;
+  const contextLimit = 50_000;
+  const notice = "\n[upstream context truncated at 50000 characters]";
+  const boundedContext = contextJson.length > contextLimit
+    ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}`
+    : contextJson;
+  const fencedContext = fenceUserInput(
+    "upstream-context",
+    sanitizeUserInput(boundedContext, contextLimit),
+  );
+  return `## Upstream context\n${fencedContext}\n\n## Task\n${fencedPrompt}`;
 }
 
 /** Ingestion boundary: context arrives as `unknown` from NodeEnvelope.input.context. */
@@ -289,18 +305,6 @@ function isNonEmptyContext(ctx: unknown): boolean {
     return Object.keys(ctx as Record<string, unknown>).length > 0;
   }
   return true;
-}
-
-/**
- * Derive a stable session UUID from a correlationId.
- *
- * `--session-id` requires a UUID. Deriving one deterministically means a later
- * turn can resume the conversation knowing only the correlationId, without the
- * workflow having to carry a second identifier.
- */
-export function sessionIdFor(correlationId: string): string | undefined {
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRe.test(correlationId) ? correlationId : undefined;
 }
 
 function usageFrom(payload: ClaudeResultPayload | undefined): NodeEnvelope["usage"] {
@@ -313,12 +317,81 @@ function usageFrom(payload: ClaudeResultPayload | undefined): NodeEnvelope["usag
   };
 }
 
+/** A process failure cannot become a successful envelope just because its text was unfamiliar. */
+export function stateForProcessOutcome(state: TerminalState, exitCode: number): TerminalState {
+  return exitCode !== 0 && state === "ok" ? "error" : state;
+}
+
+/** A new process must never inherit the previous turn's usage or session metadata. */
+export function withoutTurnMetadata(input: NodeEnvelope): NodeEnvelope {
+  const copy = { ...input };
+  delete copy.usage;
+  delete copy.sessionId;
+  return copy;
+}
+
 /** Map a classified terminal state onto the envelope's status union. */
-function statusFor(state: TerminalState, turn: TurnResult | null): NodeEnvelope["status"] {
+function statusFor(
+  state: TerminalState,
+  reportedStatus: "ok" | "needs-input" | "error" | undefined,
+): NodeEnvelope["status"] {
   if (isRetryableLater(state)) return "retry-later";
-  if (state === "ok") return turn?.status === "needs-input" ? "needs-input" : (turn?.status ?? "ok");
+  if (state === "ok") return reportedStatus ?? "ok";
   if (state === "needs-input") return "needs-input";
   return "error";
+}
+
+interface ResultProjection {
+  readonly status?: "ok" | "needs-input" | "error";
+  readonly text: string;
+  readonly filesChanged?: string[];
+  readonly confidence?: number;
+  readonly data?: unknown;
+}
+
+/** Project a validated custom schema result onto the stable envelope surface. */
+export function projectStructuredOutput(
+  value: unknown,
+  fallbackText: string,
+  includeData: boolean,
+): ResultProjection {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return { text: fallbackText };
+  }
+  const output = value as Record<string, unknown>;
+  const status =
+    output["status"] === "ok" ||
+    output["status"] === "needs-input" ||
+    output["status"] === "error"
+      ? output["status"]
+      : undefined;
+  const preferred =
+    status === "needs-input" &&
+    typeof output["question"] === "string" &&
+    output["question"].trim()
+      ? output["question"]
+      : typeof output["summary"] === "string"
+        ? output["summary"]
+        : typeof output["text"] === "string"
+          ? output["text"]
+          : JSON.stringify(value);
+  const files = Array.isArray(output["filesChanged"])
+    ? output["filesChanged"].filter((item): item is string => typeof item === "string")
+    : undefined;
+  const confidence =
+    typeof output["confidence"] === "number" &&
+    output["confidence"] >= 0 &&
+    output["confidence"] <= 1
+      ? output["confidence"]
+      : undefined;
+
+  return {
+    ...(status ? { status } : {}),
+    text: preferred,
+    ...(files ? { filesChanged: files } : {}),
+    ...(confidence !== undefined ? { confidence } : {}),
+    ...(includeData ? { data: value } : {}),
+  };
 }
 
 export async function runAgentTurn(
@@ -338,9 +411,20 @@ export async function runAgentTurn(
     agentId: input.agentId,
     baseDir,
     structuredOutput: true,
-    overrides: { model: options?.model, effort: options?.effort },
+    overrides: {
+      model: options?.model,
+      effort: options?.effort,
+      ...(options?.tools ? { tools: options.tools } : {}),
+    },
   });
+  if (!definition && options?.requireAgentDefinition) {
+    return buildErrorEnvelope(
+      input,
+      `Agent spec not found for "${input.agentId}". Sync or bundle the specialist before running it.`,
+    );
+  }
 
+  const schema = options?.jsonSchema ?? TURN_RESULT_SCHEMA;
   const spawnResult = await spawnClaude(assemblePrompt(input.input), {
     agentId: definition ? input.agentId : undefined,
     agentsJson: definition ? JSON.stringify({ [input.agentId]: definition }) : undefined,
@@ -349,10 +433,12 @@ export async function runAgentTurn(
     maxBudgetUsd: options?.maxBudgetUsd,
     maxTurns: options?.maxTurns,
     fallbackModel: options?.fallbackModel,
-    sessionId: sessionIdFor(input.correlationId),
     resumeSessionId: options?.resumeSessionId,
-    jsonSchema: JSON.stringify(TURN_RESULT_SCHEMA),
+    jsonSchema: JSON.stringify(schema),
+    allowedTools: definition?.tools,
+    disallowedTools: definition?.disallowedTools,
     cwd: repoContext?.worktreePath,
+    permissionMode: options?.permissionMode,
     githubToken,
     auth: options?.auth,
   }).catch((err: unknown) => ({
@@ -364,47 +450,62 @@ export async function runAgentTurn(
   }
 
   const { text, payload } = spawnResult;
-  const state = classifyResult(payload, text);
-  const turn = parseTurnResult(payload?.structured_output);
+  const state = stateForProcessOutcome(classifyResult(payload, text), spawnResult.exitCode);
+  const usesCustomSchema = options?.jsonSchema !== undefined;
+  const standardTurn: TurnResult | null = usesCustomSchema
+    ? null
+    : parseTurnResult(payload?.structured_output);
+  const invalidStandardOutput =
+    !usesCustomSchema && payload?.structured_output != null && standardTurn === null;
+  const projection = usesCustomSchema
+    ? projectStructuredOutput(payload?.structured_output, text, true)
+    : standardTurn
+      ? projectStructuredOutput(standardTurn, text, false)
+      : {
+          text: invalidStandardOutput
+            ? "Claude returned structured output that did not match the turn-result contract."
+            : text,
+          ...(invalidStandardOutput ? { status: "error" as const } : {}),
+        };
 
   // Fallback only: honoured when structured output is absent, so a clear
   // request for input is not reported as a finished turn.
-  const legacyNeedsInput = turn ? null : (NEEDS_INPUT_RE.exec(text)?.[1]?.trim() ?? null);
-
-  const resultText = ((): string => {
-    if (turn) {
-      return turn.status === "needs-input" && turn.question ? turn.question : turn.summary;
-    }
-    return legacyNeedsInput ?? text;
-  })();
+  const legacyNeedsInput = payload?.structured_output
+    ? null
+    : (NEEDS_INPUT_RE.exec(text)?.[1]?.trim() ?? null);
 
   const envelope: NodeEnvelope = {
-    correlationId: input.correlationId,
-    agentId: input.agentId,
-    status: legacyNeedsInput && state === "ok" ? "needs-input" : statusFor(state, turn),
-    input: input.input,
+    ...withoutTurnMetadata(input),
+    status:
+      legacyNeedsInput && state === "ok"
+        ? "needs-input"
+        : statusFor(state, projection.status),
     result: {
-      text: resultText,
-      ...(turn?.filesChanged ? { filesChanged: turn.filesChanged } : {}),
-      ...(turn?.confidence !== undefined ? { confidence: turn.confidence } : {}),
+      text: legacyNeedsInput ?? projection.text,
+      ...(projection.filesChanged ? { filesChanged: projection.filesChanged } : {}),
+      ...(projection.confidence !== undefined ? { confidence: projection.confidence } : {}),
+      ...(projection.data !== undefined ? { data: projection.data } : {}),
     },
-    artifacts: input.artifacts,
+    artifacts: [...input.artifacts],
   };
 
   const usage = usageFrom(payload);
   if (usage) envelope.usage = usage;
   if (payload?.session_id) envelope.sessionId = payload.session_id;
+  else if (spawnResult.exitCode === 0 && options?.resumeSessionId) {
+    // A successful resume still belongs to that session even if this CLI
+    // version omits session_id from the result payload.
+    envelope.sessionId = options.resumeSessionId;
+  }
 
   return envelope;
 }
 
 function buildErrorEnvelope(input: NodeEnvelope, message: string): NodeEnvelope {
   return {
-    correlationId: input.correlationId,
-    agentId: input.agentId,
+    ...withoutTurnMetadata(input),
     status: "error",
-    input: input.input,
     result: { text: message },
-    artifacts: input.artifacts,
+    artifacts: [...input.artifacts],
   };
 }

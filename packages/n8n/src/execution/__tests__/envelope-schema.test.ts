@@ -5,11 +5,18 @@ describe("TURN_RESULT_SCHEMA", () => {
   test("is a valid, closed JSON Schema object", () => {
     expect(TURN_RESULT_SCHEMA.type).toBe("object");
     expect(TURN_RESULT_SCHEMA.additionalProperties).toBe(false);
-    expect(TURN_RESULT_SCHEMA.required).toEqual(["status", "summary"]);
+    expect(TURN_RESULT_SCHEMA.required).toEqual(["status", "summary", "question"]);
   });
 
   test("the status enum matches what the node branches on", () => {
     expect(TURN_RESULT_SCHEMA.properties.status.enum).toEqual(["ok", "needs-input", "error"]);
+  });
+
+  test("requires a question field without unsupported top-level schema combinators", () => {
+    expect(TURN_RESULT_SCHEMA.required).toContain("question");
+    expect("allOf" in TURN_RESULT_SCHEMA).toBeFalse();
+    expect("oneOf" in TURN_RESULT_SCHEMA).toBeFalse();
+    expect("anyOf" in TURN_RESULT_SCHEMA).toBeFalse();
   });
 
   test("survives JSON.stringify, since it is passed as a CLI argument", () => {
@@ -56,6 +63,7 @@ describe("parseTurnResult", () => {
     expect(parseTurnResult({ status: "ok" })).toBeNull();
     expect(parseTurnResult({ summary: "no status" })).toBeNull();
     expect(parseTurnResult({ status: "maybe", summary: "bad status" })).toBeNull();
+    expect(parseTurnResult({ status: "needs-input", summary: "no question" })).toBeNull();
   });
 
   test("drops non-string entries from filesChanged rather than trusting them", () => {

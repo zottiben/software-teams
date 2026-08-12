@@ -135,6 +135,7 @@ Researcher roles need outbound web access and write research reports.
 | software-teams-quality            | sonnet | implementation        |
 | software-teams-researcher         | sonnet | researcher (full)     |
 | software-teams-security           | sonnet | read-only advisor     |
+| software-teams-support-triage     | sonnet | read-only advisor     |
 | software-teams-ux-designer        | sonnet | planning/file-writing |
 | software-teams-verifier           | sonnet | read-only advisor     |
 
@@ -148,6 +149,9 @@ Notes:
   skips file writes by behaviour, not by tool restriction.
 - `software-teams-security` is read-only by design — it recommends and audits, it
   never patches code. Pair with `software-teams-programmer` for fixes.
+- `software-teams-support-triage` is read-only by design. It classifies untrusted
+  ticket content and drafts the next action; customer, ticket, repository, and
+  production changes require a downstream human-reviewed node.
 - `software-teams-qa-tester` is `sonnet` (raised from `haiku`): it owns
   evidence-based verification — baseline-proving "pre-existing" failures,
   contract-check, and a11y judgement — which needs reasoning, not the cheapest

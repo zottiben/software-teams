@@ -46,9 +46,17 @@ export class SoftwareTeamsTrigger implements INodeType {
     outputs: [NodeConnectionTypes.Main],
     credentials: [
       {
+        name: "softwareTeamsClickUpApi",
+        required: false,
+        displayOptions: { show: { source: ["clickup"] } },
+      },
+      {
+        // Legacy Datadog ingestion still reads its integration fields from the
+        // combined credential. ClickUp moved to a dedicated least-privilege credential.
         name: "softwareTeamsApi",
-        required: true,
+        required: false,
         testedBy: "softwareTeamsApiTest",
+        displayOptions: { show: { source: ["datadog"] } },
       },
     ],
     properties: [
@@ -133,17 +141,29 @@ export class SoftwareTeamsTrigger implements INodeType {
         const prompt = this.getNodeParameter("prompt", i) as string;
         const agentId = (this.getNodeParameter("agentId", i) as string) || "software-teams-trigger";
 
-        // Read tokens from credential ONLY (R-02)
-        const rawCreds = await this.getCredentials("softwareTeamsApi");
-        const clickupCreds = {
-          clickupApiKey: (rawCreds.clickupApiKey as string) ?? "",
-        };
-        const datadogCreds = {
-          datadogApiKey: (rawCreds.datadogApiKey as string) ?? "",
-          datadogAppKey: (rawCreds.datadogAppKey as string) ?? "",
-        };
-
-        const context = await fetchContext(source, i, this, clickupCreds, datadogCreds);
+        // Read only the credential selected by this source. Prompt ingestion
+        // needs none; ClickUp never gains access to Claude/GitHub/Slack secrets.
+        const clickupCreds = source === "clickup"
+          ? await this.getCredentials("softwareTeamsClickUpApi")
+          : undefined;
+        const combinedCreds = source === "datadog"
+          ? await this.getCredentials("softwareTeamsApi")
+          : undefined;
+        const context = await fetchContext(
+          source,
+          i,
+          this,
+          {
+            clickupApiKey:
+              typeof clickupCreds?.apiToken === "string" ? clickupCreds.apiToken : "",
+          },
+          {
+            datadogApiKey:
+              typeof combinedCreds?.datadogApiKey === "string" ? combinedCreds.datadogApiKey : "",
+            datadogAppKey:
+              typeof combinedCreds?.datadogAppKey === "string" ? combinedCreds.datadogAppKey : "",
+          },
+        );
 
         const envelope: NodeEnvelope = {
           correlationId: newCorrelationId(source),
@@ -207,8 +227,8 @@ async function fetchContext(
     if (!ctx) {
       node.logger.info(
         `SoftwareTeamsTrigger: ClickUp context unavailable for ref "${refStr}" — ` +
-          "proceeding with empty context. Check that clickupApiKey is set in " +
-          "the softwareTeamsApi credential and the task ref is valid.",
+          "proceeding with empty context. Check the Software Teams ClickUp API " +
+          "credential and the task ref.",
       );
     }
     return ctx ?? null;

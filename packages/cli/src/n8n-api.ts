@@ -16,7 +16,7 @@ export {
   fetchClickUpTicket,
   formatTicketAsContext,
 } from "./utils/clickup";
-export type { ClickUpRef, ClickUpTicket } from "./utils/clickup";
+export type { ClickUpRef, ClickUpTicket, ClickUpFetchOptions } from "./utils/clickup";
 
 export {
   extractDatadogIssue,
@@ -74,4 +74,11 @@ export {
   buildCorrelationTag,
   parseCorrelationTag,
 } from "./contract/envelope";
-export type { NodeEnvelope, ArtifactRef, RepoDescriptor, ChangeRef, FeedbackComment } from "./contract/envelope";
+export type {
+  NodeEnvelope,
+  ArtifactRef,
+  RepoDescriptor,
+  ChangeRef,
+  FeedbackComment,
+  AuditEvent,
+} from "./contract/envelope";

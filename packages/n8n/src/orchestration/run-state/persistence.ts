@@ -22,6 +22,14 @@ export function isNodeEnvelope(value: unknown): value is NodeEnvelope {
     typeof v.correlationId === "string" &&
     v.correlationId.length > 0 &&
     typeof v.agentId === "string" &&
-    (v.status === "ok" || v.status === "error" || v.status === "needs-input")
+    (v.status === "ok" ||
+      v.status === "error" ||
+      v.status === "needs-input" ||
+      v.status === "retry-later") &&
+    v.input !== null &&
+    typeof v.input === "object" &&
+    v.result !== null &&
+    typeof v.result === "object" &&
+    Array.isArray(v.artifacts)
   );
 }

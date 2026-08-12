@@ -13,12 +13,12 @@ This package **only works on self-hosted n8n**. It executes the `claude` binary 
 
 | Requirement | How to satisfy |
 |-------------|----------------|
-| `claude` binary on `PATH` | `npm install -g @anthropic-ai/claude-code` (or your platform's package manager) |
-| `ANTHROPIC_API_KEY` available to the worker | Set in the **Software Teams API** credential (see below) |
+| `claude` binary on `PATH` | `curl -fsSL https://claude.ai/install.sh | bash` |
+| Claude authentication | Put either a subscription OAuth token (default) or an Anthropic API key in the **Software Teams API** credential; do not set a competing worker-level API key |
 
 If the `claude` binary is missing at execution time the node fails fast with a descriptive error message — it will never silently degrade.
 
-> **Cost / latency note (R-03):** Each Agent node makes one full `claude -p` invocation against the Anthropic API. A multi-agent workflow (Orchestrator → 2 agents → HITL) can make 3–5 API calls, each potentially consuming hundreds of tokens. Model selection per node lets you trade quality for cost — use `claude-haiku-3-5` for cheap triage passes and `claude-sonnet-4-5` (default) or `claude-opus-4` for substantive work. Review Anthropic's pricing before deploying high-volume workflows.
+> **Usage / latency note:** Each Claude node makes one full `claude -p` invocation. Subscription mode draws on the seat allowance rather than API billing; reported USD remains an API-equivalent estimate used for relative usage and runaway-work caps. Use the current `haiku`, `sonnet`, `opus`, or `fable` aliases rather than stale pinned model IDs.
 
 ---
 
@@ -34,8 +34,8 @@ In your self-hosted n8n instance:
    ```
 
 3. Accept the security prompt and wait for the install to complete.
-4. The ten nodes (Agent, Trigger Ingestion, Orchestrator, Slack HITL, HITL, PR Feedback, Output, Workspace, Finaliser, Cleanup) appear in the **Software Teams** section of the node palette.
-5. Create and configure the **Software Teams API** credential (see below).
+4. Thirteen nodes appear in the node palette, including Ticket Intake, ClickUp Trigger, and the generic Claude Code node alongside the existing development-flow nodes.
+5. Create the **Software Teams API** credential for Claude/output operations and, for support ingestion, the separate **Software Teams ClickUp API** credential.
 
 > **CLI alternative:** on the worker host run `npm install @websitelabs/n8n-nodes-software-teams` in n8n's `~/.n8n/nodes/` custom-nodes directory, then restart n8n.
 
@@ -49,8 +49,9 @@ Create the credential at **Credentials → New → Software Teams API**.
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| **Anthropic API Key** | **yes** | Your Anthropic API key from [console.anthropic.com](https://console.anthropic.com/). Injected as `ANTHROPIC_API_KEY` into the `claude` subprocess. |
-| **ClickUp API Token** | for ClickUp triggers | ClickUp personal API token. Used by the Trigger Ingestion node to fetch ticket context. |
+| **Authentication** | **yes** | `Claude Subscription (OAuth Token)` (default) or `Anthropic API Key`. The selection is explicit so a higher-precedence API key cannot silently change billing. |
+| **Claude Code OAuth Token** | subscription mode | Long-lived token generated with `claude setup-token`; injected only into the child process as `CLAUDE_CODE_OAUTH_TOKEN`. |
+| **Anthropic API Key** | API-key mode | API-billed key injected only into the child process as `ANTHROPIC_API_KEY`. |
 | **Datadog API Key** | for Datadog triggers | Datadog API key for issue context fetch. |
 | **Datadog Application Key** | for Datadog triggers | Required alongside the API key for certain Datadog endpoints. |
 | **GitHub Token** | for GitHub output + PR feedback + cleanup | Personal access token (or fine-grained PAT) with `repo` + PR write scopes. Used by the Output node to open PRs, the PR Feedback node to fetch review comments, and the Cleanup node to verify merge status. |
@@ -58,13 +59,15 @@ Create the credential at **Credentials → New → Software Teams API**.
 | **Discord Bot Token** | for Discord HITL | Discord bot token (`Bot …`). Required by the HITL node when the `discord` channel is selected (the priority channel for the first live test). Injected as `DISCORD_BOT_TOKEN` — never on the envelope or in logs (AC8). |
 | **SMTP URL** | for Email HITL | SMTP connection string (e.g. `smtps://user:pass@smtp.example.com`). Required by the HITL node when the `email` channel is selected. Injected as `SMTP_URL` — never on the envelope or in logs (AC8). |
 
-After saving, n8n will test the Anthropic key by listing available models. A ✓ confirms connectivity.
+Credential testing runs `claude auth status` on the worker and asserts the reported authentication method matches the selected mode.
+
+Create **Software Teams ClickUp API** separately for support intake and tag polling. It contains only the ClickUp token and API base URL, so a read-only poller never receives Claude, GitHub, Slack, SMTP, or Datadog secrets.
 
 ---
 
 ## Nodes
 
-All ten nodes share the **Software Teams API** credential and pass a single typed `NodeEnvelope` object between them. See [`CONTRACT.md`](./CONTRACT.md) for the full inter-node data contract.
+All thirteen nodes pass a single typed `NodeEnvelope` object between them. Only nodes that invoke Claude or output integrations receive **Software Teams API**; ClickUp intake receives the dedicated ClickUp credential. See [`CONTRACT.md`](./CONTRACT.md) for the full inter-node data contract.
 
 ### Software Teams Trigger Ingestion
 
@@ -380,7 +383,7 @@ Or from the package directory:
 bun run --cwd packages/n8n verify:node-load
 ```
 
-The gate builds first (`n8n-node build`), then loads all 11 entries (10 nodes + 1 credential) under Node.
+The gate builds first (`n8n-node build`), then loads all 15 entries (13 nodes + 2 credentials) under Node.
 
 ### Why it runs as a distinct CI step (not inside the Bun test run)
 

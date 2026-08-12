@@ -1,7 +1,7 @@
 {
   "name": "@websitelabs/n8n-nodes-software-teams",
   "version": "0.13.0",
-  "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only — requires the claude binary and ANTHROPIC_API_KEY on the n8n worker.",
+  "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only; requires the claude binary and a Claude subscription OAuth token or Anthropic API key.",
   "author": { "name": "WebsiteLabs" },
   "license": "MIT",
   "keywords": [
@@ -26,7 +26,8 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/SoftwareTeamsApi.credentials.js"
+      "dist/credentials/SoftwareTeamsApi.credentials.js",
+      "dist/credentials/SoftwareTeamsClickUpApi.credentials.js"
     ],
     "nodes": [
       "dist/nodes/SoftwareTeamsAgent/SoftwareTeamsAgent.node.js",
@@ -38,11 +39,15 @@
       "dist/nodes/SoftwareTeamsWorkspace/SoftwareTeamsWorkspace.node.js",
       "dist/nodes/SoftwareTeamsFinaliser/SoftwareTeamsFinaliser.node.js",
       "dist/nodes/SoftwareTeamsPrFeedback/SoftwareTeamsPrFeedback.node.js",
-      "dist/nodes/SoftwareTeamsCleanup/SoftwareTeamsCleanup.node.js"
+      "dist/nodes/SoftwareTeamsCleanup/SoftwareTeamsCleanup.node.js",
+      "dist/nodes/SoftwareTeamsTicket/SoftwareTeamsTicket.node.js",
+      "dist/nodes/SoftwareTeamsClickUpTrigger/SoftwareTeamsClickUpTrigger.node.js",
+      "dist/nodes/SoftwareTeamsClaudeCode/SoftwareTeamsClaudeCode.node.js"
     ]
   },
   "files": [
     "dist",
+    "examples/*.workflow.json",
     "README.md",
     "CONTRACT.md",
     "ARCHITECTURE.md",

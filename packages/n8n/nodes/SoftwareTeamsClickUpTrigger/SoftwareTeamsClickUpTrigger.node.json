@@ -1,0 +1,14 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsClickUpTrigger",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["Triggers", "Productivity"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/packages/n8n"
+      }
+    ]
+  },
+  "alias": ["clickup", "ticket", "support", "tag", "poll", "software teams"]
+}

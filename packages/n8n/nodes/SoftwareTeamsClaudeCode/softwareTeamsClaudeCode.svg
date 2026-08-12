@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
+  <!-- Background rounded rectangle -->
+  <rect width="60" height="60" rx="10" ry="10" fill="#2D5BFF"/>
+  <!-- Agent head / brain icon -->
+  <circle cx="30" cy="22" r="10" fill="none" stroke="white" stroke-width="2.5"/>
+  <!-- Eyes -->
+  <circle cx="26" cy="20" r="1.5" fill="white"/>
+  <circle cx="34" cy="20" r="1.5" fill="white"/>
+  <!-- Smile -->
+  <path d="M26 25 Q30 28 34 25" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- Connection lines (multi-agent handoff) -->
+  <line x1="16" y1="44" x2="30" y2="36" stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+  <line x1="30" y1="36" x2="44" y2="44" stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+  <!-- Node dots -->
+  <circle cx="16" cy="44" r="2.5" fill="white" opacity="0.8"/>
+  <circle cx="30" cy="36" r="2.5" fill="white"/>
+  <circle cx="44" cy="44" r="2.5" fill="white" opacity="0.8"/>
+</svg>

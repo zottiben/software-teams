@@ -21,6 +21,7 @@ import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 import { cloneRepo, createWorktree, capturePortableChange, removeWorktree } from '../../src/repo/git';
 import { validateOwnerRepo, validateBranchName, validateCloneUrl } from '../../src/repo/validate';
 import type { RepoContext } from '../../src/repo/repo-context';
+import { SPECIALIST_OPTIONS } from '../../src/execution/specialists';
 
 interface AgentTurnOptions {
   readonly model?: string;
@@ -47,42 +48,6 @@ const runAgentTurn: RunAgentTurnFn = (input, repoContext, githubToken, options) 
     githubToken,
     options,
   );
-
-const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
-  { name: 'Architect', value: 'software-teams-architect' },
-  { name: 'Backend Engineer', value: 'software-teams-backend' },
-  { name: 'Codebase Mapper', value: 'software-teams-codebase-mapper' },
-  { name: 'Committer', value: 'software-teams-committer' },
-  { name: 'Debugger', value: 'software-teams-debugger' },
-  { name: 'Dev Planner', value: 'software-teams-dev-planner' },
-  { name: 'DevOps', value: 'software-teams-devops' },
-  { name: 'Feedback Learner', value: 'software-teams-feedback-learner' },
-  { name: 'Frontend Engineer', value: 'software-teams-frontend' },
-  { name: 'Game AI Engineer', value: 'software-teams-game-ai-engineer' },
-  { name: 'Game Art Pipeline', value: 'software-teams-game-art-pipeline' },
-  { name: 'Game Designer', value: 'software-teams-game-designer' },
-  { name: 'Game DevOps', value: 'software-teams-game-devops' },
-  { name: 'Game Engineer', value: 'software-teams-game-engineer' },
-  { name: 'Game Producer', value: 'software-teams-game-producer' },
-  { name: 'Game QA', value: 'software-teams-game-qa' },
-  { name: 'Game Tech Artist', value: 'software-teams-game-tech-artist' },
-  { name: 'Head of Engineering', value: 'software-teams-head-engineering' },
-  { name: 'Performance Analyst', value: 'software-teams-perf-analyst' },
-  { name: 'Phase Researcher', value: 'software-teams-phase-researcher' },
-  { name: 'Plan Checker', value: 'software-teams-plan-checker' },
-  { name: 'Planner', value: 'software-teams-planner' },
-  { name: 'PR Feedback', value: 'software-teams-pr-feedback' },
-  { name: 'PR Generator', value: 'software-teams-pr-generator' },
-  { name: 'Producer', value: 'software-teams-producer' },
-  { name: 'Product Lead', value: 'software-teams-product-lead' },
-  { name: 'Programmer', value: 'software-teams-programmer' },
-  { name: 'QA Tester', value: 'software-teams-qa-tester' },
-  { name: 'Quality Engineer', value: 'software-teams-quality' },
-  { name: 'Researcher', value: 'software-teams-researcher' },
-  { name: 'Security Engineer', value: 'software-teams-security' },
-  { name: 'UX Designer', value: 'software-teams-ux-designer' },
-  { name: 'Verifier', value: 'software-teams-verifier' },
-];
 
 // Sourced from the shared CLI surface so the two nodes that offer a model
 // picker cannot drift apart. See shared/claude-code-surface.ts.
@@ -135,7 +100,7 @@ export class SoftwareTeamsAgent implements INodeType {
         name: 'specialist',
         type: 'options',
         noDataExpression: true,
-        options: SPECIALIST_OPTIONS,
+        options: [...SPECIALIST_OPTIONS],
         default: 'software-teams-programmer',
         required: true,
         description:

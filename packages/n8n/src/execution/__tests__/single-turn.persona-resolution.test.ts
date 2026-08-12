@@ -36,10 +36,10 @@ function resolveFor(dirname: string, agentId: string, baseDir = "/nonexistent"):
 
 describe("resolveAgentSpecPath — bundled specs ship + both-layout resolution (AC7, AC8)", () => {
   describe("AC7: specialist personas ship inside dist after the build", () => {
-    test("dist/agents holds the 33 bundled specialist specs", () => {
+    test("dist/agents holds the 34 bundled specialist specs", () => {
       expect(existsSync(builtAgentsDir)).toBeTrue();
       const repoSpecs = repoSpecNames();
-      expect(repoSpecs.length).toBe(33);
+      expect(repoSpecs.length).toBe(34);
       for (const spec of repoSpecs) {
         expect(existsSync(join(builtAgentsDir, spec))).toBeTrue();
       }

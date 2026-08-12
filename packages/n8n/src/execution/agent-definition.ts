@@ -107,7 +107,13 @@ export function buildAgentDefinition(opts: {
   readonly agentId: string;
   readonly baseDir: string;
   readonly structuredOutput: boolean;
-  readonly overrides?: { model?: string; effort?: string; maxTurns?: number };
+  readonly overrides?: {
+    model?: string;
+    effort?: string;
+    maxTurns?: number;
+    /** Concrete node policy. When present it replaces, rather than widens, the spec tools. */
+    tools?: readonly string[];
+  };
 }): AgentDefinition | null {
   const specPath = resolveAgentSpecPath(opts.agentId, opts.baseDir);
   if (!specPath) return null;
@@ -130,14 +136,15 @@ export function buildAgentDefinition(opts: {
     prompt,
   };
 
-  const specTools = meta["tools"];
-  if (Array.isArray(specTools) && specTools.length > 0) {
+  const selectedTools = opts.overrides?.tools ?? meta["tools"];
+  if (Array.isArray(selectedTools)) {
     // A restricted tool list silently disables --json-schema unless the
     // structured-output tool is granted alongside it. See
-    // STRUCTURED_OUTPUT_TOOL in the shared surface.
+    // STRUCTURED_OUTPUT_TOOL in the shared surface. An empty override is
+    // meaningful: StructuredOutput becomes the only available tool.
     definition.tools = opts.structuredOutput
-      ? sharedApi.withStructuredOutput(specTools)
-      : [...specTools];
+      ? sharedApi.withStructuredOutput(selectedTools)
+      : [...selectedTools];
   }
 
   // Each node is one turn of one specialist; nested spawning belongs on the

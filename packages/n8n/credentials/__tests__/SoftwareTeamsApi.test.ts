@@ -75,9 +75,9 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
   });
 
   describe("Optional integration tokens (R-02 — secrets masked)", () => {
-    test("declares clickupApiKey property", () => {
+    test("does not mix ClickUp access into the Claude and output credential", () => {
       const clickupProp = credential.properties.find((p) => p.name === "clickupApiKey");
-      expect(clickupProp).toBeTruthy();
+      expect(clickupProp).toBeUndefined();
     });
 
     test("declares datadogApiKey property", () => {
@@ -105,7 +105,6 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
     test("all secret fields have password: true", () => {
       const secretFields = [
         "anthropicApiKey",
-        "clickupApiKey",
         "datadogApiKey",
         "datadogAppKey",
         "githubToken",
@@ -153,7 +152,6 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
 
     test("optional fields are not required", () => {
       const optionalFields = [
-        "clickupApiKey",
         "datadogApiKey",
         "datadogAppKey",
         "githubToken",
@@ -168,8 +166,8 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
   });
 
   describe("field count and naming", () => {
-    test("declares exactly 10 properties (authMode + 2 auth secrets + 7 integrations)", () => {
-      expect(credential.properties).toHaveLength(10);
+    test("declares exactly 9 properties (authMode + 2 auth secrets + 6 integrations)", () => {
+      expect(credential.properties).toHaveLength(9);
     });
 
     test("all property names follow camelCase convention", () => {
@@ -191,13 +189,6 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
       for (const prop of credential.properties) {
         expect(prop.description).toBeTruthy();
       }
-    });
-
-    test("clickupApiKey description mentions ClickUp and trigger/context", () => {
-      const clickupProp = credential.properties.find((p) => p.name === "clickupApiKey");
-      const desc = clickupProp?.description || "";
-      expect(desc.toLowerCase()).toContain("clickup");
-      expect(desc.toLowerCase()).toContain("trigger");
     });
 
     test("datadogApiKey description mentions Datadog and trigger/issue", () => {

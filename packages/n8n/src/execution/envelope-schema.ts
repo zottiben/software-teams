@@ -14,7 +14,11 @@
  */
 export const TURN_RESULT_SCHEMA = {
   type: "object",
-  required: ["status", "summary"],
+  // StructuredOutput rejects top-level oneOf/allOf/anyOf, so conditional
+  // required fields are unavailable. Requiring question globally is the only
+  // enforceable form: empty string for non-HITL outcomes, specific text for
+  // needs-input.
+  required: ["status", "summary", "question"],
   additionalProperties: false,
   properties: {
     status: {
@@ -33,8 +37,8 @@ export const TURN_RESULT_SCHEMA = {
     question: {
       type: "string",
       description:
-        "Required when status is needs-input: the single specific question a human " +
-        "must answer for you to continue. Omit otherwise.",
+        "The single specific question a human must answer when status is needs-input. " +
+        "Use an empty string for ok or error; never omit this field.",
     },
     filesChanged: {
       type: "array",
@@ -78,9 +82,12 @@ export function parseTurnResult(value: unknown): TurnResult | null {
   if (status !== "ok" && status !== "needs-input" && status !== "error") return null;
   if (typeof summary !== "string") return null;
 
+  const question = record["question"];
+  if (status === "needs-input" && (typeof question !== "string" || !question.trim())) return null;
+
   const result: TurnResult = { status, summary };
 
-  if (typeof record["question"] === "string") result.question = record["question"];
+  if (typeof question === "string") result.question = question;
   if (typeof record["confidence"] === "number") result.confidence = record["confidence"];
 
   const files = record["filesChanged"];
