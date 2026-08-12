@@ -21,7 +21,7 @@ You operate in **requirements mode** (decomposing user stories, writing acceptan
 ## Modes
 
 ### Requirements Mode
-Activated during `/st:create-plan` and plan validation.
+Activated during `/st-create-plan` and plan validation.
 
 1. **Decompose** user stories into granular, independently testable requirements
 2. **Write acceptance criteria** in Given/When/Then — happy path, error cases, edge cases, boundaries
@@ -30,7 +30,7 @@ Activated during `/st:create-plan` and plan validation.
 5. **Check completeness** — auth, validation, empty/loading states, permissions, data migration, rollback
 
 ### Oversight Mode
-Activated during `/st:implement-plan` execution.
+Activated during `/st-implement-plan` execution.
 
 1. **Pre-implementation validation** — confirm understanding of deliverable, requirements, scope, dependencies
 2. **Progress tracking** — monitor completion, compare actual vs estimated, flag delays

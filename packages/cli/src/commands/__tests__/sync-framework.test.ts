@@ -4,7 +4,7 @@ import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { detectFrameworkChanges } from "../sync-framework";
-import { copyFrameworkFiles } from "../../utils/copy-framework";
+import { copyFrameworkFiles, detectSkillChanges } from "../../utils/copy-framework";
 import { convertAgents } from "../../utils/convert-agents";
 
 let tempDirs: string[] = [];
@@ -66,13 +66,19 @@ describe("sync-framework — change detection", () => {
     expect(changed).toContain("rules/commits.md");
   });
 
-  test("returns empty arrays when snapshot matches canonical", async () => {
+  test("detects missing native skills independently of rule drift", async () => {
     const cwd = makeTempDir();
-    // Populate the snapshot from canonical first.
+    const { missing } = await detectSkillChanges(cwd, PACKAGE_ROOT);
+    expect(missing).toContain(join("st-create-plan", "SKILL.md"));
+  });
+
+  test("returns empty arrays when rules and native skills match canonical", async () => {
+    const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
-    const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
-    expect(missing).toEqual([]);
-    expect(changed).toEqual([]);
+    const rules = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
+    const skills = await detectSkillChanges(cwd, PACKAGE_ROOT);
+    expect(rules).toEqual({ missing: [], changed: [] });
+    expect(skills).toEqual({ missing: [], changed: [] });
   });
 });
 

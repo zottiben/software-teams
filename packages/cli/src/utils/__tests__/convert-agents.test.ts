@@ -532,10 +532,8 @@ describe("Component tag audit — T1 + T2 regression guards", () => {
    * Skip tags inside backticks or fenced code blocks (matching T2's protection).
    */
   test("T2 regression guard: every @ST: tag in the repo resolves via getComponent", async () => {
-    // Scan the directories that legitimately contain @ST: tags after the
-    // Phase A framework-flattening: agents/, commands/, templates/, plus the
-    // top-level doctrine file.
-    const SCAN_DIRS = ["agents", "commands", "templates"];
+    // Scan the canonical payloads that legitimately contain @ST: tags.
+    const SCAN_DIRS = ["agents", "skills", "templates"];
     const globPattern = new Bun.Glob("**/*.md");
 
     // Canonical @ST: regex (must match T2's protection logic)
@@ -607,7 +605,7 @@ describe("Component tag audit — T1 + T2 regression guards", () => {
    * (a soft regression buffer above the T2 target of ~14).
    */
   test("T2 regression guard: whole-component @ST: tag count <= 25", async () => {
-    const SCAN_DIRS = ["agents", "commands", "templates"];
+    const SCAN_DIRS = ["agents", "skills", "templates"];
     const globPattern = new Bun.Glob("**/*.md");
 
     // Regex to match only whole-component tags (no :Section)

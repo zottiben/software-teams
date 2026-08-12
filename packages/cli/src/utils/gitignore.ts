@@ -27,7 +27,8 @@ const LEGACY_MARKER = "# Software Teams framework";
  */
 export const ST_GITIGNORE_PATHS: readonly string[] = [
   ".software-teams/",
-  ".claude/commands/st/",
+  ".claude/skills/st-*/",
+  ".claude/skills/st-support/",
   ".claude/agents/software-teams-*.md",
   ".claude/AGENTS.md",
   ".claude/RULES.md",

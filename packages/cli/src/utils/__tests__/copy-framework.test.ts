@@ -30,7 +30,7 @@ afterEach(() => {
 /**
  * Build a minimal package-shape fixture. After Phase A retired the
  * `framework/` wrapper, every subtree (templates, teams, hooks, stacks,
- * adapters, agents, commands, ...) lives directly at the package root.
+ * adapters, agents, skills, ...) lives directly at the package root.
  * Returns the package root so callers pass it as `packageRootOverride`.
  */
 function makePackageFixture(): { packageRoot: string } {
@@ -40,7 +40,9 @@ function makePackageFixture(): { packageRoot: string } {
   mkdirSync(join(packageRoot, "teams"), { recursive: true });
   mkdirSync(join(packageRoot, "rules"), { recursive: true });
   mkdirSync(join(packageRoot, "agents"), { recursive: true });
-  mkdirSync(join(packageRoot, "commands"), { recursive: true });
+  mkdirSync(join(packageRoot, "skills", "create-plan"), { recursive: true });
+  mkdirSync(join(packageRoot, "skills", "create-dev-plan"), { recursive: true });
+  mkdirSync(join(packageRoot, "skills", "st-support"), { recursive: true });
 
   writeFileSync(join(packageRoot, "software-teams.md"), "# Software Teams Framework");
   writeFileSync(join(packageRoot, "teams", "engineering.md"), "# Engineering");
@@ -48,8 +50,9 @@ function makePackageFixture(): { packageRoot: string } {
   writeFileSync(join(packageRoot, "adapters", "node.yaml"), "dependency_install: bun install");
   writeFileSync(join(packageRoot, "rules", "general.md"), "# General Rules");
   writeFileSync(join(packageRoot, "agents", "software-teams-planner.md"), "# Planner");
-  writeFileSync(join(packageRoot, "commands", "create-plan.md"), "# Create Plan");
-  writeFileSync(join(packageRoot, "commands", "create-dev-plan.md"), "# Create Dev Plan");
+  writeFileSync(join(packageRoot, "skills", "create-plan", "SKILL.md"), "# Create Plan");
+  writeFileSync(join(packageRoot, "skills", "create-dev-plan", "SKILL.md"), "# Create Dev Plan");
+  writeFileSync(join(packageRoot, "skills", "st-support", "runtime.md"), "# Runtime");
 
   return { packageRoot };
 }
@@ -61,9 +64,9 @@ describe("copyFrameworkFiles", () => {
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
     // Phase B target: doctrine subtrees go to `.software-teams/<sub>/`,
-    // NOT `.software-teams/framework/<sub>/`. agents/ and commands/ are NOT
+    // NOT `.software-teams/framework/<sub>/`. agents/ and skills/ are NOT
     // copied to .software-teams/ — the runtime resolves them from the
-    // package directly (or via .claude/agents/+.claude/commands/st/).
+    // package directly (or via .claude/agents/ + .claude/skills/st-*/).
     // Phase D removed `templates/` from the copy list — agents do not read
     // templates at runtime, so a duplicate copy under `.software-teams/`
     // was dead weight.
@@ -73,14 +76,13 @@ describe("copyFrameworkFiles", () => {
     expect(existsSync(join(dir, ".software-teams", "framework"))).toBe(false);
   });
 
-  test("copies command stubs to .claude/commands/st/", async () => {
+  test("copies native skills to collision-safe .claude/skills/st-*/ directories", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const commandsDir = join(dir, ".claude", "commands", "st");
-    expect(existsSync(commandsDir)).toBe(true);
-    expect(existsSync(join(commandsDir, "create-plan.md"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "skills", "st-create-plan", "SKILL.md"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "skills", "st-support", "runtime.md"))).toBe(true);
   });
 
   test("creates CLAUDE.md with routing header when not present", async () => {
@@ -171,16 +173,17 @@ describe("copyFrameworkFiles", () => {
     expect(content).not.toBe("CUSTOM CONTENT");
   });
 
-  test("propagates commands/*.md content verbatim to .claude/commands/st/", async () => {
+  test("propagates skill directories verbatim to .claude/skills/st-*/", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
     const sourceContent =
       "# Custom Skill\n\nLine with `TeamCreate(team_name: \"slug-team\")` token.\n";
-    writeFileSync(join(packageRoot, "commands", "custom.md"), sourceContent);
+    mkdirSync(join(packageRoot, "skills", "custom"), { recursive: true });
+    writeFileSync(join(packageRoot, "skills", "custom", "SKILL.md"), sourceContent);
 
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const synced = await Bun.file(join(dir, ".claude", "commands", "st", "custom.md")).text();
+    const synced = await Bun.file(join(dir, ".claude", "skills", "st-custom", "SKILL.md")).text();
     expect(synced).toBe(sourceContent);
   });
 
@@ -260,14 +263,16 @@ describe("copyFrameworkFiles", () => {
     expect(statSync(dest).mode & 0o111).toBeGreaterThan(0);
   });
 
-  test("copies create-dev-plan skill stub to .claude/commands/st/", async () => {
+  test("removes retired generated commands during a native-skill upgrade", async () => {
     const dir = makeTempDir();
+    const legacyDir = join(dir, ".claude", "commands", "st");
+    mkdirSync(legacyDir, { recursive: true });
+    writeFileSync(join(legacyDir, "create-plan.md"), "legacy");
     const { packageRoot } = makePackageFixture();
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const stubPath = join(dir, ".claude", "commands", "st", "create-dev-plan.md");
-    expect(existsSync(stubPath)).toBe(true);
-    const content = await readFile(stubPath, "utf-8");
-    expect(content).toBe("# Create Dev Plan");
+    expect(existsSync(legacyDir)).toBe(false);
+    const skillPath = join(dir, ".claude", "skills", "st-create-dev-plan", "SKILL.md");
+    expect(await readFile(skillPath, "utf-8")).toBe("# Create Dev Plan");
   });
 });

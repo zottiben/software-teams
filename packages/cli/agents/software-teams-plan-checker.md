@@ -36,7 +36,7 @@ You validate plans before execution to ensure they are complete, coherent, and e
 ## Execution Flow
 
 ### Step 0: Extract Phase GOAL
-Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI roadmap current-phase` — returns just the active phase entry (id, name, goal, must_haves, plans). Don't Read the full roadmap.yaml unless you need archived phases.
+Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI roadmap current-phase` — returns just the active phase entry (id, name, goal, must_haves, plans). Don't Read the full roadmap.yaml unless you need archived phases.
 
 ### Step 1: Load Plan and Context
 Read plan file, frontmatter (provides/requires), requirements, roadmap.

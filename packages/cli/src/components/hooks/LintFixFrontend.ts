@@ -38,7 +38,7 @@ Runs \`bun run lint:fix\` (\`turbo lint -- --fix\`) asynchronously in the backgr
 
 ## Installation
 
-Registered automatically by \`/st:init\` in \`.claude/settings.local.json\`:
+Registered automatically by \`/st-init\` in \`.claude/settings.local.json\`:
 
 \`\`\`json
 {

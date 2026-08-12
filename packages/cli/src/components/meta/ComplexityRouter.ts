@@ -55,7 +55,7 @@ reasoning: "{why this mode was chosen}"
 > per-task spawn it makes downstream still loads ONLY the per-agent slice
 > (\`{slug}.T{n}.md\`) plus the SPEC sections cited in the slice's
 > \`**Read first:**\` line — never the full SPEC, never the full task list. See
-> \`framework/commands/implement-plan.md\` Three-Tier Execution Loop.
+> \`skills/implement-plan/SKILL.md\` Three-Tier Execution Loop.
 
 > **Single-tier plans (legacy):** the primary agent loads the full
 > \`{slug}.plan.md\` index and reads each \`{slug}.T{n}.md\` task file as it

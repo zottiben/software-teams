@@ -54,7 +54,7 @@ harness. Three things have since changed:
 | B2 | **n8n model selection is a no-op.** `SoftwareTeamsAgent.node.ts:183` sets `process.env['ANTHROPIC_DEFAULT_MODEL']`, which is not a Claude Code env var, and `single-turn.ts` never passes `--model`. It also mutates shared worker `process.env`, leaking across executions. | `grep -c ANTHROPIC_DEFAULT_MODEL` on the env-vars reference returns `0`. Valid vars are `ANTHROPIC_MODEL` and `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL`. |
 | B3 | **Every pinned model ID is stale.** `config/config.yaml` profiles use `claude-opus-4-8` / `claude-opus-4-6` / `claude-sonnet-4-6`; the n8n picker offers `claude-sonnet-4-5`, `claude-opus-4-5` (not a real ID, labelled "Claude Opus 4"), `claude-haiku-3-5`. | Current: `claude-opus-5`, `claude-sonnet-5`, `claude-fable-5`, `claude-haiku-4-5`; aliases `opus`/`sonnet`/`haiku`/`fable`/`best`. |
 | B4 | **`templates/.claude/settings.json` pre-approvals never apply.** There is no top-level `allowedTools` settings key; the correct key is `permissions.allow`. The block is silently ignored (verified: no warning, session runs fine). It also lists `MultiEdit` and `Task`, neither of which exists. | Settings reference has no `allowedTools`. Probe with the template in place: session succeeded, `claude --debug` emitted no settings warning, so the key is dropped rather than rejected. |
-| B5 | **`AGENTS-MODELS.md` tool policy names tools subagents cannot have.** It lists `Task` (gone) and `AskUserQuestion`, which the harness strips from *every* subagent unconditionally. | Subagents doc: `AskUserQuestion` is in the always-removed filter list. |
+| B5 | **`skills/st-support/AGENTS-MODELS.md` tool policy names tools subagents cannot have.** It lists `Task` (gone) and `AskUserQuestion`, which the harness strips from *every* subagent unconditionally. | Subagents doc: `AskUserQuestion` is in the always-removed filter list. |
 | B6 | **The component-cost benchmark and its CI gate are inert.** Pre-existing and already documented. | `AGENTS.md` rule 7. |
 | B7 | **The n8n credential forces API billing.** `SoftwareTeamsApi` marks `anthropicApiKey` as `required: true` and injects it as `ANTHROPIC_API_KEY`. Under D-1 this is exactly wrong: `ANTHROPIC_API_KEY` outranks `CLAUDE_CODE_OAUTH_TOKEN` in the auth precedence order, and in `-p` mode "the key is always used when present". | Auth precedence: cloud provider → `ANTHROPIC_AUTH_TOKEN` → `ANTHROPIC_API_KEY` → `apiKeyHelper` → `CLAUDE_CODE_OAUTH_TOKEN` → `/login` credentials. |
 
@@ -65,7 +65,7 @@ harness. Three things have since changed:
 | D1 | Give Claude rules | Let Claude use judgement | 33 specs are dense with `CRITICAL:` blocks, numbered pre-approval ceremonies, and "never do X" guardrails written for 4.x-era models. |
 | D2 | Give Claude examples | Design interfaces | Specs teach by example; should instead expose expressive structured-return shapes and let the model choose. |
 | D3 | Put it all upfront | Progressive disclosure | Verification and review should be skills loaded on demand, not spec preamble. Software Teams' bespoke `@ST:` component system is a hand-rolled version of this; skills + supporting files are the native form. |
-| D4 | Repeat yourself | Say it once, in the right place | Rules are restated across `AGENTS-MODELS.md`, each spec's preamble, `RULES.md`, and each command's strictness block. |
+| D4 | Repeat yourself | Say it once, in the right place | Rules are restated across `skills/st-support/AGENTS-MODELS.md`, each spec's preamble, `RULES.md`, and each command's strictness block. |
 | D5 | Memory in CLAUDE.md | Auto memory | Claude now writes its own per-repo memory, and subagents can have their own via `memory: project`. The feedback-learner → `.software-teams/rules/` loop partly duplicates this. |
 | D6 | Simple specs | Rich references | A spec can be a test suite, a rubric, an HTML artifact, or real code, not just markdown. |
 
@@ -230,7 +230,7 @@ Two further defects surfaced during the work and were fixed in the same slice:
   version instead of rotting again; keep full IDs available for anyone who needs a pin.
 - B4: rewrite `templates/.claude/settings.json` to use `permissions.allow`; drop
   `MultiEdit` and `Task`; re-derive the allow list from real tool names.
-- B5: rewrite the `AGENTS-MODELS.md` tool-allowlist policy against the real tool reference;
+- B5: rewrite the `skills/st-support/AGENTS-MODELS.md` tool-allowlist policy against the real tool reference;
   remove `AskUserQuestion` from subagent role classes and note that the harness strips it.
 - **New CI gate:** validate every agent and skill frontmatter `tools`/`disallowedTools`
   entry against a checked-in list of real Claude Code tool names, and every `model` value
@@ -284,7 +284,7 @@ spawns and responds.
   `fable` tier for the long-autonomous roles (planner, architect, producer) and document
   that Fable specs should **drop** verification reminders rather than add them.
 - Thread `--effort` through the n8n execution path and expose it on the Agent node.
-- Reconcile the profile-overrides-frontmatter precedence documented in `AGENTS-MODELS.md`
+- Reconcile the profile-overrides-frontmatter precedence documented in `skills/st-support/AGENTS-MODELS.md`
   with the harness's own resolution order (`CLAUDE_CODE_SUBAGENT_MODEL` → per-invocation →
   frontmatter → session).
 
@@ -437,7 +437,7 @@ intermediate builds.
 
 ---
 
-### Slice 5 - Commands become skills
+### Slice 5 - Commands become skills `[SHIPPED]`
 
 **Goal:** move the 21 command files onto the supported extension point and use the
 frontmatter that only skills have.
@@ -451,14 +451,38 @@ frontmatter that only skills have.
   on its own.
 - Use `context: fork` + `agent:` where a command's whole job is to run one specialist in
   isolation, replacing hand-written delegation prose.
-- **Retire native duplicates:** `/st:verify` against bundled `/verify` (likely becomes a
-  recorded `.claude/skills/verify/` recipe rather than a bespoke gate runner);
-  `/st:pr-review` against bundled `/code-review` + the `ReportFindings` tool.
+- **Retire native duplicates:** former `/st-verify` against bundled `/verify` (which can
+  record a `.claude/skills/verify/` recipe rather than use a bespoke gate runner);
+  former `/st-pr-review` against bundled `/code-review` + the `ReportFindings` tool.
 - Keep supporting material in the skill directory rather than `commands/_shared/`,
   referenced from `SKILL.md` so it loads on demand.
 
-**Verify:** gates green; bundle smoke test still runs `init` end to end; a probe session
-confirms each skill is discoverable and that the side-effecting ones refuse model invocation.
+**What shipped:**
+
+- Replaced 21 flat command files with 19 native `skills/<name>/SKILL.md` entrypoints;
+  the two omitted files are the native duplicates now served by `/verify` and `/code-review`.
+- The common bare invocation surface is `/st-<name>` for both distribution modes. CLI init
+  writes `.claude/skills/st-<name>/SKILL.md`; plugin discovery reads `skills/` directly and
+  also exposes the explicit `/software-teams:<name>` namespace. Upgrade init removes the
+  generated legacy `.claude/commands/st/` tree.
+- Moved all 12 legacy `context: |` blocks into body-level `` !`command` `` injection and
+  moved shared lazy references into the non-invocable `skills/st-support/` directory.
+- Added direct-user invocation guards to operational state, git, PR, and worktree skills.
+  Model-invocable implementation and deterministic-workflow skills have exact current-turn
+  intent gates, so plan approval alone cannot cross the implementation boundary.
+  `create-dev-plan` and `pr-feedback` now run in foreground specialist forks instead of
+  spending a second delegation turn on hand-written `Agent(...)` prose.
+- `sync-framework` now detects and repairs native-skill drift as well as rules and agents;
+  npm publishes `skills/` and no longer includes `commands/`.
+- The frontmatter gate now recursively validates only `SKILL.md` entrypoints, rejects legacy
+  skill context blocks, and ignores supporting markdown that is not a Claude Code surface.
+
+**Verified:** focused migration tests, typecheck, Claude's plugin validator, npm dry-run
+(19 skill entrypoints, six support files, zero legacy commands), bundled `init` into an
+empty project (19 skills, 34 agents, no command tree), and real Claude Code 2.1.220
+resolution probes for every `/st-*` skill in both plugin and generated-project modes. A
+model-invocation probe confirmed guarded `software-teams:statusline` is absent from the
+Skill tool while model-invocable read-only skills remain visible.
 
 ---
 
@@ -533,7 +557,7 @@ replacement does the job.
 
 - `README.md`, `packages/n8n/CONTRACT.md`, `packages/n8n/ARCHITECTURE.md` (new ADRs for the
   auth switch, the execution-engine rewrite, and the contract bump),
-  `agents/AGENTS-MODELS.md`, `templates/CLAUDE-SHARED.md`, `templates/RULES.md`.
+  `skills/st-support/AGENTS-MODELS.md`, `templates/CLAUDE-SHARED.md`, `templates/RULES.md`.
 - A start-to-finish n8n operator runbook: worker prerequisites; installing/loading the
   community-node package; confirming all entries load; creating the Claude and ClickUp
   credentials; building or importing the first workflow; running ClickUp ticket NDP-34603

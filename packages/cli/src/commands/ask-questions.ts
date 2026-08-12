@@ -120,7 +120,7 @@ async function status(): Promise<number> {
     // heuristic from orchestrator-mode doesn't make sense with only two
     // artefacts (1-of-2 is a tie), so recommend toggling on to converge
     // to a known-good state.
-    console.log("→ DRIFT — run /st:ask-questions on to converge");
+    console.log("→ DRIFT — run /st-ask-questions on to converge");
   }
 
   return 0;

@@ -38,9 +38,9 @@ export function resolveHostPath(sourceRelPath: string): string {
     const resolved = join(REPO_ROOT, ".claude", "agents", filename);
     if (existsSync(resolved)) return resolved;
   }
-  if (sourceRelPath.startsWith("framework/commands/")) {
-    const filename = sourceRelPath.replace("framework/commands/", "");
-    const resolved = join(REPO_ROOT, ".claude", "commands", "st", filename);
+  const skillMatch = /^skills\/([^/]+)\/SKILL\.md$/.exec(sourceRelPath);
+  if (skillMatch?.[1]) {
+    const resolved = join(REPO_ROOT, ".claude", "skills", `st-${skillMatch[1]}`, "SKILL.md");
     if (existsSync(resolved)) return resolved;
   }
   console.warn(`  [warn] No resolved counterpart for ${sourceRelPath}; using source file.`);

@@ -36,7 +36,7 @@ Before writing code for any task:
 ## Stack Loading
 
 On activation:
-1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` — pull `tech_stack` identifiers.
+1. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI project tech-stack` — pull `tech_stack` identifiers.
 2. Load `.software-teams/framework/stacks/{stack-id}.md` if present (e.g. `unity-csharp`) for project-specific conventions and CLI commands.
 3. If no convention file exists, fall back to the generic Unity expertise below.
 4. Convention file content overrides generic defaults.

@@ -51,6 +51,6 @@ surface decision points rather than burying them in defaults.
 
 ## Toggling off
 
-Run `/st:ask-questions off`. This removes the `@import` line from
+Run `/st-ask-questions off`. This removes the `@import` line from
 `.claude/CLAUDE.md` and deletes this directive file. The harness
 auto-mode reminder will resume its default behaviour.

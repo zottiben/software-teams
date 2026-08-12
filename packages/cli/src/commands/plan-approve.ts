@@ -65,6 +65,6 @@ export const planApproveCommand = defineCommand({
     await writeState(cwd, state);
 
     consola.success(`Plan '${planName}' approved (revision ${revision}).`);
-    consola.info("Say 'implement this' in Claude Code or run `/st:implement-plan` to execute.");
+    consola.info("Say 'implement this' in Claude Code or run `/st-implement-plan` to execute.");
   },
 });

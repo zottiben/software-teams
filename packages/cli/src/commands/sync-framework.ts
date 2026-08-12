@@ -3,7 +3,7 @@ import { consola } from "consola";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { detectProjectType } from "../utils/detect-project";
-import { copyFrameworkFiles } from "../utils/copy-framework";
+import { copyFrameworkFiles, detectSkillChanges } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
 import { loadAgentRouting } from "../utils/models-config";
 
@@ -78,7 +78,7 @@ export const syncFrameworkCommand = defineCommand({
   meta: {
     name: "sync-framework",
     description:
-      "Refresh the .software-teams/framework/ snapshot from canonical framework/ and re-sync .claude/agents/",
+      "Refresh Software Teams rules, native skills, and generated Claude Code agents",
   },
   args: {
     "dry-run": {
@@ -111,14 +111,16 @@ export const syncFrameworkCommand = defineCommand({
     }
 
     consola.start(
-      `Refreshing .software-teams/framework/ from ${packageRoot}${dryRun ? " (dry-run)" : ""}`,
+      `Refreshing Software Teams payloads from ${packageRoot}${dryRun ? " (dry-run)" : ""}`,
     );
 
     const { missing, changed } = await detectFrameworkChanges(cwd, packageRoot);
-    const totalDelta = missing.length + changed.length;
+    const skillChanges = await detectSkillChanges(cwd, packageRoot);
+    const totalDelta = missing.length + changed.length
+      + skillChanges.missing.length + skillChanges.changed.length;
 
     if (totalDelta === 0) {
-      consola.success(".software-teams/framework/ is already up to date — no changes needed.");
+      consola.success("Rules and native skills are already up to date — no changes needed.");
       // Still re-sync agents for safety (idempotent).
       if (!dryRun) {
         const conv = await convertAgents({ cwd, models, efforts });
@@ -133,9 +135,17 @@ export const syncFrameworkCommand = defineCommand({
       if (missing.length > 20) consola.info(`  … and ${missing.length - 20} more`);
     }
     if (changed.length > 0) {
-      consola.info(`${changed.length} drifted file(s):`);
+      consola.info(`${changed.length} drifted rule file(s):`);
       for (const f of changed.slice(0, 20)) consola.info(`  ~ ${f}`);
       if (changed.length > 20) consola.info(`  … and ${changed.length - 20} more`);
+    }
+    if (skillChanges.missing.length > 0) {
+      consola.info(`${skillChanges.missing.length} missing native skill file(s):`);
+      for (const f of skillChanges.missing.slice(0, 20)) consola.info(`  + ${f}`);
+    }
+    if (skillChanges.changed.length > 0) {
+      consola.info(`${skillChanges.changed.length} drifted native skill file(s):`);
+      for (const f of skillChanges.changed.slice(0, 20)) consola.info(`  ~ ${f}`);
     }
 
     if (dryRun) {
@@ -149,7 +159,7 @@ export const syncFrameworkCommand = defineCommand({
     // copyFrameworkFiles() never writes to those paths.
     const projectType = await detectProjectType(cwd);
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot);
-    consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
+    consola.success(`Refreshed rules and native skills (${totalDelta} files updated).`);
 
     // Verify state files were preserved (sanity log only — the writer cannot
     // touch these paths, but log it so operators are reassured).

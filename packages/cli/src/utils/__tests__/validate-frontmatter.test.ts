@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   parseFrontmatter,
   validateFrontmatter,
@@ -16,9 +16,11 @@ import {
 async function fixture(files: Record<string, string>): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "st-fm-"));
   await mkdir(join(root, "agents"), { recursive: true });
-  await mkdir(join(root, "commands"), { recursive: true });
+  await mkdir(join(root, "skills"), { recursive: true });
   for (const [rel, body] of Object.entries(files)) {
-    await writeFile(join(root, rel), body, "utf8");
+    const path = join(root, rel);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, body, "utf8");
   }
   return root;
 }
@@ -26,7 +28,7 @@ async function fixture(files: Record<string, string>): Promise<string> {
 function run(root: string) {
   return validateFrontmatter({
     agentsDir: join(root, "agents"),
-    commandDirs: [join(root, "commands")],
+    skillDirs: [join(root, "skills")],
   });
 }
 
@@ -147,9 +149,45 @@ describe("validateFrontmatter", () => {
     expect(warnings[0]?.value).toBe("AskUserQuestion");
   });
 
-  test("does not apply the subagent-strip warning to commands", async () => {
+  test("discovers nested SKILL.md files but ignores supporting markdown", async () => {
     const root = await fixture({
-      "commands/asks.md": ["---", "name: asks", "allowed-tools: AskUserQuestion", "---", "b"].join(
+      "skills/review/SKILL.md": [
+        "---",
+        "name: st-review",
+        "allowed-tools: Read, AskUserQuestion",
+        "context: fork",
+        "agent: software-teams-quality",
+        "---",
+        "body",
+      ].join("\n"),
+      "skills/st-support/reference.md": "Task is prose here, not tool frontmatter",
+    });
+    const report = await run(root);
+    expect(report.errors).toEqual([]);
+    expect(report.filesChecked).toBe(1);
+  });
+
+  test("rejects unknown skill-only frontmatter instead of silently ignoring typos", async () => {
+    const root = await fixture({
+      "skills/typo/SKILL.md": ["---", "name: typo", "when-to-use: explicit only", "---"].join("\n"),
+    });
+    const { errors } = await run(root);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.field).toBe("when-to-use");
+  });
+
+  test("rejects legacy command context blocks in skills", async () => {
+    const root = await fixture({
+      "skills/legacy/SKILL.md": ["---", "name: legacy", "context: |", "  !git status", "---"].join("\n"),
+    });
+    const { errors } = await run(root);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain("!`command`");
+  });
+
+  test("does not apply the subagent-strip warning to skills", async () => {
+    const root = await fixture({
+      "skills/asks.md": ["---", "name: asks", "allowed-tools: AskUserQuestion", "---", "b"].join(
         "\n",
       ),
     });

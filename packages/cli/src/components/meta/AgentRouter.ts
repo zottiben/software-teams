@@ -341,8 +341,8 @@ Referenced by:
 - \`agents/software-teams-planner.md\` (discover + match)
 - \`the ComplexityRouter component\` (spawn)
 - \`the AgentTeamsOrchestration component\` (spawn)
-- \`framework/commands/create-plan.md\` (discover)
-- \`framework/commands/implement-plan.md\` (spawn)`,
+- \`skills/create-plan/SKILL.md\` (discover)
+- \`skills/implement-plan/SKILL.md\` (spawn)`,
     },
   },
   defaultOrder: [

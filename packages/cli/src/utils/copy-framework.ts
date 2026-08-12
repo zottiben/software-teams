@@ -1,6 +1,6 @@
 import { join, dirname } from "node:path";
 import { existsSync, mkdirSync } from "node:fs";
-import { readdir, stat, chmod } from "node:fs/promises";
+import { readdir, stat, chmod, rm } from "node:fs/promises";
 import type { ProjectType } from "./detect-project";
 import { readSettings, writeSettings, ensureSubagentStopHook, ensureSessionStartHook, ensureTaskCompletedHook } from "./settings-merge";
 
@@ -8,7 +8,7 @@ import { readSettings, writeSettings, ensureSubagentStopHook, ensureSessionStart
  * Subdirectories shipped from the package root into a consumer's
  * `.software-teams/<sub>/` install. Phase B retired the
  * `.software-teams/framework/` mirror and dropped subtrees that have no
- * runtime consumer-side reader (`teams/`, `agents/`, `commands/`). Phase C
+ * runtime consumer-side reader (`teams/`, `agents/`, `skills/`). Phase C
  * additionally dropped `hooks/` and `stacks/` once those markdown sources
  * were folded into the TS component registry — agents fetch them via
  * `software-teams component get <Name>` instead of reading a copied .md.
@@ -25,6 +25,79 @@ import { readSettings, writeSettings, ensureSubagentStopHook, ensureSessionStart
  * package root; sync-agents and copy-framework read them there.
  */
 const COPIED_SUBDIRS = ["rules"] as const;
+const SKILL_SUPPORT_DIR = "st-support";
+
+/**
+ * Install native project skills with a collision-safe `st-` prefix.
+ *
+ * Plugin discovery reads the canonical `skills/<name>/SKILL.md` tree directly;
+ * each skill's `st-<name>` frontmatter supplies the common bare `/st-<name>`
+ * alias. A project skill has no plugin namespace, so the CLI distribution uses
+ * `.claude/skills/st-<name>/` for the same invocation. Supporting files keep a
+ * stable sibling directory so
+ * `${CLAUDE_SKILL_DIR}/../st-support/...` works in both distributions.
+ */
+function skillDestinationName(sourceName: string): string {
+  return sourceName === SKILL_SUPPORT_DIR ? SKILL_SUPPORT_DIR : `st-${sourceName}`;
+}
+
+export async function detectSkillChanges(
+  cwd: string,
+  packageRoot: string,
+): Promise<{ missing: string[]; changed: string[] }> {
+  const sourceRoot = join(packageRoot, "skills");
+  const missing: string[] = [];
+  const changed: string[] = [];
+  if (!existsSync(sourceRoot)) return { missing, changed };
+
+  const entries = await readdir(sourceRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const sourceDir = join(sourceRoot, entry.name);
+    const destinationName = skillDestinationName(entry.name);
+    const files = new Bun.Glob("**/*");
+    for await (const file of files.scan({ cwd: sourceDir })) {
+      const source = join(sourceDir, file);
+      if (!(await stat(source)).isFile()) continue;
+      const relativeDestination = join(destinationName, file);
+      const destination = join(cwd, ".claude", "skills", relativeDestination);
+      if (!existsSync(destination)) missing.push(relativeDestination);
+      else if (await Bun.file(source).text() !== await Bun.file(destination).text()) {
+        changed.push(relativeDestination);
+      }
+    }
+  }
+  return { missing: missing.sort(), changed: changed.sort() };
+}
+
+export async function copySkills(
+  cwd: string,
+  packageRoot: string,
+  force: boolean,
+): Promise<string[]> {
+  const sourceRoot = join(packageRoot, "skills");
+  if (!existsSync(sourceRoot)) return [];
+
+  const written: string[] = [];
+  const entries = await readdir(sourceRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const destinationName = skillDestinationName(entry.name);
+    const sourceDir = join(sourceRoot, entry.name);
+    const destinationDir = join(cwd, ".claude", "skills", destinationName);
+    const files = new Bun.Glob("**/*");
+    for await (const file of files.scan({ cwd: sourceDir })) {
+      const source = join(sourceDir, file);
+      if (!(await stat(source)).isFile()) continue;
+      const destination = join(destinationDir, file);
+      if (!force && existsSync(destination)) continue;
+      mkdirSync(dirname(destination), { recursive: true });
+      await Bun.write(destination, await Bun.file(source).text());
+      written.push(join(destinationName, file));
+    }
+  }
+  return written.sort();
+}
 
 export async function copyFrameworkFiles(
   cwd: string,
@@ -40,7 +113,7 @@ export async function copyFrameworkFiles(
   packageRootOverride?: string,
   /**
    * When true (`init --state-only`, the plugin path), skip the `.claude/` writes
-   * the PLUGIN already supplies natively: command stubs, the allowlist
+   * the PLUGIN already supplies natively: skills, the allowlist
    * `settings.json` template, and `CLAUDE.md`. Hooks are NOT skipped — the plugin
    * ships none, so `.claude/hooks/` and the SubagentStop quality-gate wiring in
    * `.claude/settings.json` are installed in this mode too. Used by plugin users
@@ -82,25 +155,14 @@ export async function copyFrameworkFiles(
   // `convertAgents()` (invoked from `init` after this step, and standalone
   // via `software-teams sync-agents`).
 
+  // Commands were the pre-2.1 extension point. This subtree was generated and
+  // wholly owned by Software Teams, so remove it in both CLI and plugin-mode
+  // upgrades rather than leaving duplicate `/st:*` entries beside the native
+  // skills. User commands elsewhere under `.claude/commands/` are untouched.
+  await rm(join(cwd, ".claude", "commands", "st"), { recursive: true, force: true });
+
   if (!stateOnly) {
-    // Copy command stubs to .claude/commands/st/ from the plugin commands/ tree.
-    const commandsDir = join(packageRoot, "commands");
-    const commandsDest = join(cwd, ".claude", "commands", "st");
-    if (existsSync(commandsDir)) {
-      const commandGlob = new Bun.Glob("*.md");
-      for await (const file of commandGlob.scan({ cwd: commandsDir })) {
-        const src = join(commandsDir, file);
-        const dest = join(commandsDest, file);
-
-        if (!force && existsSync(dest)) continue;
-
-        const dir = dirname(dest);
-        if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
-        const content = await Bun.file(src).text();
-        await Bun.write(dest, content);
-      }
-    }
+    await copySkills(cwd, packageRoot, force);
 
     // Copy the declarative `.claude/settings.json` template into the project root.
     // This defines the scoped tool allowlist for spawned Claude sessions.
@@ -118,10 +180,10 @@ export async function copyFrameworkFiles(
   }
 
   // ── Hooks + quality-gate wiring — run in BOTH full and --state-only modes ──
-  // Commands/agents are skipped under --state-only because the Claude Code
+  // Skills/agents are skipped under --state-only because the Claude Code
   // PLUGIN supplies them natively. HOOKS are different: the plugin ships none
   // (`.claude-plugin/` has no hooks), so they must be installed on the plugin
-  // path too — otherwise `/st:init` (which runs `init --state-only`) would never
+  // path too — otherwise `/st-init` (which runs `init --state-only`) would never
   // wire the deterministic quality gate. The allowlist `settings.json` template
   // above stays gated to full init; plugin users get only the hook wiring added
   // below, not a generated allowlist.
@@ -154,7 +216,7 @@ export async function copyFrameworkFiles(
   // project — same rationale as hooks: the plugin ships none, so it must land on
   // the plugin path too. Refreshed on every init. It is NOT auto-wired into
   // settings (a personal display preference); the user opts in with
-  // `software-teams statusline --install` or the `/st:statusline` skill.
+  // `software-teams statusline --install` or the `/st-statusline` skill.
   const statuslineTemplateDir = join(packageRoot, "templates", ".claude", "statusline");
   if (existsSync(statuslineTemplateDir)) {
     const statuslineDestDir = join(cwd, ".claude", "statusline");
@@ -281,7 +343,7 @@ ${routingHeader}
 For any non-trivial task, delegate to an appropriate specialist agent via the Agent tool rather than performing the work yourself. Solo work is acceptable only for:
 
 - Trivial edits (single file, single grep, single shell command).
-- Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.
+- Tasks with no matching specialist in \`.claude/agents/\`.
 - Agent/framework orchestration itself (configuring, routing, triage, memory updates).
 
 Match specialists to domain: react → \`software-teams-frontend\` / \`software-teams-programmer\`; php → \`software-teams-backend\` / \`software-teams-programmer\`; research → \`software-teams-researcher\`; QA → \`software-teams-qa-tester\` / \`software-teams-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt — treat it as default.
@@ -299,15 +361,14 @@ Spawned agents can be truncated mid-task when briefings are too broad. To preven
 
 ## Software Teams Workflow Routing
 
-Recognise natural language Software Teams intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
+Recognise natural language Software Teams intents and invoke only the model-invocable skills via the Skill tool. Pass the user's full message as the argument.
 
-- Plan/ticket analysis → \`/st:create-plan\`
-- Implement/build/execute → \`/st:implement-plan\`
-- Review PR → \`/st:pr-review\`
-- Address PR feedback → \`/st:pr-feedback\`
-- Commit changes → \`/st:commit\`
-- Generate/create PR → \`/st:generate-pr\`
-- Quick/small fix → \`/st:quick\`
+- Plan/ticket analysis → \`/st-create-plan\`
+- Implement/build/execute → \`/st-implement-plan\`
+- Review changes or a PR → Claude Code's bundled \`/code-review\`
+- Quick/small fix → \`/st-quick\`
+
+Operational skills are direct-user-only. If the user asks to address PR feedback, commit, create a PR, change worktrees, or alter Software Teams settings, tell them which \`/st-*\` skill to invoke; do not reproduce or bypass its steps.
 
 Extract flags from context: "in a worktree" → \`--worktree\`, "lightweight" → \`--worktree-lightweight\`, "single agent" → \`--single\`, "use teams" → \`--team\`. If the intent is unclear, ask. Never guess.
 
@@ -320,7 +381,7 @@ Per-sub-plan flow (create-plan → implement → commit) from an orchestration p
 
 ## Iterative Refinement
 
-After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
+After \`/st-create-plan\` or \`/st-implement-plan\` completes, the conversation continues naturally — no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
 `;
     if (!existsSync(claudeMdPath)) {
       await Bun.write(claudeMdPath, routingBlock);

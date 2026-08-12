@@ -30,7 +30,6 @@ describe("init — scaffolding layout", () => {
     const cwd = makeTempDir();
     // Create the required directories that init would create
     const dirs = [
-      ".claude/commands/st",
       ".software-teams/plans",
       ".software-teams/research",
       ".software-teams/codebase",
@@ -58,12 +57,11 @@ describe("init — scaffolding layout", () => {
     expect(existsSync(join(cwd, ".software-teams", "feedback"))).toBe(true);
   });
 
-  test("init creates .claude/commands/st/ structure", async () => {
+  test("init creates native .claude/skills/st-*/ entries", async () => {
     const cwd = makeTempDir();
-    mkdirSync(join(cwd, ".claude", "commands", "st"), { recursive: true });
-    await Bun.write(join(cwd, ".claude", "commands", "st", ".gitkeep"), "");
+    await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
-    expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(true);
+    expect(existsSync(join(cwd, ".claude", "skills", "st-create-plan", "SKILL.md"))).toBe(true);
   });
 
   test("copyFrameworkFiles writes doctrine subtrees directly under .software-teams/", async () => {
@@ -115,14 +113,14 @@ describe("init — scaffolding layout", () => {
     expect(existsSync(join(cwd, ".claude", "RULES.md"))).toBe(true);
   });
 
-  test(".claude/CLAUDE.md template uses /st: routing", async () => {
+  test(".claude/CLAUDE.md template uses /st- routing", async () => {
     const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
     const claudeMdPath = join(PACKAGE_ROOT, "templates", ".claude", "CLAUDE.md");
     if (existsSync(claudeMdPath)) {
       const claudeMdContent = await readFile(claudeMdPath, "utf-8");
-      expect(claudeMdContent).toMatch(/\/st:/);
+      expect(claudeMdContent).toMatch(/\/st-/);
     }
   });
 
@@ -136,8 +134,11 @@ describe("init — scaffolding layout", () => {
 });
 
 describe("init --state-only (plugin mode)", () => {
-  test("--state-only installs hooks + quality-gate but NOT plugin-supplied commands/agents", async () => {
+  test("--state-only installs hooks + quality-gate but NOT plugin-supplied skills/agents", async () => {
     const cwd = makeTempDir();
+    const legacyCommands = join(cwd, ".claude", "commands", "st");
+    mkdirSync(legacyCommands, { recursive: true });
+    await Bun.write(join(legacyCommands, "status.md"), "legacy");
 
     // Simulate `init --ci --state-only` by creating the expected structure
     const swDirs = [
@@ -165,8 +166,9 @@ describe("init --state-only (plugin mode)", () => {
     }
 
     // Plugin-supplied artefacts are NOT generated under --state-only.
-    expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(false);
+    expect(existsSync(join(cwd, ".claude", "skills", "st-create-plan"))).toBe(false);
     expect(existsSync(join(cwd, ".claude", "agents"))).toBe(false);
+    expect(existsSync(legacyCommands)).toBe(false);
 
     // Hooks are framework infra the plugin does NOT supply, so they ARE installed,
     // and the deterministic quality gate is wired into settings.json.
@@ -212,19 +214,18 @@ describe("init --state-only (plugin mode)", () => {
     // hooks/statusline/settings install on both paths, so all are ignored).
     const out = updateGitignore("");
     expect(out).toContain(".software-teams/");
-    expect(out).toContain(".claude/commands/st/");
+    expect(out).toContain(".claude/skills/st-*/");
     expect(out).toContain(".claude/agents/software-teams-*.md");
     expect(out).toContain(".claude/hooks/");
     expect(out).toContain(".claude/statusline/");
     expect(out).toContain(".claude/settings.json");
   });
 
-  test("default init (no flag) STILL creates .claude/commands/st and .claude/agents — regression check", async () => {
+  test("default init creates native skills and generated agents — regression check", async () => {
     const cwd = makeTempDir();
 
     // Create directories as default init would (state-only=false)
     const allDirs = [
-      ".claude/commands/st",
       ".software-teams/plans",
       ".software-teams/research",
       ".software-teams/codebase",
@@ -242,7 +243,7 @@ describe("init --state-only (plugin mode)", () => {
     await copyFrameworkFiles(cwd, "node", false, true, PACKAGE_ROOT, false);
 
     // Verify .claude/ is created
-    expect(existsSync(join(cwd, ".claude", "commands", "st"))).toBe(true);
+    expect(existsSync(join(cwd, ".claude", "skills", "st-create-plan", "SKILL.md"))).toBe(true);
 
     // Now convert agents (simulating default init's agent generation)
     const result = await convertAgents({

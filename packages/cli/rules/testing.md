@@ -8,7 +8,7 @@
 
 Test tasks are added to a plan when:
 - SilentDiscovery detects a test suite in the project (`.test.*`, `.spec.*`, test runner config)
-- The user explicitly passes `--with-tests` to `/st:create-plan`
+- The user explicitly passes `--with-tests` to `/st-create-plan`
 
 Test tasks are NOT generated when:
 - The user passes `--without-tests`

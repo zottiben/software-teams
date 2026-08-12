@@ -33,7 +33,7 @@ describe("action run command prompt invariants", () => {
       expect(source).toContain("plan-three-tier-artifacts.md");
       expect(source).toContain("planThreeTierArtifactsFragment");
       const fragment = await Bun.file(
-        new URL("../../../../commands/_shared/plan-three-tier-artifacts.md", import.meta.url).pathname,
+        new URL("../../../../skills/st-support/plan-three-tier-artifacts.md", import.meta.url).pathname,
       ).text();
       expect(fragment).toContain("spec.md");
       expect(fragment).toContain("orchestration.md");

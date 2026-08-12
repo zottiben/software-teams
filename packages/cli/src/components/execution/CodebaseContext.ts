@@ -19,9 +19,9 @@ const CodebaseContext: Component = {
       description: "Rules for loading codebase context from cache",
       body: `1. If \`.software-teams/codebase/summary.md\` exists → **read it directly** (regardless of age)
 2. If \`.software-teams/codebase/CONVENTIONS.md\` exists → read it when writing code
-3. If neither exists → **inform user** to run \`/st:map-codebase\` first, then proceed without codebase context
+3. If neither exists → **inform user** to run \`/st-map-codebase\` first, then proceed without codebase context
 
-**Never spawn codebase mapper automatically.** The mapper is expensive (~30% of session budget). Only run it via explicit \`/st:map-codebase\` command.
+**Never spawn codebase mapper automatically.** The mapper is expensive (~30% of session budget). Only run it via explicit \`/st-map-codebase\` command.
 
 **Skip entirely if:** \`--skip-codebase\` flag is present in command arguments.`,
     },

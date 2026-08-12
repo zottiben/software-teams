@@ -37,7 +37,7 @@ Before writing code for any task:
 ## Stack Loading
 
 On activation, read the relevant stack convention files:
-1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` to read stack identifiers.
+1. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI project tech-stack` to read stack identifiers.
 2. Load `.software-teams/framework/stacks/python-langchain.md` and/or `.software-teams/framework/stacks/unity-csharp.md` if present.
 3. Convention file content overrides generic defaults below.
 

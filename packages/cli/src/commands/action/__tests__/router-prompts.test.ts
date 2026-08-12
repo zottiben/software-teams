@@ -167,7 +167,7 @@ describe("buildRouterPrompt — plan-specific brief", () => {
   });
 
   test("initial plan brief requires an `### Open questions` section with `_none._` fallback", () => {
-    // Mirrors `commands/create-plan.md:199` — the local skill's response
+    // Mirrors `skills/create-plan/SKILL.md:199` — the local skill's response
     // shape requires an Open questions bullet list OR the literal `none`.
     const prompt = buildRouterPrompt(makeCtx({ flow: { kind: "plan" } }));
     expect(prompt).toContain("### Open questions");
@@ -720,7 +720,7 @@ describe("buildRouterPrompt — discreet-mode style directives", () => {
     const tag = `${flow.kind}${"isRefinement" in flow && flow.isRefinement ? " (refinement)" : ""}`;
     test(`[${tag}] brief carries the self-reference style directive (no brand leak)`, () => {
       const prompt = buildRouterPrompt(makeCtx({ flow }));
-      // The directive lives in `commands/_shared/self-reference-style.md`
+      // The directive lives in `skills/st-support/self-reference-style.md`
       // and is text-imported by router-prompts.ts. Both single-spawn
       // briefs and the multi-spawn orchestrator consume the same fragment.
       expect(prompt).toContain("## Self-reference style (MANDATORY)");

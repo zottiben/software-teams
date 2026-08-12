@@ -58,7 +58,7 @@ The user opted into this mode deliberately. If they want a direct code
 edit, the correct response is:
 
 > I'm in Orchestrator-Only Mode and can't author file changes directly.
-> I'll delegate to a specialist — or run `/st:orchestrator-mode off` to
+> I'll delegate to a specialist — or run `/st-orchestrator-mode off` to
 > disable the restriction.
 
 Then either delegate or wait for the toggle. Do NOT bypass the hook with
@@ -67,6 +67,6 @@ the shell is blocked for exactly this reason.
 
 ## Toggling off
 
-Run `/st:orchestrator-mode off`. This removes the hook, removes this
+Run `/st-orchestrator-mode off`. This removes the hook, removes this
 directive file, and removes the `@import` line from `.claude/CLAUDE.md`.
 The soft "Agent-First Default" still applies but is no longer hard-enforced.

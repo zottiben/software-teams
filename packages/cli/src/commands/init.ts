@@ -35,7 +35,7 @@ export const initCommand = defineCommand({
     "state-only": {
       type: "boolean",
       description:
-        "Scaffold only `.software-teams/` — skip all `.claude/` command and agent generation (intended for plugin users who already have native commands/agents).",
+        "Scaffold only `.software-teams/` — skip all `.claude/` skill and agent generation (intended for plugin users who already have native skills/agents).",
       default: false,
     },
   },
@@ -50,7 +50,6 @@ export const initCommand = defineCommand({
 
     // Create directory structure
     const dirs = [
-      ...(!args["state-only"] ? [".claude/commands/st"] : []),
       ".software-teams/plans",
       ".software-teams/research",
       ".software-teams/codebase",
@@ -198,11 +197,11 @@ export const initCommand = defineCommand({
       consola.success("Software Teams initialised successfully!");
       consola.info("");
       consola.info("Get started:");
-      consola.info("  /st:create-plan \"your feature\"");
-      consola.info("  /st:review-plan          (quality-check a plan before approving)");
-      consola.info("  /st:quick \"small fix\"");
-      consola.info("  /st:statusline           (optional: plan/phase/task in your statusline — needs python3)");
-      consola.info("  /st:routines             (optional: schedule recurring ST tasks; unattended-run tips)");
+      consola.info("  /st-create-plan \"your feature\"");
+      consola.info("  /st-review-plan          (quality-check a plan before approving)");
+      consola.info("  /st-quick \"small fix\"");
+      consola.info("  /st-statusline           (optional: plan/phase/task in your statusline — needs python3)");
+      consola.info("  /st-routines             (optional: schedule recurring ST tasks; unattended-run tips)");
     }
   },
 });

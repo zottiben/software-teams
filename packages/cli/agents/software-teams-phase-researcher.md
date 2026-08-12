@@ -35,7 +35,7 @@ You gather targeted research for a specific phase, ensuring the planner has cont
 ## Execution Flow
 
 ### Step 1: Load Phase Context
-Pull just the phase goal and project context via the targeted CLIs — don't Read the whole files unless you need fields beyond the slices below. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run:
+Pull just the phase goal and project context via the targeted CLIs — don't Read the whole files unless you need fields beyond the slices below. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run:
 
 ```bash
 $ST_CLI roadmap current-phase            # active phase: id, name, goal, plans

@@ -89,7 +89,7 @@ If \`tier\` is passed in the spawn prompt, it overrides the rule. Otherwise appl
 
 The split format is MANDATORY in both shapes. Each task MUST be a separate \`.T{n}.md\` file. Index/orchestration files contain ONLY frontmatter and a manifest table — NEVER inline task implementation details.
 
-**Do NOT manually edit \`.software-teams/state.yaml\`** — state transitions are handled via CLI commands (e.g. \`$ST_CLI state plan-ready\` — resolve the CLI per \`commands/_shared/cli-invocation.md\`).
+**Do NOT manually edit \`.software-teams/state.yaml\`** — state transitions are handled via CLI commands (e.g. \`$ST_CLI state plan-ready\` — resolve the CLI per \`.claude/skills/st-support/cli-invocation.md\` (CLI) or \`\${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md\` (plugin)).
 
 ## Three-Tier Output Format (DEFAULT for non-trivial plans)
 
@@ -151,7 +151,7 @@ Required files (single-tier):
 
 In single-tier the index \`.plan.md\` carries the manifest (no SPEC/ORCHESTRATION). Per-task files do NOT need the \`**Why this slice:**\` / \`**Read first:**\` headers — those are three-tier-only because there is no separate SPEC for them to point at.
 
-\`/st:quick\` flows always pass \`tier: single-tier\`; hotfixes and tiny plans land here too.
+\`/st-quick\` flows always pass \`tier: single-tier\`; hotfixes and tiny plans land here too.
 
 ## File Naming
 
@@ -199,7 +199,7 @@ Never use time estimates. Use S/M/L sizing in task manifests and plan summaries.
 
 > **Trust skill pre-discovery:** If the spawning skill passed \`PRE_DISCOVERED_CONTEXT\`, trust it — do not re-read scaffolding (saves tokens). If not passed, fall back to reading scaffolding directly as usual.
 
-1. Read scaffolding via the targeted CLIs (preferred — returns slices, not whole files). Resolve the CLI per \`commands/_shared/cli-invocation.md\`, then:
+1. Read scaffolding via the targeted CLIs (preferred — returns slices, not whole files). Resolve the CLI per \`.claude/skills/st-support/cli-invocation.md\` (CLI) or \`\${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md\` (plugin), then:
    - \`$ST_CLI project tech-stack\` (tech_stack block from project.yaml)
    - \`$ST_CLI roadmap current-phase\` (active phase from roadmap.yaml)
    - \`$ST_CLI requirements list\` (requirement ids + descriptions). Use \`$ST_CLI requirements get <REQ-ID>\` for individual entries you need to expand.
@@ -607,7 +607,7 @@ Types: \`checkpoint:human-verify\`, \`checkpoint:decision\`, \`checkpoint:human-
 
 ### Step 7: Generate Plan Document and Update Scaffolding (WRITE FILES)
 
-**Do NOT manually edit \`.software-teams/state.yaml\`** — use \`$ST_CLI state\` CLI commands for transitions (resolve the CLI per \`commands/_shared/cli-invocation.md\`). Only record decisions, deviations, or blockers via \`Append to \`decisions\` array in \`state.yaml\`:
+**Do NOT manually edit \`.software-teams/state.yaml\`** — use \`$ST_CLI state\` CLI commands for transitions (resolve the CLI per \`.claude/skills/st-support/cli-invocation.md\` (CLI) or \`\${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md\` (plugin)). Only record decisions, deviations, or blockers via \`Append to \`decisions\` array in \`state.yaml\`:
 
 \`\`\`yaml
 - timestamp: "{ISO}"
@@ -656,7 +656,7 @@ First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output 
 5. If test tasks were generated in Step 5a, include them in the manifest and write their \`.T{n}.md\` files using the test variant — they still use PLAN-TASK-AGENT format with \`tier: per-agent\` and \`agent: software-teams-qa-tester\`.
 6. The legacy \`.plan.md\` index is OPTIONAL in three-tier mode — skip unless a downstream consumer explicitly requires it. orchestration.md carries the manifest.
 
-**If tier == single-tier** (fallback — \`/st:quick\`, hotfixes, tiny plans, or \`--single-tier\` passed):
+**If tier == single-tier** (fallback — \`/st-quick\`, hotfixes, tiny plans, or \`--single-tier\` passed):
 
 1. Derive \`slug\` from the plan name using File Naming rules above.
 2. Write index file to \`.software-teams/plans/{phase}-{plan}-{slug}.plan.md\` — follow \`templates/plan.md\`. Include \`slug:\` and \`task_files:\` in frontmatter. Tasks section contains a manifest table (not inline task blocks).
@@ -666,7 +666,7 @@ First, **decide the tier** using the Tier Decision Rule (see "Three-Tier Output 
 
 #### 7b: Update roadmap.yaml — via CLI (no Edit/Write)
 
-Use the \`$ST_CLI roadmap\` CLI (resolve per \`commands/_shared/cli-invocation.md\`) to add the plan entry. **Do NOT edit \`.software-teams/roadmap.yaml\` with Edit/Write** — the CLI is faster, deterministic, and avoids burning tokens on YAML round-trips.
+Use the \`$ST_CLI roadmap\` CLI (resolve per \`.claude/skills/st-support/cli-invocation.md\` (CLI) or \`\${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md\` (plugin)) to add the plan entry. **Do NOT edit \`.software-teams/roadmap.yaml\` with Edit/Write** — the CLI is faster, deterministic, and avoids burning tokens on YAML round-trips.
 
 \`\`\`bash
 $ST_CLI roadmap add-plan \\

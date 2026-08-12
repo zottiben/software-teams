@@ -22,7 +22,7 @@ Actions performed when the user requests to pause work or when a session ends na
 ## Trigger
 
 Fires when:
-- User explicitly requests to pause (\`/st:pause\`)
+- User explicitly requests to pause (\`/st-pause\`)
 - Session is ending (user leaves)
 - Blocking issue encountered (Rule 4 deviation)
 - Checkpoint requires extended user action
@@ -122,19 +122,19 @@ status: {status}
 
 ### Option 1: Continue Where Left Off
 \`\`\`bash
-/st:resume
+/st-resume
 \`\`\`
 
 ### Option 2: Manual Resume
 \`\`\`bash
 # If task was in progress:
-/st:implement-plan {phase}-{plan} --resume-from-task {task}
+/st-implement-plan {phase}-{plan} --resume-from-task {task}
 
 # If planning:
-/st:create-plan {phase}
+/st-create-plan {phase}
 
 # If verifying:
-/st:verify {phase}
+/verify {phase}
 \`\`\`
 
 ## Recent Commits
@@ -184,7 +184,7 @@ Status: {status}
 
 Continuation file: .software-teams/CONTINUE-HERE.md
 
-To resume: /st:resume
+To resume: /st-resume
 
 ───────────────────────────────────────────────────────
 \`\`\`
@@ -204,7 +204,7 @@ This file is:
 
 ## Integration with Resume
 
-The \`/st:resume\` command:
+The \`/st-resume\` command:
 1. Reads \`.software-teams/CONTINUE-HERE.md\`
 2. Loads context specified in the file
 3. Executes the \`next_action\`

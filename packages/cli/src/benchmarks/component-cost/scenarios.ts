@@ -151,10 +151,10 @@ export function projectPerPlan({ spawnsPerPlan, scenario }: ProjectionInputs) {
 
 export const SCENARIOS: Array<{ name: string; hostFile: string; spawnsPerPlan: number }> = [
   // Skill — orchestrator loads this once at the start of every implement-plan run.
-  { name: "implement-plan skill (orchestrator)", hostFile: "framework/commands/implement-plan.md", spawnsPerPlan: 1 },
-  // Skill — orchestrator loads this once per /st:create-plan invocation.
-  { name: "create-plan skill (orchestrator)", hostFile: "framework/commands/create-plan.md", spawnsPerPlan: 1 },
-  // Agent — heaviest tag user. Spawned ~1x per /st:create-plan.
+  { name: "implement-plan skill (orchestrator)", hostFile: "skills/implement-plan/SKILL.md", spawnsPerPlan: 1 },
+  // Skill — orchestrator loads this once per /st-create-plan invocation.
+  { name: "create-plan skill (orchestrator)", hostFile: "skills/create-plan/SKILL.md", spawnsPerPlan: 1 },
+  // Agent — heaviest tag user. Spawned ~1x per /st-create-plan.
   { name: "software-teams-planner spawn", hostFile: "framework/agents/software-teams-planner.md", spawnsPerPlan: 1 },
   // Agent — typical implementer. ~7-10 spawns per implement-plan run.
   { name: "software-teams-backend spawn", hostFile: "framework/agents/software-teams-backend.md", spawnsPerPlan: 8 },

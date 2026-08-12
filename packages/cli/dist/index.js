@@ -11930,7 +11930,7 @@ async function detectProjectType(cwd) {
 // src/utils/copy-framework.ts
 import { join as join2, dirname as dirname2 } from "path";
 import { existsSync as existsSync2, mkdirSync } from "fs";
-import { readdir, stat, chmod } from "fs/promises";
+import { readdir, stat, chmod, rm } from "fs/promises";
 
 // src/utils/settings-merge.ts
 import { mkdir } from "fs/promises";
@@ -12026,6 +12026,65 @@ function removeHooks(existing, removals) {
 
 // src/utils/copy-framework.ts
 var COPIED_SUBDIRS = ["rules"];
+var SKILL_SUPPORT_DIR = "st-support";
+function skillDestinationName(sourceName) {
+  return sourceName === SKILL_SUPPORT_DIR ? SKILL_SUPPORT_DIR : `st-${sourceName}`;
+}
+async function detectSkillChanges(cwd, packageRoot) {
+  const sourceRoot = join2(packageRoot, "skills");
+  const missing = [];
+  const changed = [];
+  if (!existsSync2(sourceRoot))
+    return { missing, changed };
+  const entries = await readdir(sourceRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory())
+      continue;
+    const sourceDir = join2(sourceRoot, entry.name);
+    const destinationName = skillDestinationName(entry.name);
+    const files = new Bun.Glob("**/*");
+    for await (const file of files.scan({ cwd: sourceDir })) {
+      const source = join2(sourceDir, file);
+      if (!(await stat(source)).isFile())
+        continue;
+      const relativeDestination = join2(destinationName, file);
+      const destination = join2(cwd, ".claude", "skills", relativeDestination);
+      if (!existsSync2(destination))
+        missing.push(relativeDestination);
+      else if (await Bun.file(source).text() !== await Bun.file(destination).text()) {
+        changed.push(relativeDestination);
+      }
+    }
+  }
+  return { missing: missing.sort(), changed: changed.sort() };
+}
+async function copySkills(cwd, packageRoot, force) {
+  const sourceRoot = join2(packageRoot, "skills");
+  if (!existsSync2(sourceRoot))
+    return [];
+  const written = [];
+  const entries = await readdir(sourceRoot, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isDirectory())
+      continue;
+    const destinationName = skillDestinationName(entry.name);
+    const sourceDir = join2(sourceRoot, entry.name);
+    const destinationDir = join2(cwd, ".claude", "skills", destinationName);
+    const files = new Bun.Glob("**/*");
+    for await (const file of files.scan({ cwd: sourceDir })) {
+      const source = join2(sourceDir, file);
+      if (!(await stat(source)).isFile())
+        continue;
+      const destination = join2(destinationDir, file);
+      if (!force && existsSync2(destination))
+        continue;
+      mkdirSync(dirname2(destination), { recursive: true });
+      await Bun.write(destination, await Bun.file(source).text());
+      written.push(join2(destinationName, file));
+    }
+  }
+  return written.sort();
+}
 async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRootOverride, stateOnly = false) {
   const oneUp = join2(import.meta.dir, "..");
   const twoUp = join2(import.meta.dir, "..", "..");
@@ -12049,23 +12108,9 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
       await Bun.write(dest, content);
     }
   }
+  await rm(join2(cwd, ".claude", "commands", "st"), { recursive: true, force: true });
   if (!stateOnly) {
-    const commandsDir = join2(packageRoot, "commands");
-    const commandsDest = join2(cwd, ".claude", "commands", "st");
-    if (existsSync2(commandsDir)) {
-      const commandGlob = new Bun.Glob("*.md");
-      for await (const file of commandGlob.scan({ cwd: commandsDir })) {
-        const src2 = join2(commandsDir, file);
-        const dest = join2(commandsDest, file);
-        if (!force && existsSync2(dest))
-          continue;
-        const dir = dirname2(dest);
-        if (!existsSync2(dir))
-          mkdirSync(dir, { recursive: true });
-        const content = await Bun.file(src2).text();
-        await Bun.write(dest, content);
-      }
-    }
+    await copySkills(cwd, packageRoot, force);
     const settingsTemplate = join2(packageRoot, "templates", ".claude", "settings.json");
     if (existsSync2(settingsTemplate)) {
       const settingsDest = join2(cwd, ".claude", "settings.json");
@@ -12205,7 +12250,7 @@ ${routingHeader}
 For any non-trivial task, delegate to an appropriate specialist agent via the Agent tool rather than performing the work yourself. Solo work is acceptable only for:
 
 - Trivial edits (single file, single grep, single shell command).
-- Tasks with no matching specialist in \`.software-teams/framework/agents\` or \`.claude/agents/\`.
+- Tasks with no matching specialist in \`.claude/agents/\`.
 - Agent/framework orchestration itself (configuring, routing, triage, memory updates).
 
 Match specialists to domain: react \u2192 \`software-teams-frontend\` / \`software-teams-programmer\`; php \u2192 \`software-teams-backend\` / \`software-teams-programmer\`; research \u2192 \`software-teams-researcher\`; QA \u2192 \`software-teams-qa-tester\` / \`software-teams-quality\`; etc. The user does NOT want to repeat "use available agents" in every prompt \u2014 treat it as default.
@@ -12223,15 +12268,14 @@ Spawned agents can be truncated mid-task when briefings are too broad. To preven
 
 ## Software Teams Workflow Routing
 
-Recognise natural language Software Teams intents and invoke the matching skill via the Skill tool. Pass the user's full message as the argument.
+Recognise natural language Software Teams intents and invoke only the model-invocable skills via the Skill tool. Pass the user's full message as the argument.
 
-- Plan/ticket analysis \u2192 \`/st:create-plan\`
-- Implement/build/execute \u2192 \`/st:implement-plan\`
-- Review PR \u2192 \`/st:pr-review\`
-- Address PR feedback \u2192 \`/st:pr-feedback\`
-- Commit changes \u2192 \`/st:commit\`
-- Generate/create PR \u2192 \`/st:generate-pr\`
-- Quick/small fix \u2192 \`/st:quick\`
+- Plan/ticket analysis \u2192 \`/st-create-plan\`
+- Implement/build/execute \u2192 \`/st-implement-plan\`
+- Review changes or a PR \u2192 Claude Code's bundled \`/code-review\`
+- Quick/small fix \u2192 \`/st-quick\`
+
+Operational skills are direct-user-only. If the user asks to address PR feedback, commit, create a PR, change worktrees, or alter Software Teams settings, tell them which \`/st-*\` skill to invoke; do not reproduce or bypass its steps.
 
 Extract flags from context: "in a worktree" \u2192 \`--worktree\`, "lightweight" \u2192 \`--worktree-lightweight\`, "single agent" \u2192 \`--single\`, "use teams" \u2192 \`--team\`. If the intent is unclear, ask. Never guess.
 
@@ -12244,7 +12288,7 @@ Per-sub-plan flow (create-plan \u2192 implement \u2192 commit) from an orchestra
 
 ## Iterative Refinement
 
-After \`/st:create-plan\` or \`/st:implement-plan\` completes, the conversation continues naturally \u2014 no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
+After \`/st-create-plan\` or \`/st-implement-plan\` completes, the conversation continues naturally \u2014 no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
 `;
     if (!existsSync2(claudeMdPath)) {
       await Bun.write(claudeMdPath, routingBlock);
@@ -12868,8 +12912,8 @@ Referenced by:
 - \`agents/software-teams-planner.md\` (discover + match)
 - \`the ComplexityRouter component\` (spawn)
 - \`the AgentTeamsOrchestration component\` (spawn)
-- \`framework/commands/create-plan.md\` (discover)
-- \`framework/commands/implement-plan.md\` (spawn)`
+- \`skills/create-plan/SKILL.md\` (discover)
+- \`skills/implement-plan/SKILL.md\` (spawn)`
     }
   },
   defaultOrder: [
@@ -12894,7 +12938,7 @@ var AgentTeamsOrchestration = {
       name: "CorePattern",
       description: "Six-step orchestration pattern for Agent Teams",
       body: `1. **Pre-flight** \u2014 Read command spec, \`@ST:CodebaseContext\`, read state.yaml, set status to "executing". Read each task file's \`agent:\` frontmatter field so you know which specialist to spawn per task (see \`the AgentRouter component\`).
-2. **Create Team** \u2014 \`TeamCreate(team_name: "{slug}-team")\` where \`{slug}\` is the \`current_plan.slug\` field from \`state.yaml\` (set by \`software-teams-planner\` at plan-write time). The literal \`{slug}-team\` pattern is the convention shared by both single-tier (\xA78) and three-tier (\xA73T.8) execution paths in \`commands/implement-plan.md\` \u2014 do not invent a different team-name format.
+2. **Create Team** \u2014 \`TeamCreate(team_name: "{slug}-team")\` where \`{slug}\` is the \`current_plan.slug\` field from \`state.yaml\` (set by \`software-teams-planner\` at plan-write time). The literal \`{slug}-team\` pattern is the convention shared by both single-tier (\xA78) and three-tier (\xA73T.8) execution paths in \`skills/implement-plan/SKILL.md\` \u2014 do not invent a different team-name format.
 3. **Create Tasks** \u2014 TaskCreate per work unit, set \`addBlockedBy\` dependencies
 4. **Spawn Teammates** \u2014 Agent tool, one call per task. **Native spawn is the default** for both \`source: software-teams\` and \`source: claude-code\` agents (see \`AgentRouter.md\` \xA74):
     - **\`source: software-teams\`** (Software Teams framework specialists like \`software-teams-backend\`, \`software-teams-frontend\`, \`software-teams-qa-tester\`) \u2014 \`subagent_type: "{task.agent}"\` directly; Claude Code loads the spec from \`.claude/agents/{task.agent}.md\`, generated by \`software-teams sync-agents\` from \`agents/\`.
@@ -13102,7 +13146,7 @@ reasoning: "{why this mode was chosen}"
 > per-task spawn it makes downstream still loads ONLY the per-agent slice
 > (\`{slug}.T{n}.md\`) plus the SPEC sections cited in the slice's
 > \`**Read first:**\` line \u2014 never the full SPEC, never the full task list. See
-> \`framework/commands/implement-plan.md\` Three-Tier Execution Loop.
+> \`skills/implement-plan/SKILL.md\` Three-Tier Execution Loop.
 
 > **Single-tier plans (legacy):** the primary agent loads the full
 > \`{slug}.plan.md\` index and reads each \`{slug}.T{n}.md\` task file as it
@@ -13407,7 +13451,7 @@ If none of the above yields results, set \`detected: false\`.`
 
 4. **Surface selectively.** When routing or recommending, pull the specific field you need and mention it briefly ("I can see you're on phase {n}, plan {id}..."). Do not dump the whole \`DISCOVERED_STATE\` object.
 
-5. **Refresh, don't stale.** If the skill has multiple passes (e.g. \`/st:build\` option D re-runs discovery after user input), re-read the files \u2014 do not rely on the first pass's findings for the second pass.`
+5. **Refresh, don't stale.** If the skill has multiple passes (e.g. \`/st-build\` option D re-runs discovery after user input), re-read the files \u2014 do not rely on the first pass's findings for the second pass.`
     },
     PassThrough: {
       name: "PassThrough",
@@ -13550,7 +13594,7 @@ Then wait for confirmation. Silent deviation is the failure mode this protocol e
 @ST:StrictnessProtocol
 \`\`\`
 
-Referenced in the footer of user-invocable commands (\`/st:build\`, \`/st:create-plan\`, \`/st:implement-plan\`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.`
+Referenced in the footer of user-invocable commands (\`/st-build\`, \`/st-create-plan\`, \`/st-implement-plan\`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.`
     }
   },
   defaultOrder: [
@@ -13574,9 +13618,9 @@ var CodebaseContext = {
       description: "Rules for loading codebase context from cache",
       body: `1. If \`.software-teams/codebase/summary.md\` exists \u2192 **read it directly** (regardless of age)
 2. If \`.software-teams/codebase/CONVENTIONS.md\` exists \u2192 read it when writing code
-3. If neither exists \u2192 **inform user** to run \`/st:map-codebase\` first, then proceed without codebase context
+3. If neither exists \u2192 **inform user** to run \`/st-map-codebase\` first, then proceed without codebase context
 
-**Never spawn codebase mapper automatically.** The mapper is expensive (~30% of session budget). Only run it via explicit \`/st:map-codebase\` command.
+**Never spawn codebase mapper automatically.** The mapper is expensive (~30% of session budget). Only run it via explicit \`/st-map-codebase\` command.
 
 **Skip entirely if:** \`--skip-codebase\` flag is present in command arguments.`
     },
@@ -14635,7 +14679,7 @@ Runs \`bun run lint:fix\` (\`turbo lint -- --fix\`) asynchronously in the backgr
 
 ## Installation
 
-Registered automatically by \`/st:init\` in \`.claude/settings.local.json\`:
+Registered automatically by \`/st-init\` in \`.claude/settings.local.json\`:
 
 \`\`\`json
 {
@@ -14686,7 +14730,7 @@ Actions performed when the user requests to pause work or when a session ends na
 ## Trigger
 
 Fires when:
-- User explicitly requests to pause (\`/st:pause\`)
+- User explicitly requests to pause (\`/st-pause\`)
 - Session is ending (user leaves)
 - Blocking issue encountered (Rule 4 deviation)
 - Checkpoint requires extended user action
@@ -14786,19 +14830,19 @@ status: {status}
 
 ### Option 1: Continue Where Left Off
 \`\`\`bash
-/st:resume
+/st-resume
 \`\`\`
 
 ### Option 2: Manual Resume
 \`\`\`bash
 # If task was in progress:
-/st:implement-plan {phase}-{plan} --resume-from-task {task}
+/st-implement-plan {phase}-{plan} --resume-from-task {task}
 
 # If planning:
-/st:create-plan {phase}
+/st-create-plan {phase}
 
 # If verifying:
-/st:verify {phase}
+/verify {phase}
 \`\`\`
 
 ## Recent Commits
@@ -14848,7 +14892,7 @@ Status: {status}
 
 Continuation file: .software-teams/CONTINUE-HERE.md
 
-To resume: /st:resume
+To resume: /st-resume
 
 \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 \`\`\`
@@ -14868,7 +14912,7 @@ This file is:
 
 ## Integration with Resume
 
-The \`/st:resume\` command:
+The \`/st-resume\` command:
 1. Reads \`.software-teams/CONTINUE-HERE.md\`
 2. Loads context specified in the file
 3. Executes the \`next_action\`
@@ -15756,7 +15800,8 @@ var BLOCK_END = "# <<< Software Teams <<<";
 var LEGACY_MARKER = "# Software Teams framework";
 var ST_GITIGNORE_PATHS = [
   ".software-teams/",
-  ".claude/commands/st/",
+  ".claude/skills/st-*/",
+  ".claude/skills/st-support/",
   ".claude/agents/software-teams-*.md",
   ".claude/AGENTS.md",
   ".claude/RULES.md",
@@ -15814,7 +15859,7 @@ var initCommand = defineCommand({
     },
     "state-only": {
       type: "boolean",
-      description: "Scaffold only `.software-teams/` \u2014 skip all `.claude/` command and agent generation (intended for plugin users who already have native commands/agents).",
+      description: "Scaffold only `.software-teams/` \u2014 skip all `.claude/` skill and agent generation (intended for plugin users who already have native skills/agents).",
       default: false
     }
   },
@@ -15826,7 +15871,6 @@ var initCommand = defineCommand({
       consola.start("Initialising Software Teams...");
     }
     const dirs = [
-      ...!args["state-only"] ? [".claude/commands/st"] : [],
       ".software-teams/plans",
       ".software-teams/research",
       ".software-teams/codebase",
@@ -15931,11 +15975,11 @@ var initCommand = defineCommand({
       consola.success("Software Teams initialised successfully!");
       consola.info("");
       consola.info("Get started:");
-      consola.info('  /st:create-plan "your feature"');
-      consola.info("  /st:review-plan          (quality-check a plan before approving)");
-      consola.info('  /st:quick "small fix"');
-      consola.info("  /st:statusline           (optional: plan/phase/task in your statusline \u2014 needs python3)");
-      consola.info("  /st:routines             (optional: schedule recurring ST tasks; unattended-run tips)");
+      consola.info('  /st-create-plan "your feature"');
+      consola.info("  /st-review-plan          (quality-check a plan before approving)");
+      consola.info('  /st-quick "small fix"');
+      consola.info("  /st-statusline           (optional: plan/phase/task in your statusline \u2014 needs python3)");
+      consola.info("  /st-routines             (optional: schedule recurring ST tasks; unattended-run tips)");
     }
   }
 });
@@ -17039,7 +17083,7 @@ async function recordPlanReview(cwd, verdict) {
 async function transitionToApproved(cwd, opts = {}) {
   const state = await readState(cwd) ?? {};
   if (opts.force !== true && state.review?.path === "review-plan" && state.review?.quality_gate?.one_shot_ready !== true) {
-    throw new Error("Cannot approve: a plan review is in progress and the quality gate is not satisfied yet. " + "Run /st:review-plan to finish the review, or pass --force to override.");
+    throw new Error("Cannot approve: a plan review is in progress and the quality gate is not satisfied yet. " + "Run /st-review-plan to finish the review, or pass --force to override.");
   }
   state.position = {
     ...state.position,
@@ -17736,11 +17780,26 @@ function checkTools(file, field, entries, isSubagent, errors, warnings) {
 }
 async function readMarkdown(dir) {
   const entries = await readdir2(dir, { withFileTypes: true }).catch(() => []);
-  const files = entries.filter((e2) => e2.isFile() && e2.name.endsWith(".md"));
-  return Promise.all(files.map(async (e2) => ({
-    file: join17(dir, e2.name),
-    source: await readFile(join17(dir, e2.name), "utf8")
+  const directFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md"));
+  const direct = await Promise.all(directFiles.map(async (entry) => ({
+    file: join17(dir, entry.name),
+    source: await readFile(join17(dir, entry.name), "utf8")
   })));
+  const nested = await Promise.all(entries.filter((entry) => entry.isDirectory()).map((entry) => readSkillEntrypoints(join17(dir, entry.name))));
+  return [...direct, ...nested.flat()];
+}
+async function readSkillEntrypoints(dir) {
+  const entries = await readdir2(dir, { withFileTypes: true }).catch(() => []);
+  const out = [];
+  for (const entry of entries) {
+    const file = join17(dir, entry.name);
+    if (entry.isFile() && entry.name === "SKILL.md") {
+      out.push({ file, source: await readFile(file, "utf8") });
+    } else if (entry.isDirectory()) {
+      out.push(...await readSkillEntrypoints(file));
+    }
+  }
+  return out;
 }
 function asList(value) {
   if (value === undefined)
@@ -17753,10 +17812,10 @@ async function validateFrontmatter(opts) {
   const errors = [];
   const warnings = [];
   const agentFiles = await readMarkdown(opts.agentsDir);
-  const commandFiles = (await Promise.all(opts.commandDirs.map((d2) => readMarkdown(d2)))).flat();
+  const skillFiles = (await Promise.all(opts.skillDirs.map((dir) => readMarkdown(dir)))).flat();
   const all = [
     ...agentFiles.map((f3) => ({ ...f3, isSubagent: true })),
-    ...commandFiles.map((f3) => ({ ...f3, isSubagent: false }))
+    ...skillFiles.map((f3) => ({ ...f3, isSubagent: false }))
   ];
   for (const { file, source, isSubagent } of all) {
     const fm = parseFrontmatter2(source);
@@ -17779,8 +17838,73 @@ async function validateFrontmatter(opts) {
         message: `"${effort}" is not an effort level (${EFFORT_LEVELS.join(", ")}).`
       });
     }
+    if (!isSubagent)
+      checkSkillFrontmatter(file, fm, errors);
   }
   return { errors, warnings, filesChecked: all.length };
+}
+var SKILL_FRONTMATTER_FIELDS = new Set([
+  "name",
+  "description",
+  "when_to_use",
+  "argument-hint",
+  "arguments",
+  "disable-model-invocation",
+  "user-invocable",
+  "allowed-tools",
+  "disallowed-tools",
+  "model",
+  "effort",
+  "context",
+  "agent",
+  "background",
+  "hooks",
+  "paths",
+  "shell",
+  "metadata",
+  "license",
+  "compatibility"
+]);
+function checkSkillFrontmatter(file, frontmatter, errors) {
+  for (const field of Object.keys(frontmatter)) {
+    if (!SKILL_FRONTMATTER_FIELDS.has(field)) {
+      errors.push({
+        file,
+        field,
+        value: String(frontmatter[field]),
+        message: `"${field}" is not a Claude Code skill frontmatter field.`
+      });
+    }
+  }
+  const context = frontmatter["context"];
+  if (typeof context === "string" && context !== "fork") {
+    errors.push({
+      file,
+      field: "context",
+      value: context,
+      message: "Skill context must be `fork`; move legacy shell context into body !`command` injection."
+    });
+  }
+  const background = frontmatter["background"];
+  if (background !== undefined && context !== "fork") {
+    errors.push({
+      file,
+      field: "background",
+      value: String(background),
+      message: "Skill background is valid only with `context: fork`."
+    });
+  }
+  for (const field of ["disable-model-invocation", "user-invocable", "background"]) {
+    const value = frontmatter[field];
+    if (typeof value === "string" && !["true", "false"].includes(value)) {
+      errors.push({
+        file,
+        field,
+        value,
+        message: `Skill ${field} must be true or false.`
+      });
+    }
+  }
 }
 function validateModelConfig(config) {
   const findings = [];
@@ -17836,7 +17960,7 @@ function readRecord2(value) {
 function resolvePackageRoot() {
   const start = dirname7(fileURLToPath(import.meta.url));
   const candidates = ["..", "../..", "../../..", "../../../.."];
-  const found = candidates.map((c3) => resolve8(start, c3)).find((dir) => existsSync20(join18(dir, "agents")) && existsSync20(join18(dir, "commands")));
+  const found = candidates.map((c3) => resolve8(start, c3)).find((dir) => existsSync20(join18(dir, "agents")) && existsSync20(join18(dir, "skills")));
   return found ?? resolve8(start, "../..");
 }
 function report(label, findings) {
@@ -17848,7 +17972,7 @@ function report(label, findings) {
 var validateFrontmatterCommand = defineCommand({
   meta: {
     name: "validate-frontmatter",
-    description: "Validate agent/command frontmatter and model profiles against the real Claude Code surface"
+    description: "Validate agent/skill frontmatter and model profiles against the real Claude Code surface"
   },
   args: {
     root: {
@@ -17866,7 +17990,7 @@ var validateFrontmatterCommand = defineCommand({
     const root = args.root ? resolve8(String(args.root)) : resolvePackageRoot();
     const result = await validateFrontmatter({
       agentsDir: join18(root, "agents"),
-      commandDirs: [join18(root, "commands"), join18(root, "skills")]
+      skillDirs: [join18(root, "skills")]
     });
     const configPath = join18(root, "config", "config.yaml");
     const configFindings = existsSync20(configPath) ? validateModelConfig(import_yaml10.parse(await readFile2(configPath, "utf8"))) : [];
@@ -18883,7 +19007,7 @@ Tasks (${tasks.length}):`);
       }
       await writeState(cwd, state);
       consola.success(`Plan '${name}' approved (revision ${revision}).`);
-      consola.info("Say 'implement this' in Claude Code or run `/st:implement-plan` to execute.");
+      consola.info("Say 'implement this' in Claude Code or run `/st-implement-plan` to execute.");
     } else {
       const now = new Date().toISOString();
       const newRevision = revision + 1;
@@ -18980,7 +19104,7 @@ var planApproveCommand = defineCommand({
     }
     await writeState(cwd, state);
     consola.success(`Plan '${planName}' approved (revision ${revision}).`);
-    consola.info("Say 'implement this' in Claude Code or run `/st:implement-plan` to execute.");
+    consola.info("Say 'implement this' in Claude Code or run `/st-implement-plan` to execute.");
   }
 });
 
@@ -20046,7 +20170,7 @@ function buildPrePlanDiscoveryBrief(ctx) {
   ];
 }
 
-// commands/_shared/self-reference-style.md
+// skills/st-support/self-reference-style.md
 var self_reference_style_default = `## Self-reference style (MANDATORY)
 
 In any user-facing output, use the user-facing role label, NEVER the internal subagent identifier. The mapping:
@@ -20072,10 +20196,10 @@ In any user-facing output, use the user-facing role label, NEVER the internal su
 Do NOT use the literal strings \`software-teams-planner\`, \`software-teams-programmer\`, \`software-teams-frontend\`, \`software-teams-backend\`, \`software-teams-quality\`, \`software-teams-pr-feedback\`, or any other \`software-teams-*\` identifier in any user-visible output.
 `;
 
-// commands/_shared/plan-three-tier-artifacts.md
-var plan_three_tier_artifacts_default = '# Plan: three-tier artifacts contract\n\nWhen a plan is emitted in three-tier mode, the planner MUST write exactly the three artifact kinds described below under `.software-teams/plans/`. This contract is shared by the local `/st:create-plan` skill (when its Tier Decision Rule resolves to three-tier) and the GitHub Action\'s prompt builder (which always demands three-tier). The "always" requirement for the action is enforced where the fragment is consumed, not here \u2014 this fragment is artifact-shape only.\n\n## Required artifacts (three-tier mode, no exceptions)\n\n1. **`{slug}.spec.md`** \u2014 requirements + acceptance criteria. Plain markdown, optional frontmatter.\n\n2. **`{slug}.orchestration.md`** \u2014 the tasks manifest. Frontmatter MUST include:\n   - `available_agents:` \u2014 list of subagent types the planner considered\n   - `primary_agent:` \u2014 the lead agent for this plan\n   - `task_files:` \u2014 list of every per-agent slice path\n   - `issue: <N>` *(action only)* \u2014 the issue number this plan addresses; the action\'s runner uses it to find the plan when implementing\n   - `repo: <owner>/<name>` *(action only)* \u2014 the repository this plan was authored against\n\n   Body contains the Tasks manifest table: `ID | Task | Agent | Priority | Requires`.\n\n3. **`{slug}.T{n}.md` per-agent slices** \u2014 one per task. Each slice\'s frontmatter MUST include:\n   - `agent:` \u2014 the specific subagent type (e.g. `software-teams-frontend`, `software-teams-backend`)\n   - `tier: per-agent`\n   - `spec_link:` \u2014 path back to the spec file\n   - `orchestration_link:` \u2014 path back to the orchestration file\n\n   Single-task plans still produce exactly one `.T1.md` slice.\n\n## Forbidden in three-tier mode\n\n- **Do NOT write `{slug}.plan.md`** \u2014 that is the legacy single-tier index. It must not appear in any three-tier output. The action\'s runner explicitly forbids it; the skill\'s three-tier verifier treats it as legacy-optional.\n';
+// skills/st-support/plan-three-tier-artifacts.md
+var plan_three_tier_artifacts_default = '# Plan: three-tier artifacts contract\n\nWhen a plan is emitted in three-tier mode, the planner MUST write exactly the three artifact kinds described below under `.software-teams/plans/`. This contract is shared by the local `/st-create-plan` skill (when its Tier Decision Rule resolves to three-tier) and the GitHub Action\'s prompt builder (which always demands three-tier). The "always" requirement for the action is enforced where the fragment is consumed, not here \u2014 this fragment is artifact-shape only.\n\n## Required artifacts (three-tier mode, no exceptions)\n\n1. **`{slug}.spec.md`** \u2014 requirements + acceptance criteria. Plain markdown, optional frontmatter.\n\n2. **`{slug}.orchestration.md`** \u2014 the tasks manifest. Frontmatter MUST include:\n   - `available_agents:` \u2014 list of subagent types the planner considered\n   - `primary_agent:` \u2014 the lead agent for this plan\n   - `task_files:` \u2014 list of every per-agent slice path\n   - `issue: <N>` *(action only)* \u2014 the issue number this plan addresses; the action\'s runner uses it to find the plan when implementing\n   - `repo: <owner>/<name>` *(action only)* \u2014 the repository this plan was authored against\n\n   Body contains the Tasks manifest table: `ID | Task | Agent | Priority | Requires`.\n\n3. **`{slug}.T{n}.md` per-agent slices** \u2014 one per task. Each slice\'s frontmatter MUST include:\n   - `agent:` \u2014 the specific subagent type (e.g. `software-teams-frontend`, `software-teams-backend`)\n   - `tier: per-agent`\n   - `spec_link:` \u2014 path back to the spec file\n   - `orchestration_link:` \u2014 path back to the orchestration file\n\n   Single-task plans still produce exactly one `.T1.md` slice.\n\n## Forbidden in three-tier mode\n\n- **Do NOT write `{slug}.plan.md`** \u2014 that is the legacy single-tier index. It must not appear in any three-tier output. The action\'s runner explicitly forbids it; the skill\'s three-tier verifier treats it as legacy-optional.\n';
 
-// commands/_shared/pr-template-conciseness.md
+// skills/st-support/pr-template-conciseness.md
 var pr_template_conciseness_default = `# PR template conciseness rules
 
 When filling a repo's PR template after implementation, the goal is a description a busy reviewer can skim in 30 seconds and decide whether to open the diff. Verbose, per-file enumerations defeat that \u2014 reviewers ALREADY have the diff. Apply these rules to the filled template:
@@ -23325,7 +23449,7 @@ async function detectFrameworkChanges(cwd, packageRoot2) {
 var syncFrameworkCommand = defineCommand({
   meta: {
     name: "sync-framework",
-    description: "Refresh the .software-teams/framework/ snapshot from canonical framework/ and re-sync .claude/agents/"
+    description: "Refresh Software Teams rules, native skills, and generated Claude Code agents"
   },
   args: {
     "dry-run": {
@@ -23348,11 +23472,12 @@ var syncFrameworkCommand = defineCommand({
       consola.error(`Software Teams package layout not found at ${packageRoot2}. Are you running from inside the Software Teams package?`);
       process.exit(1);
     }
-    consola.start(`Refreshing .software-teams/framework/ from ${packageRoot2}${dryRun ? " (dry-run)" : ""}`);
+    consola.start(`Refreshing Software Teams payloads from ${packageRoot2}${dryRun ? " (dry-run)" : ""}`);
     const { missing, changed } = await detectFrameworkChanges(cwd, packageRoot2);
-    const totalDelta = missing.length + changed.length;
+    const skillChanges = await detectSkillChanges(cwd, packageRoot2);
+    const totalDelta = missing.length + changed.length + skillChanges.missing.length + skillChanges.changed.length;
     if (totalDelta === 0) {
-      consola.success(".software-teams/framework/ is already up to date \u2014 no changes needed.");
+      consola.success("Rules and native skills are already up to date \u2014 no changes needed.");
       if (!dryRun) {
         const conv2 = await convertAgents({ cwd, models, efforts });
         consola.info(`Re-synced ${conv2.written.length} agents to .claude/agents/`);
@@ -23367,11 +23492,21 @@ var syncFrameworkCommand = defineCommand({
         consola.info(`  \u2026 and ${missing.length - 20} more`);
     }
     if (changed.length > 0) {
-      consola.info(`${changed.length} drifted file(s):`);
+      consola.info(`${changed.length} drifted rule file(s):`);
       for (const f3 of changed.slice(0, 20))
         consola.info(`  ~ ${f3}`);
       if (changed.length > 20)
         consola.info(`  \u2026 and ${changed.length - 20} more`);
+    }
+    if (skillChanges.missing.length > 0) {
+      consola.info(`${skillChanges.missing.length} missing native skill file(s):`);
+      for (const f3 of skillChanges.missing.slice(0, 20))
+        consola.info(`  + ${f3}`);
+    }
+    if (skillChanges.changed.length > 0) {
+      consola.info(`${skillChanges.changed.length} drifted native skill file(s):`);
+      for (const f3 of skillChanges.changed.slice(0, 20))
+        consola.info(`  ~ ${f3}`);
     }
     if (dryRun) {
       consola.info("Dry-run complete \u2014 no files written.");
@@ -23379,7 +23514,7 @@ var syncFrameworkCommand = defineCommand({
     }
     const projectType = await detectProjectType(cwd);
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot2);
-    consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
+    consola.success(`Refreshed rules and native skills (${totalDelta} files updated).`);
     for (const rel of PRESERVED_STATE_FILES) {
       const p = join31(cwd, rel);
       if (existsSync37(p)) {
@@ -24677,7 +24812,7 @@ async function status() {
     console.log("\u2192 OFF");
   } else {
     const majority = trueCount >= 2 ? "off" : "on";
-    console.log(`\u2192 DRIFT \u2014 run /st:orchestrator-mode ${majority} to converge`);
+    console.log(`\u2192 DRIFT \u2014 run /st-orchestrator-mode ${majority} to converge`);
   }
   return 0;
 }
@@ -24787,7 +24922,7 @@ async function status2() {
   } else if (trueCount === 0) {
     console.log("\u2192 OFF");
   } else {
-    console.log("\u2192 DRIFT \u2014 run /st:ask-questions on to converge");
+    console.log("\u2192 DRIFT \u2014 run /st-ask-questions on to converge");
   }
   return 0;
 }
@@ -26075,7 +26210,7 @@ var package_default = {
     "lib",
     "action",
     "agents",
-    "commands",
+    "skills",
     "templates",
     "rules",
     "config"

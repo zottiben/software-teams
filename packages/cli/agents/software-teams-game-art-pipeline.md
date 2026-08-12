@@ -35,7 +35,7 @@ Before writing workflow JSON, training configs, or ingestion scripts:
 ## Stack Loading
 
 On activation:
-1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` to read stack identifiers.
+1. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI project tech-stack` to read stack identifiers.
 2. Load `.software-teams/framework/stacks/comfyui-pipeline.md` if present.
 3. Load `.software-teams/framework/stacks/unity-csharp.md` if present.
 4. Convention file content overrides generic defaults in this spec.

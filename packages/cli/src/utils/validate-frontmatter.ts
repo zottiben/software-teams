@@ -132,13 +132,36 @@ function checkTools(
 
 async function readMarkdown(dir: string): Promise<Array<{ file: string; source: string }>> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  const files = entries.filter((e) => e.isFile() && e.name.endsWith(".md"));
-  return Promise.all(
-    files.map(async (e) => ({
-      file: join(dir, e.name),
-      source: await readFile(join(dir, e.name), "utf8"),
+  const directFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md"));
+  const direct = await Promise.all(
+    directFiles.map(async (entry) => ({
+      file: join(dir, entry.name),
+      source: await readFile(join(dir, entry.name), "utf8"),
     })),
   );
+  const nested = await Promise.all(
+    entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => readSkillEntrypoints(join(dir, entry.name))),
+  );
+  return [...direct, ...nested.flat()];
+}
+
+/** Supporting markdown is lazy reference material, not a frontmatter surface. */
+async function readSkillEntrypoints(
+  dir: string,
+): Promise<Array<{ file: string; source: string }>> {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  const out: Array<{ file: string; source: string }> = [];
+  for (const entry of entries) {
+    const file = join(dir, entry.name);
+    if (entry.isFile() && entry.name === "SKILL.md") {
+      out.push({ file, source: await readFile(file, "utf8") });
+    } else if (entry.isDirectory()) {
+      out.push(...await readSkillEntrypoints(file));
+    }
+  }
+  return out;
 }
 
 function asList(value: string | string[] | undefined): string[] {
@@ -150,24 +173,24 @@ function asList(value: string | string[] | undefined): string[] {
 /**
  * Validate agent specs and command/skill files under `root`.
  *
- * `agentsDir` files are subagent specs, so they get the extra
- * stripped-tool check. `commandDirs` files run in the main thread and do not.
+ * `agentsDir` files are subagent specs, so they get the extra stripped-tool
+ * check. `skillDirs` entrypoints run in the main thread or an explicit fork.
  */
 export async function validateFrontmatter(opts: {
   readonly agentsDir: string;
-  readonly commandDirs: readonly string[];
+  readonly skillDirs: readonly string[];
 }): Promise<FrontmatterReport> {
   const errors: FrontmatterFinding[] = [];
   const warnings: FrontmatterFinding[] = [];
 
   const agentFiles = await readMarkdown(opts.agentsDir);
-  const commandFiles = (
-    await Promise.all(opts.commandDirs.map((d) => readMarkdown(d)))
+  const skillFiles = (
+    await Promise.all(opts.skillDirs.map((dir) => readMarkdown(dir)))
   ).flat();
 
   const all = [
     ...agentFiles.map((f) => ({ ...f, isSubagent: true })),
-    ...commandFiles.map((f) => ({ ...f, isSubagent: false })),
+    ...skillFiles.map((f) => ({ ...f, isSubagent: false })),
   ];
 
   for (const { file, source, isSubagent } of all) {
@@ -207,9 +230,83 @@ export async function validateFrontmatter(opts: {
         message: `"${effort}" is not an effort level (${EFFORT_LEVELS.join(", ")}).`,
       });
     }
+
+    if (!isSubagent) checkSkillFrontmatter(file, fm, errors);
   }
 
   return { errors, warnings, filesChecked: all.length };
+}
+
+const SKILL_FRONTMATTER_FIELDS = new Set([
+  "name",
+  "description",
+  "when_to_use",
+  "argument-hint",
+  "arguments",
+  "disable-model-invocation",
+  "user-invocable",
+  "allowed-tools",
+  "disallowed-tools",
+  "model",
+  "effort",
+  "context",
+  "agent",
+  "background",
+  "hooks",
+  "paths",
+  "shell",
+  "metadata",
+  "license",
+  "compatibility",
+]);
+
+function checkSkillFrontmatter(
+  file: string,
+  frontmatter: Record<string, string | string[]>,
+  errors: FrontmatterFinding[],
+): void {
+  for (const field of Object.keys(frontmatter)) {
+    if (!SKILL_FRONTMATTER_FIELDS.has(field)) {
+      errors.push({
+        file,
+        field,
+        value: String(frontmatter[field]),
+        message: `"${field}" is not a Claude Code skill frontmatter field.`,
+      });
+    }
+  }
+
+  const context = frontmatter["context"];
+  if (typeof context === "string" && context !== "fork") {
+    errors.push({
+      file,
+      field: "context",
+      value: context,
+      message: "Skill context must be `fork`; move legacy shell context into body !`command` injection.",
+    });
+  }
+
+  const background = frontmatter["background"];
+  if (background !== undefined && context !== "fork") {
+    errors.push({
+      file,
+      field: "background",
+      value: String(background),
+      message: "Skill background is valid only with `context: fork`.",
+    });
+  }
+
+  for (const field of ["disable-model-invocation", "user-invocable", "background"] as const) {
+    const value = frontmatter[field];
+    if (typeof value === "string" && !["true", "false"].includes(value)) {
+      errors.push({
+        file,
+        field,
+        value,
+        message: `Skill ${field} must be true or false.`,
+      });
+    }
+  }
 }
 
 /** Validate the `models:` profiles and overrides in a parsed config.yaml. */

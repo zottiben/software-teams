@@ -4,9 +4,9 @@ import { buildPrePlanDiscoveryBrief } from "./discovery-brief";
 
 export { buildPrePlanDiscoveryBrief };
 
-import selfReferenceStyleFragment from "../../../../commands/_shared/self-reference-style.md" with { type: "text" };
-import planThreeTierArtifactsFragment from "../../../../commands/_shared/plan-three-tier-artifacts.md" with { type: "text" };
-import prTemplateConcisenessFragment from "../../../../commands/_shared/pr-template-conciseness.md" with { type: "text" };
+import selfReferenceStyleFragment from "../../../../skills/st-support/self-reference-style.md" with { type: "text" };
+import planThreeTierArtifactsFragment from "../../../../skills/st-support/plan-three-tier-artifacts.md" with { type: "text" };
+import prTemplateConcisenessFragment from "../../../../skills/st-support/pr-template-conciseness.md" with { type: "text" };
 
 export function buildSubagentBrief(ctx: ActionContext): string {
   const { flow, repo, issueNumber, userRequest, conversationHistory, featureBranch } = ctx;

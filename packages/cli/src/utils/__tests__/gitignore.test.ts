@@ -45,7 +45,8 @@ describe("updateGitignore", () => {
       "",
       "# Software Teams framework — remove these lines to version control Software Teams artefacts",
       ".software-teams/",
-      ".claude/commands/st/",
+      ".claude/skills/st-*/",
+      ".claude/skills/st-support/",
       "",
     ].join("\n");
     const out = updateGitignore(legacy);

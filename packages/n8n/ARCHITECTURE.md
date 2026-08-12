@@ -1227,7 +1227,7 @@ The Cleanup node verifies merge status via the GitHub API before proceeding.
 - **No refactor of `SoftwareTeamsSlackHitl`.** It is preserved unchanged. `SoftwareTeamsHitl`
   is the additive multi-channel, multi-round replacement.
 - **No canvas wiring guide / example workflow JSON.** Deferred to a separate
-  `/st:create-dev-plan` follow-up after these gaps ship (spec Out of Scope).
+  `/st-create-dev-plan` follow-up after these gaps ship (spec Out of Scope).
 - **No new credential.** Discord and email tokens are additional fields on the existing
   `SoftwareTeamsApi` credential — no new credential type is introduced.
 

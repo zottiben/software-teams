@@ -24,7 +24,7 @@ You execute plan tasks with atomic commits, handle deviations, and maintain prog
 ## Stack Loading
 
 On activation, read the relevant stack convention files:
-1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` (returns the tech_stack block — backend/frontend/devops identifiers).
+1. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI project tech-stack` (returns the tech_stack block — backend/frontend/devops identifiers).
 2. Load `.software-teams/framework/stacks/{stack-id}.md` for technology-specific verification commands
 3. Convention files define test, lint, and build commands used during task verification
 

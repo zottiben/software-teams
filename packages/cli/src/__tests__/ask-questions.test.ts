@@ -174,7 +174,7 @@ describe("askQuestions integration", () => {
     }
 
     expect(stdout).toContain("DRIFT");
-    expect(stdout).toContain("/st:ask-questions on");
+    expect(stdout).toContain("/st-ask-questions on");
   });
 
   test("status reports DRIFT when @import present but directive missing", async () => {
@@ -212,16 +212,16 @@ describe("ask-questions framework lint", () => {
   });
 
   // Skill file exists and declares the expected frontmatter.
-  test("commands/ask-questions.md exists and has required metadata", () => {
-    const fullPath = join(repoRoot, "commands", "ask-questions.md");
+  test("skills/ask-questions/SKILL.md exists and has required metadata", () => {
+    const fullPath = join(repoRoot, "skills", "ask-questions", "SKILL.md");
     expect(existsSync(fullPath)).toBe(true);
 
     const content = readFileSync(fullPath, "utf-8");
     const m = content.match(/^---\n([\s\S]*?)\n---/);
-    expect(m, "commands/ask-questions.md missing frontmatter").toBeTruthy();
+    expect(m, "skills/ask-questions/SKILL.md missing frontmatter").toBeTruthy();
 
     const frontmatter = m![1]!;
-    expect(frontmatter).toContain("name: ask-questions");
+    expect(frontmatter).toContain("name: st-ask-questions");
     expect(frontmatter).toContain("allowed-tools: Read, Bash");
     expect(frontmatter).toContain("<on | off | status>");
 
@@ -241,14 +241,13 @@ describe("ask-questions framework lint", () => {
     expect(content).not.toContain("@.claude/ask-questions.md");
   });
 
-  // The toggle is documented in its own command doc. Plugin init.md was
-  // slimmed (plan 01-01 plugin-cli-bundling) and no longer carries onboarding
-  // pointers, so discoverability lives in the canonical command doc.
-  test("commands/ask-questions.md documents the /st:ask-questions on toggle", () => {
-    const fullPath = join(repoRoot, "commands", "ask-questions.md");
+  // The toggle is documented in its own skill. Plugin init stays slim, so
+  // discoverability lives in the canonical native skill payload.
+  test("skills/ask-questions/SKILL.md documents the /st-ask-questions on toggle", () => {
+    const fullPath = join(repoRoot, "skills", "ask-questions", "SKILL.md");
     expect(existsSync(fullPath)).toBe(true);
 
     const content = readFileSync(fullPath, "utf-8");
-    expect(content).toContain("/st:ask-questions on");
+    expect(content).toContain("/st-ask-questions on");
   });
 });

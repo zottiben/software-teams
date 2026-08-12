@@ -8,7 +8,7 @@
  *
  * Mode:
  *   --from-resolved  (default) Read inlined output from `.claude/agents/` and
- *                    `.claude/commands/st/` — measures cost post-sync, where
+ *                    `.claude/skills/st-{name}/` — measures cost post-sync, where
  *                    every @ST: tag is already baked into the host file.
  *
  * The legacy `--from-source` mode (read source markdown + resolve tags) was

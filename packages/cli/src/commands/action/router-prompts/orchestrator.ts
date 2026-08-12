@@ -3,8 +3,8 @@ import { agentTypeToRoleLabel } from "../../../utils/orchestration";
 import { type ActionContext } from "./types";
 import { pickSubagent } from "./types";
 import { buildSubagentBrief } from "./brief-builders";
-import selfReferenceStyleFragment from "../../../../commands/_shared/self-reference-style.md" with { type: "text" };
-import prTemplateConcisenessFragment from "../../../../commands/_shared/pr-template-conciseness.md" with { type: "text" };
+import selfReferenceStyleFragment from "../../../../skills/st-support/self-reference-style.md" with { type: "text" };
+import prTemplateConcisenessFragment from "../../../../skills/st-support/pr-template-conciseness.md" with { type: "text" };
 
 function buildPerSliceBrief(ctx: ActionContext, slice: { slicePath: string; agentType: string }, sliceIndex: number): string {
   if (!ctx.orchestration) throw new Error("buildPerSliceBrief called without orchestration context");

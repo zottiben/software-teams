@@ -1,7 +1,7 @@
 /**
  * `software-teams validate-frontmatter` — CI gate for the Claude Code surface.
  *
- * Checks every shipped agent spec, command, and the model profiles in
+ * Checks every shipped agent spec, native skill, and the model profiles in
  * config.yaml against the real tool names, model aliases, and effort levels.
  * Runs against the package's own payload directories, so it validates what we
  * ship rather than what happens to be installed in the caller's repo.
@@ -30,7 +30,7 @@ function resolvePackageRoot(): string {
   const candidates = ["..", "../..", "../../..", "../../../.."];
   const found = candidates
     .map((c) => resolve(start, c))
-    .find((dir) => existsSync(join(dir, "agents")) && existsSync(join(dir, "commands")));
+    .find((dir) => existsSync(join(dir, "agents")) && existsSync(join(dir, "skills")));
   return found ?? resolve(start, "../..");
 }
 
@@ -45,7 +45,7 @@ export const validateFrontmatterCommand = defineCommand({
   meta: {
     name: "validate-frontmatter",
     description:
-      "Validate agent/command frontmatter and model profiles against the real Claude Code surface",
+      "Validate agent/skill frontmatter and model profiles against the real Claude Code surface",
   },
   args: {
     root: {
@@ -64,7 +64,7 @@ export const validateFrontmatterCommand = defineCommand({
 
     const result = await validateFrontmatter({
       agentsDir: join(root, "agents"),
-      commandDirs: [join(root, "commands"), join(root, "skills")],
+      skillDirs: [join(root, "skills")],
     });
 
     const configPath = join(root, "config", "config.yaml");

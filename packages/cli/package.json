@@ -42,7 +42,7 @@
     "lib",
     "action",
     "agents",
-    "commands",
+    "skills",
     "templates",
     "rules",
     "config"

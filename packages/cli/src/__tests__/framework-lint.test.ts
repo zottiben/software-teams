@@ -76,8 +76,8 @@ describe("framework file invariants", () => {
     expect(content).toContain("task_files");
   });
 
-  test("commands/create-plan.md references split format", () => {
-    const content = readFrameworkFile("commands/create-plan.md");
+  test("skills/create-plan/SKILL.md references split format", () => {
+    const content = readFrameworkFile("skills/create-plan/SKILL.md");
 
     // Must reference split or task file
     expect(content).toMatch(/split|task.file/i);
@@ -86,8 +86,8 @@ describe("framework file invariants", () => {
     expect(content).not.toContain("creates plan.md");
   });
 
-  test("commands/implement-plan.md references task files", () => {
-    const content = readFrameworkFile("commands/implement-plan.md");
+  test("skills/implement-plan/SKILL.md references task files", () => {
+    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(content).toMatch(/task_files|task.file|split.plan/i);
   });
 
@@ -125,8 +125,8 @@ describe("framework file invariants", () => {
     expect(content).toMatch(/\.test\.\*|\.spec\.\*/);
   });
 
-  test("commands/create-plan.md includes --with-tests and --without-tests flags", () => {
-    const content = readFrameworkFile("commands/create-plan.md");
+  test("skills/create-plan/SKILL.md includes --with-tests and --without-tests flags", () => {
+    const content = readFrameworkFile("skills/create-plan/SKILL.md");
     expect(content).toContain("--with-tests");
     expect(content).toContain("--without-tests");
   });
@@ -143,22 +143,22 @@ describe("framework file invariants", () => {
     expect(content).toContain("plan-test");
   });
 
-  test("commands/implement-plan.md handles test task type", () => {
-    const content = readFrameworkFile("commands/implement-plan.md");
+  test("skills/implement-plan/SKILL.md handles test task type", () => {
+    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(content).toMatch(/type:\s*test|type: test/);
   });
 
-  test("commands/implement-plan.md Agent Teams branches contain TeamCreate and TeamDelete", () => {
-    const content = readFrameworkFile("commands/implement-plan.md");
+  test("skills/implement-plan/SKILL.md Agent Teams branches contain TeamCreate and TeamDelete", () => {
+    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     const teamCreateCount = (content.match(/TeamCreate\(/g) ?? []).length;
     const teamDeleteCount = (content.match(/\bTeamDelete\b/g) ?? []).length;
     expect(
       teamCreateCount,
-      "commands/implement-plan.md must call TeamCreate( at least twice: once in §8 single-tier Agent Teams branch and once in §3T.8 three-tier per-task spawn loop",
+      "skills/implement-plan/SKILL.md must call TeamCreate( at least twice: once in §8 single-tier Agent Teams branch and once in §3T.8 three-tier per-task spawn loop",
     ).toBeGreaterThanOrEqual(2);
     expect(
       teamDeleteCount,
-      "commands/implement-plan.md must reference TeamDelete at least twice: once in the §11 cleanup and once in the §3T.11 cleanup (or via cross-reference)",
+      "skills/implement-plan/SKILL.md must reference TeamDelete at least twice: once in the §11 cleanup and once in the §3T.11 cleanup (or via cross-reference)",
     ).toBeGreaterThanOrEqual(2);
   });
 
@@ -540,12 +540,12 @@ describe("wave-3 three-tier templates", () => {
 });
 
 describe("review-plan command lint", () => {
-  test("commands/review-plan.md exists with required frontmatter and body", () => {
-    const content = readFrameworkFile("commands/review-plan.md");
+  test("skills/review-plan/SKILL.md exists with required frontmatter and body", () => {
+    const content = readFrameworkFile("skills/review-plan/SKILL.md");
     const m = content.match(/^---\n([\s\S]*?)\n---/);
-    expect(m, "commands/review-plan.md missing frontmatter").toBeTruthy();
+    expect(m, "skills/review-plan/SKILL.md missing frontmatter").toBeTruthy();
     const fm = m![1]!;
-    expect(fm).toContain("name: review-plan");
+    expect(fm).toContain("name: st-review-plan");
     expect(fm).toMatch(/allowed-tools:.*Agent/);
     expect(fm).toMatch(/argument-hint:/);
     expect(content).toMatch(/subagent_type\s*[=:]\s*"software-teams-quality"/);
@@ -559,32 +559,30 @@ describe("review-plan command lint", () => {
     expect(content).toContain("one_shot_ready");
   });
 
-  test("commands/create-plan.md references /st:review-plan", () => {
-    const content = readFrameworkFile("commands/create-plan.md");
-    expect(content).toContain("/st:review-plan");
+  test("skills/create-plan/SKILL.md references /st-review-plan", () => {
+    const content = readFrameworkFile("skills/create-plan/SKILL.md");
+    expect(content).toContain("/st-review-plan");
   });
 });
 
 describe("CLI-wrapper skills for the new commands", () => {
-  // The new CLI features (compile-workflow #1, verify #2) must be usable from
-  // inside Claude Code, not only a terminal. Each is wrapped as a skill that
-  // resolves and invokes $ST_CLI.
-  test("compile-workflow + verify skills exist and invoke $ST_CLI canonically", () => {
-    for (const file of ["compile-workflow.md", "verify.md"]) {
-      const fullPath = resolveFrameworkPath(join("commands", file));
-      expect(existsSync(fullPath), `commands/${file} does not exist`).toBe(true);
-      const content = readFileSync(fullPath, "utf-8");
-      expect(content, `commands/${file} must invoke the CLI via $ST_CLI`).toContain("$ST_CLI");
-      expect(content, `commands/${file} must resolve the CLI via cli-invocation`).toContain("cli-invocation");
-    }
+  test("compile-workflow invokes $ST_CLI canonically", () => {
+    const content = readFrameworkFile("skills/compile-workflow/SKILL.md");
+    expect(content).toContain("$ST_CLI");
+    expect(content).toContain("cli-invocation");
   });
 
-  test("create-plan suggests /st:compile-workflow for three-tier plans", () => {
-    expect(readFrameworkFile("commands/create-plan.md")).toContain("/st:compile-workflow");
+  test("native /verify and /code-review replace bespoke duplicate skills", () => {
+    expect(existsSync(resolveFrameworkPath("skills/verify/SKILL.md"))).toBe(false);
+    expect(existsSync(resolveFrameworkPath("skills/pr-review/SKILL.md"))).toBe(false);
+  });
+
+  test("create-plan suggests /st-compile-workflow for three-tier plans", () => {
+    expect(readFrameworkFile("skills/create-plan/SKILL.md")).toContain("/st-compile-workflow");
   });
 
   test("implement-plan --workflow branch delegates to compile-workflow", () => {
-    expect(readFrameworkFile("commands/implement-plan.md")).toContain("compile-workflow");
+    expect(readFrameworkFile("skills/implement-plan/SKILL.md")).toContain("compile-workflow");
   });
 
   test("statusline renderer ships, is executable, and is stdlib-only (no PyYAML)", () => {
@@ -598,18 +596,18 @@ describe("CLI-wrapper skills for the new commands", () => {
     expect(content, "renderer must be stdlib-only (no PyYAML dependency)").not.toMatch(/^\s*import\s+yaml/m);
   });
 
-  test("/st:statusline skill exists and invokes $ST_CLI statusline", () => {
-    const content = readFrameworkFile("commands/statusline.md");
+  test("/st-statusline skill exists and invokes $ST_CLI statusline", () => {
+    const content = readFrameworkFile("skills/statusline/SKILL.md");
     expect(content).toContain("$ST_CLI statusline");
   });
 
-  test("/st:worktree-merge skill exists and invokes $ST_CLI worktree-merge", () => {
-    const content = readFrameworkFile("commands/worktree-merge.md");
+  test("/st-worktree-merge skill exists and invokes $ST_CLI worktree-merge", () => {
+    const content = readFrameworkFile("skills/worktree-merge/SKILL.md");
     expect(content).toContain("$ST_CLI worktree-merge");
   });
 
   test("implement-plan documents the --isolate worktree flow", () => {
-    const content = readFrameworkFile("commands/implement-plan.md");
+    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(content).toContain("--isolate");
     expect(content).toContain("worktree-merge");
   });
@@ -649,14 +647,14 @@ describe("state-durability (SessionStart) + LSP", () => {
 });
 
 describe("automation, notifications & memory integration", () => {
-  test("/st:routines skill exists and references /loop + /schedule", () => {
-    const content = readFrameworkFile("commands/routines.md");
+  test("/st-routines skill exists and references /loop + /schedule", () => {
+    const content = readFrameworkFile("skills/routines/SKILL.md");
     expect(content).toContain("/loop");
     expect(content).toContain("/schedule");
   });
 
   test("implement-plan documents unattended runs (/goal + PushNotification)", () => {
-    const content = readFrameworkFile("commands/implement-plan.md");
+    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(content).toContain("/goal");
     expect(content).toContain("PushNotification");
   });
@@ -666,11 +664,11 @@ describe("automation, notifications & memory integration", () => {
   });
 
   test("create-plan proactively suggests /goal (unattended runs) for three-tier plans", () => {
-    expect(readFrameworkFile("commands/create-plan.md")).toContain("/goal");
+    expect(readFrameworkFile("skills/create-plan/SKILL.md")).toContain("/goal");
   });
 
   test("implement-plan proactively surfaces the unattended option for large plans", () => {
-    const content = readFrameworkFile("commands/implement-plan.md");
+    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(content).toMatch(/proactively surface/i);
   });
 });
@@ -703,44 +701,37 @@ describe("agent teams — specialist collaboration (experimental, opt-in)", () =
   });
 
   test("implement-plan documents the experimental flag + peer collaboration", () => {
-    const c = readFrameworkFile("commands/implement-plan.md");
+    const c = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(c).toContain("CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS");
     expect(c).toMatch(/peer/i);
   });
 });
 
-describe("wave-2 per-command native subagent presence", () => {
-  const MIGRATED_COMMANDS = [
-    "commit.md",
-    "create-plan.md",
-    "generate-pr.md",
-    "implement-plan.md",
-    "pr-feedback.md",
-    "pr-review.md",
-    "review-plan.md",
+describe("specialist-backed native skills", () => {
+  const SPECIALIST_SKILLS = [
+    "commit",
+    "create-plan",
+    "generate-pr",
+    "implement-plan",
+    "pr-feedback",
+    "review-plan",
   ];
 
-  test("each migrated command file references at least one subagent_type=\"software-teams-...\" OR invokes via Skill tool", () => {
+  test("each specialist-backed skill uses native subagent identity or a fork agent", () => {
     const nativeRe = /subagent_type\s*[=:]\s*"software-teams-[a-z-]+"/;
-    const skillRe = /\bSkill\s+tool\b/i;
+    const forkRe = /^agent:\s+software-teams-[a-z-]+$/m;
 
     const missing: string[] = [];
-    for (const fileName of MIGRATED_COMMANDS) {
-      const filePath = join(repoRoot, "commands", fileName);
-      expect(existsSync(filePath), `missing migrated command file: ${filePath}`).toBe(true);
+    for (const name of SPECIALIST_SKILLS) {
+      const filePath = join(repoRoot, "skills", name, "SKILL.md");
+      expect(existsSync(filePath), `missing native skill file: ${filePath}`).toBe(true);
       const content = readFileSync(filePath, "utf-8");
-
-      const hasNative = nativeRe.test(content);
-      const hasSkill = skillRe.test(content);
-      if (!hasNative && !hasSkill) {
-        missing.push(`${fileName}: neither subagent_type="software-teams-..." nor Skill tool reference`);
-      } else if (!hasNative) {
-        // Useful telemetry but not a failure — a Skill-only command is allowed.
-        console.log(`[wave-2 audit] ${fileName} has no software-teams-* subagent_type but invokes via Skill tool — accepted`);
+      if (!nativeRe.test(content) && !forkRe.test(content)) {
+        missing.push(`${name}: neither native subagent_type nor fork agent frontmatter`);
       }
     }
 
-    expect(missing, `commands missing native subagent_type AND Skill tool fallback:\n${missing.join("\n")}`).toHaveLength(0);
+    expect(missing, `skills missing native specialist routing:\n${missing.join("\n")}`).toHaveLength(0);
   });
 });
 
@@ -806,18 +797,18 @@ describe("orchestrator-mode framework lint", () => {
   });
 
   // AC5 — skill file exists and has correct metadata + argument hint
-  test("commands/orchestrator-mode.md exists and has required metadata", () => {
-    const fullPath = resolveFrameworkPath("commands/orchestrator-mode.md");
-    expect(existsSync(fullPath), `commands/orchestrator-mode.md does not exist`).toBe(true);
+  test("skills/orchestrator-mode/SKILL.md exists and has required metadata", () => {
+    const fullPath = resolveFrameworkPath("skills/orchestrator-mode/SKILL.md");
+    expect(existsSync(fullPath), `skills/orchestrator-mode/SKILL.md does not exist`).toBe(true);
 
     const content = readFileSync(fullPath, "utf-8");
 
     // Extract frontmatter
     const m = content.match(/^---\n([\s\S]*?)\n---/);
-    expect(m, "commands/orchestrator-mode.md missing frontmatter").toBeTruthy();
+    expect(m, "skills/orchestrator-mode/SKILL.md missing frontmatter").toBeTruthy();
 
     const frontmatter = m![1]!;
-    expect(frontmatter).toContain("name: orchestrator-mode");
+    expect(frontmatter).toContain("name: st-orchestrator-mode");
     expect(frontmatter).toContain("allowed-tools: Read, Bash");
     expect(frontmatter).toContain('<on | off | status>');
 
@@ -839,16 +830,16 @@ describe("orchestrator-mode framework lint", () => {
   // AC8 — the orchestrator-mode toggle is documented in its own command doc.
   // Plugin init.md was slimmed (plan 01-01 plugin-cli-bundling) and no longer
   // carries onboarding pointers, so discoverability lives in the canonical doc.
-  test("commands/orchestrator-mode.md documents the /st:orchestrator-mode on toggle", () => {
-    const fullPath = resolveFrameworkPath("commands/orchestrator-mode.md");
-    expect(existsSync(fullPath), `commands/orchestrator-mode.md does not exist`).toBe(true);
+  test("skills/orchestrator-mode/SKILL.md documents the /st-orchestrator-mode on toggle", () => {
+    const fullPath = resolveFrameworkPath("skills/orchestrator-mode/SKILL.md");
+    expect(existsSync(fullPath), `skills/orchestrator-mode/SKILL.md does not exist`).toBe(true);
 
     const content = readFileSync(fullPath, "utf-8");
-    expect(content).toContain("/st:orchestrator-mode on");
+    expect(content).toContain("/st-orchestrator-mode on");
   });
 
-  test("commands/build.md surfaces /st:review-plan in onboarding", () => {
-    const content = readFrameworkFile("commands/build.md");
-    expect(content).toContain("/st:review-plan");
+  test("skills/build/SKILL.md surfaces /st-review-plan in onboarding", () => {
+    const content = readFrameworkFile("skills/build/SKILL.md");
+    expect(content).toContain("/st-review-plan");
   });
 });

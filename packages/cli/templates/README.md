@@ -37,7 +37,7 @@ work, or any plan where a separate WHAT vs HOW boundary helps reviewers.
 | `plan.md` | Monolithic plan: frontmatter + objective + task manifest + verification |
 | `plan-task.md` | Per-task file referenced from `plan.md`'s `task_files:` |
 
-**Use single-tier when:** `/st:quick` flows, hotfixes, or plans with 1-3
+**Use single-tier when:** `/st-quick` flows, hotfixes, or plans with 1-3
 tasks where the three-tier ceremony exceeds the work.
 
 ## Project Scaffolding (unchanged)
