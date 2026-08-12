@@ -1230,3 +1230,73 @@ The Cleanup node verifies merge status via the GitHub API before proceeding.
   `/st:create-dev-plan` follow-up after these gaps ship (spec Out of Scope).
 - **No new credential.** Discord and email tokens are additional fields on the existing
   `SoftwareTeamsApi` credential — no new credential type is introduced.
+
+---
+
+# ADR-006 - Execution engine v2 (subscription auth, real agent identity, typed results)
+
+Supersedes the spawn model in ADR-003 Decision B and the persona resolution in
+ADR-004 Decision K.
+
+## ADR-006 Decision A - Subscription OAuth is the default credential, and the API key is actively excluded
+
+**Context.** Running a Claude Code instance inside each node exists so that work
+bills a Claude subscription rather than the Anthropic API. That only holds if the
+spawned process actually authenticates with the subscription credential.
+
+**The hazard.** Claude Code's credential precedence puts `ANTHROPIC_API_KEY`
+*above* `CLAUDE_CODE_OAUTH_TOKEN`, and in `-p` mode the key is always used when
+present. An n8n worker with a stray key in its environment therefore bills every
+ticket to the API while the operator believes the subscription is in use. Nothing
+warns. The nodes previously made this certain rather than merely possible: each
+one wrote `process.env['ANTHROPIC_API_KEY']` from the credential, and the
+credential marked that key `required`.
+
+**Decision.**
+
+1. The credential offers an explicit `authMode` - `subscription` (default) or
+   `apiKey` - rather than inferring intent from whichever secret is populated.
+2. `buildAuthEnv` constructs the child environment from scratch and **deletes**
+   every higher-precedence credential variable in subscription mode
+   (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, and the three cloud-provider
+   switches). `assertAuthEnv` then re-checks the built environment, so the
+   silent-billing failure becomes a loud one at construction time.
+3. No node writes `process.env`. An n8n worker is long-lived and shared, so a
+   mutation there leaks into every later execution on that worker.
+4. The credential test runs `claude auth status` on the worker and asserts the
+   reported `authMethod` matches the selected mode. Asserting `loggedIn` alone
+   would pass for a worker quietly using the wrong credential.
+
+**Verified** in a clean `node:22-slim` container - no keychain, no credentials
+file, which is the worker shape. With a stray `ANTHROPIC_API_KEY` in the parent
+environment and an intentionally invalid OAuth token, the run fails with
+`401 OAuth access token is invalid`: the key was stripped and the OAuth token was
+genuinely the credential in use. A developer machine cannot verify this, because a
+local keychain login masks the result.
+
+**Consequence.** `--bare` is unavailable. It skips credential discovery along with
+hooks, skills, plugins, MCP, and CLAUDE.md, so it cannot read
+`CLAUDE_CODE_OAUTH_TOKEN` and requires an API key. Determinism on shared workers
+comes from `--setting-sources ''`, `--strict-mcp-config`, and
+`--exclude-dynamic-system-prompt-sections` instead.
+
+---
+
+## ADR-006 Decision B - Agent identity travels in `--agents`, not in the prompt
+
+**Context.** The engine used to locate a specialist's spec file, strip its
+frontmatter, and concatenate the body onto the user prompt. The spec's declared
+`tools`, `model`, and `effort` were discarded, and the agent's instructions
+arrived as user-turn text rather than as a system prompt.
+
+**Decision.** Build a real subagent definition and pass it as `--agents`, then
+select it with `--agent`. The spec body becomes the system prompt; `tools`,
+`model`, and `effort` are honoured by the harness; and `disallowedTools: [Agent]`
+holds each node to a single turn - enforced rather than merely un-approved, since
+`--allowedTools` only waives the permission prompt.
+
+**Consequence.** Spec resolution takes the repository being worked on as an
+explicit `baseDir`, so a project's own `.claude/agents/<name>.md` overrides the
+copy bundled with the node package. The previous implementation climbed five
+directories from `__dirname` to guess at a repo root, which held for exactly one
+installation layout.

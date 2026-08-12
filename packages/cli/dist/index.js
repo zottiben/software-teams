@@ -10120,13 +10120,125 @@ var require_agent_tools = __commonJS((exports) => {
   exports.SINGLE_TURN_DISALLOWED_TOOLS = ["Agent"];
 });
 
+// lib/shared/claude-auth.js
+var require_claude_auth = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.ClaudeAuthError = undefined;
+  exports.buildAuthEnv = buildAuthEnv;
+  exports.assertAuthEnv = assertAuthEnv;
+  exports.describeAuthMismatch = describeAuthMismatch;
+
+  class ClaudeAuthError extends Error {
+  }
+  exports.ClaudeAuthError = ClaudeAuthError;
+  var OVERRIDING_AUTH_VARS = [
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_AUTH_TOKEN",
+    "CLAUDE_CODE_USE_BEDROCK",
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLAUDE_CODE_USE_FOUNDRY"
+  ];
+  function buildAuthEnv(config, baseEnv) {
+    const env2 = { ...baseEnv };
+    if (config.mode === "subscription") {
+      const token = config.oauthToken?.trim();
+      if (!token) {
+        throw new ClaudeAuthError("Subscription auth selected but no OAuth token was provided. " + "Generate one with `claude setup-token` on a machine with a browser, " + "then store it in the Software Teams credential.");
+      }
+      for (const name of OVERRIDING_AUTH_VARS)
+        delete env2[name];
+      env2["CLAUDE_CODE_OAUTH_TOKEN"] = token;
+      return env2;
+    }
+    const key = config.apiKey?.trim();
+    if (!key) {
+      throw new ClaudeAuthError("API-key auth selected but no Anthropic API key was provided.");
+    }
+    delete env2["CLAUDE_CODE_OAUTH_TOKEN"];
+    env2["ANTHROPIC_API_KEY"] = key;
+    return env2;
+  }
+  function assertAuthEnv(mode, env2) {
+    if (mode !== "subscription")
+      return;
+    const offenders = OVERRIDING_AUTH_VARS.filter((name) => env2[name]);
+    if (offenders.length > 0) {
+      throw new ClaudeAuthError(`Subscription auth would be overridden by ${offenders.join(", ")} in the spawn ` + "environment. These outrank CLAUDE_CODE_OAUTH_TOKEN, so the run would not use " + "the subscription.");
+    }
+    if (!env2["CLAUDE_CODE_OAUTH_TOKEN"]) {
+      throw new ClaudeAuthError("Subscription auth selected but CLAUDE_CODE_OAUTH_TOKEN is not set on the spawn " + "environment.");
+    }
+  }
+  function describeAuthMismatch(mode, status3) {
+    if (!status3.loggedIn) {
+      return "Claude Code reports it is not logged in. " + (mode === "subscription" ? "Check the OAuth token; `claude setup-token` issues one valid for a year." : "Check the Anthropic API key.");
+    }
+    const expected = mode === "subscription" ? "oauth_token" : "api_key";
+    if (status3.authMethod && status3.authMethod !== expected) {
+      return `Expected auth method "${expected}" but the worker is using "${status3.authMethod}". ` + (mode === "subscription" ? "An ANTHROPIC_API_KEY in the worker environment outranks the subscription token, " + "so runs would bill the API instead of the subscription." : "Another credential is taking precedence over the API key.");
+    }
+    return null;
+  }
+});
+
+// lib/shared/claude-result.js
+var require_claude_result = __commonJS((exports) => {
+  Object.defineProperty(exports, "__esModule", { value: true });
+  exports.classifyResult = classifyResult;
+  exports.isRetryableLater = isRetryableLater;
+  exports.totalCostUsd = totalCostUsd;
+  var BUDGET_SUBTYPE = "error_max_budget_usd";
+  var TURNS_SUBTYPE = "error_max_turns";
+  var USAGE_LIMIT_PATTERNS = [
+    /hit your (session|weekly|usage) limit/i,
+    /usage limit reached/i,
+    /rate.?limit/i
+  ];
+  var AUTH_PATTERNS = [
+    /not logged in/i,
+    /login expired/i,
+    /oauth (access )?token is invalid/i,
+    /failed to authenticate/i,
+    /invalid.{0,20}api key/i
+  ];
+  function matchesAny(text, patterns) {
+    return patterns.some((re) => re.test(text));
+  }
+  function classifyResult(payload, text) {
+    if (payload?.subtype === BUDGET_SUBTYPE)
+      return "budget";
+    if (payload?.subtype === TURNS_SUBTYPE)
+      return "turns";
+    const haystack = `${text}
+${payload?.result ?? ""}`;
+    if (matchesAny(haystack, AUTH_PATTERNS))
+      return "auth";
+    if (matchesAny(haystack, USAGE_LIMIT_PATTERNS))
+      return "usage-limit";
+    if (payload?.api_error_status === 429)
+      return "usage-limit";
+    if (payload?.api_error_status === 401 || payload?.api_error_status === 403)
+      return "auth";
+    if (payload?.is_error === true)
+      return "error";
+    return "ok";
+  }
+  function isRetryableLater(state) {
+    return state === "usage-limit";
+  }
+  function totalCostUsd(payload) {
+    return typeof payload?.total_cost_usd === "number" ? payload.total_cost_usd : 0;
+  }
+});
+
 // lib/shared/claude-code-surface.js
 var require_claude_code_surface = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.RETIRED_MODEL_PREFIXES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
+  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.STRUCTURED_OUTPUT_TOOL = exports.RETIRED_MODEL_PREFIXES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
   exports.retiredModelReplacement = retiredModelReplacement2;
   exports.isValidModel = isValidModel2;
   exports.isValidToolName = isValidToolName2;
+  exports.withStructuredOutput = withStructuredOutput;
   exports.CLAUDE_CODE_TOOLS = [
     "Agent",
     "Artifact",
@@ -10159,6 +10271,7 @@ var require_claude_code_surface = __commonJS((exports) => {
     "SendUserFile",
     "ShareOnboardingGuide",
     "Skill",
+    "StructuredOutput",
     "TaskCreate",
     "TaskGet",
     "TaskList",
@@ -10219,6 +10332,10 @@ var require_claude_code_surface = __commonJS((exports) => {
   function isValidToolName2(value) {
     return exports.CLAUDE_CODE_TOOLS.includes(value);
   }
+  exports.STRUCTURED_OUTPUT_TOOL = "StructuredOutput";
+  function withStructuredOutput(tools) {
+    return tools.includes(exports.STRUCTURED_OUTPUT_TOOL) ? [...tools] : [...tools, exports.STRUCTURED_OUTPUT_TOOL];
+  }
   exports.N8N_MODEL_OPTIONS = [
     { name: "Inherit Session Default", value: "" },
     { name: "Sonnet (Latest)", value: "sonnet" },
@@ -10269,7 +10386,7 @@ var require_envelope = __commonJS((exports) => {
 // lib/n8n-api.js
 var require_n8n_api = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.isValidToolName = exports.isValidModel = exports.N8N_MODEL_OPTIONS = exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
+  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.STRUCTURED_OUTPUT_TOOL = exports.withStructuredOutput = exports.isValidToolName = exports.isValidModel = exports.N8N_MODEL_OPTIONS = exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.totalCostUsd = exports.isRetryableLater = exports.classifyResult = exports.ClaudeAuthError = exports.describeAuthMismatch = exports.assertAuthEnv = exports.buildAuthEnv = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
   var clickup_1 = require_clickup();
   Object.defineProperty(exports, "extractClickUpRef", { enumerable: true, get: function() {
     return clickup_1.extractClickUpRef;
@@ -10314,6 +10431,29 @@ var require_n8n_api = __commonJS((exports) => {
   Object.defineProperty(exports, "SINGLE_TURN_DISALLOWED_TOOLS", { enumerable: true, get: function() {
     return agent_tools_1.SINGLE_TURN_DISALLOWED_TOOLS;
   } });
+  var claude_auth_1 = require_claude_auth();
+  Object.defineProperty(exports, "buildAuthEnv", { enumerable: true, get: function() {
+    return claude_auth_1.buildAuthEnv;
+  } });
+  Object.defineProperty(exports, "assertAuthEnv", { enumerable: true, get: function() {
+    return claude_auth_1.assertAuthEnv;
+  } });
+  Object.defineProperty(exports, "describeAuthMismatch", { enumerable: true, get: function() {
+    return claude_auth_1.describeAuthMismatch;
+  } });
+  Object.defineProperty(exports, "ClaudeAuthError", { enumerable: true, get: function() {
+    return claude_auth_1.ClaudeAuthError;
+  } });
+  var claude_result_1 = require_claude_result();
+  Object.defineProperty(exports, "classifyResult", { enumerable: true, get: function() {
+    return claude_result_1.classifyResult;
+  } });
+  Object.defineProperty(exports, "isRetryableLater", { enumerable: true, get: function() {
+    return claude_result_1.isRetryableLater;
+  } });
+  Object.defineProperty(exports, "totalCostUsd", { enumerable: true, get: function() {
+    return claude_result_1.totalCostUsd;
+  } });
   var claude_code_surface_1 = require_claude_code_surface();
   Object.defineProperty(exports, "CLAUDE_CODE_TOOLS", { enumerable: true, get: function() {
     return claude_code_surface_1.CLAUDE_CODE_TOOLS;
@@ -10338,6 +10478,12 @@ var require_n8n_api = __commonJS((exports) => {
   } });
   Object.defineProperty(exports, "isValidToolName", { enumerable: true, get: function() {
     return claude_code_surface_1.isValidToolName;
+  } });
+  Object.defineProperty(exports, "withStructuredOutput", { enumerable: true, get: function() {
+    return claude_code_surface_1.withStructuredOutput;
+  } });
+  Object.defineProperty(exports, "STRUCTURED_OUTPUT_TOOL", { enumerable: true, get: function() {
+    return claude_code_surface_1.STRUCTURED_OUTPUT_TOOL;
   } });
   var slugify_1 = require_slugify();
   Object.defineProperty(exports, "slugify", { enumerable: true, get: function() {
@@ -17450,6 +17596,7 @@ var CLAUDE_CODE_TOOLS = [
   "SendUserFile",
   "ShareOnboardingGuide",
   "Skill",
+  "StructuredOutput",
   "TaskCreate",
   "TaskGet",
   "TaskList",
@@ -24671,114 +24818,267 @@ var askQuestionsCommand = defineCommand({
   }
 });
 
-// ../n8n/src/execution/single-turn.ts
+// ../n8n/src/execution/agent-definition.ts
 import { join as join35 } from "path";
 import { existsSync as existsSync41, readFileSync as readFileSync12 } from "fs";
 var __dirname = "/Users/benzotti/src/software-teams/packages/n8n/src/execution";
 var sharedApi = require_n8n_api();
+var FRONTMATTER_RE5 = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+function parseSpecFrontmatter(source) {
+  const match = FRONTMATTER_RE5.exec(source);
+  if (!match?.[1])
+    return { meta: {}, body: source.trim() };
+  const meta = {};
+  const state = { key: "", list: [] };
+  const flush = () => {
+    if (state.key && state.list.length > 0)
+      meta[state.key] = [...state.list];
+    state.list = [];
+  };
+  for (const line of match[1].split(/\r?\n/)) {
+    const item = /^\s+-\s+(.*)$/.exec(line)?.[1];
+    if (item !== undefined && state.key) {
+      state.list.push(item.trim());
+      continue;
+    }
+    const pair = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line);
+    const key = pair?.[1];
+    const value = pair?.[2];
+    if (key === undefined || value === undefined)
+      continue;
+    flush();
+    state.key = key;
+    if (value.trim())
+      meta[key] = value.trim().replace(/^(['"])(.*)\1$/, "$2");
+  }
+  flush();
+  return { meta, body: (match[2] ?? "").trim() };
+}
+function stripBanners(body) {
+  return body.replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "").replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "").trim();
+}
+function resolveAgentSpecPath2(agentId, baseDir) {
+  const candidates = [
+    join35(baseDir, ".claude", "agents", `${agentId}.md`),
+    join35(__dirname, "..", "..", "agents", `${agentId}.md`),
+    join35(__dirname, "..", "..", "dist", "agents", `${agentId}.md`)
+  ];
+  return candidates.find(existsSync41) ?? null;
+}
+function buildAgentDefinition(opts) {
+  const specPath = resolveAgentSpecPath2(opts.agentId, opts.baseDir);
+  if (!specPath)
+    return null;
+  const source = (() => {
+    try {
+      return readFileSync12(specPath, "utf8");
+    } catch {
+      return "";
+    }
+  })();
+  if (!source)
+    return null;
+  const { meta, body } = parseSpecFrontmatter(source);
+  const prompt2 = stripBanners(body);
+  if (!prompt2)
+    return null;
+  const definition = {
+    description: typeof meta["description"] === "string" ? meta["description"] : opts.agentId,
+    prompt: prompt2
+  };
+  const specTools = meta["tools"];
+  if (Array.isArray(specTools) && specTools.length > 0) {
+    definition.tools = opts.structuredOutput ? sharedApi.withStructuredOutput(specTools) : [...specTools];
+  }
+  definition.disallowedTools = [...sharedApi.SINGLE_TURN_DISALLOWED_TOOLS];
+  const model = opts.overrides?.model ?? (typeof meta["model"] === "string" ? meta["model"] : undefined);
+  if (model)
+    definition.model = model;
+  const effort = opts.overrides?.effort ?? (typeof meta["effort"] === "string" ? meta["effort"] : undefined);
+  if (effort)
+    definition.effort = effort;
+  if (opts.overrides?.maxTurns !== undefined)
+    definition.maxTurns = opts.overrides.maxTurns;
+  return definition;
+}
+
+// ../n8n/src/execution/envelope-schema.ts
+var TURN_RESULT_SCHEMA = {
+  type: "object",
+  required: ["status", "summary"],
+  additionalProperties: false,
+  properties: {
+    status: {
+      type: "string",
+      enum: ["ok", "needs-input", "error"],
+      description: "ok when the task is complete; needs-input when you require a human decision " + "before continuing; error when the task cannot be completed as specified."
+    },
+    summary: {
+      type: "string",
+      description: "What you did and what the caller needs to know, in prose. This is the " + "result a human reads."
+    },
+    question: {
+      type: "string",
+      description: "Required when status is needs-input: the single specific question a human " + "must answer for you to continue. Omit otherwise."
+    },
+    filesChanged: {
+      type: "array",
+      items: { type: "string" },
+      description: "Repository-relative paths you created or modified. Omit if none."
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description: "Your confidence that this turn met its objective. Low values signal the " + "caller should review before acting."
+    }
+  }
+};
+function parseTurnResult(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return null;
+  const record = value;
+  const status3 = record["status"];
+  const summary = record["summary"];
+  if (status3 !== "ok" && status3 !== "needs-input" && status3 !== "error")
+    return null;
+  if (typeof summary !== "string")
+    return null;
+  const result = { status: status3, summary };
+  if (typeof record["question"] === "string")
+    result.question = record["question"];
+  if (typeof record["confidence"] === "number")
+    result.confidence = record["confidence"];
+  const files = record["filesChanged"];
+  if (Array.isArray(files)) {
+    result.filesChanged = files.filter((f3) => typeof f3 === "string");
+  }
+  return result;
+}
+
+// ../n8n/src/execution/single-turn.ts
+var sharedApi2 = require_n8n_api();
 var {
   sanitizeUserInput: sanitizeUserInput2,
   fenceUserInput: fenceUserInput2,
   SINGLE_TURN_ALLOWED_TOOLS: SINGLE_TURN_ALLOWED_TOOLS2,
-  SINGLE_TURN_DISALLOWED_TOOLS: SINGLE_TURN_DISALLOWED_TOOLS2
-} = sharedApi;
+  SINGLE_TURN_DISALLOWED_TOOLS: SINGLE_TURN_DISALLOWED_TOOLS2,
+  buildAuthEnv,
+  assertAuthEnv,
+  classifyResult,
+  isRetryableLater
+} = sharedApi2;
+var PROMPT_LENGTH_THRESHOLD2 = 1e5;
 var NEEDS_INPUT_RE = /^NEEDS_INPUT:\s*(.+)$/m;
 async function findClaude2() {
   const { execSync } = await import("child_process");
   try {
-    const result = execSync("which claude", { encoding: "utf8" });
-    const path = result.trim();
+    const path = execSync("which claude", { encoding: "utf8" }).trim();
     if (path)
       return path;
   } catch {}
-  throw new Error("Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-code and ensure the binary is on PATH. @websitelabs/n8n-nodes-software-teams requires a self-hosted n8n instance with the `claude` binary and ANTHROPIC_API_KEY available on the worker.");
+  throw new Error("Claude CLI not found. Install it with `curl -fsSL https://claude.ai/install.sh | bash` and ensure the binary is on PATH. @websitelabs/n8n-nodes-software-teams requires a self-hosted n8n instance with the `claude` binary on the worker and a credential supplying either a subscription OAuth token or an Anthropic API key.");
 }
-var PROMPT_LENGTH_THRESHOLD2 = 1e5;
 async function spawnClaude2(prompt2, opts) {
   const claudePath = await findClaude2();
   const { spawn } = await import("child_process");
   const args = [
     "-p",
-    "--verbose",
     "--output-format",
-    "stream-json",
+    "json",
     "--permission-mode",
-    opts?.permissionMode ?? "acceptEdits"
+    opts.permissionMode ?? "acceptEdits",
+    "--setting-sources",
+    "",
+    "--strict-mcp-config",
+    "--exclude-dynamic-system-prompt-sections"
   ];
-  const allowedTools = opts?.allowedTools ?? [...SINGLE_TURN_ALLOWED_TOOLS2];
-  args.push(...allowedTools.flatMap((tool) => ["--allowedTools", tool]));
-  const disallowedTools = opts?.disallowedTools ?? [...SINGLE_TURN_DISALLOWED_TOOLS2];
-  args.push(...disallowedTools.flatMap((tool) => ["--disallowedTools", tool]));
-  if (opts?.model)
-    args.push("--model", opts.model);
-  if (opts?.effort)
-    args.push("--effort", opts.effort);
-  const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
-  if (!useStdin) {
-    args.push("--", prompt2);
+  if (opts.agentsJson && opts.agentId) {
+    args.push("--agents", opts.agentsJson, "--agent", opts.agentId);
   }
-  const spawnEnv = opts?.githubToken ? { ...process.env, GITHUB_TOKEN: opts.githubToken } : { ...process.env };
+  for (const tool of opts.allowedTools ?? SINGLE_TURN_ALLOWED_TOOLS2) {
+    args.push("--allowedTools", tool);
+  }
+  for (const tool of opts.disallowedTools ?? SINGLE_TURN_DISALLOWED_TOOLS2) {
+    args.push("--disallowedTools", tool);
+  }
+  if (opts.model)
+    args.push("--model", opts.model);
+  if (opts.effort)
+    args.push("--effort", opts.effort);
+  if (opts.fallbackModel)
+    args.push("--fallback-model", opts.fallbackModel);
+  if (opts.maxBudgetUsd !== undefined)
+    args.push("--max-budget-usd", String(opts.maxBudgetUsd));
+  if (opts.maxTurns !== undefined)
+    args.push("--max-turns", String(opts.maxTurns));
+  if (opts.jsonSchema)
+    args.push("--json-schema", opts.jsonSchema);
+  if (opts.resumeSessionId)
+    args.push("--resume", opts.resumeSessionId);
+  else if (opts.sessionId)
+    args.push("--session-id", opts.sessionId);
+  const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
+  if (!useStdin)
+    args.push("--", prompt2);
+  const spawnEnv = opts.auth ? buildAuthEnv(opts.auth, process.env) : { ...process.env };
+  if (opts.auth)
+    assertAuthEnv(opts.auth.mode, spawnEnv);
+  if (opts.githubToken)
+    spawnEnv["GITHUB_TOKEN"] = opts.githubToken;
   return new Promise((resolve13, reject) => {
     const proc = spawn(claudePath, args, {
-      cwd: opts?.cwd ?? process.cwd(),
+      cwd: opts.cwd ?? process.cwd(),
       env: spawnEnv,
-      stdio: useStdin ? ["pipe", "pipe", "inherit"] : ["ignore", "pipe", "inherit"]
+      stdio: useStdin ? ["pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"]
     });
     if (useStdin && proc.stdin) {
       proc.stdin.write(prompt2);
       proc.stdin.end();
     }
-    const streamState = { buffer: "", lastTextResponse: "" };
-    const processLine = (trimmed) => {
-      try {
-        const event = JSON.parse(trimmed);
-        if (event.type === "assistant" && event.message?.content) {
-          const textBlocks = event.message.content.filter((b2) => b2.type === "text" && b2.text);
-          const last = textBlocks[textBlocks.length - 1];
-          if (last?.text)
-            streamState.lastTextResponse = last.text;
-        }
-        if (event.type === "result" && event.result) {
-          streamState.lastTextResponse = event.result;
-        }
-      } catch {}
-    };
-    proc.stdout.on("data", (chunk) => {
-      streamState.buffer += chunk.toString("utf8");
-      const lines = streamState.buffer.split(`
-`);
-      streamState.buffer = lines.pop() ?? "";
-      lines.map((l2) => l2.trim()).filter(Boolean).forEach(processLine);
-    });
-    proc.on("close", (code) => {
-      if (streamState.buffer.trim())
-        processLine(streamState.buffer.trim());
-      resolve13({ exitCode: code ?? 1, response: streamState.lastTextResponse });
+    const chunks = { out: "", err: "" };
+    proc.stdout?.on("data", (c3) => chunks.out += c3.toString("utf8"));
+    proc.stderr?.on("data", (c3) => chunks.err += c3.toString("utf8"));
+    proc.on("close", (code, signal) => {
+      const payload = extractResultPayload(chunks.out);
+      const text = payload?.result ?? `${chunks.out}
+${chunks.err}`.trim();
+      const exitCode = code ?? (signal ? 143 : 1);
+      resolve13({ exitCode, text, payload });
     });
     proc.on("error", reject);
   });
 }
-function resolveAgentSpecPath2(agentId) {
-  const candidates = [
-    join35(__dirname, "..", "..", "agents", `${agentId}.md`),
-    join35(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
-    join35(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)
-  ];
-  return candidates.find(existsSync41) ?? null;
-}
-function stripSpecFrontmatter2(content) {
-  const fm = content.match(/^---\n[\s\S]*?\n---\n?/);
-  const rawBody = fm ? content.slice(fm[0].length) : content;
-  return rawBody.replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "").replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "").trim();
+function extractResultPayload(stdout2) {
+  const trimmed = stdout2.trim();
+  if (!trimmed)
+    return;
+  const start = trimmed.indexOf("{");
+  if (start === -1)
+    return;
+  try {
+    return JSON.parse(trimmed.slice(start));
+  } catch {
+    const lines = trimmed.split(`
+`).reverse();
+    for (const line of lines) {
+      const l2 = line.trim();
+      if (!l2.startsWith("{"))
+        continue;
+      try {
+        return JSON.parse(l2);
+      } catch {
+        continue;
+      }
+    }
+    return;
+  }
 }
 function assemblePrompt(input) {
-  const safePrompt = sanitizeUserInput2(input.prompt, 1e4);
-  const fencedPrompt = fenceUserInput2("user-task", safePrompt);
-  const hasContext = isNonEmptyContext(input.context);
-  if (!hasContext) {
+  const fencedPrompt = fenceUserInput2("user-task", sanitizeUserInput2(input.prompt, 1e4));
+  if (!isNonEmptyContext(input.context))
     return `## Task
 ${fencedPrompt}`;
-  }
   const contextJson = JSON.stringify(input.context, null, 2);
   return `## Upstream context
 \`\`\`json
@@ -24796,58 +25096,90 @@ function isNonEmptyContext(ctx) {
   }
   return true;
 }
+function sessionIdFor(correlationId) {
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRe.test(correlationId) ? correlationId : undefined;
+}
+function usageFrom(payload) {
+  if (!payload)
+    return;
+  return {
+    costUsd: typeof payload.total_cost_usd === "number" ? payload.total_cost_usd : 0,
+    turns: typeof payload.num_turns === "number" ? payload.num_turns : 0,
+    models: Object.keys(payload.modelUsage ?? {}),
+    ...payload.terminal_reason ? { terminalReason: payload.terminal_reason } : {}
+  };
+}
+function statusFor(state, turn) {
+  if (isRetryableLater(state))
+    return "retry-later";
+  if (state === "ok")
+    return turn?.status === "needs-input" ? "needs-input" : turn?.status ?? "ok";
+  if (state === "needs-input")
+    return "needs-input";
+  return "error";
+}
 async function runAgentTurn(input, repoContext, githubToken, options) {
   try {
     await findClaude2();
-  } catch {
-    return buildErrorEnvelope(input, "Claude CLI not found. Install it from https://docs.anthropic.com/en/docs/claude-code and ensure the binary is on PATH. @websitelabs/n8n-nodes-software-teams requires a self-hosted n8n instance with the `claude` binary and ANTHROPIC_API_KEY available on the worker.");
+  } catch (err) {
+    return buildErrorEnvelope(input, err instanceof Error ? err.message : String(err));
   }
-  const specPath = resolveAgentSpecPath2(input.agentId);
-  const agentSpecBody = specPath ? (() => {
-    try {
-      return stripSpecFrontmatter2(readFileSync12(specPath, "utf8"));
-    } catch {
-      return "";
-    }
-  })() : "";
-  const taskSection = assemblePrompt(input.input);
-  const fullPrompt = agentSpecBody ? `${agentSpecBody}
-
----
-
-${taskSection}` : taskSection;
-  const spawnResult = await spawnClaude2(fullPrompt, {
-    allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS2],
-    disallowedTools: [...SINGLE_TURN_DISALLOWED_TOOLS2],
+  const baseDir = repoContext?.worktreePath ?? process.cwd();
+  const definition = buildAgentDefinition({
+    agentId: input.agentId,
+    baseDir,
+    structuredOutput: true,
+    overrides: { model: options?.model, effort: options?.effort }
+  });
+  const spawnResult = await spawnClaude2(assemblePrompt(input.input), {
+    agentId: definition ? input.agentId : undefined,
+    agentsJson: definition ? JSON.stringify({ [input.agentId]: definition }) : undefined,
     model: options?.model,
     effort: options?.effort,
+    maxBudgetUsd: options?.maxBudgetUsd,
+    maxTurns: options?.maxTurns,
+    fallbackModel: options?.fallbackModel,
+    sessionId: sessionIdFor(input.correlationId),
+    resumeSessionId: options?.resumeSessionId,
+    jsonSchema: JSON.stringify(TURN_RESULT_SCHEMA),
     cwd: repoContext?.worktreePath,
-    githubToken
-  }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));
+    githubToken,
+    auth: options?.auth
+  }).catch((err) => ({
+    _error: err instanceof Error ? err.message : String(err)
+  }));
   if ("_error" in spawnResult) {
     return buildErrorEnvelope(input, `Failed to invoke claude CLI: ${spawnResult._error}`);
   }
-  const { exitCode, response } = spawnResult;
-  const needsInputMatch = NEEDS_INPUT_RE.exec(response);
-  if (needsInputMatch) {
-    return {
-      correlationId: input.correlationId,
-      agentId: input.agentId,
-      status: "needs-input",
-      input: input.input,
-      result: { text: needsInputMatch[1]?.trim() ?? response },
-      artifacts: input.artifacts
-    };
-  }
-  const status3 = exitCode === 0 ? "ok" : "error";
-  return {
+  const { text, payload } = spawnResult;
+  const state = classifyResult(payload, text);
+  const turn = parseTurnResult(payload?.structured_output);
+  const legacyNeedsInput = turn ? null : NEEDS_INPUT_RE.exec(text)?.[1]?.trim() ?? null;
+  const resultText = (() => {
+    if (turn) {
+      return turn.status === "needs-input" && turn.question ? turn.question : turn.summary;
+    }
+    return legacyNeedsInput ?? text;
+  })();
+  const envelope = {
     correlationId: input.correlationId,
     agentId: input.agentId,
-    status: status3,
+    status: legacyNeedsInput && state === "ok" ? "needs-input" : statusFor(state, turn),
     input: input.input,
-    result: { text: response },
+    result: {
+      text: resultText,
+      ...turn?.filesChanged ? { filesChanged: turn.filesChanged } : {},
+      ...turn?.confidence !== undefined ? { confidence: turn.confidence } : {}
+    },
     artifacts: input.artifacts
   };
+  const usage = usageFrom(payload);
+  if (usage)
+    envelope.usage = usage;
+  if (payload?.session_id)
+    envelope.sessionId = payload.session_id;
+  return envelope;
 }
 function buildErrorEnvelope(input, message) {
   return {

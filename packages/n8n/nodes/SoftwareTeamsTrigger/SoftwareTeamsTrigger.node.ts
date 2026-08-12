@@ -17,6 +17,7 @@ import {
   extractDatadogIssue,
 } from "@websitelabs/software-teams";
 import { toDataObject } from "../../src/n8n-cast";
+import { softwareTeamsCredentialTest } from "../../src/execution/verify-credential";
 
 function newCorrelationId(source: "clickup" | "datadog" | "prompt"): string {
   const date = new Date().toISOString().slice(0, 10);
@@ -47,6 +48,7 @@ export class SoftwareTeamsTrigger implements INodeType {
       {
         name: "softwareTeamsApi",
         required: true,
+        testedBy: "softwareTeamsApiTest",
       },
     ],
     properties: [
@@ -116,6 +118,9 @@ export class SoftwareTeamsTrigger implements INodeType {
     ],
 		usableAsTool: true,
   };
+
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+  methods = { credentialTest: softwareTeamsCredentialTest };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();

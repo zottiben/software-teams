@@ -86,6 +86,7 @@ export interface NodeEnvelope {
 | `ok` | Turn completed; `result.text` is the answer. | Flows to the next node. |
 | `error` | Turn failed (non-zero `claude` exit, or the agent reported failure). | Short-circuits the branch; Orchestrator surfaces it (R-05). |
 | `needs-input` | The agent needs a human decision/answer; the question is in `result.text`. | Parks the run for Slack HITL (T10); resumes the same `correlationId`. |
+| `retry-later` | The run was cut short because the account's five-hour or weekly allowance is exhausted. Nothing is wrong with the work. | Park the item and re-run the SAME envelope once the window resets. Marking it failed would burn a ticket for a reason unrelated to the ticket. |
 
 ---
 
@@ -247,21 +248,36 @@ merged prompt fully visible to the contract tests.
 
 ---
 
-## 5. `needs-input` marker convention (HITL hook)
+## 5. How a turn reports its outcome (HITL hook)
 
-So the adapter can set `status: 'needs-input'` deterministically, the single-turn
-prompt instructs the agent to end its turn with a machine-detectable marker when it
-needs a human decision — recommended form:
+The agent states its own outcome through a validated structured result, requested
+with the CLI's `--json-schema` flag:
 
+```json
+{ "status": "ok" | "needs-input" | "error",
+  "summary": "...", "question": "...",
+  "filesChanged": ["..."], "confidence": 0.9 }
 ```
-NEEDS_INPUT: <the question for the human>
-```
 
-`runAgentTurn` (T3) detects the marker, sets `status: 'needs-input'`, and places
-the question in `result.text`; T10's Slack HITL posts it, parks the run on the
-`correlationId`, and resumes the same agent with the human's reply folded back in
-as `input.context`. The exact marker grammar is finalised by T3/T10; this contract
-fixes only that `needs-input` is signalled in-band and surfaced via `result.text`.
+`runAgentTurn` parses that object and maps it onto the envelope: `question`
+becomes `result.text` on `needs-input`, `summary` otherwise. T10's HITL posts the
+question, parks the run on the `correlationId`, and resumes the SAME Claude Code
+session (see `sessionId` in §6) so the human's answer lands in the context the
+question was asked from, rather than replaying a fresh conversation.
+
+This replaced two heuristics: scanning the transcript for a `NEEDS_INPUT:` line,
+and taking whichever assistant text arrived last as the result. Both guessed.
+
+**One trap worth knowing.** Structured output is delivered by a tool named
+`StructuredOutput`, which `--json-schema` injects into the session. If an agent
+restricts its `tools` list and omits that name, the tool is filtered out, the
+model cannot emit the object, and `structured_output` comes back `null` — with no
+error, no warning, and an otherwise successful run. Every agent definition the
+engine builds appends it automatically.
+
+The `NEEDS_INPUT:` marker is still honoured as a FALLBACK, used only when no
+structured result is present, so a clear request for input is never reported as a
+finished turn.
 
 ---
 

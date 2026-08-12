@@ -6,6 +6,7 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 
@@ -75,7 +76,7 @@ export class SoftwareTeamsHitl implements INodeType {
     defaults: { name: 'Software Teams HITL' },
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
-    credentials: [{ name: 'softwareTeamsApi', required: true }],
+    credentials: [{ name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' }],
     properties: [
       {
         displayName: 'Channel',
@@ -119,6 +120,11 @@ export class SoftwareTeamsHitl implements INodeType {
     ],
     usableAsTool: true,
   };
+
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+
+  methods = { credentialTest: softwareTeamsCredentialTest };
+
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();

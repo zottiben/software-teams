@@ -36,6 +36,25 @@ export {
 } from "./shared/agent-tools";
 
 export {
+  buildAuthEnv,
+  assertAuthEnv,
+  describeAuthMismatch,
+  ClaudeAuthError,
+} from "./shared/claude-auth";
+export type { ClaudeAuthConfig, ClaudeAuthMode, ClaudeAuthStatus } from "./shared/claude-auth";
+
+export {
+  classifyResult,
+  isRetryableLater,
+  totalCostUsd,
+} from "./shared/claude-result";
+export type {
+  ClaudeResultPayload,
+  ClaudeTerminalState,
+  ClaudeModelUsage,
+} from "./shared/claude-result";
+
+export {
   CLAUDE_CODE_TOOLS,
   EFFORT_LEVELS,
   MODEL_ALIASES,
@@ -44,6 +63,8 @@ export {
   N8N_MODEL_OPTIONS,
   isValidModel,
   isValidToolName,
+  withStructuredOutput,
+  STRUCTURED_OUTPUT_TOOL,
 } from "./shared/claude-code-surface";
 
 export { slugify } from "./shared/slugify";

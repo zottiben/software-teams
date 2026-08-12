@@ -6,6 +6,8 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
+import { authFromCredentials } from '../../src/execution/auth-from-credentials';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -23,6 +25,10 @@ import type { RepoContext } from '../../src/repo/repo-context';
 interface AgentTurnOptions {
   readonly model?: string;
   readonly effort?: string;
+  readonly maxBudgetUsd?: number;
+  readonly maxTurns?: number;
+  readonly resumeSessionId?: string;
+  readonly auth?: { mode: 'subscription' | 'apiKey'; oauthToken?: string; apiKey?: string };
 }
 
 type RunAgentTurnFn = (
@@ -121,7 +127,7 @@ export class SoftwareTeamsAgent implements INodeType {
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
     credentials: [
-      { name: 'softwareTeamsApi', required: true },
+      { name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' },
     ],
     properties: [
       {
@@ -183,16 +189,51 @@ export class SoftwareTeamsAgent implements INodeType {
           'Passed to the Claude CLI as --effort. Leave on Model Default unless this ' +
           'turn specifically needs more thoroughness or more speed.',
       },
+      {
+        displayName: 'Max Budget USD',
+        name: 'maxBudgetUsd',
+        type: 'number',
+        default: 0,
+        typeOptions: { minValue: 0, numberPrecision: 2 },
+        description:
+          'Stop the turn once its estimated spend reaches this amount. 0 disables the ' +
+          'cap. Enforced between turns rather than mid-turn, so a run can overshoot: ' +
+          'treat it as a brake on a runaway agent, not a guarantee. On subscription ' +
+          'auth the figure is an estimate of equivalent API cost, since usage actually ' +
+          'draws on your plan allowance.',
+      },
+      {
+        displayName: 'Max Turns',
+        name: 'maxTurns',
+        type: 'number',
+        default: 0,
+        typeOptions: { minValue: 0 },
+        description:
+          'Stop the turn after this many agentic steps. 0 disables the cap. Useful as ' +
+          'a hard stop for unattended work where an agent could otherwise loop.',
+      },
     ],
 		usableAsTool: true,
   };
+
+  /**
+   * Credential test, declared via `testedBy` on the credential entry above.
+   *
+   * Runs on the n8n worker, the only place that can answer what matters: is
+   * `claude` installed here, and does it authenticate as the configured mode?
+   */
+  methods = { credentialTest: softwareTeamsCredentialTest };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
     const credentials = await this.getCredentials('softwareTeamsApi');
-    process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    // Resolved and passed down, never written to process.env: an n8n worker is
+    // long-lived and shared, so a mutation there leaks into later executions.
+    // In subscription mode the spawn layer also strips ANTHROPIC_API_KEY, which
+    // would otherwise outrank the OAuth token and silently bill the API.
+    const auth = authFromCredentials(credentials);
     const githubToken = (credentials.githubToken as string | undefined) || undefined;
 
     const staticData = this.getWorkflowStaticData('global') as Record<string, unknown>;
@@ -205,6 +246,14 @@ export class SoftwareTeamsAgent implements INodeType {
       const contextRaw = this.getNodeParameter('context', i, '') as string;
       const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
       const effort = this.getNodeParameter('effort', i, '') as string;
+      const maxBudgetUsd = this.getNodeParameter('maxBudgetUsd', i, 0) as number;
+      const maxTurns = this.getNodeParameter('maxTurns', i, 0) as number;
+      // 0 means "no cap" in the UI; the CLI has no such sentinel, so omit the
+      // flag entirely rather than passing a cap of zero.
+      const caps = {
+        ...(maxBudgetUsd > 0 ? { maxBudgetUsd } : {}),
+        ...(maxTurns > 0 ? { maxTurns } : {}),
+      };
 
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
 
@@ -234,9 +283,16 @@ export class SoftwareTeamsAgent implements INodeType {
             githubToken,
             model,
             effort,
+            auth,
+            caps,
           });
         } else {
-          result = await runAgentTurn(envelope, undefined, githubToken, { model, effort });
+          result = await runAgentTurn(envelope, undefined, githubToken, {
+            model,
+            effort,
+            auth,
+            ...caps,
+          });
         }
       } catch (err) {
         if (this.continueOnFail()) {
@@ -371,8 +427,10 @@ async function executeWithWorktree(opts: {
   readonly githubToken: string | undefined;
   readonly model: string | undefined;
   readonly effort: string | undefined;
+  readonly auth: { mode: 'subscription' | 'apiKey'; oauthToken?: string; apiKey?: string };
+  readonly caps: { maxBudgetUsd?: number; maxTurns?: number };
 }): Promise<NodeEnvelope> {
-  const { envelope, repoDescriptor, specialist, githubToken, model, effort } = opts;
+  const { envelope, repoDescriptor, specialist, githubToken, model, effort, auth, caps } = opts;
   const { cloneUrl, ownerRepo, baseBranch } = repoDescriptor;
 
   validateOwnerRepo(ownerRepo);
@@ -404,7 +462,12 @@ async function executeWithWorktree(opts: {
   };
 
   try {
-    const agentResult = await runAgentTurn(envelope, repoContext, githubToken, { model, effort });
+    const agentResult = await runAgentTurn(envelope, repoContext, githubToken, {
+      model,
+      effort,
+      auth,
+      ...caps,
+    });
     const changeRef = await capturePortableChange({ worktreePath, baseBranch });
     return changeRef ? { ...agentResult, changeRef } : agentResult;
   } finally {

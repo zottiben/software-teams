@@ -49,6 +49,10 @@ export const CLAUDE_CODE_TOOLS: readonly string[] = [
   "SendUserFile",
   "ShareOnboardingGuide",
   "Skill",
+  // Injected into the session only when --json-schema is passed. Absent from
+  // the public tools reference, but it is a real tool name and MUST be
+  // grantable: see STRUCTURED_OUTPUT_TOOL below.
+  "StructuredOutput",
   "TaskCreate",
   "TaskGet",
   "TaskList",
@@ -148,6 +152,30 @@ export function isValidModel(value: string): boolean {
 /** True when `value` is a real Claude Code tool name (bare, no permission scope). */
 export function isValidToolName(value: string): boolean {
   return CLAUDE_CODE_TOOLS.includes(value);
+}
+
+/**
+ * The tool Claude Code uses to emit `--json-schema` structured output.
+ *
+ * Passing `--json-schema` injects this tool into the session, and the model
+ * calls it to deliver the validated object. That makes it a hard dependency of
+ * structured output, and a silent one: if an agent restricts its `tools` list
+ * and omits this name, the tool is filtered out, the model has no way to emit
+ * the object, and `structured_output` comes back `null` with no error, no
+ * warning, and an otherwise successful run.
+ *
+ * Verified on 2.1.220: an agent with `tools: [Read, Grep]` yields
+ * `structured_output: null`; the same agent with `tools: [Read, Grep,
+ * StructuredOutput]` yields the object. Any caller that combines a restricted
+ * tool list with `--json-schema` must append this.
+ */
+export const STRUCTURED_OUTPUT_TOOL = "StructuredOutput";
+
+/** Append the structured-output tool to a restricted list, without duplicating it. */
+export function withStructuredOutput(tools: readonly string[]): string[] {
+  return tools.includes(STRUCTURED_OUTPUT_TOOL)
+    ? [...tools]
+    : [...tools, STRUCTURED_OUTPUT_TOOL];
 }
 
 /**

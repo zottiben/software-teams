@@ -293,10 +293,40 @@ confirms `--effort` reaches the CLI.
 
 ---
 
-### Slice 3 - n8n: subscription auth + execution engine v2
+### Slice 3 - n8n: subscription auth + execution engine v2 `[SHIPPED]`
 
 **Goal:** make the n8n path production-grade on subscription billing. Prerequisite for
 trusting it with real tickets. Read §4 before starting.
+
+**The find that shaped the slice: `--json-schema` fails silently under tool restriction.**
+Structured output is delivered by a tool named `StructuredOutput`, injected into the
+session by `--json-schema`. An agent that restricts its `tools` list and omits that name
+gets the tool filtered out, cannot emit the object, and returns `structured_output: null` -
+with no error, no warning, and an otherwise successful run. Since this slice wanted both
+tool restriction (for safety) and typed envelopes, the two would have quietly cancelled
+out. Every agent definition the engine builds now appends the tool, and the shared surface
+documents it.
+
+**Verified live, not asserted:**
+
+- A specialist spawned through `--agents` + `--agent` behaves as its spec, returns a typed
+  `needs-input` from the schema, and reports `usage` (cost, turns, models, terminalReason)
+  and a resumable `sessionId`.
+- Resume works: turn 2 recalled a reference given in turn 1.
+- **Auth, proven in a clean `node:22-slim` container** - no keychain, no credentials file,
+  which is the worker shape. With a stray `ANTHROPIC_API_KEY` in the parent environment and
+  a deliberately invalid OAuth token, the run failed with `401 OAuth access token is
+  invalid`: the key was stripped and the OAuth token was genuinely the credential used, and
+  the failure classified as `error` rather than `retry-later`. **A developer machine cannot
+  verify this** - a local keychain login masks the result, and my first attempt on macOS
+  wrongly reported success.
+- Terminal signals read from real runs: budget cap is `subtype: error_max_budget_usd` /
+  `terminal_reason: budget_exhausted`; turn cap is `error_max_turns` / `max_turns`. The
+  budget cap is enforced *between* turns, so a run overshoots it - a $0.0001 cap spent
+  $0.085. It is a brake, not a guarantee, and the node parameter says so.
+
+**Deferred to slice 4:** per-agent `mcpServers` (lands with ClickUp, where it has a
+concrete use), and `--fallback-model` is plumbed but not yet surfaced as a node parameter.
 
 **Auth first (B7, D-1):**
 - Credential gains `claudeCodeOauthToken`; `anthropicApiKey` becomes optional. An explicit

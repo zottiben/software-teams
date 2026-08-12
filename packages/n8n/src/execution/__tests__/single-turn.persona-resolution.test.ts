@@ -13,22 +13,25 @@ import { tmpdir } from "node:os";
 
 const pkgRoot = resolve(import.meta.dir, "..", "..", "..");
 const repoRoot = resolve(pkgRoot, "..", "..");
-const sourceSingleTurn = resolve(import.meta.dir, "..", "single-turn.ts");
+// Spec resolution moved out of single-turn.ts when the engine switched to
+// building a real `--agents` definition instead of concatenating a stripped
+// spec body onto the user prompt.
+const sourceAgentDefinition = resolve(import.meta.dir, "..", "agent-definition.ts");
 const builtAgentsDir = resolve(pkgRoot, "dist", "agents");
 const repoAgentsDir = resolve(repoRoot, "packages", "cli", "agents");
 
 const installedSingleTurnDir = resolve(pkgRoot, "dist", "src", "execution");
 
-function candidatesFor(dirname: string, agentId: string): string[] {
+function candidatesFor(dirname: string, agentId: string, baseDir = "/nonexistent"): string[] {
   return [
+    join(baseDir, ".claude", "agents", `${agentId}.md`),
     join(dirname, "..", "..", "agents", `${agentId}.md`),
-    join(dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`),
-    join(dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`),
+    join(dirname, "..", "..", "dist", "agents", `${agentId}.md`),
   ];
 }
 
-function resolveFor(dirname: string, agentId: string): string | null {
-  return candidatesFor(dirname, agentId).find(existsSync) ?? null;
+function resolveFor(dirname: string, agentId: string, baseDir = "/nonexistent"): string | null {
+  return candidatesFor(dirname, agentId, baseDir).find(existsSync) ?? null;
 }
 
 describe("resolveAgentSpecPath — bundled specs ship + both-layout resolution (AC7, AC8)", () => {
@@ -49,15 +52,21 @@ describe("resolveAgentSpecPath — bundled specs ship + both-layout resolution (
   });
 
   describe("AC8: production candidate list is the ADR-004 Decision K verbatim algorithm", () => {
-    test("single-turn.ts pins the three __dirname-relative candidates this test models", () => {
-      const source = readFileSync(sourceSingleTurn, "utf8");
+    test("agent-definition.ts pins the candidate list this test models", () => {
+      const source = readFileSync(sourceAgentDefinition, "utf8");
+      // Project-local specs win, so a repo that has customised a specialist
+      // gets its own version rather than the one bundled with the node package.
+      expect(source).toContain('join(baseDir, ".claude", "agents", `${agentId}.md`)');
       expect(source).toContain('join(__dirname, "..", "..", "agents", `${agentId}.md`)');
-      expect(source).toContain(
-        'join(__dirname, "..", "..", "..", "..", "..", ".claude", "agents", `${agentId}.md`)',
-      );
-      expect(source).toContain(
-        'join(__dirname, "..", "..", "..", "..", "..", "agents", `${agentId}.md`)',
-      );
+      expect(source).toContain('join(__dirname, "..", "..", "dist", "agents", `${agentId}.md`)');
+    });
+
+    test("the project-local candidate is resolved against the repo, not the package", () => {
+      // The previous list climbed five levels from __dirname to guess at a
+      // .claude/ directory, which only worked for one installation layout. The
+      // repo being worked on is passed in explicitly instead.
+      const source = readFileSync(sourceAgentDefinition, "utf8");
+      expect(source).not.toContain('"..", "..", "..", "..", ".."');
     });
   });
 
@@ -73,56 +82,46 @@ describe("resolveAgentSpecPath — bundled specs ship + both-layout resolution (
     });
 
     test("__dirname climb-2 lands on dist/agents, NOT a repo dir (off-by-one fixed)", () => {
-      const [installedCandidate] = candidatesFor(
+      const installedCandidate = candidatesFor(
         installedSingleTurnDir,
         "software-teams-backend",
-      );
+      )[1];
       expect(installedCandidate).toBe(join(builtAgentsDir, "software-teams-backend.md"));
       expect(installedCandidate).not.toContain(`${repoRoot}/packages/n8n/agents`);
     });
   });
 
-  describe("AC8: DEV layout — candidate 2 resolves repo-root .claude/agents (climb-5)", () => {
+  describe("AC8: project-local specs override the bundled ones", () => {
     const sandbox = { root: "" };
 
     beforeEach(() => {
-      sandbox.root = mkdtempSync(join(tmpdir(), "st-dev-layout-"));
+      sandbox.root = mkdtempSync(join(tmpdir(), "st-project-local-"));
     });
 
     afterEach(() => {
       rmSync(sandbox.root, { recursive: true, force: true });
     });
 
-    function buildDevTree(agentId: string, body: string): string {
-      const execDir = join(sandbox.root, "packages", "n8n", "dist", "src", "execution");
-      mkdirSync(execDir, { recursive: true });
+    function writeProjectSpec(agentId: string, body: string): string {
       const claudeAgents = join(sandbox.root, ".claude", "agents");
       mkdirSync(claudeAgents, { recursive: true });
       writeFileSync(join(claudeAgents, `${agentId}.md`), body, "utf8");
-      return execDir;
+      return join(claudeAgents, `${agentId}.md`);
     }
 
-    test("climb-5 from dist/src/execution reaches synthetic repo-root .claude/agents", () => {
-      const execDir = buildDevTree("software-teams-backend", "DEV BACKEND PERSONA");
-      const resolved = resolveFor(execDir, "software-teams-backend");
-      expect(resolved).toBe(
-        join(sandbox.root, ".claude", "agents", "software-teams-backend.md"),
-      );
+    test("a spec under the repo's .claude/agents wins over the bundled copy", () => {
+      // Resolution takes the repo being worked on as an explicit baseDir. The
+      // previous implementation climbed five directories from __dirname to
+      // guess at a repo root, which held for exactly one install layout and
+      // silently found nothing in any other.
+      const expected = writeProjectSpec("software-teams-backend", "PROJECT BACKEND PERSONA");
+      const resolved = resolveFor(installedSingleTurnDir, "software-teams-backend", sandbox.root);
+      expect(resolved).toBe(expected);
     });
 
-    test("candidate 2 wins when no installed dist/agents sibling exists (climb-5 != climb-4)", () => {
-      const execDir = buildDevTree("software-teams-frontend", "DEV FRONTEND PERSONA");
-      const [installed, devClaude] = candidatesFor(execDir, "software-teams-frontend");
-      expect(existsSync(installed)).toBeFalse();
-      const resolved = resolveFor(execDir, "software-teams-frontend");
-      expect(resolved).toBe(devClaude);
-    });
-
-    test("the dev resolution does NOT land in packages/ (the old climb-4 off-by-one)", () => {
-      const execDir = buildDevTree("software-teams-quality", "DEV QUALITY PERSONA");
-      const resolved = resolveFor(execDir, "software-teams-quality");
-      expect(resolved).not.toContain(`${join(sandbox.root, "packages")}`);
-      expect(resolved).toContain(join(sandbox.root, ".claude", "agents"));
+    test("the bundled spec is used when the project has not customised it", () => {
+      const resolved = resolveFor(installedSingleTurnDir, "software-teams-frontend", sandbox.root);
+      expect(resolved).toBe(join(builtAgentsDir, "software-teams-frontend.md"));
     });
   });
 

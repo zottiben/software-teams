@@ -7,6 +7,8 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
+import { authFromCredentials } from '../../src/execution/auth-from-credentials';
 import { randomUUID } from 'node:crypto';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 import {
@@ -34,7 +36,11 @@ type RunAgentTurnFn = (
   input: NodeEnvelope,
   repoContext?: undefined,
   githubToken?: string,
-  options?: { readonly model?: string; readonly effort?: string },
+  options?: {
+    readonly model?: string;
+    readonly effort?: string;
+    readonly auth?: { mode: 'subscription' | 'apiKey'; oauthToken?: string; apiKey?: string };
+  },
 ) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
@@ -78,7 +84,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     defaults: { name: 'Software Teams Orchestrator' },
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
-    credentials: [{ name: 'softwareTeamsApi', required: true }],
+    credentials: [{ name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' }],
     properties: [
       {
         displayName: 'Operation',
@@ -157,13 +163,20 @@ export class SoftwareTeamsOrchestrator implements INodeType {
 		usableAsTool: true,
   };
 
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+
+  methods = { credentialTest: softwareTeamsCredentialTest };
+
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
     // Credentials (R-02: NEVER written to output)
     const credentials = await this.getCredentials('softwareTeamsApi');
-    process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    // Resolved and passed down, never written to process.env: an n8n worker is
+    // long-lived and shared, so a mutation there leaks into later executions.
+    const auth = authFromCredentials(credentials);
     const githubToken = (credentials.githubToken as string | undefined) || undefined;
     // `model` is read per item below, so bind lazily rather than capturing one
     // value here. Before this, the node's model parameter was written to a
@@ -171,7 +184,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     const bindRunAgentTurn =
       (model: string, effort: string): ((input: NodeEnvelope) => Promise<NodeEnvelope>) =>
       (input) =>
-        runAgentTurn(input, undefined, githubToken, { model, effort });
+        runAgentTurn(input, undefined, githubToken, { model, effort, auth });
 
     const staticData = this.getWorkflowStaticData('global') as IDataObject;
     const runs = getRunStore(staticData);

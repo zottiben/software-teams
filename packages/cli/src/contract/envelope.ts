@@ -101,9 +101,15 @@ export interface NodeEnvelope {
    *  envelope — e.g. "software-teams-frontend". Matches a name in agents/*.md. */
   agentId: string;
 
-  /** Exactly these three values — string-literal union, nothing else.
-   *  'needs-input' triggers the Slack HITL flow (T10). */
-  status: "ok" | "error" | "needs-input";
+  /** Exactly these four values — string-literal union, nothing else.
+   *  'needs-input' triggers the Slack HITL flow (T10).
+   *
+   *  'retry-later' is distinct from 'error' on purpose: it means the run was
+   *  cut short by an exhausted account allowance, not by anything wrong with
+   *  the work. The ticket is intact and the same envelope can be re-run once
+   *  the five-hour or weekly window resets. Treating it as 'error' burns a
+   *  ticket for a reason that has nothing to do with the ticket. */
+  status: "ok" | "error" | "needs-input" | "retry-later";
 
   /** The turn's inputs. */
   input: {
@@ -118,7 +124,40 @@ export interface NodeEnvelope {
   result: {
     /** The primary result body (the agent's final text). */
     text: string;
+
+    /** Files the agent reported creating or modifying. Additive, optional. */
+    filesChanged?: string[];
+
+    /** The agent's own confidence that the turn met its objective, 0–1.
+     *  Additive, optional — present only when the agent reported it. */
+    confidence?: number;
   };
+
+  /** What the run cost and how it ended. Additive, optional — set by the
+   *  execution engine, absent on envelopes that never reached the model.
+   *  Never secret. Lets a workflow budget per ticket and report spend without
+   *  consulting the usage dashboard.
+   *
+   *  On subscription auth the cost figures are client-side estimates of what
+   *  the same work would have cost on the API. They are useful for relative
+   *  comparison and for capping runaway runs; they are NOT what you are
+   *  billed, because subscription usage draws on a seat allowance instead. */
+  usage?: {
+    /** Client-side estimate of the run's spend, in USD. */
+    costUsd: number;
+    /** Agentic turns consumed. */
+    turns: number;
+    /** Model IDs the run actually used, as reported by the harness. */
+    models: string[];
+    /** Why the run ended, when it did not simply complete. */
+    terminalReason?: string;
+  };
+
+  /** The Claude Code session this turn ran in. Additive, optional. Carried so a
+   *  later turn can `--resume` the same conversation rather than replaying a
+   *  fresh one — which is what makes a human-in-the-loop answer land in the
+   *  context the question was asked from. Not a secret. */
+  sessionId?: string;
 
   /** Produced references. MAY be empty [], never absent. T7 appends the
    *  created PR/issue URL here. */
