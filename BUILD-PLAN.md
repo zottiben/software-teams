@@ -35,7 +35,7 @@ harness. Three things have since changed:
 
 | # | Decision | Consequence |
 |---|----------|-------------|
-| **D-1** | **Subscription OAuth, not API key.** Using a Claude Code instance per node exists precisely so billing draws on the subscription. | Auth is `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`. **`--bare` is off the table** (documented: bare mode does not read `CLAUDE_CODE_OAUTH_TOKEN`). `ANTHROPIC_API_KEY` must be *actively kept out* of the spawn env. See §4. |
+| **D-1** | **Subscription OAuth, not API key.** Using a Claude Code instance per node exists precisely so billing draws on the subscription. | Auth is `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, injected from an n8n credential. This is verified working in a clean container, not assumed. The one casualty is the `--bare` *flag*, which ignores the token; OAuth itself is unaffected. `ANTHROPIC_API_KEY` must be *actively kept out* of the spawn env. See §4. |
 | **D-2** | **Breaking release is acceptable.** Nobody is on the project yet. | No back-compat shims. Contract v2 and commands → skills land clean. Target `1.0.0`. |
 | **D-3** | **Keep the 8 `game-*` specialists, out of scope for this work.** | They get the mechanical fixes in slice 1 (tool names, model IDs) but are excluded from the spec-debloat pass. Revisit later. |
 | **D-4** | **Ticket source is ClickUp.** Manual feed first; auto-pickup on a ClickUp tag is the end goal. | Slice 4 builds manual-input first and the tag trigger second, behind the same ingestion boundary. |
@@ -110,6 +110,8 @@ harness. Three things have since changed:
   contract.**
 - `--bare` refuses to run without an API key ("Not logged in · Please run /login") even
   with a valid subscription login present, consistent with the documented behaviour.
+- `CLAUDE_CODE_OAUTH_TOKEN` is a working headless credential source in a clean container;
+  `claude auth status` reports `authMethod: "oauth_token"`. See §4 for the full matrix.
 - The legacy `context: |` + `!cmd` frontmatter block in Software Teams' commands **still
   injects** on 2.1.220. It is undocumented and now collides with `context: fork`, so it
   should be migrated to the documented inline `` !`command` `` form, but it is not
@@ -127,15 +129,36 @@ does not persist anywhere. That token goes into the n8n credential and is inject
 `CLAUDE_CODE_OAUTH_TOKEN` on the spawned process. It requires a Pro, Max, Team, or
 Enterprise plan.
 
+**This is verified, not assumed.** Probed in a clean `node:22-slim` container - no
+keychain, no credentials file, nothing but the env var, which is exactly the n8n worker
+shape:
+
+| Invocation | `CLAUDE_CODE_OAUTH_TOKEN` | Result |
+|------------|---------------------------|--------|
+| `claude auth status` | unset | `{"loggedIn": false, "authMethod": "none"}` |
+| `claude -p` | unset | `Not logged in · Please run /login` |
+| `claude auth status` | set | `{"loggedIn": true, "authMethod": "oauth_token"}` |
+| `claude -p` | set | reaches the API; returned 401 only because the probe value was deliberately fake |
+| `claude --bare -p` | set | `Not logged in` - the flag ignores the token |
+
+So an env var injected from an n8n secret is a first-class credential source for headless
+Claude Code. `claude auth status` emits JSON, which also gives the credential test in
+slice 3 something precise to assert.
+
+The container install is a one-liner, so the worker image needs only:
+`curl -fsSL https://claude.ai/install.sh | bash` (installs to `~/.local/bin/claude`).
+
 **What it can and cannot do.** The token can only make model requests. It cannot establish
 Remote Control sessions or fetch claude.ai connectors. Locally configured MCP servers still
 work, so per-agent `mcpServers` remains available.
 
 **Three hard consequences for the code:**
 
-1. **`--bare` is unusable.** Bare mode does not read `CLAUDE_CODE_OAUTH_TOKEN`. Determinism
-   on shared workers has to come from `--setting-sources`, `--strict-mcp-config`, `--tools`,
-   inline `--settings` JSON, and `--exclude-dynamic-system-prompt-sections` instead.
+1. **The `--bare` flag is unusable** - and only that flag. Bare mode skips credential
+   discovery along with hooks, skills, plugins, MCP, and CLAUDE.md, so it needs an API key.
+   Nothing else about OAuth is affected. Determinism on shared workers therefore comes from
+   `--setting-sources`, `--strict-mcp-config`, `--tools`, inline `--settings` JSON, and
+   `--exclude-dynamic-system-prompt-sections` instead.
 2. **`ANTHROPIC_API_KEY` must be actively excluded from the spawn env.** It outranks the
    OAuth token, and in `-p` mode it is always used when present. If it leaks in from the
    worker's own environment, every ticket silently bills the API instead of the
@@ -252,8 +275,10 @@ trusting it with real tickets. Read §4 before starting.
 - The spawn builds its environment explicitly and **asserts `ANTHROPIC_API_KEY` is absent**
   in subscription mode, so a worker-level key cannot silently divert billing.
 - Credential test replaced: the current test hits `api.anthropic.com/v1/models` with
-  `x-api-key`, which cannot validate an OAuth token. Replace with a real `claude -p`
-  smoke turn, which also verifies the binary is on PATH.
+  `x-api-key`, which cannot validate an OAuth token. Replace with `claude auth status`,
+  which emits `{"loggedIn", "authMethod", "apiProvider"}` as JSON - so the test can assert
+  `authMethod: "oauth_token"` specifically, catching the case where a stray
+  `ANTHROPIC_API_KEY` has silently taken over. It also verifies the binary is on PATH.
 - Usage-limit exhaustion becomes a distinct envelope status, not a generic error, so a
   workflow can park and retry after the window resets.
 
