@@ -10123,7 +10123,7 @@ var require_agent_tools = __commonJS((exports) => {
 // lib/shared/claude-code-surface.js
 var require_claude_code_surface = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.RETIRED_MODEL_PREFIXES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
+  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.RETIRED_MODEL_PREFIXES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
   exports.retiredModelReplacement = retiredModelReplacement2;
   exports.isValidModel = isValidModel2;
   exports.isValidToolName = isValidToolName2;
@@ -10230,6 +10230,14 @@ var require_claude_code_surface = __commonJS((exports) => {
     { name: "Claude Haiku 4.5", value: "claude-haiku-4-5" }
   ];
   exports.N8N_DEFAULT_MODEL = "sonnet";
+  exports.N8N_EFFORT_OPTIONS = [
+    { name: "Model Default", value: "" },
+    { name: "Low", value: "low" },
+    { name: "Medium", value: "medium" },
+    { name: "High", value: "high" },
+    { name: "Extra High", value: "xhigh" },
+    { name: "Max", value: "max" }
+  ];
 });
 
 // lib/shared/slugify.js
@@ -10261,7 +10269,7 @@ var require_envelope = __commonJS((exports) => {
 // lib/n8n-api.js
 var require_n8n_api = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.isValidToolName = exports.isValidModel = exports.N8N_MODEL_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
+  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.isValidToolName = exports.isValidModel = exports.N8N_MODEL_OPTIONS = exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
   var clickup_1 = require_clickup();
   Object.defineProperty(exports, "extractClickUpRef", { enumerable: true, get: function() {
     return clickup_1.extractClickUpRef;
@@ -10318,6 +10326,9 @@ var require_n8n_api = __commonJS((exports) => {
   } });
   Object.defineProperty(exports, "N8N_DEFAULT_MODEL", { enumerable: true, get: function() {
     return claude_code_surface_1.N8N_DEFAULT_MODEL;
+  } });
+  Object.defineProperty(exports, "N8N_EFFORT_OPTIONS", { enumerable: true, get: function() {
+    return claude_code_surface_1.N8N_EFFORT_OPTIONS;
   } });
   Object.defineProperty(exports, "N8N_MODEL_OPTIONS", { enumerable: true, get: function() {
     return claude_code_surface_1.N8N_MODEL_OPTIONS;
@@ -12195,12 +12206,8 @@ function validateAgentFrontmatter(frontmatter, filePath) {
   }
 }
 function buildOutputFrontmatter(fm) {
-  return {
-    name: fm.name,
-    description: fm.description,
-    model: fm.model,
-    tools: [...fm.tools].sort((a2, b2) => a2.localeCompare(b2))
-  };
+  const tools = [...fm.tools].sort((a2, b2) => a2.localeCompare(b2));
+  return fm.effort ? { name: fm.name, description: fm.description, model: fm.model, effort: fm.effort, tools } : { name: fm.name, description: fm.description, model: fm.model, tools };
 }
 
 // src/utils/convert-agents/render.ts
@@ -15496,6 +15503,9 @@ async function convertAgents(opts = {}) {
       const fm = parsed.frontmatter;
       const key = fm.name.replace(/^software-teams-/, "");
       fm.model = opts.models?.[key] ?? fm.model;
+      const effort = opts.efforts?.[key] ?? fm.effort;
+      if (effort)
+        fm.effort = effort;
       const outName = `${fm.name}.md`;
       const outPath = join4(targetDir, outName);
       const relSource = relative(cwd, sourcePath) || basename(sourcePath);
@@ -15549,47 +15559,47 @@ function packagedConfigPath() {
   const packageRoot = existsSync6(join5(oneUp, "package.json")) ? oneUp : twoUp;
   return join5(packageRoot, "config", "config.yaml");
 }
-async function loadModelMap(cwd) {
+function readRecord(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return;
+  return value;
+}
+function stringEntries(source) {
+  const out = {};
+  if (!source)
+    return out;
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof value === "string" && value.length > 0)
+      out[key] = value;
+  }
+  return out;
+}
+async function loadAgentRouting(cwd) {
+  const empty = { models: {}, efforts: {} };
   try {
     const localPath = join5(cwd, ".software-teams", "config", "config.yaml");
     const configPath = existsSync6(localPath) ? localPath : packagedConfigPath();
     if (!existsSync6(configPath))
-      return {};
-    const content = await Bun.file(configPath).text();
-    const raw = import_yaml3.parse(content) ?? {};
-    const modelsBlock = raw.models;
-    if (!modelsBlock || typeof modelsBlock !== "object")
-      return {};
-    const models = modelsBlock;
-    const activeProfile = models.profile;
+      return empty;
+    const raw = readRecord(import_yaml3.parse(await Bun.file(configPath).text()));
+    const models = readRecord(raw?.["models"]);
+    if (!models)
+      return empty;
+    const activeProfile = models["profile"];
     if (typeof activeProfile !== "string" || !activeProfile)
-      return {};
-    const profiles = models.profiles;
-    if (!profiles || typeof profiles !== "object")
-      return {};
-    const profilesMap = profiles;
-    const profileEntry = profilesMap[activeProfile];
-    if (!profileEntry || typeof profileEntry !== "object")
-      return {};
-    const profileData = profileEntry;
-    const result = {};
-    for (const [key, value] of Object.entries(profileData)) {
-      if (typeof value === "string") {
-        result[key] = value;
+      return empty;
+    const profile = readRecord(readRecord(models["profiles"])?.[activeProfile]);
+    if (!profile)
+      return empty;
+    return {
+      models: { ...stringEntries(profile), ...stringEntries(readRecord(models["overrides"])) },
+      efforts: {
+        ...stringEntries(readRecord(profile["effort"])),
+        ...stringEntries(readRecord(models["effort_overrides"]))
       }
-    }
-    const overrides = models.overrides;
-    if (overrides && typeof overrides === "object") {
-      const overridesMap = overrides;
-      for (const [key, value] of Object.entries(overridesMap)) {
-        if (typeof value === "string" && value.length > 0) {
-          result[key] = value;
-        }
-      }
-    }
-    return result;
+    };
   } catch {
-    return {};
+    return empty;
   }
 }
 
@@ -15712,9 +15722,10 @@ var initCommand = defineCommand({
           consola.warn("Native subagents disabled (features.native_subagents=false). Skipping conversion.");
         }
       } else {
-        const models = await loadModelMap(cwd);
+        const { models, efforts } = await loadAgentRouting(cwd);
         const conv = await convertAgents({
           cwd,
+          efforts,
           sourceDir: join6(packageRoot, "agents"),
           targetDir: ".claude/agents",
           onConflict: args.force ? "overwrite" : "preserve-user-owned",
@@ -17624,12 +17635,12 @@ async function validateFrontmatter(opts) {
 }
 function validateModelConfig(config) {
   const findings = [];
-  const models = readRecord(readRecord(config)?.["models"]);
+  const models = readRecord2(readRecord2(config)?.["models"]);
   if (!models)
     return findings;
-  const profiles = readRecord(models["profiles"]) ?? {};
+  const profiles = readRecord2(models["profiles"]) ?? {};
   for (const [profileName, profile] of Object.entries(profiles)) {
-    for (const [agent, value] of Object.entries(readRecord(profile) ?? {})) {
+    for (const [agent, value] of Object.entries(readRecord2(profile) ?? {})) {
       if (typeof value !== "string")
         continue;
       const finding = checkModel("config/config.yaml", `models.profiles.${profileName}.${agent}`, value);
@@ -17637,7 +17648,7 @@ function validateModelConfig(config) {
         findings.push(finding);
     }
   }
-  for (const [agent, value] of Object.entries(readRecord(models["overrides"]) ?? {})) {
+  for (const [agent, value] of Object.entries(readRecord2(models["overrides"]) ?? {})) {
     if (typeof value !== "string")
       continue;
     const finding = checkModel("config/config.yaml", `models.overrides.${agent}`, value);
@@ -17666,7 +17677,7 @@ function checkModel(file, field, value) {
   }
   return;
 }
-function readRecord(value) {
+function readRecord2(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
     return;
   return value;
@@ -22600,13 +22611,14 @@ var syncAgentsCommand = defineCommand({
       consola.warn("Native subagents disabled (features.native_subagents=false in .software-teams/config/software-teams-config.yaml). Skipping.");
       return;
     }
-    const models = await loadModelMap(cwd);
+    const { models, efforts } = await loadAgentRouting(cwd);
     const result = await convertAgents({
       cwd,
       sourceDir: args["source-dir"],
       targetDir: args["target-dir"],
       dryRun: args["dry-run"] === true,
-      models
+      models,
+      efforts
     });
     const verb = args["dry-run"] ? "Would write" : "Wrote";
     consola.info(`${verb} ${result.written.length} agent(s) to .claude/agents/`);
@@ -23181,7 +23193,7 @@ var syncFrameworkCommand = defineCommand({
   async run({ args }) {
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
-    const models = await loadModelMap(cwd);
+    const { models, efforts } = await loadAgentRouting(cwd);
     const packageRoot2 = join31(import.meta.dir, "..", "..");
     if (!existsSync37(join31(packageRoot2, "rules"))) {
       consola.error(`Software Teams package layout not found at ${packageRoot2}. Are you running from inside the Software Teams package?`);
@@ -23193,7 +23205,7 @@ var syncFrameworkCommand = defineCommand({
     if (totalDelta === 0) {
       consola.success(".software-teams/framework/ is already up to date \u2014 no changes needed.");
       if (!dryRun) {
-        const conv2 = await convertAgents({ cwd, models });
+        const conv2 = await convertAgents({ cwd, models, efforts });
         consola.info(`Re-synced ${conv2.written.length} agents to .claude/agents/`);
       }
       return;
@@ -23225,7 +23237,7 @@ var syncFrameworkCommand = defineCommand({
         consola.info(`Preserved: ${rel}`);
       }
     }
-    const conv = await convertAgents({ cwd, models });
+    const conv = await convertAgents({ cwd, models, efforts });
     consola.success(`Re-synced ${conv.written.length} agent(s) to .claude/agents/${conv.errors.length > 0 ? ` (${conv.errors.length} error(s))` : ""}`);
     if (conv.errors.length > 0) {
       for (const err of conv.errors) {
@@ -24699,6 +24711,8 @@ async function spawnClaude2(prompt2, opts) {
   args.push(...disallowedTools.flatMap((tool) => ["--disallowedTools", tool]));
   if (opts?.model)
     args.push("--model", opts.model);
+  if (opts?.effort)
+    args.push("--effort", opts.effort);
   const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
   if (!useStdin) {
     args.push("--", prompt2);
@@ -24806,6 +24820,7 @@ ${taskSection}` : taskSection;
     allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS2],
     disallowedTools: [...SINGLE_TURN_DISALLOWED_TOOLS2],
     model: options?.model,
+    effort: options?.effort,
     cwd: repoContext?.worktreePath,
     githubToken
   }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));

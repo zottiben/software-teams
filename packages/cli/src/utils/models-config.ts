@@ -22,73 +22,87 @@ function packagedConfigPath(): string {
 }
 
 /**
- * Load the merged `{ profileKey → modelId }` map from the Software Teams
+ * Resolved per-agent routing, keyed by the hyphenated agent name minus the
+ * `software-teams-` prefix.
+ *
+ * The two dials are independent and resolved independently: `models` says how
+ * capable the agent is, `efforts` how thorough. `efforts` is deliberately
+ * sparse - an agent absent from it inherits the model's default effort, which
+ * is what Anthropic recommends for most work.
+ */
+export interface AgentRoutingConfig {
+  readonly models: Record<string, string>;
+  readonly efforts: Record<string, string>;
+}
+
+/** Config arrives as `unknown` from a YAML parse; narrow before indexing. */
+function readRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
+}
+
+/** Collect the non-empty string entries of a record, ignoring everything else. */
+function stringEntries(source: Record<string, unknown> | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!source) return out;
+  for (const [key, value] of Object.entries(source)) {
+    if (typeof value === "string" && value.length > 0) out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Load the resolved `{ models, efforts }` routing from the Software Teams
  * config.yaml.
  *
- * Resolution order:
+ * Resolution order for the file:
  *   1. `<cwd>/.software-teams/config/config.yaml`  (project-local)
  *   2. Packaged `<cli-package>/config/config.yaml`  (installed fallback)
  *
- * The active profile is read from `models.profile`. Overrides from
- * `models.overrides` whose values are non-null, non-empty strings are
- * applied on top of the active profile entries.
+ * Within the file, the active profile comes from `models.profile`. Its agent
+ * entries seed `models`, its nested `effort:` map seeds `efforts`, and the
+ * `overrides` / `effort_overrides` maps are applied on top.
  *
- * Returns `{}` on every error path: missing file, missing `models` block,
- * malformed YAML, or unknown active profile. Never throws.
+ * Returns empty maps on every error path: missing file, missing `models` block,
+ * malformed YAML, or unknown active profile. Never throws - callers fall back
+ * to the per-agent frontmatter.
  */
-export async function loadModelMap(cwd: string): Promise<Record<string, string>> {
+export async function loadAgentRouting(cwd: string): Promise<AgentRoutingConfig> {
+  const empty: AgentRoutingConfig = { models: {}, efforts: {} };
   try {
-    // Step 2: resolve config path — project-local first, then packaged fallback.
     const localPath = join(cwd, ".software-teams", "config", "config.yaml");
     const configPath = existsSync(localPath) ? localPath : packagedConfigPath();
+    if (!existsSync(configPath)) return empty;
 
-    if (!existsSync(configPath)) return {};
+    const raw = readRecord(parseYaml(await Bun.file(configPath).text()));
+    const models = readRecord(raw?.["models"]);
+    if (!models) return empty;
 
-    // Step 3: read and parse.
-    const content = await Bun.file(configPath).text();
-    const raw = (parseYaml(content) ?? {}) as Record<string, unknown>;
+    const activeProfile = models["profile"];
+    if (typeof activeProfile !== "string" || !activeProfile) return empty;
 
-    // Step 4: extract models block — missing or wrong type → {}.
-    const modelsBlock = raw.models;
-    if (!modelsBlock || typeof modelsBlock !== "object") return {};
-    const models = modelsBlock as Record<string, unknown>;
+    const profile = readRecord(readRecord(models["profiles"])?.[activeProfile]);
+    if (!profile) return empty;
 
-    const activeProfile = models.profile;
-    if (typeof activeProfile !== "string" || !activeProfile) return {};
-
-    const profiles = models.profiles;
-    if (!profiles || typeof profiles !== "object") return {};
-    const profilesMap = profiles as Record<string, unknown>;
-
-    // Step 5: look up the active profile — unknown profile → {}.
-    const profileEntry = profilesMap[activeProfile];
-    if (!profileEntry || typeof profileEntry !== "object") return {};
-    const profileData = profileEntry as Record<string, unknown>;
-
-    // Step 6: build base map from profile (string values only).
-    const result: Record<string, string> = {};
-    for (const [key, value] of Object.entries(profileData)) {
-      if (typeof value === "string") {
-        result[key] = value;
-      }
-    }
-
-    // Apply overrides: non-null, non-empty string values overwrite profile entries.
-    const overrides = models.overrides;
-    if (overrides && typeof overrides === "object") {
-      const overridesMap = overrides as Record<string, unknown>;
-      for (const [key, value] of Object.entries(overridesMap)) {
-        if (typeof value === "string" && value.length > 0) {
-          result[key] = value;
-        }
-        // null / undefined / empty string → keep profile value (step 6 logic).
-      }
-    }
-
-    // Step 7: model IDs pass through verbatim — no alias translation.
-    return result;
+    // `effort` is a nested map inside the profile, so stringEntries skips it
+    // here (its value is an object, not a string) and it is read separately.
+    return {
+      models: { ...stringEntries(profile), ...stringEntries(readRecord(models["overrides"])) },
+      efforts: {
+        ...stringEntries(readRecord(profile["effort"])),
+        ...stringEntries(readRecord(models["effort_overrides"])),
+      },
+    };
   } catch {
-    // Step 8: any throw → return {} so callers fall back to per-agent frontmatter.
-    return {};
+    return empty;
   }
+}
+
+/**
+ * Back-compat accessor for callers that only need the model map.
+ *
+ * @deprecated Prefer `loadAgentRouting`, which also returns effort.
+ */
+export async function loadModelMap(cwd: string): Promise<Record<string, string>> {
+  return (await loadAgentRouting(cwd)).models;
 }

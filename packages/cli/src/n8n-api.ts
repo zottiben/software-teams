@@ -40,6 +40,7 @@ export {
   EFFORT_LEVELS,
   MODEL_ALIASES,
   N8N_DEFAULT_MODEL,
+  N8N_EFFORT_OPTIONS,
   N8N_MODEL_OPTIONS,
   isValidModel,
   isValidToolName,

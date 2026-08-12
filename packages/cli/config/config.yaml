@@ -41,21 +41,30 @@ models:
 
   # Profile definitions (agent key = hyphenated name minus "software-teams-")
   #
-  # Values are model ALIASES (opus | sonnet | haiku | fable), not pinned IDs.
-  # Aliases track Anthropic's recommended version for each family, so these
-  # profiles do not go stale every time a model ships. Pin a full ID such as
-  # `claude-opus-5` here or in `overrides:` if you need a fixed version.
+  # Two independent dials:
+  #   model  = how CAPABLE the agent is   (opus | sonnet | haiku | fable)
+  #   effort = how THOROUGH it is         (low | medium | high | xhigh | max)
+  #
+  # Values are model ALIASES, not pinned IDs. Aliases track Anthropic's
+  # recommended version for each family, so these profiles do not go stale every
+  # time a model ships. Pin a full ID such as `claude-opus-5` here or in
+  # `overrides:` if you need a fixed version.
+  #
+  # `fable` is for work larger than a single sitting. It costs the most per
+  # token and, on subscription auth, draws hardest on the seat allowance, so it
+  # appears only in the `quality` profile. Fable verifies its own work with less
+  # prompting: do not add verification reminders to specs that run on it.
   profiles:
     # Maximum capability, for critical work
     quality:
-      planner: opus
+      planner: fable
       dev-planner: opus
-      architect: opus
-      producer: opus
+      architect: fable
+      producer: fable
       plan-checker: opus
       product-lead: opus
       head-engineering: opus
-      researcher: opus
+      researcher: fable
       phase-researcher: opus
       backend: opus
       frontend: opus
@@ -82,6 +91,19 @@ models:
       game-qa: opus
       game-tech-artist: opus
 
+      # Effort = how thorough, independent of model = how capable.
+      # Sparse on purpose: anything not listed inherits the model's default
+      # effort, which is what Anthropic recommends for most work. Entries
+      # here are deliberate overrides only.
+      effort:
+        debugger: xhigh
+        security: xhigh
+        qa-tester: high
+        plan-checker: high
+        verifier: high
+        committer: low
+        pr-generator: low
+
     # Smart allocation for typical development
     balanced:
       planner: opus
@@ -107,7 +129,19 @@ models:
       perf-analyst: sonnet
       verifier: sonnet
       committer: haiku
-      debugger: haiku
+      debugger: sonnet
+
+      # Effort = how thorough, independent of model = how capable.
+      # Sparse on purpose: anything not listed inherits the model's default
+      # effort, which is what Anthropic recommends for most work. Entries
+      # here are deliberate overrides only.
+      effort:
+        debugger: high
+        security: high
+        qa-tester: medium
+        committer: low
+        pr-generator: low
+        feedback-learner: low
       # qa-tester owns evidence-based verification (baseline proofs, contract +
       # a11y judgement) — it needs reasoning, not the cheapest model. sonnet.
       qa-tester: sonnet
@@ -145,7 +179,7 @@ models:
       perf-analyst: sonnet
       verifier: haiku
       committer: haiku
-      debugger: haiku
+      debugger: sonnet
       qa-tester: haiku
       game-designer: sonnet
       game-producer: sonnet
@@ -156,7 +190,17 @@ models:
       game-qa: sonnet
       game-tech-artist: sonnet
 
-  # Override specific agents (null = use profile default; hyphenated keys)
+      # Effort = how thorough, independent of model = how capable.
+      # Sparse on purpose: anything not listed inherits the model's default
+      # effort, which is what Anthropic recommends for most work. Entries
+      # here are deliberate overrides only.
+      effort:
+        debugger: medium
+        committer: low
+        pr-generator: low
+        feedback-learner: low
+
+  # Override a specific agent's MODEL (null = use profile default; hyphenated keys)
   overrides:
     planner: null
     dev-planner: null
@@ -191,6 +235,12 @@ models:
     game-devops: null
     game-qa: null
     game-tech-artist: null
+
+  # Override a specific agent's EFFORT (null = inherit the model's default).
+  # Deliberately not pre-populated with every agent: an entry here is a
+  # statement that this role needs more or less thoroughness than the default,
+  # and a file full of nulls invites cargo-culting one in.
+  effort_overrides: {}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Default Paths and Values

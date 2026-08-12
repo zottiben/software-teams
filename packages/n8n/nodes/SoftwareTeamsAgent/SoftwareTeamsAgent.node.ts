@@ -22,6 +22,7 @@ import type { RepoContext } from '../../src/repo/repo-context';
 
 interface AgentTurnOptions {
   readonly model?: string;
+  readonly effort?: string;
 }
 
 type RunAgentTurnFn = (
@@ -80,9 +81,12 @@ const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
 // Sourced from the shared CLI surface so the two nodes that offer a model
 // picker cannot drift apart. See shared/claude-code-surface.ts.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL } = require('@websitelabs/software-teams') as {
+const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL, N8N_EFFORT_OPTIONS } = require(
+  '@websitelabs/software-teams',
+) as {
   N8N_MODEL_OPTIONS: Array<{ name: string; value: string }>;
   N8N_DEFAULT_MODEL: string;
+  N8N_EFFORT_OPTIONS: Array<{ name: string; value: string }>;
 };
 
 /**
@@ -167,6 +171,18 @@ export class SoftwareTeamsAgent implements INodeType {
           'Opus for complex reasoning, Haiku for fast mechanical turns, Fable for ' +
           'long autonomous work. Inherit uses the worker session default.',
       },
+      {
+        displayName: 'Effort',
+        name: 'effort',
+        type: 'options',
+        noDataExpression: true,
+        options: N8N_EFFORT_OPTIONS,
+        default: '',
+        description:
+          'How thorough the agent is, independent of how capable the model makes it. ' +
+          'Passed to the Claude CLI as --effort. Leave on Model Default unless this ' +
+          'turn specifically needs more thoroughness or more speed.',
+      },
     ],
 		usableAsTool: true,
   };
@@ -188,6 +204,7 @@ export class SoftwareTeamsAgent implements INodeType {
       const prompt = this.getNodeParameter('prompt', i) as string;
       const contextRaw = this.getNodeParameter('context', i, '') as string;
       const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
+      const effort = this.getNodeParameter('effort', i, '') as string;
 
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
 
@@ -216,9 +233,10 @@ export class SoftwareTeamsAgent implements INodeType {
             specialist,
             githubToken,
             model,
+            effort,
           });
         } else {
-          result = await runAgentTurn(envelope, undefined, githubToken, { model });
+          result = await runAgentTurn(envelope, undefined, githubToken, { model, effort });
         }
       } catch (err) {
         if (this.continueOnFail()) {
@@ -352,8 +370,9 @@ async function executeWithWorktree(opts: {
   readonly specialist: string;
   readonly githubToken: string | undefined;
   readonly model: string | undefined;
+  readonly effort: string | undefined;
 }): Promise<NodeEnvelope> {
-  const { envelope, repoDescriptor, specialist, githubToken, model } = opts;
+  const { envelope, repoDescriptor, specialist, githubToken, model, effort } = opts;
   const { cloneUrl, ownerRepo, baseBranch } = repoDescriptor;
 
   validateOwnerRepo(ownerRepo);
@@ -385,7 +404,7 @@ async function executeWithWorktree(opts: {
   };
 
   try {
-    const agentResult = await runAgentTurn(envelope, repoContext, githubToken, { model });
+    const agentResult = await runAgentTurn(envelope, repoContext, githubToken, { model, effort });
     const changeRef = await capturePortableChange({ worktreePath, baseBranch });
     return changeRef ? { ...agentResult, changeRef } : agentResult;
   } finally {

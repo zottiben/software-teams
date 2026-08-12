@@ -29,6 +29,7 @@ export interface ConvertAgentsOptions {
   onConflict?: ConflictMode;
   storage?: SoftwareTeamsStorage;
   models?: Record<string, string>;
+  efforts?: Record<string, string>;
 }
 
 export async function convertAgents(
@@ -74,6 +75,10 @@ export async function convertAgents(
       const fm = parsed.frontmatter as AgentFrontmatter;
       const key = fm.name.replace(/^software-teams-/, "");
       fm.model = opts.models?.[key] ?? fm.model;
+      // Config wins over frontmatter, and an agent absent from both stays
+      // silent so it inherits the model's default effort.
+      const effort = opts.efforts?.[key] ?? fm.effort;
+      if (effort) fm.effort = effort;
       const outName = `${fm.name}.md`;
       const outPath = join(targetDir, outName);
 

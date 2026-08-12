@@ -1,15 +1,42 @@
 # Software Teams Agent Model & Tool Mapping (Canonical)
 
-This file is the human-readable aide-memoire for the `model:` and `tools:`
-frontmatter pinned on every `framework/agents/software-teams-*.md` spec. Pre-plan gate
-PAQ-06 made both fields mandatory. At `software-teams sync-agents` time the converter
-resolves each agent's model using this precedence:
+This file is the human-readable aide-memoire for the `model:`, `effort:`, and `tools:`
+frontmatter on every `agents/software-teams-*.md` spec.
 
-1. **config.yaml `models:` profile override** (if the active profile names the agent) — highest priority.
-2. **Per-agent frontmatter `model:`** — fallback default used only when the active profile (and any override) does not name the agent.
+## Two dials, resolved separately
 
-The converter writes `.claude/agents/{name}.md` mechanically from the resolved value.
-Frontmatter is no longer the sole source of truth; it is the fallback.
+**`model` is how capable. `effort` is how thorough.** They are independent, and the
+right question when an agent gets something wrong is which one was short:
+
+- It had the context, clearly tried, and was still wrong → **raise the model**.
+- It skipped a file, skipped the tests, or stopped at the first plausible answer →
+  **raise the effort**.
+
+Effort is deliberately sparse. Anthropic's guidance is to stay on the model's default
+effort for most work and treat the dial as a manual override, so an agent appears in a
+profile's `effort:` map only where there is a stated reason. An agent with no entry emits
+no `effort:` key and inherits the default. Do not pre-populate the map.
+
+## Resolution at `sync-agents` time
+
+The converter writes `.claude/agents/{name}.md` from:
+
+1. **config.yaml** — `models.profiles.<active>` then `models.overrides` for the model;
+   `models.profiles.<active>.effort` then `models.effort_overrides` for the effort.
+2. **Per-agent frontmatter** — the fallback, used only where config names nothing.
+
+## Resolution at runtime (the harness's own order)
+
+What Software Teams writes into the frontmatter is only step 3 of Claude Code's own
+precedence, so a value set here can still be overridden at spawn time:
+
+1. `CLAUDE_CODE_SUBAGENT_MODEL` environment variable
+2. The per-invocation `model` parameter on the `Agent` tool call
+3. The subagent definition's `model:` frontmatter — **what we write**
+4. The main conversation's model
+
+So a worker or CI environment that sets `CLAUDE_CODE_SUBAGENT_MODEL` silently wins over
+every profile in this file. Worth knowing before debugging "my profile isn't applying".
 
 When you add a new agent or change a role's responsibilities, update both
 this table AND the agent's frontmatter in the same commit.
@@ -18,11 +45,28 @@ this table AND the agent's frontmatter in the same commit.
 
 | Model  | When to use                                                       |
 | ------ | ----------------------------------------------------------------- |
+| fable  | Work larger than a single sitting: long autonomous runs, ambiguous |
+|        | root-cause investigation, architecture. Costs the most per token   |
+|        | and draws hardest on a subscription seat allowance, so it appears  |
+|        | only in the `quality` profile. It verifies its own work with less  |
+|        | prompting — do NOT add verification reminders to specs that run    |
+|        | on it.                                                             |
 | opus   | High-leverage reasoning: planning, architecture, cross-cutting    |
 |        | judgement, oversight that gates downstream work.                  |
 | sonnet | Default — implementation, research, review, specialist work.      |
-| haiku  | Mechanical / narrow-scope tasks (committer, debugger triage,      |
-|        | plan checklist validation).                                       |
+| haiku  | Mechanical / narrow-scope tasks (committer, plan checklist         |
+|        | validation). Not for diagnosis: see the debugger note below.      |
+
+## Effort Assignment Policy
+
+| Effort | When to set it explicitly                                          |
+| ------ | ------------------------------------------------------------------ |
+| low    | Mechanical, precisely specified work where thoroughness buys        |
+|        | nothing (committer, pr-generator, feedback-learner).                |
+| high   | Roles that gate downstream work, or whose failure mode is stopping  |
+| xhigh  | too early (debugger, security, qa-tester, plan-checker, verifier).  |
+| max    | Reserved. Nothing ships on it by default.                           |
+| unset  | Everything else — inherit the model's default. This is the norm.    |
 
 Never silently downgrade opus → sonnet on an existing spec; raise it as a
 deliberate decision.
@@ -112,5 +156,6 @@ Notes:
 - The eight game-* specialists are gameplay/Unity/AI-art-pipeline/store-cert/production roles for game development projects; they follow the same model/role-class conventions as the other agents.
 - **Profile-overrides-frontmatter precedence:** `config.yaml models:` profiles override the per-agent frontmatter `model:` at `software-teams sync-agents` time. The frontmatter value is the fallback default used only when the active profile (and any override) does not name the agent. The `balanced` profile maps `software-teams-dev-planner` to `opus`; its frontmatter default is `sonnet`.
 - **Profiles use aliases, not pinned IDs.** `opus`, `sonnet`, `haiku`, and `fable` each track Anthropic's current recommended version for that family, so the profiles do not go stale when a model ships. On the Anthropic API today `opus` resolves to Opus 5 and `sonnet` to Sonnet 5. Pin a full ID (`claude-opus-5`) only when a fixed version genuinely matters.
-- **This table is a capability tier, not a thoroughness tier.** Model selects how capable; `effort` selects how thorough. The two dials are independent, and `effort` is not yet wired through Software Teams (see `BUILD-PLAN.md` slice 2).
+- **This table is a capability tier, not a thoroughness tier.** Model selects how capable; `effort` selects how thorough. See "Two dials" above for how to tell which one is short.
+- **`software-teams-debugger` is `sonnet` in every profile (raised from `haiku`).** Root-cause analysis on a subtle bug is the canonical "pick a larger model" case: no amount of effort rescues a model that is confidently wrong. It also carries the highest effort of any role, because its specific failure mode is stopping at the first plausible explanation. This is the same argument that already moved `qa-tester` off `haiku`.
 - **Orchestrator caveat:** The orchestrator is the main Claude Code session, not a spawned subagent — it cannot be configured via `config.yaml`. Out of scope; documented here only.

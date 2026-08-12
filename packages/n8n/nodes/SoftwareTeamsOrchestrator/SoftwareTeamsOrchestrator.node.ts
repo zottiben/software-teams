@@ -34,7 +34,7 @@ type RunAgentTurnFn = (
   input: NodeEnvelope,
   repoContext?: undefined,
   githubToken?: string,
-  options?: { readonly model?: string },
+  options?: { readonly model?: string; readonly effort?: string },
 ) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
@@ -46,9 +46,12 @@ const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
 // Sourced from the shared CLI surface so the two nodes that offer a model
 // picker cannot drift apart. See shared/claude-code-surface.ts.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL } = require('@websitelabs/software-teams') as {
+const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL, N8N_EFFORT_OPTIONS } = require(
+  '@websitelabs/software-teams',
+) as {
   N8N_MODEL_OPTIONS: Array<{ name: string; value: string }>;
   N8N_DEFAULT_MODEL: string;
+  N8N_EFFORT_OPTIONS: Array<{ name: string; value: string }>;
 };
 
 /**
@@ -138,6 +141,18 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           'Claude model used for the planning turn. Injected via the ' +
           '--model flag on the Claude CLI.',
       },
+      {
+        displayName: 'Effort',
+        name: 'effort',
+        type: 'options',
+        noDataExpression: true,
+        options: N8N_EFFORT_OPTIONS,
+        default: '',
+        description:
+          'How thorough the planning turn is, independent of how capable the model ' +
+          'makes it. Passed to the Claude CLI as --effort. Leave on Model Default ' +
+          'unless planning specifically needs more thoroughness or more speed.',
+      },
     ],
 		usableAsTool: true,
   };
@@ -154,9 +169,9 @@ export class SoftwareTeamsOrchestrator implements INodeType {
     // value here. Before this, the node's model parameter was written to a
     // non-existent env var and never reached the CLI at all.
     const bindRunAgentTurn =
-      (model: string): ((input: NodeEnvelope) => Promise<NodeEnvelope>) =>
+      (model: string, effort: string): ((input: NodeEnvelope) => Promise<NodeEnvelope>) =>
       (input) =>
-        runAgentTurn(input, undefined, githubToken, { model });
+        runAgentTurn(input, undefined, githubToken, { model, effort });
 
     const staticData = this.getWorkflowStaticData('global') as IDataObject;
     const runs = getRunStore(staticData);
@@ -268,6 +283,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         const epic = (this.getNodeParameter('epic', i) as string)?.trim();
 
         const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
+        const effort = this.getNodeParameter('effort', i, '') as string;
 
         // Maximum 2 refine attempts (re-plan + re-review); after that, park via HITL.
         const MAX_REFINE_ATTEMPTS = 2;
@@ -292,7 +308,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           const readinessEnv = buildReadinessEnvelope(runState, resolvedId);
           let qualityResponse: NodeEnvelope;
           try {
-            qualityResponse = await bindRunAgentTurn(model)(readinessEnv);
+            qualityResponse = await bindRunAgentTurn(model, effort)(readinessEnv);
           } catch (err) {
             if (this.continueOnFail()) {
               returnData.push({
@@ -381,7 +397,7 @@ export class SoftwareTeamsOrchestrator implements INodeType {
           const refinedEpic = `${epic}\n\n## Readiness gaps to address\n${verdict.gaps.join('\n')}`;
           let refinedPlan: PlanResult;
           try {
-            refinedPlan = await planEpic(refinedEpic, resolvedId, bindRunAgentTurn(model));
+            refinedPlan = await planEpic(refinedEpic, resolvedId, bindRunAgentTurn(model, effort));
           } catch (err) {
             if (this.continueOnFail()) {
               returnData.push({
@@ -426,10 +442,11 @@ export class SoftwareTeamsOrchestrator implements INodeType {
       const correlationId = correlationIdParam || randomUUID();
 
       const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
+      const effort = this.getNodeParameter('effort', i, '') as string;
 
       let plan: PlanResult;
       try {
-        plan = await planEpic(epic, correlationId, bindRunAgentTurn(model));
+        plan = await planEpic(epic, correlationId, bindRunAgentTurn(model, effort));
       } catch (err) {
         if (this.continueOnFail()) {
           returnData.push({

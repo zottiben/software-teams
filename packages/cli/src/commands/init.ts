@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
-import { loadModelMap } from "../utils/models-config";
+import { loadAgentRouting } from "../utils/models-config";
 import { updateGitignore } from "../utils/gitignore";
 
 export const initCommand = defineCommand({
@@ -111,9 +111,10 @@ export const initCommand = defineCommand({
           );
         }
       } else {
-        const models = await loadModelMap(cwd);
+        const { models, efforts } = await loadAgentRouting(cwd);
         const conv = await convertAgents({
           cwd,
+          efforts,
           // Resolve agent specs from the package's `agents/` dir.
           sourceDir: join(packageRoot, "agents"),
           targetDir: ".claude/agents",

@@ -171,3 +171,20 @@ export const N8N_MODEL_OPTIONS: ReadonlyArray<{ readonly name: string; readonly 
 
 /** Default model for n8n nodes: daily-driver capability, current version. */
 export const N8N_DEFAULT_MODEL = "sonnet";
+
+/**
+ * Effort choices offered by the n8n node dropdowns.
+ *
+ * The empty default is deliberate and leads the list: Anthropic's guidance is
+ * to stay on the model's default effort and reach for the dial only when you
+ * have a reason. Names are title case for the n8n node linter.
+ */
+export const N8N_EFFORT_OPTIONS: ReadonlyArray<{ readonly name: string; readonly value: string }> =
+  [
+    { name: "Model Default", value: "" },
+    { name: "Low", value: "low" },
+    { name: "Medium", value: "medium" },
+    { name: "High", value: "high" },
+    { name: "Extra High", value: "xhigh" },
+    { name: "Max", value: "max" },
+  ];

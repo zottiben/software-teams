@@ -244,9 +244,38 @@ value. Bundle rebuilt and committed with the version bump (rule 5).
 
 ---
 
-### Slice 2 - Model and effort policy
+### Slice 2 - Model and effort policy `[SHIPPED]`
 
 **Goal:** make effort a first-class dial and stop treating model choice as the only knob.
+
+**The design call worth recording: effort is sparse, not universal.** The obvious
+implementation is an effort value for all 33 agents in every profile. That is wrong.
+Anthropic's guidance is to stay on the model's default effort for most work and treat the
+dial as a deliberate override, so pinning it everywhere would override the default
+everywhere and defeat the point. An agent appears in a profile's `effort:` map only where
+there is a stated reason - raised where the failure mode is "stopped too early"
+(debugger, security, qa-tester, plan-checker, verifier), lowered where the work is
+mechanical (committer, pr-generator, feedback-learner). Everything else emits no `effort:`
+key at all. A test enforces the sparseness so a future maintainer cannot quietly
+pre-populate it.
+
+**Two things found while building it:**
+
+- **`debugger` was on `haiku` in two profiles.** Root-cause analysis on a subtle bug is
+  the canonical "pick a larger model" case: no amount of effort rescues a model that is
+  confidently wrong. Raised to `sonnet` everywhere, and it now carries the highest effort
+  of any role. Same argument that had already moved `qa-tester` off `haiku`.
+- **Only one of three `convertAgents` call sites was wired.** `sync-agents` got effort;
+  `init` and `sync-framework` did not, so a freshly initialised project got models but no
+  effort - and every unit test still passed, because they pass the options directly. Found
+  by running the built bundle's `init` and inspecting the generated specs. There is now a
+  source-level guard test for it.
+
+**Verified end to end:** `--effort` reaches the CLI; the valid set is exactly
+`low|medium|high|xhigh|max` (an unknown value only *warns* and silently falls back, which
+is why the slice-1 gate checks it); `effort:` frontmatter is accepted on a file-based
+subagent; and a generated `software-teams-committer` (`model: haiku`, `effort: low`)
+spawns and responds.
 
 - Add `effort` to the `models:` profile schema in `config.yaml` and to the resolved
   `.claude/agents/*.md` frontmatter written by `sync-agents`.

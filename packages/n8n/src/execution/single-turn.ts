@@ -54,6 +54,7 @@ async function spawnClaude(
     allowedTools?: string[];
     disallowedTools?: string[];
     model?: string;
+    effort?: string;
     cwd?: string;
     permissionMode?: string;
     githubToken?: string;
@@ -83,6 +84,10 @@ async function spawnClaude(
   // environment: n8n workers are shared and long-lived, so a mutated
   // `process.env` would leak across executions.
   if (opts?.model) args.push("--model", opts.model);
+
+  // Effort is the second dial: model is how capable, effort is how thorough.
+  // Omitted means inherit the model's default, which suits most turns.
+  if (opts?.effort) args.push("--effort", opts.effort);
 
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) {
@@ -193,6 +198,14 @@ function isNonEmptyContext(ctx: unknown): boolean {
 export interface AgentTurnOptions {
   /** Model alias (`opus`, `sonnet`, `haiku`, `fable`) or full ID. Passed as `--model`. */
   model?: string;
+  /**
+   * Effort level (`low` | `medium` | `high` | `xhigh` | `max`), passed as
+   * `--effort`. Leave unset to inherit the model's default.
+   *
+   * Claude Code only WARNS on an unrecognised value and falls back to the
+   * default, so a typo here degrades silently rather than failing.
+   */
+  effort?: string;
 }
 
 export async function runAgentTurn(
@@ -230,6 +243,7 @@ export async function runAgentTurn(
     allowedTools: [...SINGLE_TURN_ALLOWED_TOOLS],
     disallowedTools: [...SINGLE_TURN_DISALLOWED_TOOLS],
     model: options?.model,
+    effort: options?.effort,
     cwd: repoContext?.worktreePath,
     githubToken,
   }).catch((err) => ({ _error: err instanceof Error ? err.message : String(err) }));

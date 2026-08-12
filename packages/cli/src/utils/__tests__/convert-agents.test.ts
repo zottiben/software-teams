@@ -649,7 +649,7 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
   test("profile model applied to per-agent frontmatter AND AGENTS.md catalogue row", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      planner: "claude-opus-4-8",
+      planner: "opus",
     };
     const result = await convertAgents({ cwd, models });
     expect(result.errors).toEqual([]);
@@ -658,19 +658,19 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
     const plannerPath = join(cwd, ".claude", "agents", "software-teams-planner.md");
     const plannerContent = await readFile(plannerPath, "utf-8");
     const { fm } = parseFrontmatter(plannerContent);
-    expect(fm.model).toBe("claude-opus-4-8");
+    expect(fm.model).toBe("opus");
 
     // Check AGENTS.md catalogue row
     const agentsMd = await readFile(join(cwd, ".claude", "AGENTS.md"), "utf-8");
     const plannerRow = agentsMd.split("\n").find((l) => l.includes("| software-teams-planner |"));
     expect(plannerRow).toBeDefined();
-    expect(plannerRow).toContain("claude-opus-4-8");
+    expect(plannerRow).toContain("opus");
   });
 
   test("override wins over profile when both injected via the merged map", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      planner: "claude-sonnet-4-6",
+      planner: "sonnet",
     };
     const result = await convertAgents({ cwd, models });
     expect(result.errors).toEqual([]);
@@ -678,13 +678,13 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
     const plannerPath = join(cwd, ".claude", "agents", "software-teams-planner.md");
     const plannerContent = await readFile(plannerPath, "utf-8");
     const { fm } = parseFrontmatter(plannerContent);
-    expect(fm.model).toBe("claude-sonnet-4-6");
+    expect(fm.model).toBe("sonnet");
   });
 
   test("agent ABSENT from map keeps its original frontmatter model", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      planner: "claude-opus-4-8",
+      planner: "opus",
       // backend is not in the map
     };
     const result = await convertAgents({ cwd, models });
@@ -694,7 +694,7 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
     const plannerPath = join(cwd, ".claude", "agents", "software-teams-planner.md");
     const plannerContent = await readFile(plannerPath, "utf-8");
     const { fm: plannerFm } = parseFrontmatter(plannerContent);
-    expect(plannerFm.model).toBe("claude-opus-4-8");
+    expect(plannerFm.model).toBe("opus");
 
     // backend should keep its original model from the source agent file
     const backendPath = join(cwd, ".claude", "agents", "software-teams-backend.md");
@@ -702,7 +702,7 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
     const { fm: backendFm } = parseFrontmatter(backendContent);
 
     // Verify it's NOT the planner model
-    expect(backendFm.model).not.toBe("claude-opus-4-8");
+    expect(backendFm.model).not.toBe("opus");
     // Verify it matches the source (read from real agents directory)
     const realBackendPath = join(REAL_SOURCE, "software-teams-backend.md");
     const realBackendContent = await readFile(realBackendPath, "utf-8");
@@ -724,20 +724,20 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
     expect(fm1.model).toBe("claude-haiku-4-5");
 
     // Second run with quality (profile switch simulation)
-    const modelsV2 = { planner: "claude-opus-4-8" };
+    const modelsV2 = { planner: "opus" };
     const result2 = await convertAgents({ cwd, models: modelsV2 });
     expect(result2.errors).toEqual([]);
 
     const content2 = await readFile(plannerPath, "utf-8");
     const { fm: fm2 } = parseFrontmatter(content2);
-    expect(fm2.model).toBe("claude-opus-4-8");
+    expect(fm2.model).toBe("opus");
   });
 
   test("dry-run resolves model the same as a real run (assert against result catalogue)", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      planner: "claude-opus-4-8",
-      programmer: "claude-sonnet-4-6",
+      planner: "opus",
+      programmer: "sonnet",
     };
 
     // Dry-run: should not write to disk, but should include resolved models in result
@@ -761,7 +761,7 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
   test("hyphenated-key resolution: phase-researcher resolves", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      "phase-researcher": "claude-opus-4-8",
+      "phase-researcher": "opus",
     };
     const result = await convertAgents({ cwd, models });
     expect(result.errors).toEqual([]);
@@ -775,7 +775,7 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
   test("hyphenated-key resolution: plan-checker resolves", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      "plan-checker": "claude-opus-4-8",
+      "plan-checker": "opus",
     };
     const result = await convertAgents({ cwd, models });
     expect(result.errors).toEqual([]);
@@ -789,7 +789,7 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
   test("hyphenated-key resolution: game-engineer resolves", async () => {
     const cwd = await makeFixtureCwd();
     const models = {
-      "game-engineer": "claude-opus-4-8",
+      "game-engineer": "opus",
     };
     const result = await convertAgents({ cwd, models });
     expect(result.errors).toEqual([]);
@@ -798,5 +798,48 @@ describe("convertAgents — models option (wave-4 profile wiring)", () => {
     const hasGameEngineer = result.written.some((p) => p.includes("software-teams-game-engineer.md")) ||
       result.unchanged.some((p) => p.includes("software-teams-game-engineer.md"));
     expect(hasGameEngineer).toBe(true);
+  });
+});
+
+describe("convertAgents — effort option", () => {
+  test("profile effort lands in the generated frontmatter", async () => {
+    const cwd = await makeFixtureCwd();
+    const result = await convertAgents({ cwd, efforts: { planner: "xhigh" } });
+    expect(result.errors).toEqual([]);
+
+    const content = await readFile(
+      join(cwd, ".claude", "agents", "software-teams-planner.md"),
+      "utf-8",
+    );
+    const { fm } = parseFrontmatter(content);
+    expect(fm.effort).toBe("xhigh");
+  });
+
+  test("an agent with no effort entry emits no effort key at all", async () => {
+    // Absent means "inherit the model's default". Emitting a guessed value
+    // would override that default everywhere, which is the opposite of the
+    // recommended behaviour.
+    const cwd = await makeFixtureCwd();
+    const result = await convertAgents({ cwd, efforts: {} });
+    expect(result.errors).toEqual([]);
+
+    const content = await readFile(
+      join(cwd, ".claude", "agents", "software-teams-planner.md"),
+      "utf-8",
+    );
+    expect(content).not.toMatch(/^effort:/m);
+  });
+
+  test("config effort overrides the spec's frontmatter default", async () => {
+    const cwd = await makeFixtureCwd();
+    const result = await convertAgents({ cwd, efforts: { planner: "low" } });
+    expect(result.errors).toEqual([]);
+
+    const content = await readFile(
+      join(cwd, ".claude", "agents", "software-teams-planner.md"),
+      "utf-8",
+    );
+    const { fm } = parseFrontmatter(content);
+    expect(fm.effort).toBe("low");
   });
 });

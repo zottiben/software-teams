@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
-import { loadModelMap } from "../utils/models-config";
+import { loadAgentRouting } from "../utils/models-config";
 
 /**
  * Files that live under `.software-teams/` but represent project state (not framework
@@ -96,7 +96,7 @@ export const syncFrameworkCommand = defineCommand({
   async run({ args }) {
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
-    const models = await loadModelMap(cwd);
+    const { models, efforts } = await loadAgentRouting(cwd);
 
     // Resolve the package root the same way copyFrameworkFiles does (two
     // levels above this file). The legacy `framework/` wrapper was retired in
@@ -121,7 +121,7 @@ export const syncFrameworkCommand = defineCommand({
       consola.success(".software-teams/framework/ is already up to date — no changes needed.");
       // Still re-sync agents for safety (idempotent).
       if (!dryRun) {
-        const conv = await convertAgents({ cwd, models });
+        const conv = await convertAgents({ cwd, models, efforts });
         consola.info(`Re-synced ${conv.written.length} agents to .claude/agents/`);
       }
       return;
@@ -162,7 +162,7 @@ export const syncFrameworkCommand = defineCommand({
 
     // Auto-rerun agent conversion so .claude/agents/ matches the refreshed
     // snapshot. One refresh = both layers synced.
-    const conv = await convertAgents({ cwd, models });
+    const conv = await convertAgents({ cwd, models, efforts });
     consola.success(
       `Re-synced ${conv.written.length} agent(s) to .claude/agents/${conv.errors.length > 0 ? ` (${conv.errors.length} error(s))` : ""}`,
     );
