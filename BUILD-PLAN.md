@@ -649,7 +649,32 @@ end to end in full and `--lightweight` modes against a real adapter.
 
 ---
 
-### Slice 9 - Documentation and release
+### Slice 9 - Documentation and release `[IN PROGRESS - awaiting staging + publish approval]`
+
+**Done (committed on the branch, nothing published):**
+
+- `packages/n8n/RUNBOOK.md` - the operator runbook: worker prerequisites, install,
+  load verification, `claude setup-token` and both credentials, importing the reference
+  workflow, the first manual ticket run, reading the execution envelope, turning on
+  tag-driven pickup safely, and operations (usage limits, token rotation, budgets,
+  recovery table, upgrades). Ships in the npm payload.
+- `MIGRATING.md` - 0.13.x to 1.0.0: commands to skills (including the `/st:` to `/st-`
+  separator change and the two retired native duplicates), rules relocation, worktrees,
+  agent-spec changes, and n8n contract v2 + the auth switch.
+- README and n8n README updated; the `ANTHROPIC_API_KEY` precedence warning is now on the
+  credential surface, not just in the plan.
+- Version bumped to `1.0.0` across both packages and the plugin manifest, with the tracked
+  bundle rebuilt in the same commit (rule 5). All gates green.
+
+**Blocked on the operator (see below):**
+
+- Connecting this harness to staging through n8n's native instance-level MCP.
+- The deferred live `NDP-34603` run and execution inspection.
+- Merging to `main`, which is what actually publishes. Irreversible and public.
+
+---
+
+### Slice 9 - Original scope
 
 - `README.md`, `packages/n8n/CONTRACT.md`, `packages/n8n/ARCHITECTURE.md` (new ADRs for the
   auth switch, the execution-engine rewrite, and the contract bump),

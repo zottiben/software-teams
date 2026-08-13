@@ -24,6 +24,10 @@ If the `claude` binary is missing at execution time the node fails fast with a d
 
 ## Install
 
+> **New here?** Follow [RUNBOOK.md](RUNBOOK.md) instead - it walks the whole path
+> from a bare worker to tag-driven automation, in order, with the two failure
+> modes that cost the most time called out first.
+
 In your self-hosted n8n instance:
 
 1. Go to **Settings → Community Nodes → Install**.
@@ -60,6 +64,11 @@ Create the credential at **Credentials → New → Software Teams API**.
 | **SMTP URL** | for Email HITL | SMTP connection string (e.g. `smtps://user:pass@smtp.example.com`). Required by the HITL node when the `email` channel is selected. Injected as `SMTP_URL` — never on the envelope or in logs (AC8). |
 
 Credential testing runs `claude auth status` on the worker and asserts the reported authentication method matches the selected mode.
+
+> **Keep `ANTHROPIC_API_KEY` out of the worker environment.** It outranks the
+> OAuth token, so runs succeed while quietly billing the API instead of the
+> subscription. Software Teams strips it from the child environment in
+> subscription mode; do not make that your only defence.
 
 Create **Software Teams ClickUp API** separately for support intake and tag polling. It contains only the ClickUp token and API base URL, so a read-only poller never receives Claude, GitHub, Slack, SMTP, or Datadog secrets.
 

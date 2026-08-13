@@ -175,6 +175,13 @@ review prompt.
 
 ---
 
+## Upgrading from 0.13.x
+
+See [MIGRATING.md](MIGRATING.md). `software-teams init` performs the migration;
+it is idempotent and preserves content you wrote.
+
+---
+
 ## GitHub Actions setup
 
 ```bash

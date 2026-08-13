@@ -1,8 +1,10 @@
 {
   "name": "@websitelabs/n8n-nodes-software-teams",
-  "version": "0.13.0",
+  "version": "1.0.0",
   "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only; requires the claude binary and a Claude subscription OAuth token or Anthropic API key.",
-  "author": { "name": "WebsiteLabs" },
+  "author": {
+    "name": "WebsiteLabs"
+  },
   "license": "MIT",
   "keywords": [
     "n8n-community-node-package",
@@ -49,6 +51,7 @@
     "dist",
     "examples/*.workflow.json",
     "README.md",
+    "RUNBOOK.md",
     "CONTRACT.md",
     "ARCHITECTURE.md",
     "LICENSE"
