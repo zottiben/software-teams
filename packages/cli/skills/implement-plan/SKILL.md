@@ -97,22 +97,22 @@ section entirely and use the inline loop (the default).
 
 ## `--isolate` — run in a worktree, merge back when green
 
-When `--isolate` is passed, stage the whole run in a Software Teams worktree so
-your main working tree stays clean until the plan is verified, then merge it back
-deterministically (Software Teams owns the worktree branch name, so the
-merge-back is reliable — no discovery gap).
+When `--isolate` is passed, stage the run in a git worktree so your main working
+tree stays clean until the plan is verified.
 
-1. **Create / enter the worktree.** If `state.worktree.active` is false, create
-   one: `$ST_CLI worktree {slug}` (resolve the CLI per
-   `${CLAUDE_SKILL_DIR}/../st-support/cli-invocation.md`; `{slug}` = `current_plan.slug`). This
-   branches `{slug}` at `.worktrees/{slug}`, runs the adapter's worktree setup,
-   and records it in state. Then `cd` into `state.worktree.path`.
-2. **Run normally.** Execute the plan via the loop below, committing each task's
-   `commits_pending` in the worktree as usual.
-3. **Merge back when green.** After §3T.12 / §12 verification gates PASS, merge
-   the worktree into the parent branch and clean up:
-   `$ST_CLI worktree-merge {slug} --remove`. If it reports a **conflict** or
-   **uncommitted changes**, relay the message and STOP — do NOT force.
+1. **Enter a worktree.** Claude Code owns worktree creation: ask for one and it
+   calls `EnterWorktree`, or the user starts the session with
+   `claude --worktree {slug}`. Gitignored files listed in `.worktreeinclude`
+   (`.env` and friends) are copied in automatically.
+2. **Provision it if the project needs a database or web server.** Run
+   `$ST_CLI provision-worktree` (add `--lightweight` for deps and migrations
+   only). Skip this for projects whose adapter declares no environment setup.
+3. **Run normally.** Execute the plan via the loop below, committing each task's
+   `commits_pending` inside the worktree.
+4. **Merge back when green.** After the §3T.12 / §12 verification gates PASS,
+   merge the worktree branch into the parent branch with plain git and let
+   Claude Code clean the worktree up on exit. On a conflict, STOP and relay it -
+   do NOT force.
 
 Without `--isolate`, ignore this section — the default runs in the current tree.
 It is purely additive and composes with `--workflow` (isolate the run, run the
@@ -201,10 +201,10 @@ Resolve the CLI per `${CLAUDE_SKILL_DIR}/../st-support/cli-invocation.md`, then 
 
 ### 3T.8. Per-Task Spawn Loop
 
-**Team setup (Agent Teams mode only).** If `DISCOVERED_STATE.routing.mode` is `agent-teams`, call `TeamCreate(team_name: "{slug}-team")` once before entering the loop, where `{slug}` is `current_plan.slug` from `state.yaml`. This matches the team-name convention used in the single-tier §8 path and is the contract documented in `AgentTeamsOrchestration` `CorePattern` step 2. Single-agent mode (the one-agent-acts-as-its-own-orchestrator flow described in §3T.5) skips this step — no team is created.
+**Team setup (Agent Teams mode only).** There is no setup call: `TeamCreate` was removed in Claude Code v2.1.178. With `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` set, spawning the first teammate starts the team and the session exit cleans it up. Single-agent mode (§3T.5) spawns no teammates at all.
 
 **Agent Teams is experimental — handle it explicitly** (see `@ST:AgentTeamsOrchestration` § PeerCollaboration for the full protocol):
-- **Enablement.** If `TeamCreate` is unavailable or errors, the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag is off. Tell the user to add it to `.claude/settings.json`, and fall back to single-agent mode for this run — do NOT abort the plan.
+- **Enablement.** If teammates cannot be spawned, the `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag is off. Tell the user to add it to `.claude/settings.json`, and fall back to single-agent mode for this run — do NOT abort the plan.
 - **Peer collaboration.** Teammates DM peers DIRECTLY for cross-domain questions (contracts, interfaces, "is X ready") instead of stalling or routing everything through you; you get peer-DM summaries via idle notifications.
 - **Lead monitoring (deterministic, not by vibes).** Run `$ST_CLI spawn-log reap --max-idle-min 30` (resolve the CLI per `${CLAUDE_SKILL_DIR}/../st-support/cli-invocation.md`) to list spawns past their deadline/idle window. For each stale `task_id` it returns: `SendMessage` the owner to confirm/complete; if it stays dormant, `TaskStop` it and re-spawn or escalate — never let an agent sit `in_progress` for hours. Cross-check `TaskList` for tasks whose work finished but were never marked complete (teams sometimes fail to, blocking dependents). Idle ≠ done.
 - **No resume.** In-process teammates do NOT survive `/resume`/`/rewind`. On resume, treat the team as gone — re-create it and respawn from the current task board; do not message stale teammate names.
@@ -267,7 +267,7 @@ Mechanism is identical to the single-tier loop's **§10. Post-Task Verify**. The
 
 Same as **§11. Execute Deferred Ops** below — execute `commits_pending` via `git add` + `git commit`, create any `files_to_create` entries via the Write tool. Do NOT skip this step.
 
-**Tear down the team (Agent Teams mode only) — unconditional.** Teardown is a `finally` step, not a happy-path one: call `TeamDelete` for the team created in §3T.8 (team name `{slug}-team`) after commits are written **and on any early exit** (halt at §3T.15, blocker, or error) so no teammate outlives the run — orphaned teammates are what sit dormant for hours. Single-agent mode skips this step.
+**Stop stragglers (Agent Teams mode only) — unconditional.** Claude Code removes the team on session exit, so there is no teardown call. What is still yours: after commits are written **and on any early exit** (halt at §3T.15, blocker, or error), `TaskStop` any teammate still running so it cannot keep editing after the run ended. Single-agent mode skips this step.
 
 ### 3T.12. Run Verification Gates
 
@@ -380,12 +380,11 @@ For split plans, the agent reads task files one at a time via the `file:` field 
 **Team setup.** Before the wave loop, call:
 
 ```
-TeamCreate(team_name: "{slug}-team")
 ```
 
 Team name pattern: `{slug}-team`. The `{slug}` value comes from `current_plan.slug` in `state.yaml` (see step §2). This pattern is deliberate and identical in the three-tier path (§3T.8) so the team is predictable and FleetView-discoverable.
 
-**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if `TeamCreate` errors, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead reaps stale spawns (`$ST_CLI spawn-log reap`) and monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
+**Agent Teams is experimental** — apply the same handling as the three-tier path (§3T.8): if teammates cannot spawn, enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` and fall back to single-agent; teammates DM peers directly; the lead reaps stale spawns (`$ST_CLI spawn-log reap`) and monitors `TaskList` for lagging completions; the team does not survive `/resume` (re-create it); the `TaskCompleted` quality gate is advisory in a shared tree. Full protocol: `@ST:AgentTeamsOrchestration` § PeerCollaboration.
 
 Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_FILE: {task-file-path}` so the agent loads only its assigned task. Every spawn MUST include `mode: "acceptEdits"` (scoped allowlist in `.claude/settings.json`).
 
@@ -451,7 +450,7 @@ After each task's programmer returns, invoke `software-teams-qa-tester` in `post
 
 Agents create files directly (spawned under `acceptEdits` with the scoped allowlist from `.claude/settings.json`), so `files_to_create` should be empty. If any agent does return `files_to_create` entries, create them via Write tool. Execute `commits_pending` via `git add` + `git commit`. Do NOT skip this step.
 
-**Tear down the team — unconditional.** If Agent Teams mode was used, call `TeamDelete` for the team created in §8 (team name `{slug}-team`) after commits are written **and on any early exit** (halt, blocker, or error) — teardown is a `finally` step so no teammate outlives the run. Single-agent mode skips this step (no team exists).
+**Stop stragglers — unconditional.** If Agent Teams mode was used, `TaskStop` any teammate still running after commits are written **and on any early exit** (halt, blocker, or error). Claude Code removes the team itself when the session exits. Single-agent mode skips this step.
 
 ### 12. Run Verification Gates
 

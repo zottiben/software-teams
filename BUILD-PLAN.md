@@ -588,7 +588,7 @@ correct evidence-grounded verdict that honoured its structured-return honesty co
 
 ---
 
-### Slice 8 - Defer to native orchestration
+### Slice 8 - Defer to native orchestration `[SHIPPED]`
 
 **Goal:** delete Software Teams code the harness now does better. Expect mostly removal.
 
@@ -605,8 +605,47 @@ correct evidence-grounded verdict that honoured its structured-return honesty co
 - `@ST:` component system: assess against skills plus supporting files. If skills cover it,
   the registry, resolver, validator, and the `component-validate` CI job all go.
 
-**Verify:** gates green; each removal accompanied by a probe demonstrating the native
-replacement does the job.
+**What shipped.** Four assessments; two removals, one bug fix, two documented keeps.
+
+**Agent teams - fixed a dead-tool bug, kept the routing.** `TeamCreate` and `TeamDelete`
+were deleted upstream in Claude Code v2.1.178: a team now starts when the first teammate
+spawns and is cleaned up on session exit. Software Teams was still instructing both calls,
+and a framework-lint test *asserted* they were present, so the lint guarded a defect instead
+of catching it. Rewrote `AgentTeamsOrchestration`, `ComplexityRouter`, and the implement-plan
+team branches around the real lifecycle, replaced teardown with `TaskStop` for stragglers
+(still ours - a stalled teammate is not reaped for you), and inverted the test to assert
+neither removed tool is ever called. The task routing table and spawn templates stay: native
+has no equivalent.
+
+**Worktrees - replaced.** Probed all three native mechanisms before deleting anything:
+`claude --worktree` creates and enters; `.worktreeinclude` copied `.env` into the worktree;
+`isolation: worktree` ran a subagent in its own checkout with the main tree left clean.
+Deleted the three `worktree*` skills and CLI commands, and the `SoftwareTeamsWorktreeCleanup`
+component. `create-plan` had been steering users *away* from the native tool ("Do NOT use the
+built-in `EnterWorktree`") - now removed.
+  One piece is genuinely not native: provisioning a database or web server. A `WorktreeCreate`
+  hook *replaces* git creation rather than running after it, and would disable
+  `.worktreeinclude`, so it is the wrong vehicle. Kept as `software-teams provision-worktree`,
+  which runs the adapter's setup in a worktree the harness already made - three commands
+  replaced by one verb doing only the part native lacks.
+
+**`@ST:` components - kept the mechanism, deleted the dead category.** Tags expand at sync
+time, so shared prose costs nothing at runtime. The skills alternative is strictly worse
+here: `skills:` preload injects full content at startup, and a `Read` costs a tool call, so
+replacing build-time inlining would *add* per-spawn cost. Kept. The whole `hooks/` category
+(`Checkpoint`, `LintFixFrontend`, `OnPause`, `PreCommit`, `SoftwareTeamsWorktreeCleanup`) was
+referenced by nothing but the tests asserting it existed - superseded by the real shell hooks
+in `templates/.claude/hooks/`. Registry down from 22 components to 17.
+
+**`compile-workflow` - kept.** Confirmed the constraint the plan flagged: `Workflow` is
+stripped from every subagent, but the skill runs in the main session, so compiled workflows
+do execute. Native workflows have Claude *author* a script per task and can save it to
+`.claude/workflows/`; Software Teams *compiles* an approved three-tier plan into that same
+shape deterministically, pinning each task to its specialist via `agentType` plus a result
+schema. Deterministic plan-to-script compilation is the thing native lacks, so it stays.
+
+**Verify:** all gates green; 16 skills ship (down from 19); `provision-worktree` exercised
+end to end in full and `--lightweight` modes against a real adapter.
 
 ---
 

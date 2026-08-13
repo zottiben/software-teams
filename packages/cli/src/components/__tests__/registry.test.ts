@@ -15,7 +15,7 @@ import { getComponent } from "../resolve";
 import type { ComponentCategory } from "../types";
 
 describe("Component Registry", () => {
-  const EXPECTED_COMPONENT_COUNT = 22;
+  const EXPECTED_COMPONENT_COUNT = 17;
 
   test(`registry contains exactly ${EXPECTED_COMPONENT_COUNT} components`, () => {
     expect(Object.keys(registry).length).toBe(EXPECTED_COMPONENT_COUNT);
@@ -27,7 +27,6 @@ describe("Component Registry", () => {
       "execution",
       "planning",
       "quality",
-      "hooks",
       "stacks",
     ];
 
@@ -117,12 +116,6 @@ describe("Component Registry", () => {
       "Verify",
       "VerifyAdvanced",
       "WaveComputation",
-      // Phase C — hooks
-      "Checkpoint",
-      "LintFixFrontend",
-      "OnPause",
-      "PreCommit",
-      "SoftwareTeamsWorktreeCleanup",
       // Phase C — stacks
       "PhpLaravel",
       "ReactTypescript",

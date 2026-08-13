@@ -23,9 +23,6 @@ const EXPECTED_SKILLS = [
   "routines",
   "status",
   "statusline",
-  "worktree",
-  "worktree-merge",
-  "worktree-remove",
 ] as const;
 
 const USER_ONLY_SKILLS = [
@@ -36,9 +33,6 @@ const USER_ONLY_SKILLS = [
   "orchestrator-mode",
   "pr-feedback",
   "statusline",
-  "worktree",
-  "worktree-merge",
-  "worktree-remove",
 ] as const;
 
 function source(name: string): string {
@@ -46,7 +40,7 @@ function source(name: string): string {
 }
 
 describe("native Claude Code skill payload", () => {
-  test("ships exactly the 19 non-native-duplicate skills", () => {
+  test("ships exactly the 16 non-native-duplicate skills", () => {
     const actual = readdirSync(SKILLS_ROOT, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && existsSync(join(SKILLS_ROOT, entry.name, "SKILL.md")))
       .map((entry) => entry.name)
@@ -106,7 +100,7 @@ describe("native Claude Code skill payload", () => {
 
   test("legacy context commands moved to dynamic body injection", () => {
     const withDynamicContext = EXPECTED_SKILLS.filter((name) => /^!`.+`$/m.test(source(name)));
-    expect(withDynamicContext).toHaveLength(10);
+    expect(withDynamicContext).toHaveLength(9);
   });
 
   test("the shipped skill catalogue lists every native skill", () => {

@@ -154,14 +154,17 @@ operational side effects are direct-user-only and cannot be invoked by Claude.
 | `pr-feedback` | `/st-pr-feedback` | `/software-teams:pr-feedback` | Address PR review comments and learn rules |
 | `commit` | `/st-commit` | `/software-teams:commit` | Conventional commit |
 | `generate-pr` | `/st-generate-pr` | `/software-teams:generate-pr` | Open a pull request |
-| `worktree` | `/st-worktree` | `/software-teams:worktree` | Create an isolated worktree |
-| `worktree-merge` | `/st-worktree-merge` | `/software-teams:worktree-merge` | Merge a worktree's branch back into the current branch (and optionally remove it) |
-| `worktree-remove` | `/st-worktree-remove` | `/software-teams:worktree-remove` | Remove a worktree and clean up |
 | `status` | `/st-status` | `/software-teams:status` | Show current state and next action |
 | `statusline` | `/st-statusline` | `/software-teams:statusline` | Install/remove a statusline showing plan · phase · wave · task (needs python3) |
 | `routines` | `/st-routines` | `/software-teams:routines` | Recommended recurring routines via `/loop` (local) and `/schedule` (cloud) |
 | `orchestrator-mode` | `/st-orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate **code changes** while still letting it manage and ship the work (commit, push, install, build, open PRs); `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash (`sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, destructive git) are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Agent` are unaffected. Per-project only. |
 | `ask-questions` | `/st-ask-questions` | `/software-teams:ask-questions` | Toggle the Ask Clarifying Questions policy (`on\|off\|status`) — overrides the Claude Code harness's hardcoded auto-mode reminder that tells Claude to "work without stopping for clarifying questions." When `on`, Claude and sub-agents are told to ask substantive questions about ambiguous architectural/scope decisions even in auto permission mode. No hooks — pure prompt-layer policy. Per-project only. |
+
+Worktrees are Claude Code's: start a session with `claude --worktree <name>`, ask
+Claude to work in one, or set `isolation: worktree` on a subagent. List gitignored
+files like `.env` in `.worktreeinclude` to have them copied in. Software Teams adds
+only `software-teams provision-worktree`, which runs your adapter's database and
+web-server setup inside a worktree the harness already created.
 
 For non-standard applications, run `/run-skill-generator` once or let `/verify`
 record the working launch recipe in `.claude/skills/verify/SKILL.md`; commit that
@@ -293,7 +296,7 @@ To **version-control** any artefact (e.g. a shared `settings.json`, or your proj
 ## Status
 
 - **Stable**: planning, implementation, commit, PR generation, PR review, GitHub Actions runtime.
-- **Recent**: deterministic Workflow compiler (`compile-workflow` / `--workflow`); automatic quality-gate + state-durability hooks; on-demand `verify`; worktree merge-back (`worktree-merge` / `--isolate`); a plan/phase/task statusline; LSP for code-touching agents; recurring `routines`; and experimental agent-teams specialist-to-specialist collaboration (`--team`).
+- **Recent**: deterministic Workflow compiler (`compile-workflow` / `--workflow`); automatic quality-gate + state-durability hooks; on-demand `verify`; worktree-isolated runs (`--isolate`) on Claude Code's native worktrees; a plan/phase/task statusline; LSP for code-touching agents; recurring `routines`; and experimental agent-teams specialist-to-specialist collaboration (`--team`).
 - **Next**: ([open an issue](https://github.com/zottiben/software-teams/issues) to weigh in)
 
 Tested on macOS and Linux with Bun ≥ 1.0 and Claude Code ≥ 1.0. Node 18+ supported via npm.

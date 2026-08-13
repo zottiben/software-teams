@@ -22,14 +22,12 @@ Create an implementation plan using a single planner agent (includes research). 
 
 ## Flags
 
-- `--worktree` — Create a full-environment git worktree before planning (follow the `st-worktree` skill)
-- `--worktree-lightweight` — Same but skip databases/web server (deps + migrate only)
+- `--worktree` — Plan inside a git worktree. Claude Code creates it (`EnterWorktree`, or start the session with `claude --worktree`); run `$ST_CLI provision-worktree` afterwards if the project needs a database or web server.
+- `--worktree-lightweight` — Same, but provision with `--lightweight` (deps + migrations only)
 - `--status` — Status mode: generate a plan progress report using `.software-teams/state.yaml` + the current plan. Does NOT spawn the planner. See Status Mode section below.
 - `--with-tests` — Force test plan generation regardless of test suite detection. When set, the planner generates test tasks even if no existing test suite is found.
 - `--without-tests` — Suppress test plan generation even when a test suite is detected. Useful for plans that only touch documentation, config, or framework files where test generation would be noise.
 - `--single-tier` — Force the legacy single-tier output (`{slug}.plan.md` + per-task `{slug}.T{n}.md`). By default this skill drives the planner toward three-tier output (SPEC + ORCHESTRATION + per-agent slices) when the plan is non-trivial — `--single-tier` opts out of that and forces the legacy shape. Useful for hotfixes, tiny plans, or when something downstream still expects the legacy index.
-
-> **Do NOT use the built-in `EnterWorktree` tool.** Always follow `/st-worktree` Direct Execution steps.
 
 ---
 
@@ -64,7 +62,7 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. E
 
 ### 1. Worktree Setup (if flagged)
 
-If `--worktree` or `--worktree-lightweight` is present, derive a branch name from the task description, follow the Direct Execution steps in `skills/worktree/SKILL.md`, and `cd` into `.worktrees/<name>`. Confirm the working directory changed before proceeding.
+If `--worktree` or `--worktree-lightweight` is present, derive a branch name from the task description and enter a worktree with the `EnterWorktree` tool. Provision it with `$ST_CLI provision-worktree` (add `--lightweight` for the lightweight flag) when the project needs a database or web server. Confirm the working directory changed before proceeding.
 
 If no worktree flag is present, skip this step entirely — do not mention it to the user.
 

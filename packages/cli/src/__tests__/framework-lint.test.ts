@@ -184,29 +184,33 @@ describe("framework file invariants", () => {
     expect(content).toMatch(/type:\s*test|type: test/);
   });
 
-  test("skills/implement-plan/SKILL.md Agent Teams branches contain TeamCreate and TeamDelete", () => {
-    const content = readFrameworkFile("skills/implement-plan/SKILL.md");
-    const teamCreateCount = (content.match(/TeamCreate\(/g) ?? []).length;
-    const teamDeleteCount = (content.match(/\bTeamDelete\b/g) ?? []).length;
-    expect(
-      teamCreateCount,
-      "skills/implement-plan/SKILL.md must call TeamCreate( at least twice: once in §8 single-tier Agent Teams branch and once in §3T.8 three-tier per-task spawn loop",
-    ).toBeGreaterThanOrEqual(2);
-    expect(
-      teamDeleteCount,
-      "skills/implement-plan/SKILL.md must reference TeamDelete at least twice: once in the §11 cleanup and once in the §3T.11 cleanup (or via cross-reference)",
-    ).toBeGreaterThanOrEqual(2);
+  test("no payload calls the removed TeamCreate/TeamDelete tools", () => {
+    // Both tools were deleted in Claude Code v2.1.178: teams start when the
+    // first teammate spawns and are cleaned up on session exit. Instructing a
+    // call to either is an instruction that cannot execute.
+    const callRe = /\b(TeamCreate|TeamDelete)\s*\(/;
+    const sources = [
+      ...listAgentFiles(),
+      join(repoRoot, "skills", "implement-plan", "SKILL.md"),
+      join(repoRoot, "src", "components", "meta", "AgentTeamsOrchestration.ts"),
+      join(repoRoot, "src", "components", "meta", "ComplexityRouter.ts"),
+    ];
+    for (const file of sources) {
+      expect(callRe.test(readFileSync(file, "utf-8")), `${file}: calls a removed team tool`).toBe(
+        false,
+      );
+    }
   });
 
-  test("ComplexityRouter SingleAgentMode still asserts 'No TeamCreate' (single-agent path stays envelope-free)", () => {
+  test("ComplexityRouter SingleAgentMode stays envelope-free (no teammates)", () => {
     // Direct file read — the literal phrase MUST appear in the TS source so
     // future edits to ComplexityRouter.ts are caught at lint time.
     const path = join(repoRoot, "src", "components", "meta", "ComplexityRouter.ts");
     const content = readFileSync(path, "utf-8");
     expect(
       content,
-      "ComplexityRouter.ts must contain the literal phrase 'No TeamCreate' inside SingleAgentMode — this is the AC4 contract for single-agent mode",
-    ).toContain("No TeamCreate");
+      "ComplexityRouter.ts must state that single-agent mode spawns no teammates — the AC4 contract for single-agent mode",
+    ).toContain("No teammates");
   });
 
   test("TaskBreakdown component includes test task rules", () => {
@@ -645,15 +649,10 @@ describe("CLI-wrapper skills for the new commands", () => {
     expect(content).toContain("$ST_CLI statusline");
   });
 
-  test("/st-worktree-merge skill exists and invokes $ST_CLI worktree-merge", () => {
-    const content = readFrameworkFile("skills/worktree-merge/SKILL.md");
-    expect(content).toContain("$ST_CLI worktree-merge");
-  });
-
   test("implement-plan documents the --isolate worktree flow", () => {
     const content = readFrameworkFile("skills/implement-plan/SKILL.md");
     expect(content).toContain("--isolate");
-    expect(content).toContain("worktree-merge");
+    expect(content).toContain("EnterWorktree");
   });
 });
 
