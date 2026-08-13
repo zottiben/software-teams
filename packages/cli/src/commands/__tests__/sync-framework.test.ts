@@ -26,22 +26,15 @@ const REPO_ROOT = join(import.meta.dir, "..", "..", "..");
 const PACKAGE_ROOT = REPO_ROOT;
 
 /**
- * Build a fixture cwd with a partial Phase-B `.software-teams/` snapshot —
- * a couple of stale doctrine files plus seeded state files — so
- * refresh-detection has something to find. State files (project.yaml etc.)
- * are seeded so we can verify the writer never clobbers them.
+ * Build a fixture with stale framework-owned native doctrine plus legacy
+ * pre-1.0 rules and seeded state files.
  */
 async function makeStaleFixture(): Promise<string> {
   const cwd = makeTempDir();
+  mkdirSync(join(cwd, ".claude", "rules"), { recursive: true });
   mkdirSync(join(cwd, ".software-teams", "rules"), { recursive: true });
-
-  // A stale rules file (commits.md exists in the package's rules/ post-Phase D).
-  // Phase D removed `templates/` from the copy list, so the drift fixture only
-  // seeds a stale rules file now.
-  await writeFile(
-    join(cwd, ".software-teams", "rules", "commits.md"),
-    "STALE commit rules — pre-refresh snapshot\n",
-  );
+  await writeFile(join(cwd, ".claude", "rules", "software-teams.md"), "STALE doctrine\n");
+  await writeFile(join(cwd, ".software-teams", "rules", "general.md"), "# General\n- Learned rule\n");
 
   // Project state files that MUST be preserved.
   await writeFile(join(cwd, ".software-teams", "project.yaml"), "name: fixture-project\n");
@@ -59,11 +52,8 @@ describe("sync-framework — change detection", () => {
   test("detects missing and drifted files in stale snapshot", async () => {
     const cwd = await makeStaleFixture();
     const { missing, changed } = await detectFrameworkChanges(cwd, PACKAGE_ROOT);
-    // We seeded only one rules file into the stale snapshot, so most of the
-    // rules/ tree is missing.
-    expect(missing.length).toBeGreaterThan(0);
-    // The seeded file differs from canonical.
-    expect(changed).toContain("rules/commits.md");
+    expect(missing).toEqual([]);
+    expect(changed).toContain("software-teams.md");
   });
 
   test("detects missing native skills independently of rule drift", async () => {
@@ -86,24 +76,17 @@ describe("sync-framework — orchestration", () => {
   test("copyFrameworkFiles + convertAgents refreshes snapshot end-to-end", async () => {
     const cwd = await makeStaleFixture();
 
-    // Confirm pre-state: stale content present.
-    const staleBefore = await readFile(
-      join(cwd, ".software-teams", "rules", "commits.md"),
-      "utf-8",
-    );
-    expect(staleBefore).toContain("STALE");
+    expect(await readFile(join(cwd, ".claude", "rules", "software-teams.md"), "utf-8")).toContain("STALE");
 
     // Run the same orchestration the CLI command runs (force=true so it
     // overwrites the stale file).
     await copyFrameworkFiles(cwd, "node", true, false, PACKAGE_ROOT);
     const conv = await convertAgents({ cwd, sourceDir: join(PACKAGE_ROOT, "agents") });
 
-    // Snapshot updated.
-    const refreshed = await readFile(
-      join(cwd, ".software-teams", "rules", "commits.md"),
-      "utf-8",
-    );
+    const refreshed = await readFile(join(cwd, ".claude", "rules", "software-teams.md"), "utf-8");
     expect(refreshed).not.toContain("STALE");
+    expect(await readFile(join(cwd, ".claude", "rules", "general.md"), "utf-8")).toContain("Learned rule");
+    expect(existsSync(join(cwd, ".software-teams", "rules"))).toBe(false);
 
     // Phase D: templates/ is no longer copied into `.software-teams/` —
     // verify the directory is absent post-refresh.

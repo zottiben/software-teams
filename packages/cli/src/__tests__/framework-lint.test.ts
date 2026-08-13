@@ -104,14 +104,12 @@ describe("framework file invariants", () => {
     expect(content).toContain("task_id");
   });
 
-  test("agents/software-teams-backend.md references rules", () => {
-    const content = readFrameworkFile("agents/software-teams-backend.md");
-    expect(content).toMatch(/\.software-teams\/rules/);
-  });
-
-  test("agents/software-teams-frontend.md references rules", () => {
-    const content = readFrameworkFile("agents/software-teams-frontend.md");
-    expect(content).toMatch(/\.software-teams\/rules/);
+  test("agent specs do not duplicate native project-rule loading prose", () => {
+    for (const file of ["software-teams-backend.md", "software-teams-frontend.md"]) {
+      const content = readFrameworkFile(`agents/${file}`);
+      expect(content).not.toMatch(/^\*\*Rules\*\*:/m);
+      expect(content).not.toContain(".software-teams/rules");
+    }
   });
 
   test("ComplexityRouter component references task files", () => {
@@ -423,17 +421,18 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
     ).toBe(true);
   }
 
-  test("templates/CLAUDE-SHARED.md imports @.claude/AGENTS.md and @.claude/RULES.md", () => {
+  test("CLAUDE-SHARED imports only the generated catalogue; rules load natively", () => {
     const content = readFrameworkFile("templates/CLAUDE-SHARED.md");
     assertImportLine(content, "@.claude/AGENTS.md", "CLAUDE-SHARED.md");
-    assertImportLine(content, "@.claude/RULES.md", "CLAUDE-SHARED.md");
+    expect(content).not.toContain("@.claude/RULES.md");
+    expect(readFrameworkFile("rules/software-teams.md")).toContain("# Software Teams Orchestration Rules");
   });
 
   // `.claude/CLAUDE.md` is gitignored — generated locally by `init` /
   // hand-curated by the developer for self-hosting. Skip when absent
   // (e.g. fresh CI checkouts) so this test is a soft regression guard for
   // developers, not a blocker for CI.
-  test(".claude/CLAUDE.md (repo) imports @.claude/AGENTS.md and @.claude/RULES.md", () => {
+  test(".claude/CLAUDE.md (repo) imports only @.claude/AGENTS.md", () => {
     const fullPath = join(repoRoot, ".claude", "CLAUDE.md");
     if (!existsSync(fullPath)) {
       // No developer setup in this checkout — skip.
@@ -441,7 +440,6 @@ describe("wave-2 doctrine docs (CLAUDE-SHARED + repo CLAUDE.md imports)", () => 
     }
     const content = readFileSync(fullPath, "utf-8");
     assertImportLine(content, "@.claude/AGENTS.md", ".claude/CLAUDE.md");
-    assertImportLine(content, "@.claude/RULES.md", ".claude/CLAUDE.md");
   });
 
   test("software-teams.md does NOT contain the phrase 'non-negotiable platform constraint'", () => {

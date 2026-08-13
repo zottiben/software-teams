@@ -24,7 +24,7 @@ drives ST end-to-end). `/loop` and `/schedule` are the no-server options.
 - **Poll CI during a long implement** (local, this session):
   `/loop 90s check the latest CI run for this branch and report pass/fail`
 - **Nightly: fold merged-PR learnings into the rules** (cloud):
-  `/schedule` → run `/st-pr-feedback <recently-merged-pr>` so `software-teams-feedback-learner` promotes new rules into `.software-teams/rules/`.
+  `/schedule` → run `/st-pr-feedback <recently-merged-pr>` so `software-teams-feedback-learner` promotes durable team conventions into native `.claude/rules/`.
 - **Babysit open PRs** (cloud or local): periodically run `/code-review <pr>` on your open PRs.
 - **Refresh the codebase map** (cloud): periodically regenerate `.software-teams/codebase/summary.md`.
 

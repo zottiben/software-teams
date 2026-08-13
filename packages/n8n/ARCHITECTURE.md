@@ -1381,3 +1381,17 @@ threads the selected auth mode, uses `dontAsk`, and passes the returned
 `correlationId`: execution retries collided with an existing session. Claude now
 generates each fresh ID and the envelope carries it. A non-zero process exit is
 always an error even when its text is not recognised by the terminal classifier.
+## Decision E - Native project rules are explicit in deterministic workers
+
+Interactive Claude Code sessions and custom subagents load `.claude/rules/`
+natively, including path-scoped categories. n8n intentionally launches with
+`--setting-sources ""` so a worker's ambient project settings cannot alter a
+workflow. Enabling project settings merely to recover rules would violate that
+determinism.
+
+The packaged node therefore bundles the same canonical native rule files and
+appends only `software-teams.md`, `general.md`, and categories relevant to the
+selected specialist to its `--agents` system prompt. A host repository's
+`.claude/rules/` files win over bundled defaults. Frontmatter is removed before
+injection. This preserves one rule source while keeping worker settings and MCP
+configuration isolated.

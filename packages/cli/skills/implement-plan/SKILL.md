@@ -222,7 +222,6 @@ For each task in the topologically sorted task graph:
 
 2. **Spawn the pinned agent natively.** Use `subagent_type="{task.agent}"` (post-T6 native migration — Claude Code resolves the spec from `.claude/agents/{task.agent}.md` directly). Spawn under `mode: "acceptEdits"` with the scoped allowlist from `.claude/settings.json`. The prompt MUST include:
    - A `## Project Context` block (type, tech stack, quality gates, working directory)
-   - A `## Coding Standards` block containing `DISCOVERED_STATE.standards` **verbatim** (the project's rules files + CLAUDE.md standards). The agent does not inherit the orchestrator's CLAUDE.md; omit this block and the agent codes blind to the project's conventions.
    - `TASK_FILE: {slice path}` — the agent reads it itself
    - The SPEC sections to read (pass the section anchors, NOT the file contents inline)
    - Instruction: _"Read only your TASK_FILE and the SPEC sections cited in its `**Read first:**` line. Do NOT load the full spec, the full orchestration, or other task files. Cap exploration to the files your slice names."_
@@ -298,13 +297,9 @@ The steps below are numbered and ordered. Do NOT skip, merge, or reorder them. E
 
 Execute `@ST:SilentDiscovery` now. Read the scaffolding files listed in that component and store the result internally as `DISCOVERED_STATE`. Do NOT print the discovery output to the user.
 
-**Additional reads for this skill:**
-- `.software-teams/codebase/summary.md` if it exists
-- `.software-teams/rules/general.md` (always)
-- Domain-specific rules based on `DISCOVERED_STATE.tech_stack`: PHP → `backend.md`, TS/React → `frontend.md`, testing → `testing.md`, devops → `devops.md`
-- The project's `.claude/CLAUDE.md` (repo root, and the nearest one to the target code if nested) — the canonical home for the project's coding standards
+**Additional read for this skill:** `.software-teams/codebase/summary.md` if it exists.
 
-Rules override defaults. Record which rules files were found in `DISCOVERED_STATE.rules_loaded`, and store the **concatenated text** of the non-empty rules files plus the CLAUDE.md standards in `DISCOVERED_STATE.standards`. Spawned subagents do **NOT** inherit the orchestrator's `.claude/CLAUDE.md` — the only way the project's standards reach a specialist is if you inject them into the spawn prompt (see §8 and §3T.8). If every rules file is an empty stub and no CLAUDE.md standards exist, set `DISCOVERED_STATE.standards` to this default: "Match the surrounding code (read 2–3 sibling files first); prefer the root-cause fix over a workaround; no dead code, no silenced types (`as any`/`@ts-ignore`), no swallowed errors, no `// TODO` placeholders."
+Do not manually concatenate or inject project standards. Claude Code custom subagents inherit the project's CLAUDE.md hierarchy and native `.claude/rules/`; path-scoped rules load when an agent reads a matching file.
 
 ### 2. Load Plan
 
@@ -399,7 +394,6 @@ Spawn ONE Agent call per task using `subagent_type="{task.agent}"`. Pass `TASK_F
 - Give exact file paths. Cap exploration explicitly: "read only your TASK_FILE and the files it names."
 - Request short reports (<400 words). Agents can be truncated mid-task; scoped prompts survive the budget ceiling.
 - Include a `## Project Context` block in every spawn prompt: type, tech stack, quality gates, working directory. Saves 2-3 discovery tool calls per spawn.
-- Include a `## Coding Standards` block in every spawn prompt: paste `DISCOVERED_STATE.standards` verbatim (the project's rules files + CLAUDE.md standards). Subagents do **not** inherit the orchestrator's CLAUDE.md — without this block they code blind to the project's conventions, which is the root cause of "doesn't follow our patterns" regressions.
 - For split plans, the agent reads the `TASK_FILE` itself — do not inline task content into the prompt.
 
 **Test task execution:** When spawning a `type: test` task:
@@ -469,7 +463,7 @@ If any gate fails, STOP — do not advance state to `complete`. Report the failu
 
 Unless `--skip-review` is passed, run an INDEPENDENT review by agents that did NOT write the code before completing the plan. A fresh context catches what the author cannot see — convention drift, and the "deleted the failing test" shortcut the implementing agent will rationalise (the writer/reviewer pattern):
 
-1. **Code-quality / standards review.** Spawn `software-teams-head-engineering` (read-only) with the plan's accumulated diff (`git diff {plan-base}...HEAD --stat` plus the changed files) and the project's `## Coding Standards`. It returns `issues: [{ severity, description }]`. Any `must_fix` → enter the review loop at §15 and route the fix back to the implementing specialist. Do NOT advance to `complete` with an open `must_fix`.
+1. **Code-quality / standards review.** Spawn `software-teams-head-engineering` (read-only) with the plan's accumulated diff (`git diff {plan-base}...HEAD --stat` plus the changed files) and the changed-file paths. It returns `issues: [{ severity, description }]`. Any `must_fix` → enter the review loop at §15 and route the fix back to the implementing specialist. Do NOT advance to `complete` with an open `must_fix`.
 2. **Goal-backward verification.** If `agents.verifier` is enabled in `.software-teams/config/config.yaml` (default true), spawn `software-teams-verifier` for plan-scope verification (existence / substantive / wired / quality, plus **test integrity** — confirm no test was deleted, skipped, or weakened to go green). A `status: fail` → review loop at §15.
 
 Both reviewers are read-only — they report; the implementing specialist applies any fix. Record both results in the summary (§14).

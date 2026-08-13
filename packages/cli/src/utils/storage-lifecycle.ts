@@ -1,8 +1,13 @@
 import { join } from "node:path";
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import type { SoftwareTeamsStorage } from "../storage";
-
-const RULE_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
+import {
+  RULE_CATEGORIES,
+  hasRuleContent,
+  nativeRulePath,
+  nativeRulesDir,
+  renderNativeRule,
+} from "./native-rules";
 
 /**
  * Write `content` to `path` only when the existing file's bytes differ.
@@ -26,7 +31,7 @@ export async function loadPersistedState(
   cwd: string,
   storage: SoftwareTeamsStorage,
 ): Promise<{ rulesPath: string | null; codebaseIndexPath: string | null }> {
-  const dir = join(cwd, ".software-teams", "rules");
+  const dir = nativeRulesDir(cwd);
   const ruleLoadResults = await Promise.all(
     RULE_CATEGORIES.map(async (category) => {
       const content =
@@ -34,7 +39,7 @@ export async function loadPersistedState(
         (await storage.load(`learnings-${category}`));
       if (content) {
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-        await writeIfChanged(join(dir, `${category}.md`), content);
+        await writeIfChanged(nativeRulePath(cwd, category), renderNativeRule(category, content));
         return true;
       }
       return false;
@@ -42,11 +47,9 @@ export async function loadPersistedState(
   );
   const anyLoaded = ruleLoadResults.some(Boolean);
 
-  const rulesPath: string | null = anyLoaded
-    ? dir
-    : existsSync(dir) && readdirSync(dir).filter((f) => f.endsWith(".md")).length > 0
-      ? dir
-      : null;
+  const rulesPath: string | null = anyLoaded || RULE_CATEGORIES.some((category) =>
+    existsSync(nativeRulePath(cwd, category))
+  ) ? dir : null;
 
   const codebaseIndex = await storage.load("codebase-index");
   const codebaseIndexPath: string | null = await (async () => {
@@ -69,19 +72,15 @@ export async function savePersistedState(
   cwd: string,
   storage: SoftwareTeamsStorage,
 ): Promise<{ rulesSaved: boolean; codebaseIndexSaved: boolean }> {
-  const rulesDir = join(cwd, ".software-teams", "rules");
+  const rulesDir = nativeRulesDir(cwd);
   const ruleSaveResults = existsSync(rulesDir)
     ? await Promise.all(
         RULE_CATEGORIES.map(async (category) => {
-          const filePath = join(rulesDir, `${category}.md`);
+          const filePath = nativeRulePath(cwd, category);
           if (!existsSync(filePath)) return false;
           const content = await Bun.file(filePath).text();
-          const trimmed = content.trim();
-          const hasContent = trimmed.split("\n").some(
-            (l) => l.trim() && !l.startsWith("#") && !l.startsWith("<!--"),
-          );
-          if (!hasContent) return false;
-          await storage.save(`rules-${category}`, trimmed);
+          if (!hasRuleContent(content)) return false;
+          await storage.save(`rules-${category}`, content.trim());
           return true;
         }),
       )

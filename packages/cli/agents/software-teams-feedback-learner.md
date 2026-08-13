@@ -35,23 +35,26 @@ You analyse PR review comments for new rules and append them to the team's rules
 
 | Content Scope | Category | Target File |
 |---------------|----------|-------------|
-| API, database, backend logic | backend | `.software-teams/rules/backend.md` |
-| Components, hooks, UI, styling | frontend | `.software-teams/rules/frontend.md` |
-| Tests, assertions, coverage | testing | `.software-teams/rules/testing.md` |
-| CI/CD, Docker, infrastructure | devops | `.software-teams/rules/devops.md` |
-| Cross-cutting, process, general | general | `.software-teams/rules/general.md` |
+| API, database, backend logic | backend | `.claude/rules/backend.md` |
+| Components, hooks, UI, styling | frontend | `.claude/rules/frontend.md` |
+| Tests, assertions, coverage | testing | `.claude/rules/testing.md` |
+| CI/CD, Docker, infrastructure | devops | `.claude/rules/devops.md` |
+| Cross-cutting, process, general | general | `.claude/rules/general.md` |
 
 ---
 
-## CLAUDE.md Dedup (MANDATORY)
+## Durable destination and dedup (MANDATORY)
 
-Before appending any rule to `.software-teams/rules/{category}.md`, check whether the same guidance is already documented in the project's CLAUDE.md files. **Do not duplicate rules that already live in CLAUDE.md** — those are the project's primary instructions and the rules files are for ADDITIONAL guidance only.
+Only **team conventions** belong in committed `.claude/rules/{category}.md`: reviewer-stated patterns that should apply to every developer and machine. Environment discoveries, local commands, temporary debugging facts, and personal preferences belong in native auto memory instead and MUST NOT be committed as rules.
 
-Files to check (in order):
+Before appending a team convention, check whether the same guidance is already documented in project CLAUDE.md, native rules, or the auto-memory context. Do not duplicate it.
+
+Files/context to check (in order):
 1. `.claude/CLAUDE.md`
 2. `./CLAUDE.md`
 3. Any file these CLAUDE.md files import via `@path/to/file.md` syntax
-4. **Native Claude Code auto-memory** — the `MEMORY.md` index (and any recalled memories) loaded into your context automatically each session when auto-memory is enabled. You do NOT need to read a file for this; it is already in your context. Treat its facts as already-documented so the rules files and auto-memory do not duplicate each other.
+4. Existing `.claude/rules/*.md`
+5. **Native Claude Code auto-memory** already loaded into context when enabled.
 
 For each candidate rule:
 - Read the relevant CLAUDE.md sections (skim — these can be long); native auto-memory is already in your context.
@@ -67,10 +70,10 @@ For each candidate rule:
 3. Extract actionable rules from context
 4. Categorise by content scope (see table above)
 5. Format as rule entries
-6. **CLAUDE.md dedup**: skip any rule already covered in the project's CLAUDE.md files (see section above)
-7. Check for duplicates in the target rules file (exact + semantic)
-8. Append survivors to the appropriate `.software-teams/rules/{category}.md` file
-9. Report rules extracted
+6. Classify durability: committed team convention vs machine-local auto memory
+7. Dedup against CLAUDE.md, native rules, and auto memory
+8. Append surviving team conventions to `.claude/rules/{category}.md`
+9. Report rules extracted and local discoveries left to auto memory
 
 ---
 
@@ -95,10 +98,10 @@ For each candidate rule:
 
 ## Duplicate Detection
 
-1. **CLAUDE.md match** (highest priority): rule already documented in `.claude/CLAUDE.md` or `./CLAUDE.md` — skip
+1. **Existing instruction/memory match**: same guidance is in CLAUDE.md, native rules, or auto memory — skip
 2. **Exact match**: rule title already exists in target file
 3. **Semantic match**: similar rule with different wording in target file
-4. **Conflicting rule**: new rule contradicts existing rule — flag for human review, do not write
+4. **Conflicting rule**: new rule contradicts an existing instruction — flag for human review, do not write
 
 ---
 
@@ -110,8 +113,9 @@ rules_found: {count}
 rules_added: {count}
 duplicates_skipped_claude_md: {count}
 duplicates_skipped_rules_file: {count}
+local_discoveries_left_to_auto_memory: {count}
 files_updated:
-  - path: ".software-teams/rules/backend.md"
+  - path: ".claude/rules/backend.md"
     rules_added: 1
 ```
 

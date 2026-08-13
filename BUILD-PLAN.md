@@ -66,7 +66,7 @@ harness. Three things have since changed:
 | D2 | Give Claude examples | Design interfaces | Specs teach by example; should instead expose expressive structured-return shapes and let the model choose. |
 | D3 | Put it all upfront | Progressive disclosure | Verification and review should be skills loaded on demand, not spec preamble. Software Teams' bespoke `@ST:` component system is a hand-rolled version of this; skills + supporting files are the native form. |
 | D4 | Repeat yourself | Say it once, in the right place | Rules are restated across `skills/st-support/AGENTS-MODELS.md`, each spec's preamble, `RULES.md`, and each command's strictness block. |
-| D5 | Memory in CLAUDE.md | Auto memory | Claude now writes its own per-repo memory, and subagents can have their own via `memory: project`. The feedback-learner → `.software-teams/rules/` loop partly duplicates this. |
+| D5 | Memory in CLAUDE.md | Auto memory | Claude now writes its own per-repo memory, and subagents can have their own via `memory: project`. The old feedback-learner rules loop partly duplicated this. |
 | D6 | Simple specs | Rich references | A spec can be a test suite, a rubric, an HTML artifact, or real code, not just markdown. |
 
 ### 3.3 Native features to adopt or defer to
@@ -486,7 +486,7 @@ Skill tool while model-invocable read-only skills remain visible.
 
 ---
 
-### Slice 6 - Rules move to `.claude/rules/`
+### Slice 6 - Rules move to `.claude/rules/` `[SHIPPED]`
 
 **Goal:** delete the bespoke rules layer in favour of the native one.
 
@@ -503,8 +503,30 @@ Skill tool while model-invocable read-only skills remain visible.
   memory docs: under 200 lines, gotchas over derivable facts, `@AGENTS.md` import pattern
   for repos that keep an AGENTS.md.
 
-**Verify:** gates green; a probe confirms a path-scoped rule loads on touching a matching
-file and does not load otherwise.
+**What shipped:**
+
+- Moved the five learned team-convention categories to native `.claude/rules/`. General
+  conventions have no `paths:` field, so they load at startup and after compaction; backend,
+  frontend, testing, and DevOps rules load only when Claude reads matching paths.
+- Replaced generated `.claude/RULES.md` plus its CLAUDE.md import with framework-owned
+  `.claude/rules/software-teams.md`. Init refreshes this one file but preserves learned
+  category rules even under `--force`; learned rules are intentionally not gitignored.
+- Added an idempotent 0.13 migration that moves learned and custom categories out of
+  `.software-teams/rules/`, retires commits/deviations procedure files, and removes only a
+  recognisably generated legacy RULES.md/import.
+- Removed explicit rule-loading preambles from all 34 specialist specs and stopped injecting
+  concatenated standards into interactive subagent prompts: custom subagents inherit the
+  CLAUDE.md hierarchy and native rules. GitHub Action prompts still list native rule paths
+  explicitly for deterministic automation.
+- Repointed review learning, external rule fetch/promotion, cached storage hydration, action
+  caches, status reporting, and docs to `.claude/rules/`. Only durable team conventions are
+  committed; machine-local discoveries and personal preferences belong in auto memory.
+- n8n deliberately keeps `--setting-sources ""`; its bundled native rule bodies are injected
+  into the selected agent system prompt by category so worker behavior remains deterministic.
+
+**Verify:** focused migration/storage/action/n8n tests, full gates, generated-install smoke,
+plus a Claude Code probe showing a frontend path loads `frontend.md` while a backend path
+does not and backend rules show the inverse.
 
 ---
 
@@ -522,6 +544,11 @@ likely to reduce per-spawn cost. `game-*` excluded per D-3.
 - Adopt `memory: project` for specialists that benefit from accumulating codebase knowledge
   (codebase-mapper, debugger, qa-tester, security), and `maxTurns` where a role should be
   bounded.
+- **Fix the dead `.software-teams/framework/stacks/{stack-id}.md` reads** in ~14 specs
+  (backend, frontend, devops, programmer, quality, qa-tester, ux-designer, head-engineering,
+  and the `game-*` set). Phase C folded stacks into the TS component registry and deleted
+  that tree, so every one of those instructions points at a path that cannot exist. Pre-dates
+  slice 6; deliberately deferred here to keep the rules migration reviewable.
 - Repair or delete the component-cost benchmark (`AGENTS.md` rule 7) so this slice can be
   measured rather than asserted. A slice that claims a context saving without a working
   measurement is not verifiable.
@@ -557,7 +584,7 @@ replacement does the job.
 
 - `README.md`, `packages/n8n/CONTRACT.md`, `packages/n8n/ARCHITECTURE.md` (new ADRs for the
   auth switch, the execution-engine rewrite, and the contract bump),
-  `skills/st-support/AGENTS-MODELS.md`, `templates/CLAUDE-SHARED.md`, `templates/RULES.md`.
+  `skills/st-support/AGENTS-MODELS.md`, `templates/CLAUDE-SHARED.md`, and native `rules/*.md`.
 - A start-to-finish n8n operator runbook: worker prerequisites; installing/loading the
   community-node package; confirming all entries load; creating the Claude and ClickUp
   credentials; building or importing the first workflow; running ClickUp ticket NDP-34603

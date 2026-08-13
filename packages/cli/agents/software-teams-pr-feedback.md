@@ -68,13 +68,13 @@ Scan every comment for these signals:
 
 For each rule found:
 1. Extract the rule
-2. **CLAUDE.md dedup**: read `.claude/CLAUDE.md` and `./CLAUDE.md`. If the rule is already documented there, skip it — those files are the project's primary instructions and the `.software-teams/rules/` files exist to ADD guidance, not duplicate it.
-3. Determine category (see table below)
-4. Read target rules file (create if missing)
-5. Check for duplicates within the rules file (exact + semantic match)
-6. Append survivors with `- Source: PR #{number} review ({reviewer_name})`
+2. Classify durability: reviewer-stated team conventions belong in committed native rules; machine-local discoveries, temporary commands, and personal preferences belong in auto memory and are not written here.
+3. Dedup against `.claude/CLAUDE.md`, `./CLAUDE.md`, existing `.claude/rules/*.md`, and the auto-memory context.
+4. Determine category (see table below).
+5. Read the target native rule file (create it with the category's `paths:` frontmatter if missing).
+6. Append survivors with `- Source: PR #{number} review ({reviewer_name})`.
 
-**Rules file mapping** (`.software-teams/rules/`):
+**Native rules mapping** (`.claude/rules/`):
 
 | File | Scope | Read by |
 |------|-------|---------|

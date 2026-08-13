@@ -3,28 +3,13 @@ import { existsSync, mkdirSync } from "node:fs";
 import { readdir, stat, chmod, rm } from "node:fs/promises";
 import type { ProjectType } from "./detect-project";
 import { readSettings, writeSettings, ensureSubagentStopHook, ensureSessionStartHook, ensureTaskCompletedHook } from "./settings-merge";
+import { migrateLegacyRules } from "./native-rules";
 
 /**
- * Subdirectories shipped from the package root into a consumer's
- * `.software-teams/<sub>/` install. Phase B retired the
- * `.software-teams/framework/` mirror and dropped subtrees that have no
- * runtime consumer-side reader (`teams/`, `agents/`, `skills/`). Phase C
- * additionally dropped `hooks/` and `stacks/` once those markdown sources
- * were folded into the TS component registry — agents fetch them via
- * `software-teams component get <Name>` instead of reading a copied .md.
- *
- * `templates/` was removed in Phase D: the markdown plan templates
- * (`spec.md`, `orchestration.md`, `plan.md`, `plan-task*.md`, `summary.md`)
- * are structural references cited by the planner spec — the planner does
- * not Read them at runtime. The YAML scaffolds (`project.yaml`,
- * `requirements.yaml`, `roadmap.yaml`, `state.yaml`) ARE used at init time
- * but are written directly to `.software-teams/` from the package root by
- * `init.ts`, not via this copy step. Keeping a duplicate copy under
- * `.software-teams/templates/` was dead weight at runtime and grew with
- * every install. `RULES.md` and `CLAUDE-SHARED.md` likewise live at the
- * package root; sync-agents and copy-framework read them there.
+ * Native team conventions are installed into `.claude/rules/`, where Claude
+ * Code can load them by path. Nothing is copied into `.software-teams/` any
+ * more; that tree is reserved for Software Teams state and plan artifacts.
  */
-const COPIED_SUBDIRS = ["rules"] as const;
 const SKILL_SUPPORT_DIR = "st-support";
 
 /**
@@ -130,23 +115,21 @@ export async function copyFrameworkFiles(
   const packageRoot =
     packageRootOverride ??
     (existsSync(join(oneUp, "package.json")) ? oneUp : twoUp);
-  const consumerRoot = join(cwd, ".software-teams");
-
-  // Copy doctrine subtrees directly to .software-teams/<sub>/ (no framework/
-  // wrapper). Phase B target layout.
-  for (const sub of COPIED_SUBDIRS) {
-    const srcDir = join(packageRoot, sub);
-    if (!existsSync(srcDir)) continue;
-    const destDir = join(consumerRoot, sub);
-    const subGlob = new Bun.Glob("**/*");
-    for await (const file of subGlob.scan({ cwd: srcDir })) {
-      const src = join(srcDir, file);
-      const dest = join(destDir, file);
-      if (!force && existsSync(dest)) continue;
-      const dir = dirname(dest);
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-      const content = await Bun.file(src).text();
-      await Bun.write(dest, content);
+  // Migrate learned 0.13-era rules before installing defaults. Learned native
+  // categories are user/team-owned and are never overwritten. The framework-
+  // owned software-teams.md doctrine is refreshed on every init.
+  const ruleMigration = migrateLegacyRules(cwd);
+  for (const warning of ruleMigration.warnings) console.warn(`Software Teams rules migration: ${warning}`);
+  const rulesSource = join(packageRoot, "rules");
+  if (existsSync(rulesSource)) {
+    const entries = await readdir(rulesSource, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+      const destination = join(cwd, ".claude", "rules", entry.name);
+      const frameworkOwned = entry.name === "software-teams.md";
+      if (!frameworkOwned && existsSync(destination)) continue;
+      mkdirSync(dirname(destination), { recursive: true });
+      await Bun.write(destination, await Bun.file(join(rulesSource, entry.name)).text());
     }
   }
 
@@ -287,11 +270,11 @@ and saving it to \`.software-teams/persistence/codebase-index.md\` for future ru
 
 Based on the user's request, follow the appropriate workflow:
 
-- **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read \`.software-teams/framework/agents/software-teams-planner.md\` and create a plan in \`.software-teams/plans/\`. Present a summary and ask for feedback.
+- **Plan requests** ("plan", "design", or ClickUp ticket URLs): use the native \`software-teams-planner\` subagent and create a plan in \`.software-teams/plans/\`. Present a summary and ask for feedback.
 - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml. Run \`software-teams component get ComplexityRouter\` to decide single-agent vs teams mode.
 - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
 - **Review** ("review"): Run \`software-teams component get PRReview\` for the review checklist; review PR changes against it.
-- **PR feedback** ("feedback"): Address review comments using \`.software-teams/framework/agents/software-teams-pr-feedback.md\`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
+- **PR feedback** ("feedback"): use the native \`software-teams-pr-feedback\` subagent. Extract durable team conventions from reviewer preferences; dedupe against CLAUDE.md and native rules.
 - **"do" + ClickUp URL**: Full flow — plan from ticket, then implement.
 
 ## Auto-Commit (CI Mode)
@@ -333,10 +316,9 @@ Use the ticket name, description, and checklists as requirements.
     const routingHeader = '## Agent-First Default'
     const routingBlock = `## Agent Catalogue and Rules
 
-The list of registered specialists and the orchestration / quality rules for this project are imported below. Both files are auto-generated by \`software-teams sync-agents\` from \`agents/\` and \`templates/RULES.md\` — do **not** hand-edit them; re-run \`software-teams sync-agents\` after changing the source.
+The registered specialist catalogue is generated by \`software-teams sync-agents\` from \`agents/\`. Do **not** hand-edit it. Claude Code loads orchestration doctrine and team conventions natively from \`.claude/rules/\`.
 
 @.claude/AGENTS.md
-@.claude/RULES.md
 
 ${routingHeader}
 

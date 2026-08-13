@@ -71,6 +71,30 @@ describe("buildAgentDefinition", () => {
     expect(def?.prompt).not.toContain("AUTO-GENERATED");
   });
 
+  test("injects relevant native rule bodies for deterministic n8n workers", () => {
+    const root = fixture("software-teams-backend", SPEC);
+    const rules = join(root, ".claude", "rules");
+    mkdirSync(rules, { recursive: true });
+    writeFileSync(join(rules, "software-teams.md"), "# Orchestration\n- Never guess\n", "utf8");
+    writeFileSync(
+      join(rules, "backend.md"),
+      "---\npaths:\n  - \"**/api/**/*\"\n---\n\n# Backend\n- Use DTOs\n",
+      "utf8",
+    );
+    writeFileSync(join(rules, "frontend.md"), "# Frontend\n- Use tokens\n", "utf8");
+
+    const def = buildAgentDefinition({
+      agentId: "software-teams-backend",
+      baseDir: root,
+      structuredOutput: false,
+    });
+    expect(def?.prompt).toContain("## Native project rules");
+    expect(def?.prompt).toContain("Never guess");
+    expect(def?.prompt).toContain("Use DTOs");
+    expect(def?.prompt).not.toContain("**/api/**/*");
+    expect(def?.prompt).not.toContain("Use tokens");
+  });
+
   test("grants StructuredOutput when structured output is requested", () => {
     // Without this, a restricted tools list silently disables --json-schema:
     // the tool is filtered out, the model cannot emit the object, and

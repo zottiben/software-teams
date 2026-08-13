@@ -76,9 +76,9 @@ runs:
 
           ## Rules
 
-          Check `.software-teams/rules/` for categorised team rules (backend, frontend, testing, devops, general).
-          These rules layer ON TOP of the project's `.claude/CLAUDE.md` — they exist to add team conventions NOT already documented there.
-          When you learn something from a review or feedback, update the appropriate rules file. Before adding a rule, verify it is not already in `.claude/CLAUDE.md` (or `./CLAUDE.md`); if it is, do NOT duplicate it in `.software-teams/rules/`.
+          Claude Code loads `.claude/rules/` natively. Domain files are path-scoped; `general.md` and `software-teams.md` apply broadly.
+          Commit only durable team conventions learned from review. Machine-local discoveries and personal preferences belong in auto memory, not shared rules.
+          Before adding a convention, dedupe it against CLAUDE.md and existing native rules.
 
           ## Workflow Routing
 

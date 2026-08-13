@@ -68,10 +68,10 @@ describe("init — scaffolding layout", () => {
     const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
 
-    // Phase D: only `rules/` is copied into `.software-teams/`. `templates/`
-    // was removed because no runtime agent reads from it; init.ts writes
-    // YAML scaffolds straight from the package root instead.
-    expect(existsSync(join(cwd, ".software-teams", "rules"))).toBe(true);
+    // Native rules live under `.claude/rules/`; `.software-teams/` is state only.
+    expect(existsSync(join(cwd, ".claude", "rules", "software-teams.md"))).toBe(true);
+    expect(existsSync(join(cwd, ".claude", "rules", "testing.md"))).toBe(true);
+    expect(existsSync(join(cwd, ".software-teams", "rules"))).toBe(false);
     expect(existsSync(join(cwd, ".software-teams", "templates"))).toBe(false);
     expect(existsSync(join(cwd, ".software-teams", "framework"))).toBe(false);
   });
@@ -100,7 +100,7 @@ describe("init — scaffolding layout", () => {
     expect(agentFiles.some((f) => f === "software-teams-programmer.md")).toBe(true);
   });
 
-  test("init creates .claude/AGENTS.md and .claude/RULES.md", async () => {
+  test("init creates .claude/AGENTS.md and native rules", async () => {
     const cwd = makeTempDir();
     await copyFrameworkFiles(cwd, "node", false, false, PACKAGE_ROOT);
     await convertAgents({
@@ -110,7 +110,8 @@ describe("init — scaffolding layout", () => {
     });
 
     expect(existsSync(join(cwd, ".claude", "AGENTS.md"))).toBe(true);
-    expect(existsSync(join(cwd, ".claude", "RULES.md"))).toBe(true);
+    expect(existsSync(join(cwd, ".claude", "rules", "software-teams.md"))).toBe(true);
+    expect(existsSync(join(cwd, ".claude", "RULES.md"))).toBe(false);
   });
 
   test(".claude/CLAUDE.md template uses /st- routing", async () => {

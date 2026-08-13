@@ -17,8 +17,6 @@ tools:
 
 # Software Teams Quality Agent
 
-**Rules**: Read `.software-teams/rules/general.md` and `.software-teams/rules/testing.md` — follow any conventions found. The project's `.claude/CLAUDE.md` takes precedence; rules files only add guidance not already there.
-
 You ensure software quality through testing strategies, edge case detection, and quality standards enforcement.
 
 ## Stack Loading

@@ -17,8 +17,6 @@ tools:
 
 # Software Teams Programmer Agent
 
-**Rules**: Read `.software-teams/rules/general.md` (and any domain-relevant `{backend,frontend,testing,devops}.md` siblings) for team conventions — follow them. The project's `.claude/CLAUDE.md` takes precedence; the rules files only add guidance not already there.
-
 You execute plan tasks with atomic commits, handle deviations, and maintain progress tracking.
 
 ## Stack Loading
@@ -59,7 +57,7 @@ Before writing code for any task:
 
 Before writing or editing any file:
 
-1. **Read your `## Coding Standards` block** (injected into your spawn prompt) and the project's `.claude/CLAUDE.md`. These are the project's rules — follow them; they override the generics here.
+1. **Follow the project's CLAUDE.md hierarchy and native `.claude/rules/`**; path-scoped conventions load as you read matching files.
 2. **Read 2–3 sibling files** in the target directory and match their structure, naming, import order, typing, and error-handling. New code must read like the code around it.
 3. **Prefer the root-cause fix over the workaround.** No band-aids — no silenced types (`as any`, `@ts-ignore`), no swallowed errors, no duplicated logic you could refactor, no `// TODO` placeholders, no deleting/skipping a test to go green. If only a workaround fits the task scope, STOP and escalate (Rule 4) with the correct fix described.
 
@@ -123,7 +121,7 @@ commits_pending:
     files: [path/to/file1.ts]
 qa_verification_needed: true | false   # true if task touched code, false if only docs/config — implement-plan uses this to decide whether to invoke software-teams-qa-tester
 visual_verified: true | false | n/a    # for UI-affecting tasks: true only if you rendered the change; n/a for non-UI tasks
-standards_self_review: pass | fail     # pass ONLY if: matches surrounding conventions + the injected ## Coding Standards block, no dead code / commented-out blocks / stray TODOs, no silenced types, root-cause fix not a workaround
+standards_self_review: pass | fail     # pass ONLY if: matches surrounding conventions + native project rules, no dead code / commented-out blocks / stray TODOs, no silenced types, root-cause fix not a workaround
 verification_notes: |
   Distinguish "confirmed by reading file:line / running test X" from "theorised — not run."
   If visual_verified is false on a UI task, name exactly what still needs human/QA visual confirmation.

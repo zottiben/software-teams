@@ -86,7 +86,7 @@ export async function runPingHandler(opts: {
   const frameworkExists = existsSync(join(cwd, ".software-teams/framework"));
   const claudeMdExists = existsSync(join(cwd, ".claude/CLAUDE.md"));
   const stateExists = existsSync(join(cwd, ".software-teams/config/state.yaml"));
-  const rulesExists = existsSync(join(cwd, ".software-teams/rules"));
+  const rulesExists = existsSync(join(cwd, ".claude", "rules"));
 
   const version = await readInstalledVersion(cwd, existsSync, join);
 

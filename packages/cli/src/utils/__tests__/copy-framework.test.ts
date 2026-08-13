@@ -48,7 +48,8 @@ function makePackageFixture(): { packageRoot: string } {
   writeFileSync(join(packageRoot, "teams", "engineering.md"), "# Engineering");
   writeFileSync(join(packageRoot, "adapters", "generic.yaml"), "dependency_install: npm install");
   writeFileSync(join(packageRoot, "adapters", "node.yaml"), "dependency_install: bun install");
-  writeFileSync(join(packageRoot, "rules", "general.md"), "# General Rules");
+  writeFileSync(join(packageRoot, "rules", "general.md"), "---\npaths:\n  - \"**/*\"\n---\n# General Rules");
+  writeFileSync(join(packageRoot, "rules", "software-teams.md"), "# Orchestration Rules");
   writeFileSync(join(packageRoot, "agents", "software-teams-planner.md"), "# Planner");
   writeFileSync(join(packageRoot, "skills", "create-plan", "SKILL.md"), "# Create Plan");
   writeFileSync(join(packageRoot, "skills", "create-dev-plan", "SKILL.md"), "# Create Dev Plan");
@@ -58,20 +59,14 @@ function makePackageFixture(): { packageRoot: string } {
 }
 
 describe("copyFrameworkFiles", () => {
-  test("copies doctrine subtrees to .software-teams/<sub>/", async () => {
+  test("installs native rules without a bespoke .software-teams/rules mirror", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    // Phase B target: doctrine subtrees go to `.software-teams/<sub>/`,
-    // NOT `.software-teams/framework/<sub>/`. agents/ and skills/ are NOT
-    // copied to .software-teams/ — the runtime resolves them from the
-    // package directly (or via .claude/agents/ + .claude/skills/st-*/).
-    // Phase D removed `templates/` from the copy list — agents do not read
-    // templates at runtime, so a duplicate copy under `.software-teams/`
-    // was dead weight.
-    expect(existsSync(join(dir, ".software-teams", "rules"))).toBe(true);
-    expect(existsSync(join(dir, ".software-teams", "rules", "general.md"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "rules", "general.md"))).toBe(true);
+    expect(existsSync(join(dir, ".claude", "rules", "software-teams.md"))).toBe(true);
+    expect(existsSync(join(dir, ".software-teams", "rules"))).toBe(false);
     expect(existsSync(join(dir, ".software-teams", "templates"))).toBe(false);
     expect(existsSync(join(dir, ".software-teams", "framework"))).toBe(false);
   });
@@ -145,32 +140,29 @@ describe("copyFrameworkFiles", () => {
     expect(existsSync(join(dir, ".software-teams", "framework"))).toBe(false);
   });
 
-  test("skips existing files when force=false", async () => {
+  test("preserves learned native rules even when force=true", async () => {
     const dir = makeTempDir();
     const { packageRoot } = makePackageFixture();
     await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
 
-    const customPath = join(dir, ".software-teams", "rules", "general.md");
-    await Bun.write(customPath, "CUSTOM CONTENT");
-
-    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
-
-    const content = await Bun.file(customPath).text();
-    expect(content).toBe("CUSTOM CONTENT");
-  });
-
-  test("overwrites existing files when force=true", async () => {
-    const dir = makeTempDir();
-    const { packageRoot } = makePackageFixture();
-    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
-
-    const customPath = join(dir, ".software-teams", "rules", "general.md");
-    await Bun.write(customPath, "CUSTOM CONTENT");
+    const customPath = join(dir, ".claude", "rules", "general.md");
+    await Bun.write(customPath, "---\npaths:\n  - \"**/*\"\n---\n# Custom team rule\n");
 
     await copyFrameworkFiles(dir, "generic", true, false, packageRoot);
 
-    const content = await Bun.file(customPath).text();
-    expect(content).not.toBe("CUSTOM CONTENT");
+    expect(await Bun.file(customPath).text()).toContain("Custom team rule");
+  });
+
+  test("refreshes framework-owned native doctrine on every init", async () => {
+    const dir = makeTempDir();
+    const { packageRoot } = makePackageFixture();
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    const doctrine = join(dir, ".claude", "rules", "software-teams.md");
+    await Bun.write(doctrine, "STALE");
+    await copyFrameworkFiles(dir, "generic", false, false, packageRoot);
+
+    expect(await Bun.file(doctrine).text()).toBe("# Orchestration Rules");
   });
 
   test("propagates skill directories verbatim to .claude/skills/st-*/", async () => {

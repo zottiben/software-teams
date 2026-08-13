@@ -9,6 +9,8 @@ describe("updateGitignore", () => {
     expect(out).toContain(".claude/agents/software-teams-*.md");
     expect(out).toContain(".claude/statusline/");
     expect(out).toContain(".claude/settings.json");
+    expect(out).toContain(".claude/rules/software-teams.md");
+    expect(out).not.toContain(".claude/rules/general.md");
     expect(out.endsWith("\n")).toBe(true);
   });
 

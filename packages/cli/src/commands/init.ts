@@ -68,8 +68,8 @@ export const initCommand = defineCommand({
     const twoUp = join(import.meta.dir, "..", "..");
     const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
 
-    // Copy doctrine subtrees (templates, rules) to .software-teams/<sub>/.
-    // The stateOnly flag suppresses all .claude/ writes inside copyFrameworkFiles.
+    // Install native `.claude/rules/` and framework infrastructure. State-only
+    // suppresses skills/agents but not rules: plugin users need project rules too.
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci, undefined, args["state-only"]);
 
     // Seed config from the package's config/ dir and state from templates/.
@@ -117,8 +117,8 @@ export const initCommand = defineCommand({
           // Resolve agent specs from the package's `agents/` dir.
           sourceDir: join(packageRoot, "agents"),
           targetDir: ".claude/agents",
-          // Init must not clobber a user's existing AGENTS.md, RULES.md,
-          // or hand-crafted .claude/agents/<name>.md files. The
+          // Init must not clobber a user's existing AGENTS.md or hand-crafted
+          // .claude/agents/<name>.md files. The
           // `preserve-user-owned` mode overwrites only files that carry
           // the AUTO-GENERATED banner (i.e. ones Software Teams owns).
           // `--force` reverts to the previous behaviour for users who

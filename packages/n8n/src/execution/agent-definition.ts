@@ -73,6 +73,48 @@ function stripBanners(body: string): string {
     .trim();
 }
 
+const RULE_FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+
+function ruleCategories(agentId: string): string[] {
+  const categories = ["general"];
+  if (/backend/.test(agentId)) categories.push("backend");
+  if (/frontend|ux-designer/.test(agentId)) categories.push("frontend");
+  if (/quality|qa|verifier/.test(agentId)) categories.push("testing");
+  if (/devops/.test(agentId)) categories.push("devops");
+  return categories;
+}
+
+/**
+ * n8n disables project setting sources for deterministic workers, so native
+ * Claude rules cannot auto-load there. Inject the relevant rule bodies into
+ * the agent's system prompt while preserving the same source files as the CLI.
+ */
+export function loadNativeRuleContext(agentId: string, baseDir: string): string {
+  const ruleDirs = [
+    join(baseDir, ".claude", "rules"),
+    join(__dirname, "..", "..", "rules"),
+    join(__dirname, "..", "..", "dist", "rules"),
+  ].filter(existsSync);
+  if (ruleDirs.length === 0) return "";
+
+  const files = ["software-teams", ...ruleCategories(agentId)]
+    .filter((category, index, all) => all.indexOf(category) === index)
+    .map((category) => `${category}.md`);
+  const sections = files.flatMap((file) => {
+    const path = ruleDirs.map((dir) => join(dir, file)).find(existsSync);
+    if (!path) return [];
+    try {
+      const body = readFileSync(path, "utf8")
+        .replace(RULE_FRONTMATTER_RE, "")
+        .trim();
+      return body ? [`### ${file}\n\n${body}`] : [];
+    } catch {
+      return [];
+    }
+  });
+  return sections.length > 0 ? `## Native project rules\n\n${sections.join("\n\n")}` : "";
+}
+
 /**
  * Locate a specialist spec.
  *
@@ -128,8 +170,10 @@ export function buildAgentDefinition(opts: {
   if (!source) return null;
 
   const { meta, body } = parseSpecFrontmatter(source);
-  const prompt = stripBanners(body);
-  if (!prompt) return null;
+  const agentPrompt = stripBanners(body);
+  if (!agentPrompt) return null;
+  const ruleContext = loadNativeRuleContext(opts.agentId, opts.baseDir);
+  const prompt = ruleContext ? `${agentPrompt}\n\n${ruleContext}` : agentPrompt;
 
   const definition: AgentDefinition = {
     description: typeof meta["description"] === "string" ? meta["description"] : opts.agentId,

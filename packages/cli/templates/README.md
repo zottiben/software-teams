@@ -49,7 +49,7 @@ tasks where the three-tier ceremony exceeds the work.
 | `roadmap.yaml` | Phase / plan ordering and milestones |
 | `summary.md` | Per-plan outcome record (written by software-teams-programmer post-execution) |
 | `CLAUDE-SHARED.md` | Shared context imported into the project's `CLAUDE.md` |
-| `RULES.md` | Per-project rule notes |
+| `../rules/*.md` | Native path-scoped team conventions and Software Teams doctrine |
 
 ## Authoring Notes
 

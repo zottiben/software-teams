@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, appendFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,6 +10,7 @@ import {
   isRuleFile,
   EXTERNAL_RULES_PATH,
 } from "./fetch-rules";
+import { hasRuleContent, stripRuleFrontmatter } from "../../utils/native-rules";
 
 function writeGitHubOutput(key: string, value: string): void {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -98,15 +99,7 @@ export function hasRulesContent(rulesDir: string): boolean {
   const files = readdirSync(rulesDir).filter((f) => isRuleFile(f));
   for (const file of files) {
     const content = readFileSync(join(rulesDir, file), "utf-8");
-    const lines = content.split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      // Skip empty lines, headers (#), and HTML comments (<!--)
-      if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("<!--")) {
-        continue;
-      }
-      return true;
-    }
+    if (hasRuleContent(content)) return true;
   }
 
   return false;
@@ -114,8 +107,8 @@ export function hasRulesContent(rulesDir: string): boolean {
 
 /**
  * Commit rules to the same repository on the current branch.
- * Only stages RULE_CATEGORIES files — `commits.md` / `deviations.md`
- * (project-only rules) are kept out of the auto-commit.
+ * Only stages learned RULE_CATEGORIES files. Framework-owned
+ * `software-teams.md` is kept out of the auto-commit.
  */
 export function commitRulesToSameRepo(rulesDir: string, prNumber?: number): boolean {
   const rulePaths = RULE_CATEGORIES.map((c) => join(rulesDir, `${c}.md`)).filter((p) => existsSync(p));
@@ -197,13 +190,22 @@ export function commitRulesToExternalRepo(
 
     // Merge rules from local into the external repo.
     mergeRules(rulesDir, remoteSubdir);
+    // External rules repos keep portable Markdown bodies. Native paths
+    // frontmatter is local delivery metadata and is re-added when fetched.
+    for (const category of RULE_CATEGORIES) {
+      const path = join(remoteSubdir, `${category}.md`);
+      if (existsSync(path)) {
+        const portable = stripRuleFrontmatter(readFileSync(path, "utf8"));
+        writeFileSync(path, `${portable}\n`);
+      }
+    }
 
     // Configure git in the cloned repo
     Bun.spawnSync(["git", "config", "user.name", "software-teams[bot]"], { cwd: tmpDir });
     Bun.spawnSync(["git", "config", "user.email", "software-teams[bot]@users.noreply.github.com"], { cwd: tmpDir });
 
-    // Stage rule category files only (project-only rules like commits.md /
-    // deviations.md must NOT leak into the shared repo).
+    // Stage learned rule categories only; framework-owned native rules must
+    // never leak into the shared rules repository.
     const stagePaths = RULE_CATEGORIES.map(
       (c) => `${EXTERNAL_RULES_PATH}/${c}.md`,
     );
@@ -313,7 +315,7 @@ export const promoteRulesCommand = defineCommand({
 
     // Promote rules
     const cwd = process.cwd();
-    const rulesDir = join(cwd, ".software-teams/rules");
+    const rulesDir = join(cwd, ".claude", "rules");
 
     if (!hasRulesContent(rulesDir)) {
       consola.info("No rules content to commit — skipping");

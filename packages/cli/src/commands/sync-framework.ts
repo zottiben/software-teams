@@ -8,10 +8,8 @@ import { convertAgents } from "../utils/convert-agents";
 import { loadAgentRouting } from "../utils/models-config";
 
 /**
- * Files that live under `.software-teams/` but represent project state (not framework
- * snapshot). They MUST NOT be touched by `sync-framework`. These paths are
- * preserved by virtue of `copyFrameworkFiles()` writing only to
- * `.software-teams/framework/` and `.software-teams/config/adapter.yaml` — never to these.
+ * Files under `.software-teams/` represent project state. Native rules live at
+ * `.claude/rules/`, so sync-framework never needs to touch these paths.
  */
 const PRESERVED_STATE_FILES = [
   ".software-teams/project.yaml",
@@ -20,39 +18,16 @@ const PRESERVED_STATE_FILES = [
   ".software-teams/state.yaml",
 ] as const;
 
-/**
- * Subdirectories that copy-framework.ts writes into a consumer's
- * `.software-teams/<sub>/` install (Phase B target — no `framework/`
- * wrapper). Kept in sync with COPIED_SUBDIRS in copy-framework.ts.
- * Phase D: `templates/` was removed from the copy list because no runtime
- * agent reads from it; this list shrinks accordingly so the drift detector
- * stops chasing files that should not exist on the consumer side.
- */
-const COPIED_SUBDIRS = ["rules"];
-
-/**
- * Enumerate package-side files that the consumer's `.software-teams/`
- * install holds copies of. Each path is keyed by the COPIED_SUBDIRS layout
- * so detectFrameworkChanges can compare source vs destination.
- */
+/** Enumerate canonical native rule files. */
 async function listFrameworkFiles(packageRoot: string): Promise<string[]> {
-  const out: string[] = [];
-  for (const sub of COPIED_SUBDIRS) {
-    const subDir = join(packageRoot, sub);
-    if (!existsSync(subDir)) continue;
-    const subGlob = new Bun.Glob("**/*");
-    for await (const file of subGlob.scan({ cwd: subDir })) {
-      out.push(`${sub}/${file}`);
-    }
-  }
-  out.sort();
-  return out;
+  return existsSync(join(packageRoot, "rules", "software-teams.md"))
+    ? ["software-teams.md"]
+    : [];
 }
 
 /**
- * Compare canonical package-side content against the consumer's
- * `.software-teams/<sub>/<file>` install and return the relative paths that
- * differ.
+ * Compare canonical native rules against the consumer's `.claude/rules/`
+ * install and return the filenames that differ.
  */
 export async function detectFrameworkChanges(
   cwd: string,
@@ -62,12 +37,12 @@ export async function detectFrameworkChanges(
   const changed: string[] = [];
   const files = await listFrameworkFiles(packageRoot);
   for (const file of files) {
-    const dest = join(cwd, ".software-teams", file);
+    const dest = join(cwd, ".claude", "rules", file);
     if (!existsSync(dest)) {
       missing.push(file);
       continue;
     }
-    const srcContent = await Bun.file(join(packageRoot, file)).text();
+    const srcContent = await Bun.file(join(packageRoot, "rules", file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent) changed.push(file);
   }
@@ -130,7 +105,7 @@ export const syncFrameworkCommand = defineCommand({
     }
 
     if (missing.length > 0) {
-      consola.info(`${missing.length} missing file(s) in snapshot:`);
+      consola.info(`${missing.length} missing native rule file(s):`);
       for (const f of missing.slice(0, 20)) consola.info(`  + ${f}`);
       if (missing.length > 20) consola.info(`  … and ${missing.length - 20} more`);
     }
@@ -153,9 +128,9 @@ export const syncFrameworkCommand = defineCommand({
       return;
     }
 
-    // Reuse the canonical writer. force=true ensures all drifted files are
-    // overwritten. Project state (project.yaml, requirements.yaml,
-    // roadmap.yaml, state.yaml) is preserved because
+    // Reuse the canonical writer. Framework doctrine is refreshed while
+    // learned native rule categories remain user/team-owned. Project state
+    // (project.yaml, requirements.yaml, roadmap.yaml, state.yaml) is preserved because
     // copyFrameworkFiles() never writes to those paths.
     const projectType = await detectProjectType(cwd);
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot);

@@ -7857,12 +7857,12 @@ function slugify2(input, maxLength = 30) {
 var init_git = () => {};
 
 // src/utils/find-root.ts
-import { join as join12, dirname as dirname6, resolve as resolve5 } from "path";
-import { existsSync as existsSync14 } from "fs";
+import { join as join13, dirname as dirname7, resolve as resolve5 } from "path";
+import { existsSync as existsSync15 } from "fs";
 function walkUp(dir) {
   if (isStateDir(dir))
     return dir;
-  const parent = dirname6(dir);
+  const parent = dirname7(dir);
   return parent === dir ? null : walkUp(parent);
 }
 function findProjectRoot(startDir) {
@@ -7875,7 +7875,7 @@ function findProjectRoot(startDir) {
 function findProjectRootOrNull(startDir) {
   return walkUp(resolve5(startDir));
 }
-var isStateDir = (dir) => existsSync14(join12(dir, ".software-teams", "state.yaml")) || existsSync14(join12(dir, ".software-teams", "config", "state.yaml"));
+var isStateDir = (dir) => existsSync15(join13(dir, ".software-teams", "state.yaml")) || existsSync15(join13(dir, ".software-teams", "config", "state.yaml"));
 var init_find_root = () => {};
 
 // src/utils/state.ts
@@ -7884,24 +7884,24 @@ __export(exports_state, {
   writeState: () => writeState,
   readState: () => readState
 });
-import { join as join14 } from "path";
-import { existsSync as existsSync16 } from "fs";
+import { join as join15 } from "path";
+import { existsSync as existsSync17 } from "fs";
 function resolveRoot(cwd) {
   return findProjectRootOrNull(cwd) ?? cwd;
 }
 function resolveStatePath(root) {
-  const phaseB = join14(root, ".software-teams", "state.yaml");
-  if (existsSync16(phaseB))
+  const phaseB = join15(root, ".software-teams", "state.yaml");
+  if (existsSync17(phaseB))
     return phaseB;
-  const legacy = join14(root, ".software-teams", "config", "state.yaml");
-  if (existsSync16(legacy))
+  const legacy = join15(root, ".software-teams", "config", "state.yaml");
+  if (existsSync17(legacy))
     return legacy;
   return phaseB;
 }
 async function readState(cwd = process.cwd()) {
   const root = resolveRoot(cwd);
   const statePath = resolveStatePath(root);
-  if (!existsSync16(statePath))
+  if (!existsSync17(statePath))
     return null;
   const content = await Bun.file(statePath).text();
   return import_yaml7.parse(content);
@@ -11902,8 +11902,8 @@ async function runMain(cmd, opts = {}) {
 }
 
 // src/commands/init.ts
-import { join as join6 } from "path";
-import { existsSync as existsSync7, readFileSync as readFileSync2 } from "fs";
+import { join as join7 } from "path";
+import { existsSync as existsSync8, readFileSync as readFileSync3 } from "fs";
 
 // src/utils/detect-project.ts
 import { existsSync } from "fs";
@@ -11928,8 +11928,8 @@ async function detectProjectType(cwd) {
 }
 
 // src/utils/copy-framework.ts
-import { join as join2, dirname as dirname2 } from "path";
-import { existsSync as existsSync2, mkdirSync } from "fs";
+import { join as join3, dirname as dirname3 } from "path";
+import { existsSync as existsSync3, mkdirSync as mkdirSync2 } from "fs";
 import { readdir, stat, chmod, rm } from "fs/promises";
 
 // src/utils/settings-merge.ts
@@ -12024,32 +12024,163 @@ function removeHooks(existing, removals) {
   }, { ...existing });
 }
 
+// src/utils/native-rules.ts
+import { existsSync as existsSync2, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { dirname as dirname2, join as join2 } from "path";
+var RULE_CATEGORIES = [
+  "general",
+  "backend",
+  "frontend",
+  "testing",
+  "devops"
+];
+var RULE_PATHS = {
+  general: [],
+  backend: [
+    "**/*.{php,py,rb,go,java,kt,cs}",
+    "**/{api,server,backend,controllers,models,services,routes,database,migrations}/**/*"
+  ],
+  frontend: [
+    "**/*.{tsx,jsx,vue,svelte,css,scss,sass,less}",
+    "**/{components,pages,views,hooks,frontend,client,ui}/**/*"
+  ],
+  testing: [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/{test,tests,__tests__}/**/*"
+  ],
+  devops: [
+    ".github/workflows/**/*",
+    "**/{Dockerfile,docker-compose.yml,docker-compose.yaml,Makefile,Taskfile.yml}",
+    "**/*.{tf,hcl}"
+  ]
+};
+var FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+function nativeRulesDir(cwd) {
+  return join2(cwd, ".claude", "rules");
+}
+function nativeRulePath(cwd, category) {
+  return join2(nativeRulesDir(cwd), `${category}.md`);
+}
+function stripRuleFrontmatter(content) {
+  return content.replace(FRONTMATTER_RE, "").trim();
+}
+function renderNativeRule(category, content) {
+  const body = stripRuleFrontmatter(content);
+  const paths = RULE_PATHS[category];
+  if (paths.length === 0)
+    return `${body}
+`;
+  const renderedPaths = paths.map((path) => `  - "${path}"`).join(`
+`);
+  return `---
+paths:
+${renderedPaths}
+---
+
+${body}
+`;
+}
+function renderFallbackNativeRule(content) {
+  return `${stripRuleFrontmatter(content)}
+`;
+}
+function hasRuleContent(content) {
+  return stripRuleFrontmatter(content).split(/\r?\n/).some((line) => {
+    const trimmed = line.trim();
+    return Boolean(trimmed && !trimmed.startsWith("#") && !trimmed.startsWith("<!--"));
+  });
+}
+function migrateLegacyRules(cwd) {
+  const generatedRules = join2(cwd, ".claude", "RULES.md");
+  const retiredGeneratedRules = existsSync2(generatedRules) && readFileSync(generatedRules, "utf8").startsWith("<!-- AUTO-GENERATED by software-teams sync-agents");
+  if (retiredGeneratedRules)
+    rmSync(generatedRules, { force: true });
+  const claudeMd = join2(cwd, ".claude", "CLAUDE.md");
+  if (existsSync2(claudeMd)) {
+    const current = readFileSync(claudeMd, "utf8");
+    const withoutImport = retiredGeneratedRules ? current.replace(/^@\.claude\/RULES\.md\s*\r?\n?/m, "") : current;
+    const withoutLegacySection = withoutImport.replace(/\n## Rules\n\nIMPORTANT: Always read rules BEFORE starting any work\.[\s\S]*?(?=\n## |$)/, `
+`);
+    if (withoutLegacySection !== current)
+      writeFileSync(claudeMd, withoutLegacySection);
+  }
+  const warnings = [];
+  if (existsSync2(generatedRules) && !retiredGeneratedRules) {
+    warnings.push("Preserved unrecognised .claude/RULES.md; remove its obsolete imports manually if needed.");
+  }
+  const legacyDir = join2(cwd, ".software-teams", "rules");
+  const migrated = [];
+  if (existsSync2(legacyDir))
+    mkdirSync(nativeRulesDir(cwd), { recursive: true });
+  for (const filename of existsSync2(legacyDir) ? readdirSync(legacyDir).filter((file) => file.endsWith(".md")) : []) {
+    const category = filename.replace(/\.md$/, "");
+    const source = join2(legacyDir, filename);
+    if (category === "commits" || category === "deviations") {
+      rmSync(source, { force: true });
+      continue;
+    }
+    const content = readFileSync(source, "utf8");
+    const destination = nativeRulePath(cwd, category);
+    if (!existsSync2(destination)) {
+      const known = RULE_CATEGORIES.find((candidate) => candidate === category);
+      const rendered = known ? renderNativeRule(known, content) : renderFallbackNativeRule(content);
+      mkdirSync(dirname2(destination), { recursive: true });
+      writeFileSync(destination, rendered);
+      migrated.push(filename);
+    } else if (hasRuleContent(content)) {
+      const current = readFileSync(destination, "utf8");
+      const body = stripRuleFrontmatter(content);
+      if (!current.includes(body)) {
+        writeFileSync(destination, `${current.trimEnd()}
+
+${body}
+`);
+        migrated.push(filename);
+      }
+    }
+    rmSync(source, { force: true });
+  }
+  if (existsSync2(legacyDir) && readdirSync(legacyDir).length === 0) {
+    rmSync(legacyDir, { recursive: true, force: true });
+  }
+  if (existsSync2(claudeMd)) {
+    const remaining = readFileSync(claudeMd, "utf8");
+    if (remaining.includes(".software-teams/rules")) {
+      warnings.push("CLAUDE.md still references retired .software-teams/rules; migrate that custom instruction to .claude/rules/.");
+    }
+    if (remaining.includes("@.claude/RULES.md") && !existsSync2(generatedRules)) {
+      warnings.push("CLAUDE.md still imports missing .claude/RULES.md; remove the stale custom import.");
+    }
+  }
+  return { migrated: migrated.sort(), warnings };
+}
+
 // src/utils/copy-framework.ts
-var COPIED_SUBDIRS = ["rules"];
 var SKILL_SUPPORT_DIR = "st-support";
 function skillDestinationName(sourceName) {
   return sourceName === SKILL_SUPPORT_DIR ? SKILL_SUPPORT_DIR : `st-${sourceName}`;
 }
 async function detectSkillChanges(cwd, packageRoot) {
-  const sourceRoot = join2(packageRoot, "skills");
+  const sourceRoot = join3(packageRoot, "skills");
   const missing = [];
   const changed = [];
-  if (!existsSync2(sourceRoot))
+  if (!existsSync3(sourceRoot))
     return { missing, changed };
   const entries = await readdir(sourceRoot, { withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isDirectory())
       continue;
-    const sourceDir = join2(sourceRoot, entry.name);
+    const sourceDir = join3(sourceRoot, entry.name);
     const destinationName = skillDestinationName(entry.name);
     const files = new Bun.Glob("**/*");
     for await (const file of files.scan({ cwd: sourceDir })) {
-      const source = join2(sourceDir, file);
+      const source = join3(sourceDir, file);
       if (!(await stat(source)).isFile())
         continue;
-      const relativeDestination = join2(destinationName, file);
-      const destination = join2(cwd, ".claude", "skills", relativeDestination);
-      if (!existsSync2(destination))
+      const relativeDestination = join3(destinationName, file);
+      const destination = join3(cwd, ".claude", "skills", relativeDestination);
+      if (!existsSync3(destination))
         missing.push(relativeDestination);
       else if (await Bun.file(source).text() !== await Bun.file(destination).text()) {
         changed.push(relativeDestination);
@@ -12059,8 +12190,8 @@ async function detectSkillChanges(cwd, packageRoot) {
   return { missing: missing.sort(), changed: changed.sort() };
 }
 async function copySkills(cwd, packageRoot, force) {
-  const sourceRoot = join2(packageRoot, "skills");
-  if (!existsSync2(sourceRoot))
+  const sourceRoot = join3(packageRoot, "skills");
+  if (!existsSync3(sourceRoot))
     return [];
   const written = [];
   const entries = await readdir(sourceRoot, { withFileTypes: true });
@@ -12068,72 +12199,70 @@ async function copySkills(cwd, packageRoot, force) {
     if (!entry.isDirectory())
       continue;
     const destinationName = skillDestinationName(entry.name);
-    const sourceDir = join2(sourceRoot, entry.name);
-    const destinationDir = join2(cwd, ".claude", "skills", destinationName);
+    const sourceDir = join3(sourceRoot, entry.name);
+    const destinationDir = join3(cwd, ".claude", "skills", destinationName);
     const files = new Bun.Glob("**/*");
     for await (const file of files.scan({ cwd: sourceDir })) {
-      const source = join2(sourceDir, file);
+      const source = join3(sourceDir, file);
       if (!(await stat(source)).isFile())
         continue;
-      const destination = join2(destinationDir, file);
-      if (!force && existsSync2(destination))
+      const destination = join3(destinationDir, file);
+      if (!force && existsSync3(destination))
         continue;
-      mkdirSync(dirname2(destination), { recursive: true });
+      mkdirSync2(dirname3(destination), { recursive: true });
       await Bun.write(destination, await Bun.file(source).text());
-      written.push(join2(destinationName, file));
+      written.push(join3(destinationName, file));
     }
   }
   return written.sort();
 }
 async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRootOverride, stateOnly = false) {
-  const oneUp = join2(import.meta.dir, "..");
-  const twoUp = join2(import.meta.dir, "..", "..");
-  const packageRoot = packageRootOverride ?? (existsSync2(join2(oneUp, "package.json")) ? oneUp : twoUp);
-  const consumerRoot = join2(cwd, ".software-teams");
-  for (const sub of COPIED_SUBDIRS) {
-    const srcDir = join2(packageRoot, sub);
-    if (!existsSync2(srcDir))
-      continue;
-    const destDir = join2(consumerRoot, sub);
-    const subGlob = new Bun.Glob("**/*");
-    for await (const file of subGlob.scan({ cwd: srcDir })) {
-      const src2 = join2(srcDir, file);
-      const dest = join2(destDir, file);
-      if (!force && existsSync2(dest))
+  const oneUp = join3(import.meta.dir, "..");
+  const twoUp = join3(import.meta.dir, "..", "..");
+  const packageRoot = packageRootOverride ?? (existsSync3(join3(oneUp, "package.json")) ? oneUp : twoUp);
+  const ruleMigration = migrateLegacyRules(cwd);
+  for (const warning of ruleMigration.warnings)
+    console.warn(`Software Teams rules migration: ${warning}`);
+  const rulesSource = join3(packageRoot, "rules");
+  if (existsSync3(rulesSource)) {
+    const entries = await readdir(rulesSource, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith(".md"))
         continue;
-      const dir = dirname2(dest);
-      if (!existsSync2(dir))
-        mkdirSync(dir, { recursive: true });
-      const content = await Bun.file(src2).text();
-      await Bun.write(dest, content);
+      const destination = join3(cwd, ".claude", "rules", entry.name);
+      const frameworkOwned = entry.name === "software-teams.md";
+      if (!frameworkOwned && existsSync3(destination))
+        continue;
+      mkdirSync2(dirname3(destination), { recursive: true });
+      await Bun.write(destination, await Bun.file(join3(rulesSource, entry.name)).text());
     }
   }
-  await rm(join2(cwd, ".claude", "commands", "st"), { recursive: true, force: true });
+  await rm(join3(cwd, ".claude", "commands", "st"), { recursive: true, force: true });
   if (!stateOnly) {
     await copySkills(cwd, packageRoot, force);
-    const settingsTemplate = join2(packageRoot, "templates", ".claude", "settings.json");
-    if (existsSync2(settingsTemplate)) {
-      const settingsDest = join2(cwd, ".claude", "settings.json");
-      const destDir = dirname2(settingsDest);
-      if (!existsSync2(destDir))
-        mkdirSync(destDir, { recursive: true });
-      if (force || !existsSync2(settingsDest)) {
+    const settingsTemplate = join3(packageRoot, "templates", ".claude", "settings.json");
+    if (existsSync3(settingsTemplate)) {
+      const settingsDest = join3(cwd, ".claude", "settings.json");
+      const destDir = dirname3(settingsDest);
+      if (!existsSync3(destDir))
+        mkdirSync2(destDir, { recursive: true });
+      if (force || !existsSync3(settingsDest)) {
         const content = await Bun.file(settingsTemplate).text();
         await Bun.write(settingsDest, content);
       }
     }
   }
-  const hooksTemplateDir = join2(packageRoot, "templates", ".claude", "hooks");
-  if (existsSync2(hooksTemplateDir)) {
-    const hooksDestDir = join2(cwd, ".claude", "hooks");
-    if (!existsSync2(hooksDestDir))
-      mkdirSync(hooksDestDir, { recursive: true });
+  const hooksTemplateDir = join3(packageRoot, "templates", ".claude", "hooks");
+  if (existsSync3(hooksTemplateDir)) {
+    const hooksDestDir = join3(cwd, ".claude", "hooks");
+    if (!existsSync3(hooksDestDir))
+      mkdirSync2(hooksDestDir, { recursive: true });
     const entries = await readdir(hooksTemplateDir, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isFile())
         continue;
-      const src2 = join2(hooksTemplateDir, entry.name);
-      const dst = join2(hooksDestDir, entry.name);
+      const src2 = join3(hooksTemplateDir, entry.name);
+      const dst = join3(hooksDestDir, entry.name);
       const content = await Bun.file(src2).text();
       await Bun.write(dst, content);
       const srcStat = await stat(src2);
@@ -12142,46 +12271,46 @@ async function copyFrameworkFiles(cwd, projectType, force, ci = false, packageRo
       }
     }
   }
-  const statuslineTemplateDir = join2(packageRoot, "templates", ".claude", "statusline");
-  if (existsSync2(statuslineTemplateDir)) {
-    const statuslineDestDir = join2(cwd, ".claude", "statusline");
-    if (!existsSync2(statuslineDestDir))
-      mkdirSync(statuslineDestDir, { recursive: true });
+  const statuslineTemplateDir = join3(packageRoot, "templates", ".claude", "statusline");
+  if (existsSync3(statuslineTemplateDir)) {
+    const statuslineDestDir = join3(cwd, ".claude", "statusline");
+    if (!existsSync3(statuslineDestDir))
+      mkdirSync2(statuslineDestDir, { recursive: true });
     const slEntries = await readdir(statuslineTemplateDir, { withFileTypes: true });
     for (const entry of slEntries) {
       if (!entry.isFile())
         continue;
-      const src2 = join2(statuslineTemplateDir, entry.name);
-      const dst = join2(statuslineDestDir, entry.name);
+      const src2 = join3(statuslineTemplateDir, entry.name);
+      const dst = join3(statuslineDestDir, entry.name);
       await Bun.write(dst, await Bun.file(src2).text());
       const srcStat = await stat(src2);
       if (srcStat.mode & 73)
         await chmod(dst, srcStat.mode);
     }
   }
-  const settingsForHook = join2(cwd, ".claude", "settings.json");
+  const settingsForHook = join3(cwd, ".claude", "settings.json");
   const currentSettings = await readSettings(settingsForHook);
   const wiredSettings = ensureTaskCompletedHook(ensureSessionStartHook(ensureSubagentStopHook(currentSettings)));
   if (wiredSettings !== currentSettings) {
     await writeSettings(settingsForHook, wiredSettings);
   }
-  const adapterPath = join2(packageRoot, "adapters", `${projectType}.yaml`);
-  if (existsSync2(adapterPath)) {
-    const dest = join2(cwd, ".software-teams", "config", "adapter.yaml");
-    const dir = dirname2(dest);
-    if (!existsSync2(dir))
-      mkdirSync(dir, { recursive: true });
+  const adapterPath = join3(packageRoot, "adapters", `${projectType}.yaml`);
+  if (existsSync3(adapterPath)) {
+    const dest = join3(cwd, ".software-teams", "config", "adapter.yaml");
+    const dir = dirname3(dest);
+    if (!existsSync3(dir))
+      mkdirSync2(dir, { recursive: true });
     const content = await Bun.file(adapterPath).text();
     await Bun.write(dest, content);
   }
   if (stateOnly)
     return;
-  const claudeMdPath = join2(cwd, ".claude", "CLAUDE.md");
-  const claudeDir = join2(cwd, ".claude");
-  if (!existsSync2(claudeDir))
-    mkdirSync(claudeDir, { recursive: true });
-  const sharedTemplatePath = join2(packageRoot, "templates", "CLAUDE-SHARED.md");
-  const sharedBase = existsSync2(sharedTemplatePath) ? await Bun.file(sharedTemplatePath).text() : "";
+  const claudeMdPath = join3(cwd, ".claude", "CLAUDE.md");
+  const claudeDir = join3(cwd, ".claude");
+  if (!existsSync3(claudeDir))
+    mkdirSync2(claudeDir, { recursive: true });
+  const sharedTemplatePath = join3(packageRoot, "templates", "CLAUDE-SHARED.md");
+  const sharedBase = existsSync3(sharedTemplatePath) ? await Bun.file(sharedTemplatePath).text() : "";
   if (ci) {
     const ciHeader = "## Codebase Index";
     const ciSections = `
@@ -12195,11 +12324,11 @@ and saving it to \`.software-teams/persistence/codebase-index.md\` for future ru
 
 Based on the user's request, follow the appropriate workflow:
 
-- **Plan requests** ("plan", "design", or ClickUp ticket URLs): Read \`.software-teams/framework/agents/software-teams-planner.md\` and create a plan in \`.software-teams/plans/\`. Present a summary and ask for feedback.
+- **Plan requests** ("plan", "design", or ClickUp ticket URLs): use the native \`software-teams-planner\` subagent and create a plan in \`.software-teams/plans/\`. Present a summary and ask for feedback.
 - **Implementation** ("implement", "build", "execute"): Read the current plan from state.yaml. Run \`software-teams component get ComplexityRouter\` to decide single-agent vs teams mode.
 - **Quick changes** ("quick", "fix", "small"): Make minimal focused changes. Commit when done.
 - **Review** ("review"): Run \`software-teams component get PRReview\` for the review checklist; review PR changes against it.
-- **PR feedback** ("feedback"): Address review comments using \`.software-teams/framework/agents/software-teams-pr-feedback.md\`. Extract new rules from reviewer preferences (skip anything already in CLAUDE.md).
+- **PR feedback** ("feedback"): use the native \`software-teams-pr-feedback\` subagent. Extract durable team conventions from reviewer preferences; dedupe against CLAUDE.md and native rules.
 - **"do" + ClickUp URL**: Full flow \u2014 plan from ticket, then implement.
 
 ## Auto-Commit (CI Mode)
@@ -12226,7 +12355,7 @@ curl -s -H "Authorization: $CLICKUP_API_TOKEN" "https://api.clickup.com/api/v2/t
 \`\`\`
 Use the ticket name, description, and checklists as requirements.
 `;
-    if (!existsSync2(claudeMdPath)) {
+    if (!existsSync3(claudeMdPath)) {
       await Bun.write(claudeMdPath, sharedBase + `
 ` + ciSections);
     } else {
@@ -12240,10 +12369,9 @@ Use the ticket name, description, and checklists as requirements.
     const routingHeader = "## Agent-First Default";
     const routingBlock = `## Agent Catalogue and Rules
 
-The list of registered specialists and the orchestration / quality rules for this project are imported below. Both files are auto-generated by \`software-teams sync-agents\` from \`agents/\` and \`templates/RULES.md\` \u2014 do **not** hand-edit them; re-run \`software-teams sync-agents\` after changing the source.
+The registered specialist catalogue is generated by \`software-teams sync-agents\` from \`agents/\`. Do **not** hand-edit it. Claude Code loads orchestration doctrine and team conventions natively from \`.claude/rules/\`.
 
 @.claude/AGENTS.md
-@.claude/RULES.md
 
 ${routingHeader}
 
@@ -12290,7 +12418,7 @@ Per-sub-plan flow (create-plan \u2192 implement \u2192 commit) from an orchestra
 
 After \`/st-create-plan\` or \`/st-implement-plan\` completes, the conversation continues naturally \u2014 no new command invocation needed. When the user provides feedback (e.g. "change task 2", "move this to a helper", "add error handling"), apply the changes directly, update state, and present the updated summary. When the user approves (e.g. "approved", "looks good", "lgtm"), finalise the review state. The conversation IS the feedback loop.
 `;
-    if (!existsSync2(claudeMdPath)) {
+    if (!existsSync3(claudeMdPath)) {
       await Bun.write(claudeMdPath, routingBlock);
     } else {
       const existing = await Bun.file(claudeMdPath).text();
@@ -12303,15 +12431,15 @@ After \`/st-create-plan\` or \`/st-implement-plan\` completes, the conversation 
 }
 
 // src/utils/convert-agents.ts
-import { join as join4, resolve as resolve2, relative, basename, dirname as dirname4 } from "path";
-import { existsSync as existsSync5, mkdirSync as mkdirSync3 } from "fs";
+import { join as join5, resolve as resolve2, relative, basename, dirname as dirname5 } from "path";
+import { existsSync as existsSync6, mkdirSync as mkdirSync4 } from "fs";
 
 // src/utils/convert-agents/conflict.ts
-import { existsSync as existsSync3, readFileSync } from "fs";
+import { existsSync as existsSync4, readFileSync as readFileSync2 } from "fs";
 var AUTO_GENERATED_PREFIX = "<!-- AUTO-GENERATED by software-teams sync-agents";
 function hasAutoGeneratedBanner(filePath) {
   try {
-    const content = readFileSync(filePath, "utf-8");
+    const content = readFileSync2(filePath, "utf-8");
     const firstNonBlank = content.split(`
 `).find((l2) => l2.trim().length > 0) ?? "";
     return firstNonBlank.trim().startsWith(AUTO_GENERATED_PREFIX);
@@ -12320,7 +12448,7 @@ function hasAutoGeneratedBanner(filePath) {
   }
 }
 function shouldWriteUnderConflict(outPath, mode, result) {
-  if (!existsSync3(outPath))
+  if (!existsSync4(outPath))
     return true;
   if (mode === "overwrite")
     return true;
@@ -12341,7 +12469,7 @@ function shouldWriteUnderConflict(outPath, mode, result) {
   return false;
 }
 async function writeIfChanged(outPath, rendered) {
-  if (existsSync3(outPath)) {
+  if (existsSync4(outPath)) {
     const existing = await Bun.file(outPath).text();
     if (existing === rendered)
       return false;
@@ -12358,9 +12486,9 @@ var REQUIRED_FIELDS = [
   "model",
   "tools"
 ];
-var FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+var FRONTMATTER_RE2 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 function parseAgentFile(content, filePath) {
-  const match = content.match(FRONTMATTER_RE);
+  const match = content.match(FRONTMATTER_RE2);
   if (!match) {
     throw new Error(`convert-agents: ${filePath} is missing YAML frontmatter (expected leading '---' block)`);
   }
@@ -12823,7 +12951,7 @@ Agent(
 )
 \`\`\`
 
-The prompt contains no \`"You are software-teams-X. Read ..."\` preamble \u2014 Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/RULES.md\` / \`templates/RULES.md\` for the orchestration doctrine.
+The prompt contains no \`"You are software-teams-X. Read ..."\` preamble \u2014 Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/rules/software-teams.md\` for orchestration doctrine.
 
 If \`plan.primary_agent\` is missing (legacy plan or empty \`available_agents\`), use the legacy fallback below.
 
@@ -15560,8 +15688,7 @@ function renderAgentOutput(parsed, sourcePath) {
 `);
 }
 var CATALOGUE_BANNER = "<!-- AUTO-GENERATED by software-teams sync-agents \u2014 edit agents/*.md and templates/AGENTS.md.template (if used) and re-run -->";
-var RULES_BANNER = "<!-- AUTO-GENERATED by software-teams sync-agents \u2014 edit templates/RULES.md and re-run -->";
-var CATALOGUE_PREAMBLE = "These agents are spawned via `Agent subagent_type=<name>`. Each agent's full spec is in `.claude/agents/<name>.md` (auto-generated from `agents/<name>.md`). See `RULES.md` for orchestration doctrine.";
+var CATALOGUE_PREAMBLE = "These agents are spawned via `Agent subagent_type=<name>`. Each agent's full spec is in `.claude/agents/<name>.md` (auto-generated from `agents/<name>.md`). Native project rules under `.claude/rules/` provide orchestration and path-scoped team conventions.";
 function escapeTableCell(value) {
   return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
 }
@@ -15584,72 +15711,31 @@ function renderCatalogue(entries) {
 }
 
 // src/utils/convert-agents/io.ts
-import { join as join3, resolve, dirname as dirname3 } from "path";
-import { existsSync as existsSync4, mkdirSync as mkdirSync2 } from "fs";
+import { join as join4, resolve, dirname as dirname4 } from "path";
+import { existsSync as existsSync5, mkdirSync as mkdirSync3 } from "fs";
 function resolveAgainst(cwd, p) {
   return resolve(cwd, p);
 }
 function resolveDefaultSourceDir(cwd) {
-  const selfHost = join3(cwd, "agents");
-  if (existsSync4(selfHost))
+  const selfHost = join4(cwd, "agents");
+  if (existsSync5(selfHost))
     return selfHost;
-  const legacyMirror = join3(cwd, ".software-teams", "framework", "agents");
-  if (existsSync4(legacyMirror))
+  const legacyMirror = join4(cwd, ".software-teams", "framework", "agents");
+  if (existsSync5(legacyMirror))
     return legacyMirror;
-  const oneUp = join3(import.meta.dir, "..", "..", "..");
-  const twoUp = join3(import.meta.dir, "..", "..", "..", "..");
-  const packageRoot = existsSync4(join3(oneUp, "package.json")) ? oneUp : twoUp;
-  return join3(packageRoot, "agents");
-}
-function resolveDefaultRulesSource(cwd) {
-  const selfHost = join3(cwd, "templates", "RULES.md");
-  if (existsSync4(selfHost))
-    return selfHost;
-  const legacyMirror = join3(cwd, ".software-teams", "framework", "templates", "RULES.md");
-  if (existsSync4(legacyMirror))
-    return legacyMirror;
-  const oneUp = join3(import.meta.dir, "..", "..", "..");
-  const twoUp = join3(import.meta.dir, "..", "..", "..", "..");
-  const packageRoot = existsSync4(join3(oneUp, "package.json")) ? oneUp : twoUp;
-  return join3(packageRoot, "templates", "RULES.md");
+  const oneUp = join4(import.meta.dir, "..", "..", "..");
+  const twoUp = join4(import.meta.dir, "..", "..", "..", "..");
+  const packageRoot = existsSync5(join4(oneUp, "package.json")) ? oneUp : twoUp;
+  return join4(packageRoot, "agents");
 }
 async function writeCatalogue(entries, targetRoot, onConflict, dryRun, result) {
-  const outPath = join3(targetRoot, "AGENTS.md");
+  const outPath = join4(targetRoot, "AGENTS.md");
   const rendered = renderCatalogue(entries);
   if (!shouldWriteUnderConflict(outPath, onConflict, result))
     return;
   if (!dryRun) {
-    if (!existsSync4(targetRoot))
-      mkdirSync2(targetRoot, { recursive: true });
-    if (await writeIfChanged(outPath, rendered)) {
-      result.written.push(outPath);
-    } else {
-      result.unchanged.push(outPath);
-    }
-  } else {
-    result.written.push(outPath);
-  }
-}
-async function writeRules(targetRoot, sourceRulesPath, onConflict, dryRun, result) {
-  const outPath = join3(targetRoot, "RULES.md");
-  if (!existsSync4(sourceRulesPath)) {
-    result.errors.push({
-      file: sourceRulesPath,
-      reason: `RULES.md template not found: ${sourceRulesPath}`
-    });
-    return;
-  }
-  const sourceContent = await Bun.file(sourceRulesPath).text();
-  const trimmed = sourceContent.replace(/^\s+/, "").replace(/\s+$/, "");
-  const rendered = `${RULES_BANNER}
-
-${trimmed}
-`;
-  if (!shouldWriteUnderConflict(outPath, onConflict, result))
-    return;
-  if (!dryRun) {
-    if (!existsSync4(targetRoot))
-      mkdirSync2(targetRoot, { recursive: true });
+    if (!existsSync5(targetRoot))
+      mkdirSync3(targetRoot, { recursive: true });
     if (await writeIfChanged(outPath, rendered)) {
       result.written.push(outPath);
     } else {
@@ -15664,11 +15750,11 @@ ${trimmed}
 async function convertAgents(opts = {}) {
   const cwd = opts.cwd ?? process.cwd();
   const sourceDir = resolve2(opts.sourceDir ? resolveAgainst(cwd, opts.sourceDir) : resolveDefaultSourceDir(cwd));
-  const targetDir = resolve2(opts.targetDir ? resolveAgainst(cwd, opts.targetDir) : join4(cwd, ".claude", "agents"));
+  const targetDir = resolve2(opts.targetDir ? resolveAgainst(cwd, opts.targetDir) : join5(cwd, ".claude", "agents"));
   const onConflict = opts.onConflict ?? "overwrite";
   const dryRun = opts.dryRun === true;
   const result = { written: [], unchanged: [], skipped: [], errors: [] };
-  if (!existsSync5(sourceDir)) {
+  if (!existsSync6(sourceDir)) {
     result.errors.push({
       file: sourceDir,
       reason: `source directory not found: ${sourceDir}`
@@ -15681,12 +15767,12 @@ async function convertAgents(opts = {}) {
     sourceFiles.push(file);
   }
   sourceFiles.sort();
-  if (!dryRun && !existsSync5(targetDir)) {
-    mkdirSync3(targetDir, { recursive: true });
+  if (!dryRun && !existsSync6(targetDir)) {
+    mkdirSync4(targetDir, { recursive: true });
   }
   const catalogueEntries = [];
   for (const file of sourceFiles) {
-    const sourcePath = join4(sourceDir, file);
+    const sourcePath = join5(sourceDir, file);
     try {
       const content = await Bun.file(sourcePath).text();
       const parsed = parseAgentFile(content, sourcePath);
@@ -15698,7 +15784,7 @@ async function convertAgents(opts = {}) {
       if (effort)
         fm.effort = effort;
       const outName = `${fm.name}.md`;
-      const outPath = join4(targetDir, outName);
+      const outPath = join5(targetDir, outName);
       const relSource = relative(cwd, sourcePath) || basename(sourcePath);
       const rendered = renderAgentOutput(parsed, relSource);
       if (!shouldWriteUnderConflict(outPath, onConflict, result)) {
@@ -15710,9 +15796,9 @@ async function convertAgents(opts = {}) {
         continue;
       }
       if (!dryRun) {
-        const dir = dirname4(outPath);
-        if (!existsSync5(dir))
-          mkdirSync3(dir, { recursive: true });
+        const dir = dirname5(outPath);
+        if (!existsSync6(dir))
+          mkdirSync4(dir, { recursive: true });
         if (await writeIfChanged(outPath, rendered)) {
           result.written.push(outPath);
         } else {
@@ -15731,24 +15817,22 @@ async function convertAgents(opts = {}) {
       result.errors.push({ file: sourcePath, reason });
     }
   }
-  const targetRoot = dirname4(targetDir);
-  const rulesSource = resolveDefaultRulesSource(cwd);
+  const targetRoot = dirname5(targetDir);
   if (catalogueEntries.length > 0) {
     await writeCatalogue(catalogueEntries, targetRoot, onConflict, dryRun, result);
   }
-  await writeRules(targetRoot, rulesSource, onConflict, dryRun, result);
   return result;
 }
 
 // src/utils/models-config.ts
 var import_yaml3 = __toESM(require_dist(), 1);
-import { join as join5 } from "path";
-import { existsSync as existsSync6 } from "fs";
+import { join as join6 } from "path";
+import { existsSync as existsSync7 } from "fs";
 function packagedConfigPath() {
-  const oneUp = join5(import.meta.dir, "..");
-  const twoUp = join5(import.meta.dir, "..", "..");
-  const packageRoot = existsSync6(join5(oneUp, "package.json")) ? oneUp : twoUp;
-  return join5(packageRoot, "config", "config.yaml");
+  const oneUp = join6(import.meta.dir, "..");
+  const twoUp = join6(import.meta.dir, "..", "..");
+  const packageRoot = existsSync7(join6(oneUp, "package.json")) ? oneUp : twoUp;
+  return join6(packageRoot, "config", "config.yaml");
 }
 function readRecord(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value))
@@ -15768,9 +15852,9 @@ function stringEntries(source) {
 async function loadAgentRouting(cwd) {
   const empty = { models: {}, efforts: {} };
   try {
-    const localPath = join5(cwd, ".software-teams", "config", "config.yaml");
-    const configPath = existsSync6(localPath) ? localPath : packagedConfigPath();
-    if (!existsSync6(configPath))
+    const localPath = join6(cwd, ".software-teams", "config", "config.yaml");
+    const configPath = existsSync7(localPath) ? localPath : packagedConfigPath();
+    if (!existsSync7(configPath))
       return empty;
     const raw = readRecord(import_yaml3.parse(await Bun.file(configPath).text()));
     const models = readRecord(raw?.["models"]);
@@ -15804,7 +15888,7 @@ var ST_GITIGNORE_PATHS = [
   ".claude/skills/st-support/",
   ".claude/agents/software-teams-*.md",
   ".claude/AGENTS.md",
-  ".claude/RULES.md",
+  ".claude/rules/software-teams.md",
   ".claude/CLAUDE.md",
   ".claude/hooks/",
   ".claude/statusline/",
@@ -15880,26 +15964,26 @@ var initCommand = defineCommand({
       ".software-teams/feedback"
     ];
     for (const dir of dirs) {
-      await Bun.write(join6(cwd, dir, ".gitkeep"), "");
+      await Bun.write(join7(cwd, dir, ".gitkeep"), "");
     }
-    const oneUp = join6(import.meta.dir, "..");
-    const twoUp = join6(import.meta.dir, "..", "..");
-    const packageRoot = existsSync7(join6(oneUp, "package.json")) ? oneUp : twoUp;
+    const oneUp = join7(import.meta.dir, "..");
+    const twoUp = join7(import.meta.dir, "..", "..");
+    const packageRoot = existsSync8(join7(oneUp, "package.json")) ? oneUp : twoUp;
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci, undefined, args["state-only"]);
-    const cfgSrc = join6(packageRoot, "config", "config.yaml");
-    const cfgDest = join6(cwd, ".software-teams", "config", "config.yaml");
-    if (existsSync7(cfgSrc) && (args.force || !existsSync7(cfgDest))) {
+    const cfgSrc = join7(packageRoot, "config", "config.yaml");
+    const cfgDest = join7(cwd, ".software-teams", "config", "config.yaml");
+    if (existsSync8(cfgSrc) && (args.force || !existsSync8(cfgDest))) {
       await Bun.write(cfgDest, await Bun.file(cfgSrc).text());
     }
-    const stateSrc = join6(packageRoot, "templates", "state.yaml");
-    const stateDest = join6(cwd, ".software-teams", "state.yaml");
-    if (existsSync7(stateSrc) && (args.force || !existsSync7(stateDest))) {
+    const stateSrc = join7(packageRoot, "templates", "state.yaml");
+    const stateDest = join7(cwd, ".software-teams", "state.yaml");
+    if (existsSync8(stateSrc) && (args.force || !existsSync8(stateDest))) {
       await Bun.write(stateDest, await Bun.file(stateSrc).text());
     }
     if (!args["state-only"]) {
       const { parse: parseYaml3 } = await Promise.resolve().then(() => __toESM(require_dist(), 1));
-      const cfgPath = join6(cwd, ".software-teams", "config", "config.yaml");
-      const nativeSubagentsEnabled = !existsSync7(cfgPath) || await (async () => {
+      const cfgPath = join7(cwd, ".software-teams", "config", "config.yaml");
+      const nativeSubagentsEnabled = !existsSync8(cfgPath) || await (async () => {
         try {
           const cfgContent = await Bun.file(cfgPath).text();
           const cfg = parseYaml3(cfgContent) ?? {};
@@ -15917,7 +16001,7 @@ var initCommand = defineCommand({
         const conv = await convertAgents({
           cwd,
           efforts,
-          sourceDir: join6(packageRoot, "agents"),
+          sourceDir: join7(packageRoot, "agents"),
           targetDir: ".claude/agents",
           onConflict: args.force ? "overwrite" : "preserve-user-owned",
           models
@@ -15935,21 +16019,21 @@ var initCommand = defineCommand({
     }
     const scaffoldFiles = ["project.yaml", "requirements.yaml", "roadmap.yaml"];
     for (const name of scaffoldFiles) {
-      const src2 = join6(packageRoot, "templates", name);
-      const dest = join6(cwd, ".software-teams", name);
-      if (existsSync7(src2) && !existsSync7(dest)) {
+      const src2 = join7(packageRoot, "templates", name);
+      const dest = join7(cwd, ".software-teams", name);
+      if (existsSync8(src2) && !existsSync8(dest)) {
         await Bun.write(dest, await Bun.file(src2).text());
       }
     }
-    const gitignorePath = join6(cwd, ".gitignore");
-    const existingGitignore = existsSync7(gitignorePath) ? readFileSync2(gitignorePath, "utf-8") : "";
+    const gitignorePath = join7(cwd, ".gitignore");
+    const existingGitignore = existsSync8(gitignorePath) ? readFileSync3(gitignorePath, "utf-8") : "";
     const nextGitignore = updateGitignore(existingGitignore);
     if (nextGitignore !== existingGitignore) {
       await Bun.write(gitignorePath, nextGitignore);
     }
     if (args.storage || args["storage-path"]) {
       const { parse, stringify } = await Promise.resolve().then(() => __toESM(require_dist(), 1));
-      const configPath = join6(cwd, ".software-teams", "config", "software-teams-config.yaml");
+      const configPath = join7(cwd, ".software-teams", "config", "software-teams-config.yaml");
       const config = await Bun.file(configPath).text().then((t2) => parse(t2) ?? {}).catch(() => ({}));
       config.storage = {
         adapter: args.storage ?? "fs",
@@ -15986,8 +16070,8 @@ var initCommand = defineCommand({
 
 // src/commands/plan.ts
 var import_yaml8 = __toESM(require_dist(), 1);
-import { resolve as resolve6, basename as basename3, join as join15 } from "path";
-import { existsSync as existsSync17, readdirSync as readdirSync2 } from "fs";
+import { resolve as resolve6, basename as basename3, join as join16 } from "path";
+import { existsSync as existsSync18, readdirSync as readdirSync2 } from "fs";
 
 // src/shared/agent-tools.ts
 var DEFAULT_ALLOWED_TOOLS = [
@@ -16137,12 +16221,12 @@ async function spawnClaude(prompt2, opts) {
 
 // src/storage/index.ts
 var import_yaml4 = __toESM(require_dist(), 1);
-import { join as join8 } from "path";
-import { existsSync as existsSync9 } from "fs";
+import { join as join9 } from "path";
+import { existsSync as existsSync10 } from "fs";
 
 // src/storage/fs-storage.ts
-import { join as join7, resolve as resolve3 } from "path";
-import { existsSync as existsSync8, mkdirSync as mkdirSync4 } from "fs";
+import { join as join8, resolve as resolve3 } from "path";
+import { existsSync as existsSync9, mkdirSync as mkdirSync5 } from "fs";
 
 class FsStorage {
   basePath;
@@ -16151,7 +16235,7 @@ class FsStorage {
   }
   resolveKey(key) {
     const sanitized = key.replace(/[/\\]/g, "_").replace(/\.\./g, "_");
-    const filePath = join7(this.basePath, `${sanitized}.md`);
+    const filePath = join8(this.basePath, `${sanitized}.md`);
     const resolved = resolve3(filePath);
     if (!resolved.startsWith(resolve3(this.basePath) + "/")) {
       throw new Error(`Storage key "${key}" resolves outside base path`);
@@ -16160,13 +16244,13 @@ class FsStorage {
   }
   async load(key) {
     const filePath = this.resolveKey(key);
-    if (!existsSync8(filePath))
+    if (!existsSync9(filePath))
       return null;
     return Bun.file(filePath).text();
   }
   async save(key, content) {
-    if (!existsSync8(this.basePath)) {
-      mkdirSync4(this.basePath, { recursive: true });
+    if (!existsSync9(this.basePath)) {
+      mkdirSync5(this.basePath, { recursive: true });
     }
     const filePath = this.resolveKey(key);
     await Bun.write(filePath, content);
@@ -16179,8 +16263,8 @@ async function createStorage(cwd, config) {
     if (config?.adapter || config?.basePath) {
       return { adapter: config?.adapter ?? "fs", basePath: config?.basePath };
     }
-    const configPath = join8(cwd, ".software-teams", "config", "software-teams-config.yaml");
-    if (!existsSync9(configPath))
+    const configPath = join9(cwd, ".software-teams", "config", "software-teams-config.yaml");
+    if (!existsSync10(configPath))
       return { adapter: "fs", basePath: config?.basePath };
     const content = await Bun.file(configPath).text();
     const parsed = import_yaml4.parse(content);
@@ -16192,11 +16276,11 @@ async function createStorage(cwd, config) {
   const adapter = resolvedStorageConfig.adapter;
   const basePath = resolvedStorageConfig.basePath;
   if (adapter === "fs") {
-    const resolvedPath = basePath ? join8(cwd, basePath) : join8(cwd, ".software-teams", "persistence");
+    const resolvedPath = basePath ? join9(cwd, basePath) : join9(cwd, ".software-teams", "persistence");
     return new FsStorage(resolvedPath);
   }
-  const adapterPath = join8(cwd, adapter);
-  if (!existsSync9(adapterPath)) {
+  const adapterPath = join9(cwd, adapter);
+  if (!existsSync10(adapterPath)) {
     throw new Error(`Storage adapter not found: ${adapterPath}
 ` + `Set storage.adapter in .software-teams/config/software-teams-config.yaml to "fs" or a path to a custom adapter module.`);
   }
@@ -16220,11 +16304,10 @@ async function createStorage(cwd, config) {
 }
 
 // src/utils/storage-lifecycle.ts
-import { join as join9 } from "path";
-import { existsSync as existsSync10, mkdirSync as mkdirSync5, readdirSync } from "fs";
-var RULE_CATEGORIES = ["general", "backend", "frontend", "testing", "devops"];
+import { join as join10 } from "path";
+import { existsSync as existsSync11, mkdirSync as mkdirSync6 } from "fs";
 async function writeIfChanged2(path, content) {
-  if (existsSync10(path)) {
+  if (existsSync11(path)) {
     const existing = await Bun.file(path).text();
     if (existing === content)
       return;
@@ -16232,51 +16315,48 @@ async function writeIfChanged2(path, content) {
   await Bun.write(path, content);
 }
 async function loadPersistedState(cwd, storage) {
-  const dir = join9(cwd, ".software-teams", "rules");
+  const dir = nativeRulesDir(cwd);
   const ruleLoadResults = await Promise.all(RULE_CATEGORIES.map(async (category) => {
     const content = await storage.load(`rules-${category}`) ?? await storage.load(`learnings-${category}`);
     if (content) {
-      if (!existsSync10(dir))
-        mkdirSync5(dir, { recursive: true });
-      await writeIfChanged2(join9(dir, `${category}.md`), content);
+      if (!existsSync11(dir))
+        mkdirSync6(dir, { recursive: true });
+      await writeIfChanged2(nativeRulePath(cwd, category), renderNativeRule(category, content));
       return true;
     }
     return false;
   }));
   const anyLoaded = ruleLoadResults.some(Boolean);
-  const rulesPath = anyLoaded ? dir : existsSync10(dir) && readdirSync(dir).filter((f3) => f3.endsWith(".md")).length > 0 ? dir : null;
+  const rulesPath = anyLoaded || RULE_CATEGORIES.some((category) => existsSync11(nativeRulePath(cwd, category))) ? dir : null;
   const codebaseIndex = await storage.load("codebase-index");
   const codebaseIndexPath = await (async () => {
     if (!codebaseIndex)
       return null;
-    const cbDir = join9(cwd, ".software-teams", "codebase");
-    if (!existsSync10(cbDir))
-      mkdirSync5(cbDir, { recursive: true });
-    const indexPath = join9(cbDir, "INDEX.md");
+    const cbDir = join10(cwd, ".software-teams", "codebase");
+    if (!existsSync11(cbDir))
+      mkdirSync6(cbDir, { recursive: true });
+    const indexPath = join10(cbDir, "INDEX.md");
     await writeIfChanged2(indexPath, codebaseIndex);
     return indexPath;
   })();
   return { rulesPath, codebaseIndexPath };
 }
 async function savePersistedState(cwd, storage) {
-  const rulesDir = join9(cwd, ".software-teams", "rules");
-  const ruleSaveResults = existsSync10(rulesDir) ? await Promise.all(RULE_CATEGORIES.map(async (category) => {
-    const filePath = join9(rulesDir, `${category}.md`);
-    if (!existsSync10(filePath))
+  const rulesDir = nativeRulesDir(cwd);
+  const ruleSaveResults = existsSync11(rulesDir) ? await Promise.all(RULE_CATEGORIES.map(async (category) => {
+    const filePath = nativeRulePath(cwd, category);
+    if (!existsSync11(filePath))
       return false;
     const content = await Bun.file(filePath).text();
-    const trimmed = content.trim();
-    const hasContent = trimmed.split(`
-`).some((l2) => l2.trim() && !l2.startsWith("#") && !l2.startsWith("<!--"));
-    if (!hasContent)
+    if (!hasRuleContent(content))
       return false;
-    await storage.save(`rules-${category}`, trimmed);
+    await storage.save(`rules-${category}`, content.trim());
     return true;
   })) : [];
   const rulesSaved = ruleSaveResults.some(Boolean);
-  const indexPath = join9(cwd, ".software-teams", "codebase", "INDEX.md");
+  const indexPath = join10(cwd, ".software-teams", "codebase", "INDEX.md");
   const codebaseIndexSaved = await (async () => {
-    if (!existsSync10(indexPath))
+    if (!existsSync11(indexPath))
       return false;
     const content = await Bun.file(indexPath).text();
     if (!content.trim())
@@ -16289,11 +16369,11 @@ async function savePersistedState(cwd, storage) {
 
 // src/utils/adapter.ts
 var import_yaml5 = __toESM(require_dist(), 1);
-import { join as join10 } from "path";
-import { existsSync as existsSync11 } from "fs";
+import { join as join11 } from "path";
+import { existsSync as existsSync12 } from "fs";
 async function readAdapter(cwd) {
-  const adapterPath = join10(cwd, ".software-teams", "config", "adapter.yaml");
-  if (!existsSync11(adapterPath))
+  const adapterPath = join11(cwd, ".software-teams", "config", "adapter.yaml");
+  if (!existsSync12(adapterPath))
     return null;
   const content = await Bun.file(adapterPath).text();
   return import_yaml5.parse(content);
@@ -16339,7 +16419,7 @@ function buildWorkspaceContext(ctx) {
 }
 function buildRulesBlock(techStack) {
   const lower = techStack.toLowerCase();
-  const base = ".software-teams/rules";
+  const base = ".claude/rules";
   const files = [`${base}/general.md`];
   if (/php|laravel/.test(lower))
     files.push(`${base}/backend.md`);
@@ -16351,25 +16431,25 @@ function buildRulesBlock(techStack) {
     files.push(`${base}/devops.md`);
   return [
     `## Rules`,
-    `Read these rules files and follow any conventions found (rules override defaults):`,
+    `Read these native project rules and follow any conventions found. In interactive Claude Code they load automatically by path; this explicit list preserves the same behavior in deterministic headless runs:`,
     ...files.map((f3) => `- ${f3}`)
   ];
 }
 // src/utils/prompt-builder/agent-spec.ts
-import { join as join11 } from "path";
-import { existsSync as existsSync12, readFileSync as readFileSync3 } from "fs";
+import { join as join12 } from "path";
+import { existsSync as existsSync13, readFileSync as readFileSync4 } from "fs";
 function resolveAgentSpecPath(cwd, agentName) {
-  const claudeNative = join11(cwd, ".claude", "agents", `${agentName}.md`);
-  if (existsSync12(claudeNative))
+  const claudeNative = join12(cwd, ".claude", "agents", `${agentName}.md`);
+  if (existsSync13(claudeNative))
     return claudeNative;
-  const selfHost = join11(cwd, "agents", `${agentName}.md`);
-  if (existsSync12(selfHost))
+  const selfHost = join12(cwd, "agents", `${agentName}.md`);
+  if (existsSync13(selfHost))
     return selfHost;
-  const oneUp = join11(import.meta.dir, "..");
-  const twoUp = join11(import.meta.dir, "..", "..");
-  const packageRoot = existsSync12(join11(oneUp, "package.json")) ? oneUp : twoUp;
-  const pkgPath = join11(packageRoot, "agents", `${agentName}.md`);
-  if (existsSync12(pkgPath))
+  const oneUp = join12(import.meta.dir, "..");
+  const twoUp = join12(import.meta.dir, "..", "..");
+  const packageRoot = existsSync13(join12(oneUp, "package.json")) ? oneUp : twoUp;
+  const pkgPath = join12(packageRoot, "agents", `${agentName}.md`);
+  if (existsSync13(pkgPath))
     return pkgPath;
   return null;
 }
@@ -16389,7 +16469,7 @@ function readAgentSpecBody(cwd, agentName) {
     return null;
   }
   try {
-    const content = readFileSync3(path, "utf-8");
+    const content = readFileSync4(path, "utf-8");
     const body = stripSpecFrontmatter(content);
     _agentSpecCache.set(cacheKey, body);
     return body;
@@ -16413,8 +16493,8 @@ function inlineAgentSpec(cwd, agentName, fallbackPath) {
   ];
 }
 // src/utils/prompt-builder/builders.ts
-import { resolve as resolve4, dirname as dirname5, basename as basename2 } from "path";
-import { existsSync as existsSync13 } from "fs";
+import { resolve as resolve4, dirname as dirname6, basename as basename2 } from "path";
+import { existsSync as existsSync14 } from "fs";
 
 // src/utils/sanitize.ts
 var INJECTION_PATTERNS = [
@@ -16483,13 +16563,13 @@ function buildPlanPrompt(ctx, description) {
 }
 function detectPlanTier(cwd, planPath) {
   const fullPlanPath = resolve4(cwd, planPath);
-  const dir = dirname5(fullPlanPath);
+  const dir = dirname6(fullPlanPath);
   const file = basename2(fullPlanPath);
   const slug = file.replace(/\.orchestration\.md$/i, "").replace(/\.plan\.md$/i, "").replace(/\.md$/i, "");
   const orchestrationCandidate = resolve4(dir, `${slug}.orchestration.md`);
   const planCandidate = resolve4(dir, `${slug}.plan.md`);
-  const hasOrchestration = existsSync13(orchestrationCandidate);
-  const hasPlan = existsSync13(planCandidate);
+  const hasOrchestration = existsSync14(orchestrationCandidate);
+  const hasPlan = existsSync14(planCandidate);
   if (hasOrchestration) {
     return {
       tier: "three-tier",
@@ -16629,10 +16709,10 @@ DRY RUN MODE: List all files you would touch and summarize changes. Do NOT edit 
 // src/utils/yaml-edit.ts
 init_find_root();
 var import_yaml6 = __toESM(require_dist(), 1);
-import { existsSync as existsSync15 } from "fs";
-import { join as join13 } from "path";
+import { existsSync as existsSync16 } from "fs";
+import { join as join14 } from "path";
 async function loadYaml(path) {
-  if (!existsSync15(path))
+  if (!existsSync16(path))
     return {};
   const content = await Bun.file(path).text();
   const parsed = import_yaml6.parse(content);
@@ -16653,7 +16733,7 @@ function projectRoot() {
   return findProjectRoot(process.cwd());
 }
 function softwareTeamsPath(...parts) {
-  return join13(projectRoot(), ".software-teams", ...parts);
+  return join14(projectRoot(), ".software-teams", ...parts);
 }
 var NOT_FOUND = Symbol("not-found");
 function stepDown(cursor, seg) {
@@ -16741,7 +16821,7 @@ function plansDir() {
 }
 function listPlanSlugs() {
   const dir = plansDir();
-  if (!existsSync17(dir))
+  if (!existsSync18(dir))
     return [];
   const files = readdirSync2(dir).filter((f3) => f3.endsWith(".md"));
   const slugs = new Set;
@@ -16754,7 +16834,7 @@ function listPlanSlugs() {
 }
 function resolvePlan(slugOrPath) {
   const dir = plansDir();
-  if (!existsSync17(dir))
+  if (!existsSync18(dir))
     return null;
   const rawSlug = basename3(slugOrPath).replace(/\.orchestration\.md$/i, "").replace(/\.spec\.md$/i, "").replace(/\.plan\.md$/i, "").replace(/\.T\d+\.md$/i, "").replace(/\.md$/i, "");
   const known = listPlanSlugs();
@@ -16762,10 +16842,10 @@ function resolvePlan(slugOrPath) {
   if (!slug)
     return null;
   const candidate = (suffix) => {
-    const p = join15(dir, `${slug}${suffix}`);
-    return existsSync17(p) ? p : null;
+    const p = join16(dir, `${slug}${suffix}`);
+    return existsSync18(p) ? p : null;
   };
-  const taskFiles = readdirSync2(dir).filter((f3) => f3.startsWith(slug + ".T") && /\.T\d+\.md$/.test(f3)).sort().map((f3) => join15(dir, f3));
+  const taskFiles = readdirSync2(dir).filter((f3) => f3.startsWith(slug + ".T") && /\.T\d+\.md$/.test(f3)).sort().map((f3) => join16(dir, f3));
   return {
     slug,
     spec: candidate(".spec.md"),
@@ -17005,8 +17085,8 @@ init_state();
 // src/utils/state-handlers.ts
 init_state();
 var import_yaml9 = __toESM(require_dist(), 1);
-import { join as join16 } from "path";
-import { existsSync as existsSync18 } from "fs";
+import { join as join17 } from "path";
+import { existsSync as existsSync19 } from "fs";
 function parseFrontmatter(content) {
   const match = content.match(/^---\n([\s\S]*?)\n---/);
   if (!match)
@@ -17022,9 +17102,9 @@ async function transitionToPlanReady(cwd, planPath, planName, opts = {}) {
   if (state.position?.status === "executing" && opts.force !== true) {
     throw new Error(`Cannot transition to plan-ready: state machine is currently executing plan ${state.position.plan}. Pass --force to override.`);
   }
-  const fullPlanPath = planPath.startsWith("/") ? planPath : join16(cwd, planPath);
+  const fullPlanPath = planPath.startsWith("/") ? planPath : join17(cwd, planPath);
   const planMeta = await (async () => {
-    if (!existsSync18(fullPlanPath))
+    if (!existsSync19(fullPlanPath))
       return { phase: undefined, planNumber: undefined, taskFiles: [] };
     const content = await Bun.file(fullPlanPath).text();
     const fm = parseFrontmatter(content);
@@ -17117,8 +17197,8 @@ async function transitionToComplete(cwd) {
   }
   state.progress.plans_completed = (state.progress.plans_completed ?? 0) + 1;
   try {
-    const roadmapPath = join16(cwd, ".software-teams", "roadmap.yaml");
-    if (existsSync18(roadmapPath)) {
+    const roadmapPath = join17(cwd, ".software-teams", "roadmap.yaml");
+    if (existsSync19(roadmapPath)) {
       const content = await Bun.file(roadmapPath).text();
       const roadmap = import_yaml9.parse(content);
       const phases = roadmap?.phases;
@@ -17357,7 +17437,7 @@ var statusCommand = defineCommand({
 });
 
 // src/components/validate.ts
-import { readFileSync as readFileSync4, existsSync as existsSync19 } from "fs";
+import { readFileSync as readFileSync5, existsSync as existsSync20 } from "fs";
 var TAG_REGEX = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
 function normaliseSectionRef2(ref) {
   if (typeof ref === "string") {
@@ -17434,13 +17514,13 @@ function validateRegistry() {
   const envOverride = process.env.COMPONENT_VALIDATE_FRAMEWORK_DIR;
   const cwdPath = `${process.cwd()}/framework`;
   const moduleRelative = new URL("../../../framework", import.meta.url).pathname;
-  const frameworkPath = envOverride !== undefined && existsSync19(envOverride) ? envOverride : existsSync19(cwdPath) ? cwdPath : moduleRelative;
-  if (existsSync19(frameworkPath)) {
+  const frameworkPath = envOverride !== undefined && existsSync20(envOverride) ? envOverride : existsSync20(cwdPath) ? cwdPath : moduleRelative;
+  if (existsSync20(frameworkPath)) {
     const g3 = new Bun.Glob("**/*.md");
     for (const filePath of g3.scanSync({ cwd: frameworkPath, absolute: true })) {
       const readResult = (() => {
         try {
-          return { ok: true, content: readFileSync4(filePath, "utf8") };
+          return { ok: true, content: readFileSync5(filePath, "utf8") };
         } catch {
           return { ok: false };
         }
@@ -17599,15 +17679,15 @@ var componentCommand = defineCommand({
 });
 
 // src/commands/validate-frontmatter.ts
-import { existsSync as existsSync20 } from "fs";
+import { existsSync as existsSync21 } from "fs";
 import { readFile as readFile2 } from "fs/promises";
-import { dirname as dirname7, join as join18, resolve as resolve8 } from "path";
+import { dirname as dirname8, join as join19, resolve as resolve8 } from "path";
 import { fileURLToPath } from "url";
 var import_yaml10 = __toESM(require_dist(), 1);
 
 // src/utils/validate-frontmatter.ts
 import { readdir as readdir2, readFile } from "fs/promises";
-import { join as join17 } from "path";
+import { join as join18 } from "path";
 
 // src/shared/claude-code-surface.ts
 var CLAUDE_CODE_TOOLS = [
@@ -17705,9 +17785,9 @@ function isValidToolName(value) {
 }
 
 // src/utils/validate-frontmatter.ts
-var FRONTMATTER_RE2 = /^---\r?\n([\s\S]*?)\r?\n---/;
+var FRONTMATTER_RE3 = /^---\r?\n([\s\S]*?)\r?\n---/;
 function parseFrontmatter2(source) {
-  const match = FRONTMATTER_RE2.exec(source);
+  const match = FRONTMATTER_RE3.exec(source);
   if (!match?.[1])
     return {};
   const out = {};
@@ -17782,17 +17862,17 @@ async function readMarkdown(dir) {
   const entries = await readdir2(dir, { withFileTypes: true }).catch(() => []);
   const directFiles = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md"));
   const direct = await Promise.all(directFiles.map(async (entry) => ({
-    file: join17(dir, entry.name),
-    source: await readFile(join17(dir, entry.name), "utf8")
+    file: join18(dir, entry.name),
+    source: await readFile(join18(dir, entry.name), "utf8")
   })));
-  const nested = await Promise.all(entries.filter((entry) => entry.isDirectory()).map((entry) => readSkillEntrypoints(join17(dir, entry.name))));
+  const nested = await Promise.all(entries.filter((entry) => entry.isDirectory()).map((entry) => readSkillEntrypoints(join18(dir, entry.name))));
   return [...direct, ...nested.flat()];
 }
 async function readSkillEntrypoints(dir) {
   const entries = await readdir2(dir, { withFileTypes: true }).catch(() => []);
   const out = [];
   for (const entry of entries) {
-    const file = join17(dir, entry.name);
+    const file = join18(dir, entry.name);
     if (entry.isFile() && entry.name === "SKILL.md") {
       out.push({ file, source: await readFile(file, "utf8") });
     } else if (entry.isDirectory()) {
@@ -17958,9 +18038,9 @@ function readRecord2(value) {
 
 // src/commands/validate-frontmatter.ts
 function resolvePackageRoot() {
-  const start = dirname7(fileURLToPath(import.meta.url));
+  const start = dirname8(fileURLToPath(import.meta.url));
   const candidates = ["..", "../..", "../../..", "../../../.."];
-  const found = candidates.map((c3) => resolve8(start, c3)).find((dir) => existsSync20(join18(dir, "agents")) && existsSync20(join18(dir, "skills")));
+  const found = candidates.map((c3) => resolve8(start, c3)).find((dir) => existsSync21(join19(dir, "agents")) && existsSync21(join19(dir, "skills")));
   return found ?? resolve8(start, "../..");
 }
 function report(label, findings) {
@@ -17989,11 +18069,11 @@ var validateFrontmatterCommand = defineCommand({
   async run({ args }) {
     const root = args.root ? resolve8(String(args.root)) : resolvePackageRoot();
     const result = await validateFrontmatter({
-      agentsDir: join18(root, "agents"),
-      skillDirs: [join18(root, "skills")]
+      agentsDir: join19(root, "agents"),
+      skillDirs: [join19(root, "skills")]
     });
-    const configPath = join18(root, "config", "config.yaml");
-    const configFindings = existsSync20(configPath) ? validateModelConfig(import_yaml10.parse(await readFile2(configPath, "utf8"))) : [];
+    const configPath = join19(root, "config", "config.yaml");
+    const configFindings = existsSync21(configPath) ? validateModelConfig(import_yaml10.parse(await readFile2(configPath, "utf8"))) : [];
     const errors = [...result.errors, ...configFindings];
     const { warnings } = result;
     if (errors.length > 0) {
@@ -18015,12 +18095,12 @@ var validateFrontmatterCommand = defineCommand({
 
 // src/commands/commit.ts
 init_git();
-import { dirname as dirname8 } from "path";
+import { dirname as dirname9 } from "path";
 function detectScope(files) {
   if (files.length === 0)
     return null;
   const dirs = files.map((f3) => {
-    const d2 = dirname8(f3);
+    const d2 = dirname9(f3);
     return d2 === "." ? null : d2.split("/")[0];
   }).filter(Boolean);
   const unique = [...new Set(dirs)];
@@ -18114,8 +18194,8 @@ Use --all to stage and commit all, or stage files manually.`);
 // src/commands/pr.ts
 init_git();
 init_state();
-import { existsSync as existsSync21 } from "fs";
-import { join as join19 } from "path";
+import { existsSync as existsSync22 } from "fs";
+import { join as join20 } from "path";
 async function hasGhCli() {
   const { exitCode } = await exec(["which", "gh"]);
   return exitCode === 0;
@@ -18165,8 +18245,8 @@ var prCommand = defineCommand({
       const planPath = state?.current_plan?.path;
       if (!planPath)
         return { context: "", name: state?.position?.plan_name ?? "", checks: [] };
-      const fullPlanPath = join19(cwd, planPath);
-      if (!existsSync21(fullPlanPath))
+      const fullPlanPath = join20(cwd, planPath);
+      if (!existsSync22(fullPlanPath))
         return { context: "", name: state?.position?.plan_name ?? "", checks: [] };
       const planContent = await Bun.file(fullPlanPath).text().catch(() => null);
       if (!planContent)
@@ -18186,7 +18266,7 @@ ${taskLines.map((l2) => `- ${l2.split("|").slice(2, 3).join("").trim()}`).join(`
     })();
     const planName = planContext.name;
     const verificationChecks = planContext.checks;
-    const template = existsSync21(join19(cwd, ".github", "pull_request_template.md")) ? await Bun.file(join19(cwd, ".github", "pull_request_template.md")).text() : "";
+    const template = existsSync22(join20(cwd, ".github", "pull_request_template.md")) ? await Bun.file(join20(cwd, ".github", "pull_request_template.md")).text() : "";
     const title = branch.replace(/^(feat|fix|chore|docs|refactor|test|ci)\//, "").replace(/[-_]/g, " ").replace(/^\w/, (c3) => c3.toUpperCase());
     const commits = log.split(`
 `).filter(Boolean).map((l2) => `- ${l2}`).join(`
@@ -18606,7 +18686,7 @@ var quickCommand = defineCommand({
 
 // src/commands/worktree.ts
 init_git();
-import { existsSync as existsSync22 } from "fs";
+import { existsSync as existsSync23 } from "fs";
 init_state();
 function slugify3(name) {
   return name.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -18641,7 +18721,7 @@ var worktreeCommand = defineCommand({
     }
     const slug = slugify3(args.name);
     const worktreePath = `${root}/.worktrees/${slug}`;
-    if (existsSync22(worktreePath)) {
+    if (existsSync23(worktreePath)) {
       consola.error(`Worktree already exists at ${worktreePath}`);
       return;
     }
@@ -18813,7 +18893,7 @@ Specify a worktree name: software-teams worktree-remove <name>`);
 // src/commands/worktree-merge.ts
 init_git();
 init_state();
-import { existsSync as existsSync23 } from "fs";
+import { existsSync as existsSync24 } from "fs";
 async function resolveWorktree(root, nameArg) {
   if (nameArg)
     return { name: nameArg, path: `${root}/.worktrees/${nameArg}` };
@@ -18833,7 +18913,7 @@ async function mergeWorktree(root, opts) {
   if (cur === branch) {
     return { merged: false, branch, reason: "same-branch" };
   }
-  if (existsSync23(wt.path)) {
+  if (existsSync24(wt.path)) {
     const { stdout: dirty } = await exec(["git", "-C", wt.path, "status", "--porcelain"]);
     if (dirty.trim().length > 0) {
       return { merged: false, branch, reason: "uncommitted" };
@@ -18928,7 +19008,7 @@ var worktreeMergeCommand = defineCommand({
 // src/commands/plan-review.ts
 init_state();
 import { resolve as resolve11 } from "path";
-import { existsSync as existsSync24 } from "fs";
+import { existsSync as existsSync25 } from "fs";
 function parsePlanSummary(content) {
   const nameMatch = content.match(/^# .+?: (.+)$/m);
   const name = nameMatch?.[1] ?? "Unknown";
@@ -18963,7 +19043,7 @@ var planReviewCommand = defineCommand({
       consola.error("No plan found. Run `software-teams plan` first.");
       return;
     }
-    if (!existsSync24(planPath)) {
+    if (!existsSync25(planPath)) {
       consola.error(`Plan not found: ${planPath}`);
       return;
     }
@@ -19055,7 +19135,7 @@ Tasks (${tasks.length}):`);
 // src/commands/plan-approve.ts
 init_state();
 import { resolve as resolve12 } from "path";
-import { existsSync as existsSync25 } from "fs";
+import { existsSync as existsSync26 } from "fs";
 var planApproveCommand = defineCommand({
   meta: {
     name: "plan-approve",
@@ -19080,7 +19160,7 @@ var planApproveCommand = defineCommand({
       consola.error("No plan to approve. Run `software-teams plan` first.");
       return;
     }
-    if (!existsSync25(planPath)) {
+    if (!existsSync26(planPath)) {
       consola.error(`Plan not found: ${planPath}`);
       return;
     }
@@ -19304,8 +19384,8 @@ async function checkAuthorization(repo, username, allowedUsers) {
 
 // src/utils/github.ts
 init_git();
-import { existsSync as existsSync26, readFileSync as readFileSync5 } from "fs";
-import { join as join20 } from "path";
+import { existsSync as existsSync27, readFileSync as readFileSync6 } from "fs";
+import { join as join21 } from "path";
 var PR_TEMPLATE_PATHS = [
   ".github/PULL_REQUEST_TEMPLATE.md",
   ".github/pull_request_template.md",
@@ -19316,10 +19396,10 @@ var PR_TEMPLATE_PATHS = [
 ];
 function findPrTemplate(cwd) {
   for (const rel of PR_TEMPLATE_PATHS) {
-    const full = join20(cwd, rel);
-    if (existsSync26(full)) {
+    const full = join21(cwd, rel);
+    if (existsSync27(full)) {
       try {
-        const body = readFileSync5(full, "utf-8");
+        const body = readFileSync6(full, "utf-8");
         if (body.trim())
           return { path: rel, body };
       } catch {}
@@ -19792,11 +19872,11 @@ async function loadExternalContexts(searchText) {
 
 // src/utils/orchestration.ts
 var import_yaml11 = __toESM(require_dist(), 1);
-import { existsSync as existsSync27, readdirSync as readdirSync3, readFileSync as readFileSync6, statSync } from "fs";
-import { join as join21, basename as basename4, dirname as dirname9 } from "path";
-var FRONTMATTER_RE3 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+import { existsSync as existsSync28, readdirSync as readdirSync3, readFileSync as readFileSync7, statSync } from "fs";
+import { join as join22, basename as basename4, dirname as dirname10 } from "path";
+var FRONTMATTER_RE4 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 function parseFrontmatter3(content) {
-  const match = content.match(FRONTMATTER_RE3);
+  const match = content.match(FRONTMATTER_RE4);
   if (!match)
     return null;
   try {
@@ -19814,15 +19894,15 @@ function asString(value) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 async function locateOrchestrationFile(cwd, issueNumber) {
-  const plansDir2 = join21(cwd, ".software-teams", "plans");
-  if (!existsSync27(plansDir2))
+  const plansDir2 = join22(cwd, ".software-teams", "plans");
+  if (!existsSync28(plansDir2))
     return null;
-  const allOrchestrations = readdirSync3(plansDir2).filter((name) => name.endsWith(".orchestration.md")).map((name) => join21(plansDir2, name));
+  const allOrchestrations = readdirSync3(plansDir2).filter((name) => name.endsWith(".orchestration.md")).map((name) => join22(plansDir2, name));
   if (allOrchestrations.length === 0)
     return null;
   if (issueNumber && issueNumber > 0) {
     for (const path of allOrchestrations) {
-      const content = readFileSync6(path, "utf-8");
+      const content = readFileSync7(path, "utf-8");
       const fm = parseFrontmatter3(content);
       const tagged = typeof fm?.issue === "number" ? fm.issue : Number(fm?.issue);
       if (Number.isFinite(tagged) && tagged === issueNumber) {
@@ -19841,7 +19921,7 @@ async function findActiveOrchestration(cwd, issueNumber) {
   const orchestrationRel = orchestrationAbs.startsWith(cwd + "/") ? orchestrationAbs.slice(cwd.length + 1) : orchestrationAbs;
   const contentResult = (() => {
     try {
-      return { ok: true, value: readFileSync6(orchestrationAbs, "utf-8") };
+      return { ok: true, value: readFileSync7(orchestrationAbs, "utf-8") };
     } catch {
       return { ok: false };
     }
@@ -19855,15 +19935,15 @@ async function findActiveOrchestration(cwd, issueNumber) {
   const taskFiles = asStringArray(fm.task_files);
   if (taskFiles.length === 0)
     return null;
-  const plansDir2 = dirname9(orchestrationAbs);
+  const plansDir2 = dirname10(orchestrationAbs);
   const slices = [];
   for (const entry of taskFiles) {
-    const sliceAbs = entry.includes("/") ? entry.startsWith("/") ? entry : join21(cwd, entry) : join21(plansDir2, basename4(entry));
-    if (!existsSync27(sliceAbs))
+    const sliceAbs = entry.includes("/") ? entry.startsWith("/") ? entry : join22(cwd, entry) : join22(plansDir2, basename4(entry));
+    if (!existsSync28(sliceAbs))
       continue;
     const sliceReadResult = (() => {
       try {
-        return { ok: true, value: readFileSync6(sliceAbs, "utf-8") };
+        return { ok: true, value: readFileSync7(sliceAbs, "utf-8") };
       } catch {
         return { ok: false };
       }
@@ -19883,12 +19963,12 @@ async function findActiveOrchestration(cwd, issueNumber) {
   const toRel = (abs) => abs.startsWith(cwd + "/") ? abs.slice(cwd.length + 1) : abs;
   const specLink = asString(fm.spec_link);
   const specPathFromLink = specLink ? (() => {
-    const abs = specLink.startsWith("/") ? specLink : join21(cwd, specLink);
-    return existsSync27(abs) ? toRel(abs) : undefined;
+    const abs = specLink.startsWith("/") ? specLink : join22(cwd, specLink);
+    return existsSync28(abs) ? toRel(abs) : undefined;
   })() : undefined;
   const specPathDerived = (() => {
     const derived = orchestrationAbs.replace(/\.orchestration\.md$/, ".spec.md");
-    return existsSync27(derived) ? toRel(derived) : undefined;
+    return existsSync28(derived) ? toRel(derived) : undefined;
   })();
   const specPath = specPathFromLink ?? specPathDerived;
   return { orchestrationPath: orchestrationRel, specPath, slices };
@@ -19928,8 +20008,8 @@ function agentTypeToRoleLabel(agentType) {
 }
 
 // src/utils/plan-files-comment.ts
-import { existsSync as existsSync28, readFileSync as readFileSync7 } from "fs";
-import { join as join22 } from "path";
+import { existsSync as existsSync29, readFileSync as readFileSync8 } from "fs";
+import { join as join23 } from "path";
 var SOFT_BUDGET_CHARS = 50000;
 var PER_FILE_TRUNCATION_TARGET = 8000;
 var PER_FILE_MIN_CHARS = 2000;
@@ -19946,12 +20026,12 @@ function readPlanFiles(cwd, orch) {
   return entries;
 }
 function readEntry(cwd, label, relPath) {
-  const absPath = relPath.startsWith("/") ? relPath : join22(cwd, relPath);
-  if (!existsSync28(absPath)) {
+  const absPath = relPath.startsWith("/") ? relPath : join23(cwd, relPath);
+  if (!existsSync29(absPath)) {
     return { label, path: relPath, content: "", missing: true };
   }
   try {
-    return { label, path: relPath, content: readFileSync7(absPath, "utf-8") };
+    return { label, path: relPath, content: readFileSync8(absPath, "utf-8") };
   } catch {
     return { label, path: relPath, content: "", missing: true };
   }
@@ -21336,10 +21416,10 @@ _Reviewing your request..._`).catch(() => null) : null;
 
 // src/commands/action/run/approval-ping.ts
 init_state();
-async function readInstalledVersion(cwd, existsSync29, join23) {
+async function readInstalledVersion(cwd, existsSync30, join24) {
   try {
-    const pkgPath = join23(cwd, "node_modules/@websitelabs/software-teams/package.json");
-    if (existsSync29(pkgPath)) {
+    const pkgPath = join24(cwd, "node_modules/@websitelabs/software-teams/package.json");
+    if (existsSync30(pkgPath)) {
       const pkg = JSON.parse(await Bun.file(pkgPath).text());
       return pkg.version;
     }
@@ -21382,13 +21462,13 @@ Say **\`Hey Software Teams implement\`** when you're ready to go.`;
 }
 async function runPingHandler(opts) {
   const { cwd, repo, issueNumber, commentId, placeholderCommentId } = opts;
-  const { existsSync: existsSync29 } = await import("fs");
-  const { join: join23 } = await import("path");
-  const frameworkExists = existsSync29(join23(cwd, ".software-teams/framework"));
-  const claudeMdExists = existsSync29(join23(cwd, ".claude/CLAUDE.md"));
-  const stateExists = existsSync29(join23(cwd, ".software-teams/config/state.yaml"));
-  const rulesExists = existsSync29(join23(cwd, ".software-teams/rules"));
-  const version = await readInstalledVersion(cwd, existsSync29, join23);
+  const { existsSync: existsSync30 } = await import("fs");
+  const { join: join24 } = await import("path");
+  const frameworkExists = existsSync30(join24(cwd, ".software-teams/framework"));
+  const claudeMdExists = existsSync30(join24(cwd, ".claude/CLAUDE.md"));
+  const stateExists = existsSync30(join24(cwd, ".software-teams/config/state.yaml"));
+  const rulesExists = existsSync30(join24(cwd, ".claude", "rules"));
+  const version = await readInstalledVersion(cwd, existsSync30, join24);
   const statusBody = [
     `**Framework Status**`,
     ``,
@@ -21791,12 +21871,12 @@ var resolveBranchCommand = defineCommand({
 });
 
 // src/commands/action/bootstrap.ts
-import { existsSync as existsSync29, mkdirSync as mkdirSync6, readFileSync as readFileSync8, writeFileSync, rmSync, readdirSync as readdirSync4 } from "fs";
-import { join as join23 } from "path";
+import { existsSync as existsSync30, mkdirSync as mkdirSync7, readFileSync as readFileSync9, writeFileSync as writeFileSync2, rmSync as rmSync2, readdirSync as readdirSync4 } from "fs";
+import { join as join24 } from "path";
 function ensureFramework(cwd) {
-  const phaseBState = join23(cwd, ".software-teams/state.yaml");
-  const legacyState = join23(cwd, ".software-teams/config/state.yaml");
-  const needsInit = !existsSync29(phaseBState) && !existsSync29(legacyState);
+  const phaseBState = join24(cwd, ".software-teams/state.yaml");
+  const legacyState = join24(cwd, ".software-teams/config/state.yaml");
+  const needsInit = !existsSync30(phaseBState) && !existsSync30(legacyState);
   if (needsInit) {
     consola.info("Framework not found \u2014 initializing...");
     const result = Bun.spawnSync(["bunx", "@websitelabs/software-teams@latest", "init", "--ci"], {
@@ -21809,25 +21889,25 @@ function ensureFramework(cwd) {
       process.exit(1);
     }
   }
-  mkdirSync6(join23(cwd, ".software-teams/persistence"), { recursive: true });
+  mkdirSync7(join24(cwd, ".software-teams/persistence"), { recursive: true });
 }
 function clearStaleState(cwd) {
-  const plansDir2 = join23(cwd, ".software-teams/plans");
-  if (existsSync29(plansDir2)) {
+  const plansDir2 = join24(cwd, ".software-teams/plans");
+  if (existsSync30(plansDir2)) {
     for (const entry of readdirSync4(plansDir2)) {
-      rmSync(join23(plansDir2, entry), { recursive: true, force: true });
+      rmSync2(join24(plansDir2, entry), { recursive: true, force: true });
     }
   } else {
-    mkdirSync6(plansDir2, { recursive: true });
+    mkdirSync7(plansDir2, { recursive: true });
   }
-  const configDir = join23(cwd, ".software-teams/config");
-  mkdirSync6(configDir, { recursive: true });
-  const templatePath = join23(cwd, ".software-teams", "framework", "config", "state.yaml");
-  if (existsSync29(templatePath)) {
-    const template = readFileSync8(templatePath, "utf-8");
-    writeFileSync(join23(configDir, "state.yaml"), template);
+  const configDir = join24(cwd, ".software-teams/config");
+  mkdirSync7(configDir, { recursive: true });
+  const templatePath = join24(cwd, ".software-teams", "framework", "config", "state.yaml");
+  if (existsSync30(templatePath)) {
+    const template = readFileSync9(templatePath, "utf-8");
+    writeFileSync2(join24(configDir, "state.yaml"), template);
   } else {
-    writeFileSync(join23(configDir, "state.yaml"), [
+    writeFileSync2(join24(configDir, "state.yaml"), [
       "position:",
       "  phase: null",
       "  phase_name: null",
@@ -21855,10 +21935,10 @@ function clearStaleState(cwd) {
   consola.info("Cache miss or fallback \u2014 cleared plan state");
 }
 function setupGitExclude(cwd) {
-  const excludeDir = join23(cwd, ".git/info");
-  mkdirSync6(excludeDir, { recursive: true });
-  const excludePath = join23(excludeDir, "exclude");
-  const existingContent = existsSync29(excludePath) ? readFileSync8(excludePath, "utf-8") : "";
+  const excludeDir = join24(cwd, ".git/info");
+  mkdirSync7(excludeDir, { recursive: true });
+  const excludePath = join24(excludeDir, "exclude");
+  const existingContent = existsSync30(excludePath) ? readFileSync9(excludePath, "utf-8") : "";
   const patterns = [".software-teams/", ".claude/"];
   const finalContent = patterns.reduce((acc, pattern) => {
     const lines = acc.split(`
@@ -21871,7 +21951,7 @@ function setupGitExclude(cwd) {
     return base + pattern + `
 `;
   }, existingContent);
-  writeFileSync(excludePath, finalContent);
+  writeFileSync2(excludePath, finalContent);
 }
 var bootstrapCommand = defineCommand({
   meta: {
@@ -21905,18 +21985,11 @@ var bootstrapCommand = defineCommand({
 });
 
 // src/commands/action/fetch-rules.ts
-import { existsSync as existsSync30, mkdirSync as mkdirSync7, readdirSync as readdirSync5, readFileSync as readFileSync9, writeFileSync as writeFileSync2, copyFileSync, rmSync as rmSync2 } from "fs";
-import { join as join24 } from "path";
+import { existsSync as existsSync31, mkdirSync as mkdirSync8, readdirSync as readdirSync5, readFileSync as readFileSync10, writeFileSync as writeFileSync3, rmSync as rmSync3 } from "fs";
+import { join as join25 } from "path";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
-var RULE_CATEGORIES2 = [
-  "general",
-  "backend",
-  "frontend",
-  "testing",
-  "devops"
-];
-var RULE_FILE_SET = new Set(RULE_CATEGORIES2.map((c3) => `${c3}.md`));
+var RULE_FILE_SET = new Set(RULE_CATEGORIES.map((c3) => `${c3}.md`));
 function isRuleFile(filename) {
   return RULE_FILE_SET.has(filename);
 }
@@ -21933,8 +22006,8 @@ function cloneRulesRepo(repo, token, tmpDir) {
     stdout: "pipe",
     stderr: "pipe"
   });
-  const path = join24(tmpDir, EXTERNAL_RULES_PATH);
-  return existsSync30(path) ? path : null;
+  const path = join25(tmpDir, EXTERNAL_RULES_PATH);
+  return existsSync31(path) ? path : null;
 }
 function normaliseRuleLine(line) {
   return line.toLowerCase().replace(/^\s*[-*+]\s+/, "").replace(/^\s*\d+\.\s+/, "").replace(/\s+/g, " ").trim();
@@ -21942,13 +22015,14 @@ function normaliseRuleLine(line) {
 function loadClaudeMdRuleSet(cwd) {
   const set = new Set;
   const candidates = [
-    join24(cwd, ".claude", "CLAUDE.md"),
-    join24(cwd, "CLAUDE.md")
+    join25(cwd, ".claude", "CLAUDE.md"),
+    join25(cwd, "CLAUDE.md"),
+    ...RULE_CATEGORIES.map((category) => join25(cwd, ".claude", "rules", `${category}.md`))
   ];
   for (const path of candidates) {
-    if (!existsSync30(path))
+    if (!existsSync31(path))
       continue;
-    const content = readFileSync9(path, "utf-8");
+    const content = readFileSync10(path, "utf-8");
     for (const line of content.split(`
 `)) {
       const trimmed = line.trim();
@@ -21963,35 +22037,35 @@ function loadClaudeMdRuleSet(cwd) {
 }
 function mergeRules(sourceDir, targetDir, cwd) {
   const result = { copied: 0, merged: 0 };
-  if (!existsSync30(sourceDir)) {
+  if (!existsSync31(sourceDir)) {
     return result;
   }
-  mkdirSync7(targetDir, { recursive: true });
+  mkdirSync8(targetDir, { recursive: true });
   const claudeMdSet = cwd ? loadClaudeMdRuleSet(cwd) : new Set;
   const files = readdirSync5(sourceDir).filter((f3) => isRuleFile(f3));
   for (const file of files) {
-    const sourcePath = join24(sourceDir, file);
-    const targetPath = join24(targetDir, file);
-    if (!existsSync30(targetPath)) {
-      const sourceContent = readFileSync9(sourcePath, "utf-8");
+    const sourcePath = join25(sourceDir, file);
+    const targetPath = join25(targetDir, file);
+    const category = file.replace(/\.md$/, "");
+    if (!existsSync31(targetPath)) {
+      const sourceContent = stripRuleFrontmatter(readFileSync10(sourcePath, "utf-8"));
       const filtered = filterAgainstClaudeMd(sourceContent, claudeMdSet);
       if (!filtered.hasContent) {
         consola.info(`Skipped shared rule (already in CLAUDE.md): ${file}`);
         continue;
       }
       if (filtered.dropped > 0) {
-        writeFileSync2(targetPath, filtered.kept.join(`
-`) + `
-`);
+        writeFileSync3(targetPath, renderNativeRule(category, filtered.kept.join(`
+`)));
         consola.info(`Loaded shared rule: ${file} (skipped ${filtered.dropped} line(s) already in CLAUDE.md)`);
       } else {
-        copyFileSync(sourcePath, targetPath);
+        writeFileSync3(targetPath, renderNativeRule(category, sourceContent));
         consola.info(`Loaded shared rule: ${file}`);
       }
       result.copied++;
     } else {
-      const sourceContent = readFileSync9(sourcePath, "utf-8");
-      const targetContent = readFileSync9(targetPath, "utf-8");
+      const sourceContent = stripRuleFrontmatter(readFileSync10(sourcePath, "utf-8"));
+      const targetContent = readFileSync10(targetPath, "utf-8");
       const targetLines = new Set(targetContent.split(`
 `));
       const targetNormSet = new Set(targetContent.split(`
@@ -22015,7 +22089,7 @@ function mergeRules(sourceDir, targetDir, cwd) {
 `) + newLines.join(`
 `) + `
 `;
-        writeFileSync2(targetPath, targetContent + appendContent);
+        writeFileSync3(targetPath, targetContent + appendContent);
         result.merged++;
         const suffix = droppedByClaudeMd > 0 ? ` (skipped ${droppedByClaudeMd} already in CLAUDE.md)` : "";
         consola.info(`Merged ${newLines.length} new lines into ${file}${suffix}`);
@@ -22079,9 +22153,9 @@ var fetchRulesCommand = defineCommand({
       return;
     }
     const cwd = process.cwd();
-    const rulesDir = join24(cwd, ".software-teams/rules");
-    mkdirSync7(rulesDir, { recursive: true });
-    const tmpDir = mkdtempSync(join24(tmpdir(), "st-rules-"));
+    const rulesDir = join25(cwd, ".claude", "rules");
+    mkdirSync8(rulesDir, { recursive: true });
+    const tmpDir = mkdtempSync(join25(tmpdir(), "st-rules-"));
     try {
       const sourceDir = cloneRulesRepo(rulesRepo, token, tmpDir);
       if (!sourceDir) {
@@ -22090,14 +22164,14 @@ var fetchRulesCommand = defineCommand({
       const result = mergeRules(sourceDir, rulesDir, cwd);
       consola.success(`Rules fetch complete (copied: ${result.copied}, merged: ${result.merged})`);
     } finally {
-      rmSync2(tmpDir, { recursive: true, force: true });
+      rmSync3(tmpDir, { recursive: true, force: true });
     }
   }
 });
 
 // src/commands/action/promote-rules.ts
-import { existsSync as existsSync31, mkdirSync as mkdirSync8, readdirSync as readdirSync6, readFileSync as readFileSync10, rmSync as rmSync3, appendFileSync as appendFileSync2 } from "fs";
-import { join as join25 } from "path";
+import { existsSync as existsSync32, mkdirSync as mkdirSync9, readdirSync as readdirSync6, readFileSync as readFileSync11, writeFileSync as writeFileSync4, rmSync as rmSync4, appendFileSync as appendFileSync2 } from "fs";
+import { join as join26 } from "path";
 import { mkdtempSync as mkdtempSync2 } from "fs";
 import { tmpdir as tmpdir2 } from "os";
 function writeGitHubOutput2(key, value) {
@@ -22144,26 +22218,19 @@ function checkSoftwareTeamsInvolvement(repo, sha) {
   return { skip: true };
 }
 function hasRulesContent(rulesDir) {
-  if (!existsSync31(rulesDir)) {
+  if (!existsSync32(rulesDir)) {
     return false;
   }
   const files = readdirSync6(rulesDir).filter((f3) => isRuleFile(f3));
   for (const file of files) {
-    const content = readFileSync10(join25(rulesDir, file), "utf-8");
-    const lines = content.split(`
-`);
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("<!--")) {
-        continue;
-      }
+    const content = readFileSync11(join26(rulesDir, file), "utf-8");
+    if (hasRuleContent(content))
       return true;
-    }
   }
   return false;
 }
 function commitRulesToSameRepo(rulesDir, prNumber) {
-  const rulePaths = RULE_CATEGORIES2.map((c3) => join25(rulesDir, `${c3}.md`)).filter((p) => existsSync31(p));
+  const rulePaths = RULE_CATEGORIES.map((c3) => join26(rulesDir, `${c3}.md`)).filter((p) => existsSync32(p));
   if (rulePaths.length === 0) {
     consola.info("No rule category files present \u2014 nothing to commit");
     return false;
@@ -22204,7 +22271,7 @@ These rules are accumulated from PR reviews and feedback.` : `chore(software-tea
   return true;
 }
 function commitRulesToExternalRepo(rulesDir, externalRepo, token, prNumber, sourceRepo) {
-  const tmpDir = mkdtempSync2(join25(tmpdir2(), "st-promote-"));
+  const tmpDir = mkdtempSync2(join26(tmpdir2(), "st-promote-"));
   try {
     const cloneUrl = `https://x-access-token:${token}@github.com/${externalRepo}.git`;
     const cloneResult = Bun.spawnSync(["git", "clone", "--depth", "1", cloneUrl, tmpDir], { stdout: "pipe", stderr: "pipe" });
@@ -22212,12 +22279,20 @@ function commitRulesToExternalRepo(rulesDir, externalRepo, token, prNumber, sour
       consola.warn(`Could not clone rules repo ${externalRepo} \u2014 skipping commit`);
       return false;
     }
-    const remoteSubdir = join25(tmpDir, EXTERNAL_RULES_PATH);
-    mkdirSync8(remoteSubdir, { recursive: true });
+    const remoteSubdir = join26(tmpDir, EXTERNAL_RULES_PATH);
+    mkdirSync9(remoteSubdir, { recursive: true });
     mergeRules(rulesDir, remoteSubdir);
+    for (const category of RULE_CATEGORIES) {
+      const path = join26(remoteSubdir, `${category}.md`);
+      if (existsSync32(path)) {
+        const portable = stripRuleFrontmatter(readFileSync11(path, "utf8"));
+        writeFileSync4(path, `${portable}
+`);
+      }
+    }
     Bun.spawnSync(["git", "config", "user.name", "software-teams[bot]"], { cwd: tmpDir });
     Bun.spawnSync(["git", "config", "user.email", "software-teams[bot]@users.noreply.github.com"], { cwd: tmpDir });
-    const stagePaths = RULE_CATEGORIES2.map((c3) => `${EXTERNAL_RULES_PATH}/${c3}.md`);
+    const stagePaths = RULE_CATEGORIES.map((c3) => `${EXTERNAL_RULES_PATH}/${c3}.md`);
     Bun.spawnSync(["git", "add", ...stagePaths], {
       cwd: tmpDir,
       stdout: "pipe",
@@ -22259,7 +22334,7 @@ Rules accumulated from PR reviews and feedback.`;
     consola.success(`Rules committed to ${externalRepo}/${EXTERNAL_RULES_PATH}`);
     return true;
   } finally {
-    rmSync3(tmpDir, { recursive: true, force: true });
+    rmSync4(tmpDir, { recursive: true, force: true });
   }
 }
 var promoteRulesCommand = defineCommand({
@@ -22314,7 +22389,7 @@ var promoteRulesCommand = defineCommand({
       return;
     }
     const cwd = process.cwd();
-    const rulesDir = join25(cwd, ".software-teams/rules");
+    const rulesDir = join26(cwd, ".claude", "rules");
     if (!hasRulesContent(rulesDir)) {
       consola.info("No rules content to commit \u2014 skipping");
       return;
@@ -22332,8 +22407,8 @@ var promoteRulesCommand = defineCommand({
 
 // src/commands/action/prune-plans.ts
 var import_yaml12 = __toESM(require_dist(), 1);
-import { join as join26, basename as basename5 } from "path";
-import { existsSync as existsSync32, readdirSync as readdirSync7, readFileSync as readFileSync11, rmSync as rmSync4, appendFileSync as appendFileSync3 } from "fs";
+import { join as join27, basename as basename5 } from "path";
+import { existsSync as existsSync33, readdirSync as readdirSync7, readFileSync as readFileSync12, rmSync as rmSync5, appendFileSync as appendFileSync3 } from "fs";
 init_state();
 function writeGitHubOutput3(key, value) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -22343,9 +22418,9 @@ function writeGitHubOutput3(key, value) {
   }
   console.log(`${key}=${value}`);
 }
-var FRONTMATTER_RE4 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
+var FRONTMATTER_RE5 = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 function parsePlanFrontmatter(content) {
-  const match = content.match(FRONTMATTER_RE4);
+  const match = content.match(FRONTMATTER_RE5);
   if (!match)
     return null;
   try {
@@ -22355,15 +22430,15 @@ function parsePlanFrontmatter(content) {
   }
 }
 function findPlansForIssues(plansDir2, issueNumbers) {
-  if (!existsSync32(plansDir2) || issueNumbers.length === 0)
+  if (!existsSync33(plansDir2) || issueNumbers.length === 0)
     return [];
   const wanted = new Set(issueNumbers);
   const matches = [];
   for (const entry of readdirSync7(plansDir2)) {
     if (!entry.endsWith(".plan.md"))
       continue;
-    const full = join26(plansDir2, entry);
-    const fm = parsePlanFrontmatter(readFileSync11(full, "utf8"));
+    const full = join27(plansDir2, entry);
+    const fm = parsePlanFrontmatter(readFileSync12(full, "utf8"));
     if (!fm)
       continue;
     const issue = typeof fm.issue === "number" ? fm.issue : Number(fm.issue);
@@ -22379,12 +22454,12 @@ function planSlug(planPath) {
 function deletePlanAndTasks(plansDir2, planPath) {
   const removed = [];
   const slug = planSlug(planPath);
-  rmSync4(planPath, { force: true });
+  rmSync5(planPath, { force: true });
   removed.push(planPath);
   for (const entry of readdirSync7(plansDir2)) {
     if (entry.startsWith(`${slug}.T`) && entry.endsWith(".md")) {
-      const full = join26(plansDir2, entry);
-      rmSync4(full, { force: true });
+      const full = join27(plansDir2, entry);
+      rmSync5(full, { force: true });
       removed.push(full);
     }
   }
@@ -22420,7 +22495,7 @@ async function prunePlans(opts) {
   if (issueNumbers.length === 0) {
     return { resolvedIssues: [], removed: [], stateCleared: false };
   }
-  const plansDir2 = join26(opts.cwd, ".software-teams", "plans");
+  const plansDir2 = join27(opts.cwd, ".software-teams", "plans");
   const planFiles = findPlansForIssues(plansDir2, issueNumbers);
   const removed = [];
   for (const planPath of planFiles) {
@@ -22503,8 +22578,8 @@ var actionCommand = defineCommand({
 });
 
 // src/commands/setup-action.ts
-import { join as join27, dirname as dirname10 } from "path";
-import { existsSync as existsSync33, mkdirSync as mkdirSync9 } from "fs";
+import { join as join28, dirname as dirname11 } from "path";
+import { existsSync as existsSync34, mkdirSync as mkdirSync10 } from "fs";
 var setupActionCommand = defineCommand({
   meta: {
     name: "setup-action",
@@ -22513,19 +22588,19 @@ var setupActionCommand = defineCommand({
   args: {},
   async run() {
     const cwd = process.cwd();
-    const workflowDest = join27(cwd, ".github", "workflows", "software-teams.yml");
-    if (existsSync33(workflowDest)) {
+    const workflowDest = join28(cwd, ".github", "workflows", "software-teams.yml");
+    if (existsSync34(workflowDest)) {
       consola.warn(`Workflow already exists at ${workflowDest}`);
       consola.info("Skipping workflow copy. Delete it manually to regenerate.");
     } else {
-      const templatePath = join27(import.meta.dir, "../action/workflow-template.yml");
-      if (!existsSync33(templatePath)) {
+      const templatePath = join28(import.meta.dir, "../action/workflow-template.yml");
+      if (!existsSync34(templatePath)) {
         consola.error("Workflow template not found. Ensure @websitelabs/software-teams is properly installed.");
         process.exit(1);
       }
-      const dir = dirname10(workflowDest);
-      if (!existsSync33(dir))
-        mkdirSync9(dir, { recursive: true });
+      const dir = dirname11(workflowDest);
+      if (!existsSync34(dir))
+        mkdirSync10(dir, { recursive: true });
       const template = await Bun.file(templatePath).text();
       await Bun.write(workflowDest, template);
       consola.success(`Created ${workflowDest}`);
@@ -22837,11 +22912,11 @@ var stateCommand = defineCommand({
 
 // src/commands/sync-agents.ts
 var import_yaml13 = __toESM(require_dist(), 1);
-import { join as join28 } from "path";
-import { existsSync as existsSync34 } from "fs";
+import { join as join29 } from "path";
+import { existsSync as existsSync35 } from "fs";
 async function readNativeSubagentsFlag(cwd) {
-  const configPath = join28(cwd, ".software-teams", "config", "software-teams-config.yaml");
-  if (!existsSync34(configPath))
+  const configPath = join29(cwd, ".software-teams", "config", "software-teams-config.yaml");
+  if (!existsSync35(configPath))
     return true;
   try {
     const content = await Bun.file(configPath).text();
@@ -22999,9 +23074,9 @@ var verifyCommand = defineCommand({
 });
 
 // src/commands/compile-workflow.ts
-import { existsSync as existsSync35 } from "fs";
+import { existsSync as existsSync36 } from "fs";
 import { readdir as readdir3, stat as stat2, writeFile } from "fs/promises";
-import { join as join29 } from "path";
+import { join as join30 } from "path";
 
 // src/utils/parse-orchestration.ts
 var import_yaml14 = __toESM(require_dist(), 1);
@@ -23207,20 +23282,20 @@ ${ret}
 var PLANS_DIR = ".software-teams/plans";
 async function resolveOrchestrationPath(cwd, arg) {
   if (arg && arg.endsWith(".orchestration.md")) {
-    const abs = arg.startsWith("/") ? arg : join29(cwd, arg);
-    if (!existsSync35(abs))
+    const abs = arg.startsWith("/") ? arg : join30(cwd, arg);
+    if (!existsSync36(abs))
       throw new Error(`Orchestration file not found: ${arg}`);
     return abs;
   }
   if (arg) {
-    const abs = join29(cwd, PLANS_DIR, `${arg}.orchestration.md`);
-    if (!existsSync35(abs)) {
+    const abs = join30(cwd, PLANS_DIR, `${arg}.orchestration.md`);
+    if (!existsSync36(abs)) {
       throw new Error(`No orchestration plan for slug '${arg}' at ${PLANS_DIR}/${arg}.orchestration.md`);
     }
     return abs;
   }
-  const dir = join29(cwd, PLANS_DIR);
-  if (!existsSync35(dir)) {
+  const dir = join30(cwd, PLANS_DIR);
+  if (!existsSync36(dir)) {
     throw new Error(`No plans directory (${PLANS_DIR}). Run \`software-teams plan\` first.`);
   }
   const files = (await readdir3(dir)).filter((f3) => f3.endsWith(".orchestration.md"));
@@ -23229,15 +23304,15 @@ async function resolveOrchestrationPath(cwd, arg) {
   }
   const [first] = files;
   if (files.length === 1 && first)
-    return join29(dir, first);
-  const withMtime = await Promise.all(files.map(async (f3) => ({ f: f3, m: (await stat2(join29(dir, f3))).mtimeMs })));
+    return join30(dir, first);
+  const withMtime = await Promise.all(files.map(async (f3) => ({ f: f3, m: (await stat2(join30(dir, f3))).mtimeMs })));
   withMtime.sort((a2, b2) => b2.m - a2.m);
   const chosen = withMtime[0]?.f;
   if (!chosen) {
     throw new Error(`No orchestration plan resolvable in ${PLANS_DIR}`);
   }
   consola.info(`Multiple orchestration plans found; using the most recent: ${chosen}. ` + `Pass a slug to choose explicitly.`);
-  return join29(dir, chosen);
+  return join30(dir, chosen);
 }
 async function compileWorkflow(cwd, opts) {
   const orchestrationPath = await resolveOrchestrationPath(cwd, opts.plan);
@@ -23247,7 +23322,7 @@ async function compileWorkflow(cwd, opts) {
     process.stdout.write(script);
     return 0;
   }
-  const outPath = opts.output ? opts.output.startsWith("/") ? opts.output : join29(cwd, opts.output) : join29(cwd, PLANS_DIR, `${parsed.slug}.workflow.js`);
+  const outPath = opts.output ? opts.output.startsWith("/") ? opts.output : join30(cwd, opts.output) : join30(cwd, PLANS_DIR, `${parsed.slug}.workflow.js`);
   await writeFile(outPath, script, "utf8");
   const rel = outPath.startsWith(cwd + "/") ? outPath.slice(cwd.length + 1) : outPath;
   consola.success(`Compiled workflow \u2192 ${rel}`);
@@ -23298,25 +23373,25 @@ var compileWorkflowCommand = defineCommand({
 });
 
 // src/commands/statusline.ts
-import { existsSync as existsSync36 } from "fs";
+import { existsSync as existsSync37 } from "fs";
 import { mkdir as mkdir2, readFile as readFile4, writeFile as writeFile2, chmod as chmod2, stat as stat3 } from "fs/promises";
-import { join as join30, dirname as dirname11 } from "path";
+import { join as join31, dirname as dirname12 } from "path";
 var SCRIPT_REL = ".claude/statusline/software-teams-statusline.py";
 var SETTINGS_LOCAL_REL = ".claude/settings.local.json";
-var oneUp = join30(import.meta.dir, "..");
-var twoUp = join30(import.meta.dir, "..", "..");
-var packageRoot = existsSync36(join30(oneUp, "package.json")) ? oneUp : twoUp;
+var oneUp = join31(import.meta.dir, "..");
+var twoUp = join31(import.meta.dir, "..", "..");
+var packageRoot = existsSync37(join31(oneUp, "package.json")) ? oneUp : twoUp;
 function statuslineShellCommand(cwd) {
-  return `python3 "${join30(cwd, SCRIPT_REL)}"`;
+  return `python3 "${join31(cwd, SCRIPT_REL)}"`;
 }
 async function ensureScript(cwd, force) {
-  const dest = join30(cwd, SCRIPT_REL);
-  const src2 = join30(packageRoot, "templates", SCRIPT_REL);
-  if (!existsSync36(src2)) {
+  const dest = join31(cwd, SCRIPT_REL);
+  const src2 = join31(packageRoot, "templates", SCRIPT_REL);
+  if (!existsSync37(src2)) {
     throw new Error(`statusline renderer not found in package at ${src2}`);
   }
-  if (force || !existsSync36(dest)) {
-    await mkdir2(dirname11(dest), { recursive: true });
+  if (force || !existsSync37(dest)) {
+    await mkdir2(dirname12(dest), { recursive: true });
     await writeFile2(dest, await readFile4(src2, "utf8"), "utf8");
     const srcStat = await stat3(src2);
     await chmod2(dest, srcStat.mode | 73);
@@ -23328,7 +23403,7 @@ function pointsAtUs(settings) {
 }
 async function installStatusline(cwd, force) {
   await ensureScript(cwd, force);
-  const settingsPath = join30(cwd, SETTINGS_LOCAL_REL);
+  const settingsPath = join31(cwd, SETTINGS_LOCAL_REL);
   const settings = await readSettings(settingsPath);
   const existing = settings.statusLine;
   if (existing && !pointsAtUs(settings) && !force) {
@@ -23345,8 +23420,8 @@ async function installStatusline(cwd, force) {
   return 0;
 }
 async function uninstallStatusline(cwd) {
-  const settingsPath = join30(cwd, SETTINGS_LOCAL_REL);
-  if (!existsSync36(settingsPath)) {
+  const settingsPath = join31(cwd, SETTINGS_LOCAL_REL);
+  if (!existsSync37(settingsPath)) {
     consola.info("No settings.local.json \u2014 nothing to uninstall.");
     return 0;
   }
@@ -23364,9 +23439,9 @@ function printSnippet(cwd) {
   return JSON.stringify({ statusLine: { type: "command", command: statuslineShellCommand(cwd) } }, null, 2);
 }
 async function statuslineStatus(cwd) {
-  const settingsPath = join30(cwd, SETTINGS_LOCAL_REL);
-  const scriptPresent = existsSync36(join30(cwd, SCRIPT_REL));
-  const settings = existsSync36(settingsPath) ? await readSettings(settingsPath) : {};
+  const settingsPath = join31(cwd, SETTINGS_LOCAL_REL);
+  const scriptPresent = existsSync37(join31(cwd, SCRIPT_REL));
+  const settings = existsSync37(settingsPath) ? await readSettings(settingsPath) : {};
   const wired = pointsAtUs(settings);
   console.log("Software Teams statusline:");
   console.log(`  renderer script (${SCRIPT_REL}): ${scriptPresent ? "present" : "missing"}`);
@@ -23406,40 +23481,28 @@ var statuslineCommand = defineCommand({
 });
 
 // src/commands/sync-framework.ts
-import { join as join31 } from "path";
-import { existsSync as existsSync37 } from "fs";
+import { join as join32 } from "path";
+import { existsSync as existsSync38 } from "fs";
 var PRESERVED_STATE_FILES = [
   ".software-teams/project.yaml",
   ".software-teams/requirements.yaml",
   ".software-teams/roadmap.yaml",
   ".software-teams/state.yaml"
 ];
-var COPIED_SUBDIRS2 = ["rules"];
 async function listFrameworkFiles(packageRoot2) {
-  const out = [];
-  for (const sub of COPIED_SUBDIRS2) {
-    const subDir = join31(packageRoot2, sub);
-    if (!existsSync37(subDir))
-      continue;
-    const subGlob = new Bun.Glob("**/*");
-    for await (const file of subGlob.scan({ cwd: subDir })) {
-      out.push(`${sub}/${file}`);
-    }
-  }
-  out.sort();
-  return out;
+  return existsSync38(join32(packageRoot2, "rules", "software-teams.md")) ? ["software-teams.md"] : [];
 }
 async function detectFrameworkChanges(cwd, packageRoot2) {
   const missing = [];
   const changed = [];
   const files = await listFrameworkFiles(packageRoot2);
   for (const file of files) {
-    const dest = join31(cwd, ".software-teams", file);
-    if (!existsSync37(dest)) {
+    const dest = join32(cwd, ".claude", "rules", file);
+    if (!existsSync38(dest)) {
       missing.push(file);
       continue;
     }
-    const srcContent = await Bun.file(join31(packageRoot2, file)).text();
+    const srcContent = await Bun.file(join32(packageRoot2, "rules", file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent)
       changed.push(file);
@@ -23467,8 +23530,8 @@ var syncFrameworkCommand = defineCommand({
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
     const { models, efforts } = await loadAgentRouting(cwd);
-    const packageRoot2 = join31(import.meta.dir, "..", "..");
-    if (!existsSync37(join31(packageRoot2, "rules"))) {
+    const packageRoot2 = join32(import.meta.dir, "..", "..");
+    if (!existsSync38(join32(packageRoot2, "rules"))) {
       consola.error(`Software Teams package layout not found at ${packageRoot2}. Are you running from inside the Software Teams package?`);
       process.exit(1);
     }
@@ -23485,7 +23548,7 @@ var syncFrameworkCommand = defineCommand({
       return;
     }
     if (missing.length > 0) {
-      consola.info(`${missing.length} missing file(s) in snapshot:`);
+      consola.info(`${missing.length} missing native rule file(s):`);
       for (const f3 of missing.slice(0, 20))
         consola.info(`  + ${f3}`);
       if (missing.length > 20)
@@ -23516,8 +23579,8 @@ var syncFrameworkCommand = defineCommand({
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot2);
     consola.success(`Refreshed rules and native skills (${totalDelta} files updated).`);
     for (const rel of PRESERVED_STATE_FILES) {
-      const p = join31(cwd, rel);
-      if (existsSync37(p)) {
+      const p = join32(cwd, rel);
+      if (existsSync38(p)) {
         consola.info(`Preserved: ${rel}`);
       }
     }
@@ -23534,25 +23597,25 @@ var syncFrameworkCommand = defineCommand({
 
 // src/utils/spawn-ledger.ts
 import { mkdir as mkdir3 } from "fs/promises";
-import { existsSync as existsSync38 } from "fs";
-import { dirname as dirname12, join as join32 } from "path";
+import { existsSync as existsSync39 } from "fs";
+import { dirname as dirname13, join as join33 } from "path";
 var DEFAULT_MAX_IDLE_MS = 30 * 60 * 1000;
-var DEFAULT_LEDGER_PATH = join32(".software-teams", "persistence", "spawn-ledger.jsonl");
+var DEFAULT_LEDGER_PATH = join33(".software-teams", "persistence", "spawn-ledger.jsonl");
 function resolveLedgerPath(opts) {
   return opts?.ledgerPath ?? DEFAULT_LEDGER_PATH;
 }
 async function recordSpawn(entry, opts) {
   const path = resolveLedgerPath(opts);
-  await mkdir3(dirname12(path), { recursive: true });
+  await mkdir3(dirname13(path), { recursive: true });
   const line = JSON.stringify(entry) + `
 `;
   const file = Bun.file(path);
-  const existing = existsSync38(path) ? await file.text() : "";
+  const existing = existsSync39(path) ? await file.text() : "";
   await Bun.write(path, existing + line);
 }
 async function readLedger(opts) {
   const path = resolveLedgerPath(opts);
-  if (!existsSync38(path))
+  if (!existsSync39(path))
     return [];
   const text = await Bun.file(path).text();
   const lines = text.split(`
@@ -23612,7 +23675,7 @@ async function summariseLedger(opts) {
 }
 async function clearLedger(opts) {
   const path = resolveLedgerPath(opts);
-  if (!existsSync38(path))
+  if (!existsSync39(path))
     return;
   if (!opts?.planId) {
     await Bun.write(path, "");
@@ -24698,40 +24761,40 @@ var projectCommand = defineCommand({
 });
 
 // src/commands/orchestrator-mode.ts
-import { existsSync as existsSync39 } from "fs";
+import { existsSync as existsSync40 } from "fs";
 import { mkdir as mkdir4, readFile as readFile5, writeFile as writeFile3, unlink, chmod as chmod3 } from "fs/promises";
-import { join as join33, dirname as dirname13 } from "path";
+import { join as join34, dirname as dirname14 } from "path";
 var CLAUDE_DIR = ".claude";
-var SETTINGS_PATH = join33(CLAUDE_DIR, "settings.json");
-var CLAUDE_MD_PATH = join33(CLAUDE_DIR, "CLAUDE.md");
-var DIRECTIVE_PATH = join33(CLAUDE_DIR, "orchestrator-mode.md");
-var HOOK_SCRIPT_PATH = join33(CLAUDE_DIR, "hooks", "orchestrator-deny-bash.sh");
+var SETTINGS_PATH = join34(CLAUDE_DIR, "settings.json");
+var CLAUDE_MD_PATH = join34(CLAUDE_DIR, "CLAUDE.md");
+var DIRECTIVE_PATH = join34(CLAUDE_DIR, "orchestrator-mode.md");
+var HOOK_SCRIPT_PATH = join34(CLAUDE_DIR, "hooks", "orchestrator-deny-bash.sh");
 var IMPORT_LINE = "@.claude/orchestrator-mode.md";
 var HOOK_MATCHER = "Edit|Write|NotebookEdit|Bash";
 var HOOK_COMMAND_VALUE = ".claude/hooks/orchestrator-deny-bash.sh";
-var oneUp2 = join33(import.meta.dir, "..");
-var twoUp2 = join33(import.meta.dir, "..", "..");
-var packageRoot2 = existsSync39(join33(oneUp2, "package.json")) ? oneUp2 : twoUp2;
+var oneUp2 = join34(import.meta.dir, "..");
+var twoUp2 = join34(import.meta.dir, "..", "..");
+var packageRoot2 = existsSync40(join34(oneUp2, "package.json")) ? oneUp2 : twoUp2;
 async function on() {
-  await mkdir4(join33(process.cwd(), CLAUDE_DIR), { recursive: true });
-  const absSettings = join33(process.cwd(), SETTINGS_PATH);
-  if (!existsSync39(absSettings)) {
+  await mkdir4(join34(process.cwd(), CLAUDE_DIR), { recursive: true });
+  const absSettings = join34(process.cwd(), SETTINGS_PATH);
+  if (!existsSync40(absSettings)) {
     await writeFile3(absSettings, `{}
 `, "utf8");
   }
-  const directiveSrc = join33(packageRoot2, "templates", "orchestrator-mode-directive.md");
+  const directiveSrc = join34(packageRoot2, "templates", "orchestrator-mode-directive.md");
   const directiveContent = await readFile5(directiveSrc, "utf8");
-  const absDirective = join33(process.cwd(), DIRECTIVE_PATH);
-  await mkdir4(dirname13(absDirective), { recursive: true });
+  const absDirective = join34(process.cwd(), DIRECTIVE_PATH);
+  await mkdir4(dirname14(absDirective), { recursive: true });
   await writeFile3(absDirective, directiveContent, "utf8");
-  const absHookScript = join33(process.cwd(), HOOK_SCRIPT_PATH);
-  const hookSrc = join33(packageRoot2, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
+  const absHookScript = join34(process.cwd(), HOOK_SCRIPT_PATH);
+  const hookSrc = join34(packageRoot2, "templates", ".claude", "hooks", "orchestrator-deny-bash.sh");
   const hookContent = await readFile5(hookSrc, "utf8");
-  await mkdir4(dirname13(absHookScript), { recursive: true });
+  await mkdir4(dirname14(absHookScript), { recursive: true });
   await writeFile3(absHookScript, hookContent, "utf8");
   await chmod3(absHookScript, 493);
-  const absClaudeMd = join33(process.cwd(), CLAUDE_MD_PATH);
-  if (!existsSync39(absClaudeMd)) {
+  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH);
+  if (!existsSync40(absClaudeMd)) {
     await writeFile3(absClaudeMd, IMPORT_LINE + `
 `, "utf8");
   } else {
@@ -24756,16 +24819,16 @@ async function on() {
   return 0;
 }
 async function off() {
-  const absSettings = join33(process.cwd(), SETTINGS_PATH);
-  if (existsSync39(absSettings)) {
+  const absSettings = join34(process.cwd(), SETTINGS_PATH);
+  if (existsSync40(absSettings)) {
     const settings = await readSettings(absSettings);
     const next = removeHooks(settings, [
       { event: "PreToolUse", matcher: HOOK_MATCHER, command: HOOK_COMMAND_VALUE }
     ]);
     await writeSettings(absSettings, next);
   }
-  const absClaudeMd = join33(process.cwd(), CLAUDE_MD_PATH);
-  if (existsSync39(absClaudeMd)) {
+  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH);
+  if (existsSync40(absClaudeMd)) {
     const content = await readFile5(absClaudeMd, "utf8");
     const lines = content.split(`
 `);
@@ -24778,8 +24841,8 @@ async function off() {
       await writeFile3(absClaudeMd, newContent, "utf8");
     }
   }
-  const absDirective = join33(process.cwd(), DIRECTIVE_PATH);
-  if (existsSync39(absDirective)) {
+  const absDirective = join34(process.cwd(), DIRECTIVE_PATH);
+  if (existsSync40(absDirective)) {
     await unlink(absDirective);
   }
   console.log("Orchestrator-Only Mode: OFF");
@@ -24789,13 +24852,13 @@ async function off() {
   return 0;
 }
 async function status() {
-  const absDirective = join33(process.cwd(), DIRECTIVE_PATH);
-  const hasDirective = existsSync39(absDirective);
-  const absClaudeMd = join33(process.cwd(), CLAUDE_MD_PATH);
-  const hasImportLine = existsSync39(absClaudeMd) && (await readFile5(absClaudeMd, "utf8")).split(`
+  const absDirective = join34(process.cwd(), DIRECTIVE_PATH);
+  const hasDirective = existsSync40(absDirective);
+  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH);
+  const hasImportLine = existsSync40(absClaudeMd) && (await readFile5(absClaudeMd, "utf8")).split(`
 `).includes(IMPORT_LINE);
-  const absSettings = join33(process.cwd(), SETTINGS_PATH);
-  const hasHookEntry = existsSync39(absSettings) ? await (async () => {
+  const absSettings = join34(process.cwd(), SETTINGS_PATH);
+  const hasHookEntry = existsSync40(absSettings) ? await (async () => {
     const settings = await readSettings(absSettings);
     const preToolUse = settings.hooks?.PreToolUse ?? [];
     return preToolUse.some((entry) => entry.matcher === HOOK_MATCHER && entry.hooks.some((h2) => h2.command === HOOK_COMMAND_VALUE));
@@ -24846,25 +24909,25 @@ var orchestratorModeCommand = defineCommand({
 });
 
 // src/commands/ask-questions.ts
-import { existsSync as existsSync40 } from "fs";
+import { existsSync as existsSync41 } from "fs";
 import { mkdir as mkdir5, readFile as readFile6, writeFile as writeFile4, unlink as unlink2 } from "fs/promises";
-import { join as join34, dirname as dirname14 } from "path";
+import { join as join35, dirname as dirname15 } from "path";
 var CLAUDE_DIR2 = ".claude";
-var CLAUDE_MD_PATH2 = join34(CLAUDE_DIR2, "CLAUDE.md");
-var DIRECTIVE_PATH2 = join34(CLAUDE_DIR2, "ask-questions.md");
+var CLAUDE_MD_PATH2 = join35(CLAUDE_DIR2, "CLAUDE.md");
+var DIRECTIVE_PATH2 = join35(CLAUDE_DIR2, "ask-questions.md");
 var IMPORT_LINE2 = "@.claude/ask-questions.md";
-var oneUp3 = join34(import.meta.dir, "..");
-var twoUp3 = join34(import.meta.dir, "..", "..");
-var packageRoot3 = existsSync40(join34(oneUp3, "package.json")) ? oneUp3 : twoUp3;
+var oneUp3 = join35(import.meta.dir, "..");
+var twoUp3 = join35(import.meta.dir, "..", "..");
+var packageRoot3 = existsSync41(join35(oneUp3, "package.json")) ? oneUp3 : twoUp3;
 async function on2() {
-  await mkdir5(join34(process.cwd(), CLAUDE_DIR2), { recursive: true });
-  const directiveSrc = join34(packageRoot3, "templates", "ask-questions-directive.md");
+  await mkdir5(join35(process.cwd(), CLAUDE_DIR2), { recursive: true });
+  const directiveSrc = join35(packageRoot3, "templates", "ask-questions-directive.md");
   const directiveContent = await readFile6(directiveSrc, "utf8");
-  const absDirective = join34(process.cwd(), DIRECTIVE_PATH2);
-  await mkdir5(dirname14(absDirective), { recursive: true });
+  const absDirective = join35(process.cwd(), DIRECTIVE_PATH2);
+  await mkdir5(dirname15(absDirective), { recursive: true });
   await writeFile4(absDirective, directiveContent, "utf8");
-  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH2);
-  if (!existsSync40(absClaudeMd)) {
+  const absClaudeMd = join35(process.cwd(), CLAUDE_MD_PATH2);
+  if (!existsSync41(absClaudeMd)) {
     await writeFile4(absClaudeMd, IMPORT_LINE2 + `
 `, "utf8");
   } else {
@@ -24883,8 +24946,8 @@ async function on2() {
   return 0;
 }
 async function off2() {
-  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH2);
-  if (existsSync40(absClaudeMd)) {
+  const absClaudeMd = join35(process.cwd(), CLAUDE_MD_PATH2);
+  if (existsSync41(absClaudeMd)) {
     const content = await readFile6(absClaudeMd, "utf8");
     const lines = content.split(`
 `);
@@ -24897,8 +24960,8 @@ async function off2() {
       await writeFile4(absClaudeMd, newContent, "utf8");
     }
   }
-  const absDirective = join34(process.cwd(), DIRECTIVE_PATH2);
-  if (existsSync40(absDirective)) {
+  const absDirective = join35(process.cwd(), DIRECTIVE_PATH2);
+  if (existsSync41(absDirective)) {
     await unlink2(absDirective);
   }
   console.log("Ask Clarifying Questions policy: OFF");
@@ -24907,10 +24970,10 @@ async function off2() {
   return 0;
 }
 async function status2() {
-  const absDirective = join34(process.cwd(), DIRECTIVE_PATH2);
-  const hasDirective = existsSync40(absDirective);
-  const absClaudeMd = join34(process.cwd(), CLAUDE_MD_PATH2);
-  const hasImportLine = existsSync40(absClaudeMd) && (await readFile6(absClaudeMd, "utf8")).split(`
+  const absDirective = join35(process.cwd(), DIRECTIVE_PATH2);
+  const hasDirective = existsSync41(absDirective);
+  const absClaudeMd = join35(process.cwd(), CLAUDE_MD_PATH2);
+  const hasImportLine = existsSync41(absClaudeMd) && (await readFile6(absClaudeMd, "utf8")).split(`
 `).includes(IMPORT_LINE2);
   const fmt = (v2) => v2 ? "present" : "missing";
   console.log("Ask Clarifying Questions policy status:");
@@ -24956,13 +25019,13 @@ var askQuestionsCommand = defineCommand({
 });
 
 // ../n8n/src/execution/agent-definition.ts
-import { join as join35 } from "path";
-import { existsSync as existsSync41, readFileSync as readFileSync12 } from "fs";
+import { join as join36 } from "path";
+import { existsSync as existsSync42, readFileSync as readFileSync13 } from "fs";
 var __dirname = "/Users/benzotti/src/software-teams/packages/n8n/src/execution";
 var sharedApi = require_n8n_api();
-var FRONTMATTER_RE5 = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+var FRONTMATTER_RE6 = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 function parseSpecFrontmatter(source) {
-  const match = FRONTMATTER_RE5.exec(source);
+  const match = FRONTMATTER_RE6.exec(source);
   if (!match?.[1])
     return { meta: {}, body: source.trim() };
   const meta = {};
@@ -24994,13 +25057,54 @@ function parseSpecFrontmatter(source) {
 function stripBanners(body) {
   return body.replace(/^\s*<!--\s*AUTO-GENERATED[\s\S]*?-->\s*\n?/, "").replace(/^\s*<!--\s*canonical frontmatter[\s\S]*?-->\s*\n?/, "").trim();
 }
+var RULE_FRONTMATTER_RE = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/;
+function ruleCategories(agentId) {
+  const categories = ["general"];
+  if (/backend/.test(agentId))
+    categories.push("backend");
+  if (/frontend|ux-designer/.test(agentId))
+    categories.push("frontend");
+  if (/quality|qa|verifier/.test(agentId))
+    categories.push("testing");
+  if (/devops/.test(agentId))
+    categories.push("devops");
+  return categories;
+}
+function loadNativeRuleContext(agentId, baseDir) {
+  const ruleDirs = [
+    join36(baseDir, ".claude", "rules"),
+    join36(__dirname, "..", "..", "rules"),
+    join36(__dirname, "..", "..", "dist", "rules")
+  ].filter(existsSync42);
+  if (ruleDirs.length === 0)
+    return "";
+  const files = ["software-teams", ...ruleCategories(agentId)].filter((category, index, all) => all.indexOf(category) === index).map((category) => `${category}.md`);
+  const sections = files.flatMap((file) => {
+    const path = ruleDirs.map((dir) => join36(dir, file)).find(existsSync42);
+    if (!path)
+      return [];
+    try {
+      const body = readFileSync13(path, "utf8").replace(RULE_FRONTMATTER_RE, "").trim();
+      return body ? [`### ${file}
+
+${body}`] : [];
+    } catch {
+      return [];
+    }
+  });
+  return sections.length > 0 ? `## Native project rules
+
+${sections.join(`
+
+`)}` : "";
+}
 function resolveAgentSpecPath2(agentId, baseDir) {
   const candidates = [
-    join35(baseDir, ".claude", "agents", `${agentId}.md`),
-    join35(__dirname, "..", "..", "agents", `${agentId}.md`),
-    join35(__dirname, "..", "..", "dist", "agents", `${agentId}.md`)
+    join36(baseDir, ".claude", "agents", `${agentId}.md`),
+    join36(__dirname, "..", "..", "agents", `${agentId}.md`),
+    join36(__dirname, "..", "..", "dist", "agents", `${agentId}.md`)
   ];
-  return candidates.find(existsSync41) ?? null;
+  return candidates.find(existsSync42) ?? null;
 }
 function buildAgentDefinition(opts) {
   const specPath = resolveAgentSpecPath2(opts.agentId, opts.baseDir);
@@ -25008,7 +25112,7 @@ function buildAgentDefinition(opts) {
     return null;
   const source = (() => {
     try {
-      return readFileSync12(specPath, "utf8");
+      return readFileSync13(specPath, "utf8");
     } catch {
       return "";
     }
@@ -25016,9 +25120,13 @@ function buildAgentDefinition(opts) {
   if (!source)
     return null;
   const { meta, body } = parseSpecFrontmatter(source);
-  const prompt2 = stripBanners(body);
-  if (!prompt2)
+  const agentPrompt = stripBanners(body);
+  if (!agentPrompt)
     return null;
+  const ruleContext = loadNativeRuleContext(opts.agentId, opts.baseDir);
+  const prompt2 = ruleContext ? `${agentPrompt}
+
+${ruleContext}` : agentPrompt;
   const definition = {
     description: typeof meta["description"] === "string" ? meta["description"] : opts.agentId,
     prompt: prompt2

@@ -10,9 +10,7 @@ import type { CatalogueEntry } from "./convert-agents/render";
 import {
   resolveAgainst,
   resolveDefaultSourceDir,
-  resolveDefaultRulesSource,
   writeCatalogue,
-  writeRules,
 } from "./convert-agents/io";
 
 export type { ConflictMode };
@@ -120,15 +118,13 @@ export async function convertAgents(
     }
   }
 
-  // Emit the catalogue and rules document alongside the per-agent files.
-  // `targetRoot` defaults to the parent of `targetDir` (i.e. `.claude/`).
+  // Emit the catalogue alongside per-agent files. Orchestration doctrine is a
+  // native `.claude/rules/software-teams.md` file installed by init/sync rather
+  // than a generated CLAUDE.md import.
   const targetRoot = dirname(targetDir);
-  const rulesSource = resolveDefaultRulesSource(cwd);
-
   if (catalogueEntries.length > 0) {
     await writeCatalogue(catalogueEntries, targetRoot, onConflict, dryRun, result);
   }
-  await writeRules(targetRoot, rulesSource, onConflict, dryRun, result);
 
   return result;
 }

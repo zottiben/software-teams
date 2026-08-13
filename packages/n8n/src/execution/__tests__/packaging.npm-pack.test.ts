@@ -102,11 +102,22 @@ describe("npm pack — publish-ready tarball contents (AC7, AC10)", () => {
       }
     });
 
-    test("exactly 34 dist/agents/*.md specs are packed", () => {
+    test("exactly 34 agent specs and six native rules are packed", () => {
       const packedSpecs = tarState.files.filter(
         (p) => p.startsWith("dist/agents/") && p.endsWith(".md"),
       );
+      const packedRules = tarState.files.filter(
+        (p) => p.startsWith("dist/rules/") && p.endsWith(".md"),
+      );
       expect(packedSpecs.length).toBe(34);
+      expect(packedRules.sort()).toEqual([
+        "dist/rules/backend.md",
+        "dist/rules/devops.md",
+        "dist/rules/frontend.md",
+        "dist/rules/general.md",
+        "dist/rules/software-teams.md",
+        "dist/rules/testing.md",
+      ]);
     });
   });
 

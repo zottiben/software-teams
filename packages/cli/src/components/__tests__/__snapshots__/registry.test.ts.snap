@@ -439,7 +439,7 @@ Agent(
 )
 \`\`\`
 
-The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/RULES.md\` / \`templates/RULES.md\` for the orchestration doctrine.
+The prompt contains no \`"You are software-teams-X. Read ..."\` preamble — Claude Code resolves the agent spec from \`.claude/agents/{plan.primary_agent}.md\` when spawned by name. See \`the ComplexityRouter component\` for the prompt body and \`.claude/rules/software-teams.md\` for orchestration doctrine.
 
 If \`plan.primary_agent\` is missing (legacy plan or empty \`available_agents\`), use the legacy fallback below.
 

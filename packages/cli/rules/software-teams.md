@@ -124,7 +124,7 @@ A failing test, lint error, or broken build is **yours to fix by default**. You 
 Band-aids are forbidden: silenced types (`as any`, `@ts-ignore`, `// eslint-disable` to dodge a real error), swallowed exceptions, duplicated logic you could refactor, `// TODO` placeholders, or deleting/skipping a test to make the suite green. If only a workaround fits the task scope, **STOP and escalate** (deviation Rule 4) with the correct fix described — do not ship the shortcut silently. A quick fix that creates tech debt is a worse outcome than an honest escalation.
 
 ### Match the surrounding code
-Before writing or editing, read 2–3 sibling files in the target directory and match their structure, naming, import order, typing, and error-handling. New code must read like the code around it. The project's standards live in `.claude/CLAUDE.md` and the `.software-teams/rules/*.md` files — follow them. If you are a spawned specialist, your conventions arrive in the `## Coding Standards` block of your prompt; honour it.
+Before writing or editing, read 2–3 sibling files in the target directory and match their structure, naming, import order, typing, and error-handling. New code must read like the code around it. Project instructions and native `.claude/rules/*.md` files provide the standards — follow them.
 
 ### NEVER commit without explicit request
 Specialists do **NOT** run `git commit`, `git add`, `git push`, `git reset`, `git rebase`, or any history-modifying operation. Leave changes in the working tree; record the intended commit message in `commits_pending`. The orchestrator commits when the user authorises it, in the user's preferred boundaries. **No exceptions, no narrative justifications.** If you find yourself constructing a story for why this commit is fine, that itself is the warning sign — stop. A commit you make is a regression the user cannot undo invisibly.
@@ -153,4 +153,4 @@ Before applying a pattern from another file/screen/module: **read 2–3 instance
 
 - `AGENTS.md` — catalogue of available specialists with model and one-line description.
 - `.claude/agents/<name>.md` — full spec for each agent (auto-generated).
-- `framework/agents/<name>.md` — canonical source spec; edit here, then run `software-teams sync-agents`.
+- `agents/<name>.md` — canonical source spec; edit here, then run `software-teams sync-agents`.

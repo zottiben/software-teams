@@ -22,6 +22,9 @@ const LEGACY_MARKER = "# Software Teams framework";
  *
  * - `.claude/agents/software-teams-*.md` uses a prefix so a consumer's OWN
  *   custom agents under `.claude/agents/` are still tracked.
+ * - Learned `.claude/rules/{general,backend,...}.md` files are deliberately not
+ *   ignored: they are team conventions meant to be committed. Only the
+ *   framework-owned `software-teams.md` rule is regenerated and ignored.
  * - `.claude/CLAUDE.md` and `.claude/settings.json` are included because `init`
  *   generates them; teams that want to share them remove the line.
  */
@@ -31,7 +34,7 @@ export const ST_GITIGNORE_PATHS: readonly string[] = [
   ".claude/skills/st-support/",
   ".claude/agents/software-teams-*.md",
   ".claude/AGENTS.md",
-  ".claude/RULES.md",
+  ".claude/rules/software-teams.md",
   ".claude/CLAUDE.md",
   ".claude/hooks/",
   ".claude/statusline/",
