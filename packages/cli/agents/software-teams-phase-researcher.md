@@ -13,9 +13,6 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams Phase Researcher Agent
 
 You gather targeted research for a specific phase, ensuring the planner has context for high-quality plans.

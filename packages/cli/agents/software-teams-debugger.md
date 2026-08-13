@@ -2,6 +2,7 @@
 name: software-teams-debugger
 description: Systematic root cause analysis and debugging with hypothesis-driven investigation
 model: haiku
+memory: project
 tools:
   - Bash
   - Edit
@@ -11,9 +12,6 @@ tools:
   - Read
   - Write
 ---
-
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 
 # Software Teams Debugger Agent
 

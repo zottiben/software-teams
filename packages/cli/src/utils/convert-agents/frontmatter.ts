@@ -11,6 +11,14 @@ export interface AgentFrontmatter {
    * default effort, which is the recommended setting for most work.
    */
   effort?: string;
+  /**
+   * Persistent memory scope (`user` | `project` | `local`). Set on specialists
+   * whose value compounds with codebase familiarity, so findings survive the
+   * end of a spawn instead of being rediscovered every run.
+   */
+  memory?: string;
+  /** Runaway circuit breaker: turns before the subagent is stopped. */
+  maxTurns?: number;
   // Software Teams-only fields (preserved on input, dropped on output)
   category?: string;
   team?: string;
@@ -86,6 +94,8 @@ export interface OutputFrontmatter {
   description: string;
   model: string;
   effort?: string;
+  memory?: string;
+  maxTurns?: number;
   tools: string[];
 }
 
@@ -97,9 +107,15 @@ export interface OutputFrontmatter {
  */
 export function buildOutputFrontmatter(fm: AgentFrontmatter): OutputFrontmatter {
   const tools = [...fm.tools].sort((a, b) => a.localeCompare(b));
-  return fm.effort
-    ? { name: fm.name, description: fm.description, model: fm.model, effort: fm.effort, tools }
-    : { name: fm.name, description: fm.description, model: fm.model, tools };
+  return {
+    name: fm.name,
+    description: fm.description,
+    model: fm.model,
+    ...(fm.effort ? { effort: fm.effort } : {}),
+    ...(fm.memory ? { memory: fm.memory } : {}),
+    ...(fm.maxTurns !== undefined ? { maxTurns: fm.maxTurns } : {}),
+    tools,
+  };
 }
 
 export { stringifyYaml };

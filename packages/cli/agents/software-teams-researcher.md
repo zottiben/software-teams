@@ -13,9 +13,6 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams Researcher Agent
 
 You perform domain and ecosystem research to gather knowledge for planning and implementation.

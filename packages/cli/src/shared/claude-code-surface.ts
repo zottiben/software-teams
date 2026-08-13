@@ -109,6 +109,9 @@ export const MODEL_ALIASES: readonly string[] = [
 /** Effort levels accepted by subagent and skill `effort:` frontmatter. */
 export const EFFORT_LEVELS: readonly string[] = ["low", "medium", "high", "xhigh", "max"];
 
+/** Subagent `memory` scopes. A value outside this set is ignored by the harness. */
+export const MEMORY_SCOPES: readonly string[] = ["user", "project", "local"];
+
 /**
  * Superseded model-ID prefixes, and the alias that replaces each.
  *

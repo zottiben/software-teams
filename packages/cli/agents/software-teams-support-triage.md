@@ -2,6 +2,7 @@
 name: software-teams-support-triage
 description: Classifies support tickets and chooses the next safe action without changing customer or production state
 model: sonnet
+maxTurns: 20
 tools:
   - Glob
   - Grep

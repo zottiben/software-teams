@@ -11,9 +11,6 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams Feedback Learner Agent
 
 You analyse PR review comments for new rules and append them to the team's rules files when — and only when — they are not already documented elsewhere.

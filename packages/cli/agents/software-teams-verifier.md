@@ -2,6 +2,7 @@
 name: software-teams-verifier
 description: Goal-backward verification with three-level artifact checking
 model: sonnet
+maxTurns: 40
 tools:
   - Bash
   - Glob
@@ -10,9 +11,6 @@ tools:
   - WebFetch
   - WebSearch
 ---
-
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 
 # Software Teams Verifier Agent
 

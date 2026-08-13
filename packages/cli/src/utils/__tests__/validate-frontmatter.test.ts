@@ -128,6 +128,39 @@ describe("validateFrontmatter", () => {
     expect(errors[0]?.field).toBe("model");
   });
 
+  test("rejects a memory scope the harness would silently ignore", async () => {
+    const root = await fixture({
+      "agents/bad.md": ["---", "name: bad", "memory: global", "---", "b"].join("\n"),
+    });
+    const { errors } = await run(root);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.field).toBe("memory");
+  });
+
+  test("rejects a non-positive maxTurns", async () => {
+    const root = await fixture({
+      "agents/bad.md": ["---", "name: bad", "maxTurns: 0", "---", "b"].join("\n"),
+    });
+    const { errors } = await run(root);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.field).toBe("maxTurns");
+  });
+
+  test("accepts valid memory and maxTurns", async () => {
+    const root = await fixture({
+      "agents/ok.md": [
+        "---",
+        "name: ok",
+        "memory: project",
+        "maxTurns: 40",
+        "---",
+        "b",
+      ].join("\n"),
+    });
+    const { errors } = await run(root);
+    expect(errors).toEqual([]);
+  });
+
   test("rejects an invalid effort level", async () => {
     const root = await fixture({
       "agents/bad.md": ["---", "name: bad", "effort: extreme", "---", "b"].join("\n"),

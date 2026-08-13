@@ -104,6 +104,44 @@ describe("framework file invariants", () => {
     expect(content).toContain("task_id");
   });
 
+  test("no spec reads the deleted framework/stacks tree", () => {
+    // Phase C folded stack conventions into the TS component registry and
+    // deleted the markdown tree. Instructing an agent to read a path that
+    // cannot exist burns a tool call and teaches a wrong location.
+    for (const file of listAgentFiles()) {
+      expect(
+        readFileSync(file, "utf-8"),
+        `${file}: reads the deleted .software-teams/framework/stacks/ tree`,
+      ).not.toContain("framework/stacks");
+    }
+  });
+
+  test("no spec asks the user for approval mid-task", () => {
+    // AskUserQuestion is stripped from every subagent and subagents run in the
+    // background by default, so an approval handshake cannot complete.
+    for (const file of listAgentFiles()) {
+      if (file.includes("game-")) continue;
+      expect(
+        readFileSync(file, "utf-8"),
+        `${file}: retains the unexecutable Pre-Approval Workflow ceremony`,
+      ).not.toContain("Pre-Approval Workflow");
+    }
+  });
+
+  test("memory and maxTurns are only set to values the harness honours", () => {
+    const MEMORY_SCOPES = new Set(["user", "project", "local"]);
+    for (const file of listAgentFiles()) {
+      const { fm } = parseAgentSpec(file);
+      if (fm.memory !== undefined) {
+        expect(MEMORY_SCOPES.has(String(fm.memory)), `${file}: memory=${fm.memory}`).toBe(true);
+      }
+      if (fm.maxTurns !== undefined) {
+        expect(Number.isInteger(fm.maxTurns), `${file}: maxTurns must be an integer`).toBe(true);
+        expect(Number(fm.maxTurns), `${file}: maxTurns must be positive`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   test("agent specs do not duplicate native project-rule loading prose", () => {
     for (const file of ["software-teams-backend.md", "software-teams-frontend.md"]) {
       const content = readFrameworkFile(`agents/${file}`);
@@ -250,17 +288,25 @@ describe("agent frontmatter audit", () => {
     }
   });
 
-  test("frontmatter only declares the plugin-spec allowlist (name/description/model/tools)", () => {
+  test("frontmatter only declares supported Claude Code subagent fields", () => {
     // Replaces the retired build-plugin generator's "drop unknown fields" transform.
     // Anything outside the allowlist gets shipped to the Claude Code plugin layer
     // and the spec is undefined for it — so reject at author time.
-    const ALLOWED_FIELDS = new Set(["name", "description", "model", "tools"]);
+    const ALLOWED_FIELDS = new Set([
+      "name",
+      "description",
+      "model",
+      "tools",
+      "effort",
+      "memory",
+      "maxTurns",
+    ]);
     for (const file of listAgentFiles()) {
       const { fm } = parseAgentSpec(file);
       const extra = Object.keys(fm).filter((k) => !ALLOWED_FIELDS.has(k));
       expect(
         extra,
-        `${file}: frontmatter contains unsupported fields [${extra.join(", ")}]; allowed: name|description|model|tools`,
+        `${file}: frontmatter contains unsupported fields [${extra.join(", ")}]; allowed: ${[...ALLOWED_FIELDS].join("|")}`,
       ).toEqual([]);
     }
   });

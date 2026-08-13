@@ -2,6 +2,7 @@
 name: software-teams-plan-checker
 description: Validates plans before execution to catch issues early
 model: opus
+maxTurns: 40
 tools:
   - Bash
   - Glob
@@ -10,9 +11,6 @@ tools:
   - WebFetch
   - WebSearch
 ---
-
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 
 # Software Teams Plan Checker Agent
 

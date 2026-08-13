@@ -530,7 +530,7 @@ does not and backend rules show the inverse.
 
 ---
 
-### Slice 7 - Agent spec debloat
+### Slice 7 - Agent spec debloat `[SHIPPED]`
 
 **Goal:** rewrite the 25 non-game specs for Claude 5. Largest prose change, and the one most
 likely to reduce per-spawn cost. `game-*` excluded per D-3.
@@ -553,8 +553,38 @@ likely to reduce per-spawn cost. `game-*` excluded per D-3.
   measured rather than asserted. A slice that claims a context saving without a working
   measurement is not verifiable.
 
-**Verify:** gates green; before/after per-spawn token measurement on a working benchmark;
-behavioural spot-check that a debloated specialist still produces the same artefacts.
+**What shipped:**
+
+- **Benchmark repaired first, so the saving is measured not asserted.** The old
+  `component-cost` resolved components from a deleted `framework/components/**` tree and
+  gated on a gitignored JSONL, so its CI assertion skipped on every run while looking green.
+  Replaced by `bench:spawn-cost`, which renders specs through the real `renderAgentOutput`,
+  runs from a bare checkout, and asserts against a **tracked** baseline within 2%.
+- **Deleted the Pre-Approval Workflow.** It told subagents to ask the user for approval and
+  wait, but `AskUserQuestion` is withheld from every subagent and subagents run in the
+  background by default, so the handshake could never complete. Same defect fixed in the
+  deviation table (`STOP and ask user` to `return to the orchestrator`) and the checkpoints.
+- **Fixed dead reads.** Every `.software-teams/framework/stacks/{stack-id}.md` instruction
+  pointed at a tree Phase C deleted. Non-game specs now resolve real convention components
+  (`ReactTypescript`, `PhpLaravel`) via `component get`, else generic guidance plus
+  `adapter.yaml` gates. The `game-*` set had its dead paths fixed too - a correctness bug,
+  distinct from prose debloat, which they remain excluded from per D-3.
+- Removed `Match the Codebase` after **verifying** its instructions survive verbatim in the
+  startup-loaded `rules/software-teams.md`, and dropped the source-only canonical-frontmatter
+  comment that both runtime consumers already strip.
+- Stripped `CRITICAL:` heading prefixes while keeping every rule they introduced.
+- Added `memory: project` (codebase-mapper, debugger, qa-tester, security) and `maxTurns`
+  runaway circuit breakers (support-triage 20; plan-checker, head-engineering, verifier 40),
+  plumbed through the converter, the frontmatter gate, and framework lint.
+- `skills:` preload was deliberately **not** used: it injects full skill content at startup,
+  so preloading an always-needed procedure relocates tokens rather than saving them.
+
+**Measured:** 555,041 to 507,878 spawn-weighted plan bytes, **-8.5%** (~11.8k tokens per
+plan). 34 files changed, 241 deletions against 48 insertions before the capability fields.
+
+**Verify:** all gates green; the new benchmark caught a +0.6% regression mid-slice and the
+baseline was regenerated; a live spawn of the debloated `software-teams-debugger` returned a
+correct evidence-grounded verdict that honoured its structured-return honesty contract.
 
 ---
 

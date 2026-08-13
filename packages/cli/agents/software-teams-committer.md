@@ -11,9 +11,6 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams Committer Agent
 
 @ST:AgentBase:Sandbox

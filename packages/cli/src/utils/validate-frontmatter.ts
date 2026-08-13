@@ -12,6 +12,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   EFFORT_LEVELS,
+  MEMORY_SCOPES,
   RETIRED_TOOL_REPLACEMENTS,
   SUBAGENT_STRIPPED_TOOLS,
   isValidModel,
@@ -231,7 +232,8 @@ export async function validateFrontmatter(opts: {
       });
     }
 
-    if (!isSubagent) checkSkillFrontmatter(file, fm, errors);
+    if (isSubagent) checkSubagentFrontmatter(file, fm, errors);
+    else checkSkillFrontmatter(file, fm, errors);
   }
 
   return { errors, warnings, filesChecked: all.length };
@@ -259,6 +261,36 @@ const SKILL_FRONTMATTER_FIELDS = new Set([
   "license",
   "compatibility",
 ]);
+
+/**
+ * `memory` and `maxTurns` are silently ignored by the harness when malformed,
+ * which is exactly the class of failure this gate exists to catch.
+ */
+function checkSubagentFrontmatter(
+  file: string,
+  frontmatter: Record<string, string | string[]>,
+  errors: FrontmatterFinding[],
+): void {
+  const memory = frontmatter["memory"];
+  if (typeof memory === "string" && !MEMORY_SCOPES.includes(memory)) {
+    errors.push({
+      file,
+      field: "memory",
+      value: memory,
+      message: `"${memory}" is not a memory scope (${MEMORY_SCOPES.join(", ")}).`,
+    });
+  }
+
+  const maxTurns = frontmatter["maxTurns"];
+  if (typeof maxTurns === "string" && !/^[1-9][0-9]*$/.test(maxTurns)) {
+    errors.push({
+      file,
+      field: "maxTurns",
+      value: maxTurns,
+      message: "maxTurns must be a positive integer.",
+    });
+  }
+}
 
 function checkSkillFrontmatter(
   file: string,

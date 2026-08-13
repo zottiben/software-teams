@@ -55,12 +55,32 @@ describe("convertAgents — output shape", () => {
     for (const file of files) {
       const content = await readFile(join(targetDir, file), "utf-8");
       const { fm } = parseFrontmatter(content);
-      expect(Object.keys(fm).sort()).toEqual(["description", "model", "name", "tools"]);
+      const allowed = ["description", "effort", "maxTurns", "memory", "model", "name", "tools"];
+      expect(Object.keys(fm).every((k) => allowed.includes(k)), `${file}: ${Object.keys(fm)}`).toBe(true);
+      expect(Object.keys(fm)).toContain("name");
+      expect(Object.keys(fm)).toContain("tools");
       // Explicit no-leakage check.
       expect(fm.category).toBeUndefined();
       expect(fm.team).toBeUndefined();
       expect(fm.requires_components).toBeUndefined();
     }
+  });
+
+  test("memory and maxTurns reach the generated subagent frontmatter", async () => {
+    const cwd = await makeFixtureCwd();
+    await convertAgents({ cwd });
+    const targetDir = join(cwd, ".claude", "agents");
+
+    const mapper = await readFile(join(targetDir, "software-teams-codebase-mapper.md"), "utf-8");
+    expect(parseFrontmatter(mapper).fm.memory).toBe("project");
+
+    const verifier = await readFile(join(targetDir, "software-teams-verifier.md"), "utf-8");
+    expect(parseFrontmatter(verifier).fm.maxTurns).toBe(40);
+
+    // A spec that sets neither stays silent rather than pinning a default.
+    const committer = await readFile(join(targetDir, "software-teams-committer.md"), "utf-8");
+    expect(parseFrontmatter(committer).fm.memory).toBeUndefined();
+    expect(parseFrontmatter(committer).fm.maxTurns).toBeUndefined();
   });
 
   test("AUTO-GENERATED banner is the first non-frontmatter line", async () => {

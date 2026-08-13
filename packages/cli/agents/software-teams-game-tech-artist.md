@@ -11,9 +11,6 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams Game Technical Artist
 
 **Lead mode**: choose and justify render pipeline (URP / HDRP / Built-in), own shader architecture, define lighting and post-process strategy, set and police art-side GPU budgets. **Senior mode**: write shaders (Shader Graph and HLSL), author VFX Graph effects, configure lighting setups, run optimisation passes, and build DCC-to-Unity import tooling.
@@ -36,8 +33,7 @@ Before writing code or authoring assets for any task:
 
 On activation:
 1. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI project tech-stack` (returns the tech_stack block).
-2. If `tech_stack.backend` or a game-engine identifier resolves to `unity-csharp`, load `.software-teams/framework/stacks/unity-csharp.md` for engine-specific verification commands.
-3. If no convention file exists, apply the expertise and conventions below.
+2. Use the generic expertise below plus the quality gates in `.software-teams/config/adapter.yaml`; no separate stack convention file ships for this domain.
 
 ## Expertise
 

@@ -10235,7 +10235,7 @@ ${payload?.result ?? ""}`;
 // lib/shared/claude-code-surface.js
 var require_claude_code_surface = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.STRUCTURED_OUTPUT_TOOL = exports.RETIRED_MODEL_PREFIXES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
+  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.STRUCTURED_OUTPUT_TOOL = exports.RETIRED_MODEL_PREFIXES = exports.MEMORY_SCOPES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
   exports.retiredModelReplacement = retiredModelReplacement2;
   exports.isValidModel = isValidModel2;
   exports.isValidToolName = isValidToolName2;
@@ -10313,6 +10313,7 @@ var require_claude_code_surface = __commonJS((exports) => {
     "inherit"
   ];
   exports.EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+  exports.MEMORY_SCOPES = ["user", "project", "local"];
   exports.RETIRED_MODEL_PREFIXES = {
     "claude-opus-3": "opus",
     "claude-opus-4": "opus",
@@ -12526,7 +12527,15 @@ function validateAgentFrontmatter(frontmatter, filePath) {
 }
 function buildOutputFrontmatter(fm) {
   const tools = [...fm.tools].sort((a2, b2) => a2.localeCompare(b2));
-  return fm.effort ? { name: fm.name, description: fm.description, model: fm.model, effort: fm.effort, tools } : { name: fm.name, description: fm.description, model: fm.model, tools };
+  return {
+    name: fm.name,
+    description: fm.description,
+    model: fm.model,
+    ...fm.effort ? { effort: fm.effort } : {},
+    ...fm.memory ? { memory: fm.memory } : {},
+    ...fm.maxTurns !== undefined ? { maxTurns: fm.maxTurns } : {},
+    tools
+  };
 }
 
 // src/utils/convert-agents/render.ts
@@ -17763,6 +17772,7 @@ var MODEL_ALIASES = [
   "inherit"
 ];
 var EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+var MEMORY_SCOPES = ["user", "project", "local"];
 var RETIRED_MODEL_PREFIXES = {
   "claude-opus-3": "opus",
   "claude-opus-4": "opus",
@@ -17918,7 +17928,9 @@ async function validateFrontmatter(opts) {
         message: `"${effort}" is not an effort level (${EFFORT_LEVELS.join(", ")}).`
       });
     }
-    if (!isSubagent)
+    if (isSubagent)
+      checkSubagentFrontmatter(file, fm, errors);
+    else
       checkSkillFrontmatter(file, fm, errors);
   }
   return { errors, warnings, filesChecked: all.length };
@@ -17945,6 +17957,26 @@ var SKILL_FRONTMATTER_FIELDS = new Set([
   "license",
   "compatibility"
 ]);
+function checkSubagentFrontmatter(file, frontmatter, errors) {
+  const memory = frontmatter["memory"];
+  if (typeof memory === "string" && !MEMORY_SCOPES.includes(memory)) {
+    errors.push({
+      file,
+      field: "memory",
+      value: memory,
+      message: `"${memory}" is not a memory scope (${MEMORY_SCOPES.join(", ")}).`
+    });
+  }
+  const maxTurns = frontmatter["maxTurns"];
+  if (typeof maxTurns === "string" && !/^[1-9][0-9]*$/.test(maxTurns)) {
+    errors.push({
+      file,
+      field: "maxTurns",
+      value: maxTurns,
+      message: "maxTurns must be a positive integer."
+    });
+  }
+}
 function checkSkillFrontmatter(file, frontmatter, errors) {
   for (const field of Object.keys(frontmatter)) {
     if (!SKILL_FRONTMATTER_FIELDS.has(field)) {
@@ -26299,7 +26331,8 @@ var package_default = {
     dev: "bun run src/index.ts",
     lint: "eslint src",
     "lint:fix": "eslint src --fix",
-    test: "bun test --timeout 120000"
+    test: "bun test --timeout 120000",
+    "bench:spawn-cost": "bun run src/benchmarks/spawn-cost.ts"
   },
   dependencies: {
     citty: "^0.1.6",

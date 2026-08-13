@@ -11,9 +11,6 @@ tools:
   - WebSearch
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams Performance Analyst Agent
 
 <!-- whole-component: agent boot — needs Standards + BudgetDiscipline + ComponentResolution + ActivationProtocol + StructuredReturns + Boundaries -->
