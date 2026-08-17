@@ -2,21 +2,31 @@
 
 ## RESUME HERE
 
-- **Repo:** `software-teams` on `main` @ `26e070d` - clean, pushed, green.
+- **Repo:** `software-teams` on `main` @ `88b4b34` - clean, pushed, green.
 - **PR #23 is merged. `1.0.0` is PUBLISHED to npm** (both packages). Public and
   irreversible; a mistake needs `1.0.1`, never a re-publish.
-- **Infra:** `~/src/infra` on `feature/n8n-nodes` @ `f34c0a7` - pushed, **no PR yet,
-  not applied**.
+- **Infra:** `~/src/infra` on `feature/n8n-nodes` @ `9c8e0d2` - pushed.
+  **[PR #22](https://github.com/positivegroup/infra/pull/22) is OPEN and green**
+  (`fmt` + all three `plan` jobs pass). **Not merged, not applied.**
 
 **The goal is to get Software Teams running in n8n staging.** Everything is published
-and the infra change is written; what remains is applying it and wiring one workflow.
+and the infra change is written, validated and planned; what remains is landing it and
+wiring one workflow.
 
 Next 3 items, in order:
 
-1. **Apply the infra change.** `cd ~/src/infra`, run `terraform fmt -recursive`,
-   `validate`, then `plan` for `stg/`. No terraform binary on this machine - it was
-   never validated locally. Open a PR against the infra repo and apply. n8n restarts
-   and installs `@websitelabs/n8n-nodes-software-teams@1.0.0`.
+1. **Land PR #22.** The plans are verified: `dev` no changes, `stg` 1 to change
+   (`module.n8n.helm_release.n8n` in place, `values` only, exactly the two new env
+   vars), `prod` no changes. Two steps remain, both human:
+   - **Squash-merge** it (the ruleset requires linear history and signed commits;
+     local commits are unsigned, so a GitHub squash is what makes it verified).
+   - Then `terraform-apply` fires on `main` as dev -> stg -> prod. dev applies
+     automatically and is a no-op; **`stg` pauses in the Actions UI for 1 reviewer
+     approval** - approve it. prod pauses too and is a no-op; approving or declining it
+     changes nothing, but declining leaves `main` unapplied for prod.
+
+   On apply, n8n restarts and installs
+   `@websitelabs/n8n-nodes-software-teams@1.0.0`.
 2. **Confirm the nodes loaded.** In staging, open a workflow and search the palette for
    `Software Teams`; expect **13 nodes**. Or from a logged-in browser console:
    `fetch('/types/nodes.json').then(r=>r.json()).then(l=>console.log(l.filter(n=>/softwareTeams/i.test(n.name)).length))`
@@ -32,6 +42,17 @@ operator guide (install, credentials, first run, safe activation, recovery).
 
 Slice 9's remaining work is exactly items 1-3 above, plus the live-ticket verification
 that was deferred from the start.
+
+**The `claude` binary on the worker is still unsolved and is the real blocker on item 3.**
+The Claude Code node resolves the binary with a bare `which claude`
+(`packages/n8n/src/execution/single-turn.ts:101`) and has **no env override**, so it has
+to be on the worker's `PATH`. The stock `n8nio/n8n` image does not have it, and an
+`npm install -g` into a running pod does not survive a restart. Nothing in `~/src/infra`
+provisions it today, and the module exposes only `image_tag`, not an image repository.
+The two real options are a derived image (`FROM n8nio/n8n:2.22.6` plus the CLI, pushed to
+ECR, with a new `image.repository` override on the module) or an initContainer that
+installs into a shared `emptyDir` mounted onto `PATH`. Pick one before item 3; the
+derived image is the sturdier of the two.
 
 ## Gotchas learned this session
 
@@ -69,12 +90,37 @@ trigger**, which needs to poll on its own schedule.
 
 Test ticket: `https://app.clickup.com/t/36826178/NDP-34603` (workspace `36826178`).
 
+**The infra repo (`positivegroup/infra`)**
+
+- **CI owns plan and apply; there is no manual apply.** `terraform-fmt` and
+  `terraform-plan` (dev/stg/prod in parallel, commenting each plan on the PR) run on the
+  PR; `terraform-apply` runs on every push to `main`, dev -> stg -> prod sequentially,
+  with stg and prod each pausing for 1 reviewer approval. To re-apply without a code
+  change, push an empty commit to `main`.
+- **You cannot plan locally.** AWS auth is GitHub OIDC only, so there are no local
+  credentials. `terraform init -backend=false && terraform validate` in each env dir is
+  the most you can do offline, and it is worth doing - it catches everything `fmt` won't.
+- Terraform is now installed locally: **v1.15.8** via `brew install hashicorp/tap/terraform`
+  (it is not in homebrew-core). CI pins **1.10.5**; `fmt` output agrees between the two.
+- Branch ruleset on `main`: no required review, but `required_linear_history` and
+  `required_signatures`. Local commits are unsigned, so **squash-merge** - GitHub signs
+  the squashed commit. That is what every recent commit on `main` did.
+- **The n8n module is shared with prod.** `prod/main.tf` calls it too, so any
+  unconditional addition to `config.yaml.tftpl` rewrites prod's helm values and restarts
+  prod n8n. The community-package env vars are therefore rendered only when
+  `length(community_packages) > 0`, which keeps prod's render byte-identical to `main`
+  and its plan empty. Verify that claim the same way next time: render the template with
+  an empty and a populated list through `terraform console`/a scratch `templatefile`
+  output, and diff both against `git show origin/main:...`.
+
 **Still required before a run works**
 
 - The **`claude` binary must be on the n8n worker** - the stock image lacks it and every
-  execution fails to spawn. `npm install -g @anthropic-ai/claude-code`.
+  execution fails to spawn. See the note under "Where things stand"; this needs an infra
+  change, not a one-off `npm install -g`.
 - **`ANTHROPIC_API_KEY` must not be set on the worker.** It outranks the OAuth token, so
-  runs succeed while silently billing the API instead of the subscription.
+  runs succeed while silently billing the API instead of the subscription. Confirmed
+  clean: nothing in `~/src/infra` sets it.
 - Create **Software Teams API** credential with a `claude setup-token` token. Its test
   asserts `authMethod`, not merely `loggedIn`.
 
@@ -101,7 +147,7 @@ Start a fresh session and say: **"read HANDOFF.md and continue"**.
 Then `git pull` in both repos, re-run the gates below to confirm the baseline still
 holds, and start at item 1.
 
-## Certified green @ `26e070d`
+## Certified green @ `88b4b34`
 
 | Gate | Result |
 |---|---|
@@ -113,3 +159,16 @@ holds, and start at item 1.
 | `validate-frontmatter` | PASS - 50 files |
 | `claude plugin validate` | PASS |
 | n8n zero-runtime-deps | PASS |
+
+Re-run and re-confirmed on 2026-08-17. `bun run build` reproduced the tracked
+`packages/cli/dist/index.js` byte-identically (clean tree afterwards).
+
+## Certified green - infra `feature/n8n-nodes` @ `9c8e0d2`
+
+| Gate | Result |
+|---|---|
+| `terraform fmt -recursive -check` | PASS (local and CI) |
+| `terraform validate` dev / stg / prod | PASS (local, `-backend=false`) |
+| CI `plan (dev)` | PASS - No changes |
+| CI `plan (stg)` | PASS - 0 to add, 1 to change, 0 to destroy |
+| CI `plan (prod)` | PASS - No changes |
