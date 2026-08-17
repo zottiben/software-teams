@@ -5,9 +5,10 @@
 - **Repo:** `software-teams` on `main` @ `88b4b34` - clean, pushed, green.
 - **PR #23 is merged. `1.0.0` is PUBLISHED to npm** (both packages). Public and
   irreversible; a mistake needs `1.0.1`, never a re-publish.
-- **Infra:** `~/src/infra` on `feature/n8n-nodes` @ `9c8e0d2` - pushed.
+- **Infra:** `~/src/infra` on `feature/n8n-nodes` @ `c54758a` - pushed.
   **[PR #22](https://github.com/positivegroup/infra/pull/22) is OPEN and green**
-  (`fmt` + all three `plan` jobs pass). **Not merged, not applied.**
+  (`fmt` + all three `plan` jobs pass). **Not merged, not applied.** It now covers both
+  the community-package install **and** getting the `claude` binary onto the pods.
 
 **The goal is to get Software Teams running in n8n staging.** Everything is published
 and the infra change is written, validated and planned; what remains is landing it and
@@ -43,16 +44,32 @@ operator guide (install, credentials, first run, safe activation, recovery).
 Slice 9's remaining work is exactly items 1-3 above, plus the live-ticket verification
 that was deferred from the start.
 
-**The `claude` binary on the worker is still unsolved and is the real blocker on item 3.**
-The Claude Code node resolves the binary with a bare `which claude`
-(`packages/n8n/src/execution/single-turn.ts:101`) and has **no env override**, so it has
-to be on the worker's `PATH`. The stock `n8nio/n8n` image does not have it, and an
-`npm install -g` into a running pod does not survive a restart. Nothing in `~/src/infra`
-provisions it today, and the module exposes only `image_tag`, not an image repository.
-The two real options are a derived image (`FROM n8nio/n8n:2.22.6` plus the CLI, pushed to
-ECR, with a new `image.repository` override on the module) or an initContainer that
-installs into a shared `emptyDir` mounted onto `PATH`. Pick one before item 3; the
-derived image is the sturdier of the two.
+**The `claude` binary is now handled in PR #22** (commit `c54758a`), via an init container
+rather than a derived image. A derived image would have meant introducing ECR plus an
+image build pipeline into an infra repo that has neither, and it could not have been
+tested from here. What landed instead:
+
+- New module variable `claude_code_version`, default `null`. `stg` sets `"2.1.233"`.
+- An init container npm-installs the CLI into an `emptyDir` shared read-only with the n8n
+  container; `config.extraEnv` prepends `/opt/claude-code/bin` to `PATH`.
+- **The init container reuses the n8n image on purpose.** `@anthropic-ai/claude-code`
+  ships its real binary as a per-platform optional dependency, and the n8n image is
+  **musl (Alpine)** on `linux/amd64` (it is a Docker Hardened Image built on
+  `dhi/pkg-node:24.15.0-alpine3.22`, with node 24.15.0 and npm 11.14.1 present, running as
+  uid 1000). Installing on a glibc image would fetch the wrong binary.
+- `image:` in the init container is written as `{{ .Values.image.repository }}:{{ .Values.image.tag }}`
+  and left for Helm to resolve. The chart documents that `extraInitContainers` is passed
+  through `tpl`, so this tracks `image_tag` with no duplication. A literal `{{` in those
+  values would need escaping as `{{ "{{" }}`.
+- `volumes.yaml` had to become `volumes.yaml.tftpl`: `extraVolumes` is a **list**, and a
+  second values file declaring it would replace the postgres-cert and environment volumes
+  rather than add to them.
+- Setting `PATH` restates the image's own default,
+  `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`. Revisit if `image_tag`
+  ever changes it.
+
+Still open before a run works: the **Software Teams credential** has to be created in the
+n8n UI from a `claude setup-token` token.
 
 ## Gotchas learned this session
 
@@ -115,9 +132,8 @@ Test ticket: `https://app.clickup.com/t/36826178/NDP-34603` (workspace `36826178
 
 **Still required before a run works**
 
-- The **`claude` binary must be on the n8n worker** - the stock image lacks it and every
-  execution fails to spawn. See the note under "Where things stand"; this needs an infra
-  change, not a one-off `npm install -g`.
+- The **`claude` binary** is handled by PR #22 now. Note it lands on `n8n-main` as well as
+  `n8n-worker`, which matters because a manual execution from the UI runs on main.
 - **`ANTHROPIC_API_KEY` must not be set on the worker.** It outranks the OAuth token, so
   runs succeed while silently billing the API instead of the subscription. Confirmed
   clean: nothing in `~/src/infra` sets it.
@@ -172,3 +188,10 @@ Re-run and re-confirmed on 2026-08-17. `bun run build` reproduced the tracked
 | CI `plan (dev)` | PASS - No changes |
 | CI `plan (stg)` | PASS - 0 to add, 1 to change, 0 to destroy |
 | CI `plan (prod)` | PASS - No changes |
+| `helm template` with the module's real values | PASS - init container, volume, ro mount and PATH on both `n8n-main` and `n8n-worker` |
+| `which claude` in `n8nio/n8n:2.22.6` as uid 1000 | PASS - `2.1.233 (Claude Code)` |
+
+How to redo the last two: `helm pull oci://ghcr.io/n8n-io/n8n-helm-chart/n8n --version 1.8.0 --untar`
+(note the chart name is part of the OCI ref; omitting it 403s), render each `.tftpl`
+through a scratch `templatefile` output, then `helm template` the chart with those files
+plus the `set` blocks from `helm.tf`.
