@@ -3,8 +3,8 @@ import { agentTypeToRoleLabel } from "../../../utils/orchestration";
 import { type ActionContext } from "./types";
 import { pickSubagent } from "./types";
 import { buildSubagentBrief } from "./brief-builders";
-import selfReferenceStyleFragment from "../../../../commands/_shared/self-reference-style.md" with { type: "text" };
-import prTemplateConcisenessFragment from "../../../../commands/_shared/pr-template-conciseness.md" with { type: "text" };
+import selfReferenceStyleFragment from "../../../../skills/st-support/self-reference-style.md" with { type: "text" };
+import prTemplateConcisenessFragment from "../../../../skills/st-support/pr-template-conciseness.md" with { type: "text" };
 
 function buildPerSliceBrief(ctx: ActionContext, slice: { slicePath: string; agentType: string }, sliceIndex: number): string {
   if (!ctx.orchestration) throw new Error("buildPerSliceBrief called without orchestration context");
@@ -50,9 +50,9 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
     return [
       `### Spawn ${i + 1}: \`${slice.agentType}\` — \`${slice.slicePath}\``,
       ``,
-      `Task tool call:`,
+      `Agent tool call:`,
       "```",
-      `Task(`,
+      `Agent(`,
       `  subagent_type: "${slice.agentType}",`,
       `  description: "Implement ${slice.slicePath.split("/").pop()}",`,
       `  prompt: <<<EOF`,
@@ -109,7 +109,7 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
   return [
     `# Software Teams Action — Implementation Orchestrator`,
     ``,
-    `You are the parent process for a GitHub Actions implementation run. This plan has **${orch.slices.length} per-agent slices** that you MUST dispatch in parallel. You ARE the orchestrator — the agents you spawn are workers without the Task tool; they cannot delegate further.`,
+    `You are the parent process for a GitHub Actions implementation run. This plan has **${orch.slices.length} per-agent slices** that you MUST dispatch in parallel. You ARE the orchestrator — the agents you spawn are workers without the Agent tool; they cannot delegate further.`,
     ``,
     `## Context`,
     ``,
@@ -129,7 +129,7 @@ function buildOrchestratorPrompt(ctx: ActionContext): string {
     ``,
     `## Step 1 — Spawn ALL ${orch.slices.length} tasks in a SINGLE assistant message`,
     ``,
-    `Multiple Task tool calls inside one assistant message run **concurrently**. Sequential messages do NOT — they serialise. You MUST emit all ${orch.slices.length} Task calls below in ONE message:`,
+    `Multiple Agent tool calls inside one assistant message run **concurrently**. Sequential messages do NOT — they serialise. You MUST emit all ${orch.slices.length} Task calls below in ONE message:`,
     ``,
     ...sliceBlocks,
     ``,

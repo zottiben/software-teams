@@ -64,7 +64,7 @@ Then wait for confirmation. Silent deviation is the failure mode this protocol e
 @ST:StrictnessProtocol
 \`\`\`
 
-Referenced in the footer of user-invocable commands (\`/st:build\`, \`/st:create-plan\`, \`/st:implement-plan\`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.`,
+Referenced in the footer of user-invocable commands (\`/st-build\`, \`/st-create-plan\`, \`/st-implement-plan\`, etc.) as the final reassertion of the non-negotiables before the HARD STOP gate.`,
     },
   },
   defaultOrder: [

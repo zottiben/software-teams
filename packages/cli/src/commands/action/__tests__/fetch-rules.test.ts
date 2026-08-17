@@ -105,7 +105,7 @@ describe("mergeRules", () => {
     const base = makeTempDir();
     const cwd = join(base, "project");
     const sourceDir = join(base, "source");
-    const targetDir = join(cwd, ".software-teams", "rules");
+    const targetDir = join(cwd, ".claude", "rules");
     mkdirSync(join(cwd, ".claude"), { recursive: true });
     mkdirSync(sourceDir, { recursive: true });
     mkdirSync(targetDir, { recursive: true });
@@ -138,7 +138,7 @@ describe("mergeRules", () => {
     const base = makeTempDir();
     const cwd = join(base, "project");
     const sourceDir = join(base, "source");
-    const targetDir = join(cwd, ".software-teams", "rules");
+    const targetDir = join(cwd, ".claude", "rules");
     mkdirSync(join(cwd, ".claude"), { recursive: true });
     mkdirSync(sourceDir, { recursive: true });
     mkdirSync(targetDir, { recursive: true });
@@ -162,7 +162,7 @@ describe("mergeRules", () => {
     const base = makeTempDir();
     const cwd = join(base, "project");
     const sourceDir = join(base, "source");
-    const targetDir = join(cwd, ".software-teams", "rules");
+    const targetDir = join(cwd, ".claude", "rules");
     mkdirSync(join(cwd, ".claude"), { recursive: true });
     mkdirSync(sourceDir, { recursive: true });
     mkdirSync(targetDir, { recursive: true });
@@ -186,7 +186,7 @@ describe("mergeRules", () => {
 });
 
 describe("loadClaudeMdRuleSet", () => {
-  test("reads .claude/CLAUDE.md and ./CLAUDE.md, normalises lines", () => {
+  test("reads CLAUDE.md and existing native rules, normalises lines", () => {
     const base = makeTempDir();
     mkdirSync(join(base, ".claude"), { recursive: true });
     writeFileSync(
@@ -197,10 +197,16 @@ describe("loadClaudeMdRuleSet", () => {
       join(base, "CLAUDE.md"),
       "# Other\n* Run tests before committing\n",
     );
+    mkdirSync(join(base, ".claude", "rules"), { recursive: true });
+    writeFileSync(
+      join(base, ".claude", "rules", "frontend.md"),
+      "---\npaths:\n  - \"**/*.tsx\"\n---\n# Frontend\n- Use design tokens\n",
+    );
 
     const set = loadClaudeMdRuleSet(base);
     expect(set.has("always use typescript")).toBe(true);
     expect(set.has("run tests before committing")).toBe(true);
+    expect(set.has("use design tokens")).toBe(true);
   });
 
   test("returns empty set when no CLAUDE.md exists", () => {

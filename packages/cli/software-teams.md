@@ -14,7 +14,7 @@ model: opus
 | Principle | Description |
 |-----------|-------------|
 | **Minimal Context** | Commands are ultra-minimal stubs (~300 tokens). Heavy specs stay out of main context. |
-| **Agent Delegation** | Complex operations spawn agents via Task tool. Agents run in isolated context. |
+| **Agent Delegation** | Complex operations spawn agents via Agent tool. Agents run in isolated context. |
 | **External State** | All state in JSON files. No context pollution from state tracking. |
 | **On-Demand Reading** | Agents read specs, components, hooks, and rules only when needed. |
 
@@ -30,7 +30,7 @@ The legacy injection pattern (`subagent_type="general-purpose"` + prompt-text id
 
 ### Correct Pattern (Native — default)
 
-Spawn the agent by its exact name with `mode: "acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(software-teams:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list.
+Spawn the agent by its exact name with `mode: "acceptEdits"`. Tool scope comes from the project-scoped `.claude/settings.json` allowlist (Read/Write/Edit/Glob/Grep/Agent plus scoped `Bash(bun:*)`, `Bash(git:*)`, `Bash(gh:*)`, `Bash(npm:*)`, `Bash(npx:*)`, `Bash(mkdir:*)`, `Bash(rm:*)`, `Bash(software-teams:*)`). The same defaults are mirrored by `src/utils/claude.ts` as the spawn-time `--allowedTools` list.
 
 ```
 Agent(
@@ -79,13 +79,13 @@ If `.claude/agents/` is empty (e.g. you have just cloned a Software Teams-using 
 ┌──────────────────────────────────────────────────────┐
 │ MAIN CONTEXT                                          │
 │                                                       │
-│  User: /st:create-plan "Add user auth"                │
+│  User: /st-create-plan "Add user auth"                │
 │         │                                             │
 │         ▼                                             │
 │  ┌──────────────────────┐                            │
 │  │ Command Stub (~300)  │ ← Minimal stub             │
 │  └──────────┬───────────┘                            │
-│             │ Task tool spawns agent                  │
+│             │ Agent tool spawns agent                  │
 │             ▼                                         │
 └──────────────────────────────────────────────────────┘
               │
@@ -103,26 +103,34 @@ If `.claude/agents/` is empty (e.g. you have just cloned a Software Teams-using 
 
 ---
 
-## Available Commands
+## Available Skills
 
-| Command | Type | Description |
-|---------|------|-------------|
-| `/st:init` | Direct | Initialise Software Teams in current project |
-| `/st:create-plan` | Agent | Create implementation plan (single planner agent, includes research) |
-| `/st:implement-plan` | Agent | Execute plan (single agent for simple, Agent Teams for complex) |
-| `/st:review-plan [plan-name] [plan-part]` | Agent | Review a plan for one-shot readiness — spawns `software-teams-quality` in plan-review mode to surface consistency issues, contradictions, ambiguity, agent-pinning and dependency/ordering gaps. Defaults to the current plan; `plan-name` selects among multiple plans and the optional `plan-part` drills into one task/section. Re-runnable until the quality gate passes; on pass it records the verdict via `software-teams state plan-reviewed` and auto-approves (`software-teams state approved`). `create-plan` strongly recommends it but does not enforce it. |
-| `/st:commit` | Agent | Create conventional commit (spawns software-teams-committer) |
-| `/st:generate-pr` | Agent | Generate and create PR (spawns software-teams-pr-generator) |
-| `/st:pr-review` | Agent | Review PR (spawns reviewer) |
-| `/st:pr-feedback` | Agent | Address PR review comments (spawns software-teams-pr-feedback) |
-| `/st:quick` | Direct | Quick focused change (no orchestration) |
-| `/st:map-codebase` | Agent | Analyse codebase architecture and conventions (spawns software-teams-codebase-mapper) |
-| `/st:verify` | Agent | Run verification checks (spawns software-teams-verifier) |
-| `/st:orchestrator-mode on\|off\|status` | Direct | **Orchestrator-Only Mode** — opt-in per-project enforcement that restricts the main thread to read / plan / delegate. `on` writes `.claude/orchestrator-mode.md`, appends the `@import` line to `.claude/CLAUDE.md`, and merges a `PreToolUse` hook into `.claude/settings.json`. `off` reverses all three. `status` reports per-artefact state and flags drift. The hook hard-blocks `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash — `sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, and destructive git (`reset --hard`, `checkout --`, `restore .`, `clean -f`) — with `exit 2`, while leaving delivery/management Bash (commit, push, installs, `make`, `gh`, read-only git) free so the orchestrator can run the team; the deny-pattern list lives in [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh). Specialists invoked via `Task` are unaffected. Per-project only — no user-global cascade. |
-| `/st:ask-questions on\|off\|status` | Direct | **Ask Clarifying Questions policy** — opt-in per-project prompt-layer override that tells Claude (main thread and sub-agents) to ask substantive clarifying questions about ambiguous work even when the Claude Code harness is in auto permission mode. `on` writes `.claude/ask-questions.md` and appends the `@import` line to `.claude/CLAUDE.md`. `off` reverses both. `status` reports per-artefact state and flags drift. No hooks, no enforcement — pure prompt-layer policy that overrides the harness's hardcoded "work without stopping for clarifying questions" auto-mode reminder. Per-project only. |
+Maintainers: model, effort, and tool-frontmatter policy lives in
+[`skills/st-support/AGENTS-MODELS.md`](skills/st-support/AGENTS-MODELS.md).
 
-**Agent commands:** Spawn a Task agent with isolated context (~300 tokens in main)
-**Direct commands:** Execute in main context (kept minimal)
+| Skill | Type | Description |
+|-------|------|-------------|
+| `/st-init` | Direct | Initialise Software Teams in current project |
+| `/st-build` | Direct | Read project state and recommend the next Software Teams step |
+| `/st-status` | Direct | Show current framework state and next action |
+| `/st-routines` | Direct | Show recurring `/loop` and `/schedule` recipes |
+| `/st-create-dev-plan` | Agent | Write one human-executed developer guide in a dev-planner fork |
+| `/st-create-plan` | Agent | Create implementation plan (single planner agent, includes research) |
+| `/st-implement-plan` | Agent | Execute plan (single agent for simple, Agent Teams for complex) |
+| `/st-compile-workflow` | Direct | Compile an approved three-tier plan into a deterministic Workflow |
+| `/st-review-plan [plan-name] [plan-part]` | Agent | Review a plan for one-shot readiness — spawns `software-teams-quality` in plan-review mode to surface consistency issues, contradictions, ambiguity, agent-pinning and dependency/ordering gaps. Defaults to the current plan; `plan-name` selects among multiple plans and the optional `plan-part` drills into one task/section. Re-runnable until the quality gate passes; on pass it records the verdict via `software-teams state plan-reviewed` and auto-approves (`software-teams state approved`). `create-plan` strongly recommends it but does not enforce it. |
+| `/st-commit` | Agent | Create conventional commit (spawns software-teams-committer) |
+| `/st-generate-pr` | Agent | Generate and create PR (spawns software-teams-pr-generator) |
+| `/code-review` | Native | Claude Code's bundled code review with structured `ReportFindings` output |
+| `/st-pr-feedback` | Agent | Address PR review comments (forks software-teams-pr-feedback) |
+| `/st-quick` | Direct | Quick focused change (no orchestration) |
+| `/st-statusline` | Direct | Install, remove, or inspect the Software Teams statusline |
+| `/verify` | Native | Claude Code's bundled run-and-verify flow; records a project recipe when needed |
+| `/st-orchestrator-mode on\|off\|status` | Direct | **Orchestrator-Only Mode** — opt-in per-project enforcement that restricts the main thread to read / plan / delegate. `on` writes `.claude/orchestrator-mode.md`, appends the `@import` line to `.claude/CLAUDE.md`, and merges a `PreToolUse` hook into `.claude/settings.json`. `off` reverses all three. `status` reports per-artefact state and flags drift. The hook hard-blocks `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash — `sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, and destructive git (`reset --hard`, `checkout --`, `restore .`, `clean -f`) — with `exit 2`, while leaving delivery/management Bash (commit, push, installs, `make`, `gh`, read-only git) free so the orchestrator can run the team; the deny-pattern list lives in [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh). Specialists invoked via `Agent` are unaffected. Per-project only — no user-global cascade. |
+| `/st-ask-questions on\|off\|status` | Direct | **Ask Clarifying Questions policy** — opt-in per-project prompt-layer override that tells Claude (main thread and sub-agents) to ask substantive clarifying questions about ambiguous work even when the Claude Code harness is in auto permission mode. `on` writes `.claude/ask-questions.md` and appends the `@import` line to `.claude/CLAUDE.md`. `off` reverses both. `status` reports per-artefact state and flags drift. No hooks, no enforcement — pure prompt-layer policy that overrides the harness's hardcoded "work without stopping for clarifying questions" auto-mode reminder. Per-project only. |
+
+**Agent skills:** run a named specialist or orchestrate native subagents.
+**Direct skills:** execute in the main context. **Native skills:** ship with Claude Code.
 
 ---
 
@@ -238,15 +246,15 @@ Three profiles control which model each agent uses. Set in `.software-teams/conf
 ### New Feature
 
 ```
-1. /st:create-plan "Add user authentication"
+1. /st-create-plan "Add user authentication"
    → Spawns single planner agent (researches + plans)
    → Creates .software-teams/plans/01-01-plan.md
 
-2. /st:implement-plan
+2. /st-implement-plan
    → Routes by complexity (single agent or Agent Teams swarm)
    → Commits per task
 
-3. /st:generate-pr
+3. /st-generate-pr
    → Creates PR with structured description
 ```
 
@@ -255,7 +263,7 @@ Three profiles control which model each agent uses. Set in `.software-teams/conf
 ```
 1. [Make changes]
 
-2. /st:commit
+2. /st-commit
    → Stages files individually
    → Creates conventional commit
 ```
@@ -267,11 +275,11 @@ Three profiles control which model each agent uses. Set in `.software-teams/conf
 To add Software Teams commands to a project:
 
 ```
-/st:init
+/st-init
 ```
 
 This creates:
-- `.claude/commands/st/` — Command stubs
+- `.claude/skills/st-*/` — Command stubs
 - `.software-teams/` — Project state directory
 
 ---
@@ -311,7 +319,7 @@ Agent spawn prompts MUST follow this load order to maximise Anthropic API prompt
 |--------|--------|
 | 3+ agent spawns in one conversation | Consider fresh conversation |
 | 50+ turns in conversation | Start fresh — history compounds costs |
-| After `/st:implement-plan` completes | Fresh conversation for PR/commit (state persisted to YAML) |
+| After `/st-implement-plan` completes | Fresh conversation for PR/commit (state persisted to YAML) |
 | Context budget at Orange/Red | Complete current task, then fresh conversation |
 
 **Why**: Each turn re-sends the full conversation history. Later turns cost progressively more tokens. Since Software Teams persists all state to YAML files, a fresh conversation loses nothing.
@@ -336,11 +344,11 @@ Agent spawn prompts MUST follow this load order to maximise Anthropic API prompt
 
 | Workflow | Main Context | Agent Context |
 |----------|-------------|---------------|
-| `/st:quick` | ~200 tokens | — (direct) |
-| `/st:commit` | ~500 tokens | ~400 (haiku) |
-| `/st:create-plan` | ~800 tokens | ~2,000 |
-| `/st:implement-plan` (simple) | ~800 tokens | ~3,000 |
-| `/st:implement-plan` (teams) | ~800 tokens | ~2,000 × N |
+| `/st-quick` | ~200 tokens | — (direct) |
+| `/st-commit` | ~500 tokens | ~400 (haiku) |
+| `/st-create-plan` | ~800 tokens | ~2,000 |
+| `/st-implement-plan` (simple) | ~800 tokens | ~3,000 |
+| `/st-implement-plan` (teams) | ~800 tokens | ~2,000 × N |
 
 **If approaching limits**: Switch to `budget` model profile and use section-specific component loading (`@ST:Commit:MessageFormat` style — name the section directly).
 

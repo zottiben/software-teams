@@ -85,7 +85,7 @@ If none of the above yields results, set \`detected: false\`.`,
 
 4. **Surface selectively.** When routing or recommending, pull the specific field you need and mention it briefly ("I can see you're on phase {n}, plan {id}..."). Do not dump the whole \`DISCOVERED_STATE\` object.
 
-5. **Refresh, don't stale.** If the skill has multiple passes (e.g. \`/st:build\` option D re-runs discovery after user input), re-read the files — do not rely on the first pass's findings for the second pass.`,
+5. **Refresh, don't stale.** If the skill has multiple passes (e.g. \`/st-build\` option D re-runs discovery after user input), re-read the files — do not rely on the first pass's findings for the second pass.`,
     },
     PassThrough: {
       name: "PassThrough",

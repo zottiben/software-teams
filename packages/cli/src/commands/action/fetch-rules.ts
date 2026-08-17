@@ -1,24 +1,21 @@
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import {
+  RULE_CATEGORIES,
+  renderNativeRule,
+  stripRuleFrontmatter,
+  type RuleCategory,
+} from "../../utils/native-rules";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 
 /**
- * `.software-teams/rules/` holds BOTH shared rules (which round-trip through
- * the external GitHub rules repo) and project-only rules (`commits.md`,
- * `deviations.md`) that stay local. Operations that move data between the
- * consumer and the external repo MUST filter to this allowlist so the
- * project-only rules never leak into the shared repo.
+ * Only learned team-convention categories round-trip through an external
+ * rules repo. Framework-owned `software-teams.md` is never promoted.
  */
-export const RULE_CATEGORIES = [
-  "general",
-  "backend",
-  "frontend",
-  "testing",
-  "devops",
-] as const;
+export { RULE_CATEGORIES };
 
 const RULE_FILE_SET = new Set(
   RULE_CATEGORIES.map((c) => `${c}.md`),
@@ -83,19 +80,17 @@ function normaliseRuleLine(line: string): string {
 }
 
 /**
- * Build a set of normalised lines that already appear in any project
- * CLAUDE.md file, so the rules feedback loop doesn't add guidance the
- * project already documents.
- *
- * Reads `.claude/CLAUDE.md` and `./CLAUDE.md` if present. Imports
- * (`@.claude/AGENTS.md` etc.) inside CLAUDE.md are NOT followed — only the
- * literal CLAUDE.md content counts.
+ * Build a set of normalised lines already present in project CLAUDE.md or
+ * native rule files, so the feedback loop does not duplicate instructions.
+ * Auto-memory semantic dedup remains the specialist's responsibility because
+ * machine-local memory is intentionally unavailable to GitHub Action workers.
  */
 export function loadClaudeMdRuleSet(cwd: string): Set<string> {
   const set = new Set<string>();
   const candidates = [
     join(cwd, ".claude", "CLAUDE.md"),
     join(cwd, "CLAUDE.md"),
+    ...RULE_CATEGORIES.map((category) => join(cwd, ".claude", "rules", `${category}.md`)),
   ];
   for (const path of candidates) {
     if (!existsSync(path)) continue;
@@ -117,8 +112,6 @@ export function loadClaudeMdRuleSet(cwd: string): Set<string> {
  * Returns counts of copied and merged files.
  *
  * Only files matching RULE_CATEGORIES are considered.
- * `.software-teams/rules/{commits,deviations}.md` (project-only rules) are
- * kept local and must never round-trip through the shared rules repo.
  *
  * When `cwd` is provided, lines that already appear in the project's
  * CLAUDE.md files (.claude/CLAUDE.md or ./CLAUDE.md) are skipped — the
@@ -143,27 +136,28 @@ export function mergeRules(
   for (const file of files) {
     const sourcePath = join(sourceDir, file);
     const targetPath = join(targetDir, file);
+    const category = file.replace(/\.md$/, "") as RuleCategory;
 
     if (!existsSync(targetPath)) {
       // New file — filter through CLAUDE.md dedup before copying. If every
       // non-header / non-comment / non-blank line is already in CLAUDE.md,
       // drop the file entirely (don't write headers-only stubs).
-      const sourceContent = readFileSync(sourcePath, "utf-8");
+      const sourceContent = stripRuleFrontmatter(readFileSync(sourcePath, "utf-8"));
       const filtered = filterAgainstClaudeMd(sourceContent, claudeMdSet);
       if (!filtered.hasContent) {
         consola.info(`Skipped shared rule (already in CLAUDE.md): ${file}`);
         continue;
       }
       if (filtered.dropped > 0) {
-        writeFileSync(targetPath, filtered.kept.join("\n") + "\n");
+        writeFileSync(targetPath, renderNativeRule(category, filtered.kept.join("\n")));
         consola.info(`Loaded shared rule: ${file} (skipped ${filtered.dropped} line(s) already in CLAUDE.md)`);
       } else {
-        copyFileSync(sourcePath, targetPath);
+        writeFileSync(targetPath, renderNativeRule(category, sourceContent));
         consola.info(`Loaded shared rule: ${file}`);
       }
       result.copied++;
     } else {
-      const sourceContent = readFileSync(sourcePath, "utf-8");
+      const sourceContent = stripRuleFrontmatter(readFileSync(sourcePath, "utf-8"));
       const targetContent = readFileSync(targetPath, "utf-8");
       const targetLines = new Set(targetContent.split("\n"));
       const targetNormSet = new Set(
@@ -255,7 +249,7 @@ export const fetchRulesCommand = defineCommand({
     }
 
     const cwd = process.cwd();
-    const rulesDir = join(cwd, ".software-teams/rules");
+    const rulesDir = join(cwd, ".claude", "rules");
     mkdirSync(rulesDir, { recursive: true });
 
     const tmpDir = mkdtempSync(join(tmpdir(), "st-rules-"));

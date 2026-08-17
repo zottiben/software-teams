@@ -2,6 +2,7 @@
 name: software-teams-security
 description: Reviews code for vulnerabilities, designs secure architecture, audits dependencies and secrets
 model: sonnet
+memory: project
 tools:
   - Bash
   - Glob
@@ -10,9 +11,6 @@ tools:
   - WebFetch
   - WebSearch
 ---
-
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 
 # Software Teams Security Agent
 

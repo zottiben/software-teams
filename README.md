@@ -5,13 +5,13 @@
 [![npm version](https://img.shields.io/npm/v/@websitelabs/software-teams)](https://www.npmjs.com/package/@websitelabs/software-teams) [![CI](https://img.shields.io/github/actions/workflow/status/zottiben/software-teams/ci.yml?branch=main&label=ci)](https://github.com/zottiben/software-teams/actions) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ```
-You:   /st:create-plan "Add password reset flow"
+You:   /st-create-plan "Add password reset flow"
 ST:    Plan written. 4 tasks across backend, frontend, qa. Approve?
 You:   approved
-You:   /st:implement-plan
+You:   /st-implement-plan
 ST:    Wave 1: backend done (commit 1a2b3c). Wave 2: frontend done (commit 4d5e6f).
        QA pass: 12/12 tests added and passing. Ready to ship?
-You:   /st:generate-pr
+You:   /st-generate-pr
 ST:    PR #42 opened.
 ```
 
@@ -35,14 +35,15 @@ The differentiators:
 
 - **Three-tier planning** keeps prompt context tight. The planner writes a `spec.md` (the *what*), an `orchestration.md` (the *how* — task graph, agent pinning, sequencing rules), and one `T{n}.md` slice per task. When a specialist is spawned for task T3, it loads only T3's slice and the SPEC sections that slice cites — not the whole plan, not the other tasks. On a 12-task plan this typically saves 60–80% of per-spawn tokens.
 - **Native Claude Code subagents.** No identity-injection preambles. Specialists are real `.claude/agents/<name>.md` files generated from the canonical specs in `packages/cli/agents/`.
-- **Rules that learn from PR review.** When a reviewer says "we always use path aliases here," the `feedback-learner` extracts the rule, dedupes it against your existing `.claude/CLAUDE.md`, and writes it to `.software-teams/rules/{frontend,backend,…}.md` so the next plan picks it up.
-- **Four runtimes, one codebase.** The same specialists run from inside Claude Code (`/st:*`), from your terminal (`software-teams …`), from a GitHub PR comment (`Hey software-teams …`), or as **n8n community nodes** on a self-hosted visual canvas.
+- **Native rules that learn from PR review.** When a reviewer says "we always use path aliases here," the `feedback-learner` extracts the team convention, dedupes it against CLAUDE.md, native rules, and auto memory, then writes it to path-scoped `.claude/rules/{frontend,backend,…}.md`. Machine-local discoveries stay in auto memory.
+- **Four runtimes, one codebase.** The same specialists run from inside Claude Code (`/st-*`), from your terminal (`software-teams …`), from a GitHub PR comment (`Hey software-teams …`), or as **n8n community nodes** on a self-hosted visual canvas.
 
 ---
 
 ## Quickstart (60 seconds)
 
-Pick one of two install paths.
+Pick one of two install paths. Native skills require Claude Code 2.1.218 or
+newer (`claude --version`).
 
 **Option A — Claude Code plugin** (recommended if you live inside Claude Code):
 
@@ -51,9 +52,10 @@ Pick one of two install paths.
 /plugin install software-teams@websitelabs
 ```
 
-Then in your project: `/software-teams:init`.
+Then in your project: `/st-init` (the explicit namespaced form is
+`/software-teams:init`).
 
-> **Self-contained** — the plugin ships with a bundled CLI (`dist/index.js`, Bun-native). No global install needed; everything runs inside the plugin. Plugin init uses `--state-only` mode: it scaffolds `.software-teams/` only and generates no `.claude/` artifacts — the plugin already supplies all skills and agents natively.
+> **Self-contained** — the plugin ships with a bundled CLI (`dist/index.js`, Bun-native). No global install needed; everything runs inside the plugin. Plugin init uses `--state-only` mode: it scaffolds `.software-teams/` plus shared hooks/settings wiring, but generates no project skill or agent copies — the plugin supplies those natively.
 
 **Option B — Standalone CLI** (recommended if you also want the terminal commands and GitHub Actions runtime):
 
@@ -66,21 +68,21 @@ cd ~/code/your-project
 software-teams init
 ```
 
-The **plugin** path sets up `.software-teams/` (state, plans, rules) only — the plugin supplies skills and agents natively. The **CLI** path sets up `.software-teams/`, `.claude/agents/` (33 specialists), and a CLAUDE.md routing block. Pass `--state-only` to any `init` call to scaffold `.software-teams/` without generating `.claude/` artifacts.
+The **plugin** path sets up `.software-teams/` (state, plans, rules) only — the plugin supplies skills and agents natively. The **CLI** path sets up `.software-teams/`, `.claude/skills/st-*/`, `.claude/agents/` (34 specialists), and a CLAUDE.md routing block. Pass `--state-only` to any `init` call to skip generated project skill/agent copies while still installing shared hooks and settings wiring.
 
 Now from inside Claude Code in that project:
 
 ```
-/st:create-plan "Add a /healthz endpoint with a 200 response and a basic test"
+/st-create-plan "Add a /healthz endpoint with a 200 response and a basic test"
 ```
 
 The planner spawns, scans your codebase, and writes a plan. Reply `approved` to lock it. Then:
 
 ```
-/st:implement-plan
+/st-implement-plan
 ```
 
-The orchestrator picks specialists, runs them in dependency order, and posts a summary when each task is done. From there: `/st:commit`, `/st:generate-pr`, ship.
+The orchestrator picks specialists, runs them in dependency order, and posts a summary when each task is done. From there: `/st-commit`, `/st-generate-pr`, ship.
 
 ---
 
@@ -89,9 +91,9 @@ The orchestrator picks specialists, runs them in dependency order, and posts a s
 **Inside Claude Code** — slash commands trigger the workflow:
 
 ```
-/st:create-plan <feature description>
-/st:implement-plan
-/st:pr-review <pr-number>
+/st-create-plan <feature description>
+/st-implement-plan
+/code-review <pr-number>
 ```
 
 **From the terminal** — same workflows, scriptable:
@@ -123,7 +125,7 @@ The headline workflows are the ones in the [Quickstart](#quickstart-60-seconds).
 - **A planner** that produces three-tier plans by default and falls back to single-tier for trivial work.
 - **A complexity router** that decides whether one specialist handles a task or whether to fan out into wave-based parallel execution.
 - **A QA gate** that runs after every task and can halt the orchestrator on critical findings.
-- **A rules system** layered on top of `.claude/CLAUDE.md`. CLAUDE.md is the source of truth; `.software-teams/rules/*.md` adds team-specific guidance the feedback loop accumulates from PR reviews.
+- **Native project rules** under `.claude/rules/`. Cross-cutting `general.md` loads at startup; backend, frontend, testing, and DevOps conventions load only when matching files are touched.
 - **Worktree integration** for isolated environments when you want the agent to work on a branch without touching your local checkout.
 
 Full reference: [`software-teams.md`](software-teams.md).
@@ -132,29 +134,51 @@ Full reference: [`software-teams.md`](software-teams.md).
 
 ## Slash commands
 
-Both prefixes invoke the same skills — pick by how you installed.
+Both installations accept the common bare `/st-*` names. Plugin users can also
+use the explicit `/software-teams:*` namespace. Native `/verify` and
+`/code-review` replace the former Software Teams duplicates. Skills with
+operational side effects are direct-user-only and cannot be invoked by Claude.
 
 | Skill | npm CLI prefix | Plugin prefix | What it does |
 |---|---|---|---|
-| `init` | `/st:init` | `/software-teams:init` | One-time setup in the current project |
-| `create-plan` | `/st:create-plan` | `/software-teams:create-plan` | Plan a feature (three-tier by default) |
-| `review-plan` | `/st:review-plan` | `/software-teams:review-plan` | Review a plan for one-shot readiness (consistency, contradictions, quality) via `software-teams-quality`; defaults to the current plan, `[plan-name] [plan-part]` to target one. Re-runnable until it passes, then auto-approves. Recommended by `create-plan` but not required. |
-| `implement-plan` | `/st:implement-plan` | `/software-teams:implement-plan` | Execute the current plan (add `--workflow` for deterministic execution, `--isolate` to run in a worktree, `--team` for agent-teams) |
-| `compile-workflow` | `/st:compile-workflow` | `/software-teams:compile-workflow` | Compile an approved three-tier plan into a deterministic Claude Code Workflow and optionally run it |
-| `verify` | `/st:verify` | `/software-teams:verify` | Run the project's quality gates (lint / analyse / test) on demand |
-| `quick` | `/st:quick` | `/software-teams:quick` | One-shot focused change, no orchestration |
-| `pr-review` | `/st:pr-review` | `/software-teams:pr-review` | Review a PR and post line comments |
-| `pr-feedback` | `/st:pr-feedback` | `/software-teams:pr-feedback` | Address PR review comments and learn rules |
-| `commit` | `/st:commit` | `/software-teams:commit` | Conventional commit |
-| `generate-pr` | `/st:generate-pr` | `/software-teams:generate-pr` | Open a pull request |
-| `worktree` | `/st:worktree` | `/software-teams:worktree` | Create an isolated worktree |
-| `worktree-merge` | `/st:worktree-merge` | `/software-teams:worktree-merge` | Merge a worktree's branch back into the current branch (and optionally remove it) |
-| `worktree-remove` | `/st:worktree-remove` | `/software-teams:worktree-remove` | Remove a worktree and clean up |
-| `status` | `/st:status` | `/software-teams:status` | Show current state and next action |
-| `statusline` | `/st:statusline` | `/software-teams:statusline` | Install/remove a statusline showing plan · phase · wave · task (needs python3) |
-| `routines` | `/st:routines` | `/software-teams:routines` | Recommended recurring routines via `/loop` (local) and `/schedule` (cloud) |
-| `orchestrator-mode` | `/st:orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate **code changes** while still letting it manage and ship the work (commit, push, install, build, open PRs); `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash (`sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, destructive git) are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Task` are unaffected. Per-project only. |
-| `ask-questions` | `/st:ask-questions` | `/software-teams:ask-questions` | Toggle the Ask Clarifying Questions policy (`on\|off\|status`) — overrides the Claude Code harness's hardcoded auto-mode reminder that tells Claude to "work without stopping for clarifying questions." When `on`, Claude and sub-agents are told to ask substantive questions about ambiguous architectural/scope decisions even in auto permission mode. No hooks — pure prompt-layer policy. Per-project only. |
+| `init` | `/st-init` | `/software-teams:init` | One-time setup in the current project |
+| `build` | `/st-build` | `/software-teams:build` | Read-only state-aware guide to the next workflow step |
+| `create-dev-plan` | `/st-create-dev-plan` | `/software-teams:create-dev-plan` | Write one human-executed developer guide in an isolated dev-planner fork |
+| `create-plan` | `/st-create-plan` | `/software-teams:create-plan` | Plan a feature (three-tier by default) |
+| `review-plan` | `/st-review-plan` | `/software-teams:review-plan` | Review a plan for one-shot readiness (consistency, contradictions, quality) via `software-teams-quality`; defaults to the current plan, `[plan-name] [plan-part]` to target one. Re-runnable until it passes, then auto-approves. Recommended by `create-plan` but not required. |
+| `implement-plan` | `/st-implement-plan` | `/software-teams:implement-plan` | Execute the current plan (add `--workflow` for deterministic execution, `--isolate` to run in a worktree, `--team` for agent-teams) |
+| `compile-workflow` | `/st-compile-workflow` | `/software-teams:compile-workflow` | Compile an approved three-tier plan into a deterministic Claude Code Workflow and optionally run it |
+| `verify` (native) | `/verify` | `/verify` | Build/run the app and verify behavior using Claude Code's recorded project recipe |
+| `quick` | `/st-quick` | `/software-teams:quick` | One-shot focused change, no orchestration |
+| `code-review` (native) | `/code-review` | `/code-review` | Review changes with Claude Code's native reviewer and `ReportFindings` output |
+| `pr-feedback` | `/st-pr-feedback` | `/software-teams:pr-feedback` | Address PR review comments and learn rules |
+| `commit` | `/st-commit` | `/software-teams:commit` | Conventional commit |
+| `generate-pr` | `/st-generate-pr` | `/software-teams:generate-pr` | Open a pull request |
+| `status` | `/st-status` | `/software-teams:status` | Show current state and next action |
+| `statusline` | `/st-statusline` | `/software-teams:statusline` | Install/remove a statusline showing plan · phase · wave · task (needs python3) |
+| `routines` | `/st-routines` | `/software-teams:routines` | Recommended recurring routines via `/loop` (local) and `/schedule` (cloud) |
+| `orchestrator-mode` | `/st-orchestrator-mode` | `/software-teams:orchestrator-mode` | Toggle Orchestrator-Only Mode (`on\|off\|status`) — restricts the main thread to read / plan / delegate **code changes** while still letting it manage and ship the work (commit, push, install, build, open PRs); `Edit`, `Write`, `NotebookEdit`, and code-mutating Bash (`sed -i`, `tee`, `>`/`>>` redirects, `rm`/`mv`/`cp`, destructive git) are hard-blocked by a PreToolUse hook (see [`templates/.claude/hooks/orchestrator-deny-bash.sh`](templates/.claude/hooks/orchestrator-deny-bash.sh) for the full deny list). Specialists invoked via `Agent` are unaffected. Per-project only. |
+| `ask-questions` | `/st-ask-questions` | `/software-teams:ask-questions` | Toggle the Ask Clarifying Questions policy (`on\|off\|status`) — overrides the Claude Code harness's hardcoded auto-mode reminder that tells Claude to "work without stopping for clarifying questions." When `on`, Claude and sub-agents are told to ask substantive questions about ambiguous architectural/scope decisions even in auto permission mode. No hooks — pure prompt-layer policy. Per-project only. |
+
+Worktrees are Claude Code's: start a session with `claude --worktree <name>`, ask
+Claude to work in one, or set `isolation: worktree` on a subagent. List gitignored
+files like `.env` in `.worktreeinclude` to have them copied in. Software Teams adds
+only `software-teams provision-worktree`, which runs your adapter's database and
+web-server setup inside a worktree the harness already created.
+
+For non-standard applications, run `/run-skill-generator` once or let `/verify`
+record the working launch recipe in `.claude/skills/verify/SKILL.md`; commit that
+project-specific recipe. Deterministic adapter gates remain available from the
+terminal as `software-teams verify`. `/code-review` uses Claude Code's native
+review flow and structured `ReportFindings` result instead of a parallel ST
+review prompt.
+
+---
+
+## Upgrading from 0.13.x
+
+See [MIGRATING.md](MIGRATING.md). `software-teams init` performs the migration;
+it is idempotent and preserves content you wrote.
 
 ---
 
@@ -199,7 +223,7 @@ Five nodes appear under the **Software Teams** palette section. They share one e
 | Node | What it does |
 |------|--------------|
 | **Trigger Ingestion** | Fetches PII-scrubbed context from a ClickUp ticket or Datadog issue and emits the initial envelope |
-| **Agent** | Runs one specialist for one turn via `claude` (Task tool disabled); chain A→B for multi-agent handoff |
+| **Agent** | Runs one specialist for one turn via `claude` (Agent tool disabled); chain A→B for multi-agent handoff |
 | **Orchestrator** | Plans an epic and emits one envelope per wave-task in dependency order; run state persists for resumable partial failures |
 | **Slack HITL** | Posts a question to Slack, pauses the workflow, and resumes the agent with the human's reply folded into context |
 | **Output** | Opens a GitHub PR (or issue) from the final envelope |
@@ -237,7 +261,7 @@ Each specialist is a `.claude/agents/software-teams-<role>.md` file generated by
 
 ## Configuration
 
-Everything lives under `.software-teams/`:
+Software Teams runtime state lives under `.software-teams/`; committed team conventions use Claude Code's native `.claude/rules/`:
 
 ```
 .software-teams/
@@ -246,10 +270,11 @@ Everything lives under `.software-teams/`:
 │   ├── config.yaml     # workflow + model config
 │   └── adapter.yaml    # tech stack + quality gates
 ├── plans/              # spec.md / orchestration.md / T{n}.md slices
-├── rules/              # team rules (general/backend/frontend/testing/devops + commits/deviations)
 ├── persistence/        # codebase index, spawn ledger
 └── feedback/           # PR feedback drafts (when --no-comments)
 ```
+
+Native rules are written to `.claude/rules/{general,backend,frontend,testing,devops}.md`; domain files use `paths:` frontmatter while `general.md` is startup-loaded.
 
 Project-type adapters (`adapters/<type>.yaml`) define quality gates per stack — e.g. PHP/Laravel runs `composer test` and `composer cs`, TypeScript runs `bun test` and `bun run typecheck`. Override via `.software-teams/config/adapter.yaml`.
 
@@ -259,25 +284,26 @@ In **CLI mode**, `software-teams init` also generates Claude Code artefacts:
 
 ```
 .claude/
-├── agents/software-teams-*.md   # 33 specialist specs (from packages/cli/agents/)
-├── commands/st/*.md             # the /st:* skills
+├── agents/software-teams-*.md   # 34 specialist specs (from packages/cli/agents/)
+├── skills/st-*/SKILL.md         # native /st-* skills
 ├── hooks/*.sh                   # quality gate, state-context (SessionStart), orchestrator-mode, team gate
 ├── statusline/                  # the optional statusline renderer
 ├── settings.json                # tool allowlist + hook wiring
-├── AGENTS.md, RULES.md          # generated agent catalogue + orchestration doctrine
+├── AGENTS.md                    # generated agent catalogue
+├── rules/                       # native path-scoped conventions + ST doctrine
 └── CLAUDE.md                    # routing block
 ```
 
-These — plus `.software-teams/` — are **gitignored by default**. `init` writes (and refreshes on every run) a managed block in your `.gitignore`, because every one of these is regenerated per-clone by `software-teams init` / `sync-agents` and would otherwise show up as dozens of untracked files. Clone → run `software-teams init` → everything is regenerated.
+Generated skills, agents, hooks, settings, catalogue, CLAUDE.md, and the framework-owned `rules/software-teams.md` are gitignored by default. Learned category rules (`general.md`, `backend.md`, `frontend.md`, `testing.md`, `devops.md`) are deliberately **not ignored**: they are team conventions intended for version control. `.software-teams/` remains ignored runtime state.
 
-To **version-control** any artefact (e.g. a shared `settings.json`, or your project's `CLAUDE.md`), remove that line from the managed block. Custom agents you add under `.claude/agents/` that aren't named `software-teams-*` stay tracked — the ignore is prefix-scoped. (Plugin/`--state-only` installs generate no `.claude/` specs at all — the plugin supplies them natively.)
+To **version-control** any artefact (e.g. a shared `settings.json`, or your project's `CLAUDE.md`), remove that line from the managed block. Custom agents you add under `.claude/agents/` that aren't named `software-teams-*` stay tracked — the ignore is prefix-scoped. (Plugin/`--state-only` installs generate no project skill or agent specs — the plugin supplies them natively; hook/settings infrastructure is still installed.)
 
 ---
 
 ## Status
 
 - **Stable**: planning, implementation, commit, PR generation, PR review, GitHub Actions runtime.
-- **Recent**: deterministic Workflow compiler (`compile-workflow` / `--workflow`); automatic quality-gate + state-durability hooks; on-demand `verify`; worktree merge-back (`worktree-merge` / `--isolate`); a plan/phase/task statusline; LSP for code-touching agents; recurring `routines`; and experimental agent-teams specialist-to-specialist collaboration (`--team`).
+- **Recent**: deterministic Workflow compiler (`compile-workflow` / `--workflow`); automatic quality-gate + state-durability hooks; on-demand `verify`; worktree-isolated runs (`--isolate`) on Claude Code's native worktrees; a plan/phase/task statusline; LSP for code-touching agents; recurring `routines`; and experimental agent-teams specialist-to-specialist collaboration (`--team`).
 - **Next**: ([open an issue](https://github.com/zottiben/software-teams/issues) to weigh in)
 
 Tested on macOS and Linux with Bun ≥ 1.0 and Claude Code ≥ 1.0. Node 18+ supported via npm.

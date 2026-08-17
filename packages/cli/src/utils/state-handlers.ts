@@ -128,7 +128,7 @@ export async function transitionToApproved(
   ) {
     throw new Error(
       "Cannot approve: a plan review is in progress and the quality gate is not satisfied yet. " +
-        "Run /st:review-plan to finish the review, or pass --force to override.",
+        "Run /st-review-plan to finish the review, or pass --force to override.",
     );
   }
   state.position = {

@@ -75,7 +75,7 @@ export function buildAutoCommitBlock(commitType: "feat" | "fix" | "any"): string
 
 export function buildRulesBlock(techStack: string): string[] {
   const lower = techStack.toLowerCase();
-  const base = ".software-teams/rules";
+  const base = ".claude/rules";
   const files = [`${base}/general.md`];
 
   if (/php|laravel/.test(lower)) files.push(`${base}/backend.md`);
@@ -85,7 +85,7 @@ export function buildRulesBlock(techStack: string): string[] {
 
   return [
     `## Rules`,
-    `Read these rules files and follow any conventions found (rules override defaults):`,
+    `Read these native project rules and follow any conventions found. In interactive Claude Code they load automatically by path; this explicit list preserves the same behavior in deterministic headless runs:`,
     ...files.map((f) => `- ${f}`),
   ];
 }

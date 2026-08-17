@@ -3,15 +3,13 @@ import { consola } from "consola";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { detectProjectType } from "../utils/detect-project";
-import { copyFrameworkFiles } from "../utils/copy-framework";
+import { copyFrameworkFiles, detectSkillChanges } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
-import { loadModelMap } from "../utils/models-config";
+import { loadAgentRouting } from "../utils/models-config";
 
 /**
- * Files that live under `.software-teams/` but represent project state (not framework
- * snapshot). They MUST NOT be touched by `sync-framework`. These paths are
- * preserved by virtue of `copyFrameworkFiles()` writing only to
- * `.software-teams/framework/` and `.software-teams/config/adapter.yaml` — never to these.
+ * Files under `.software-teams/` represent project state. Native rules live at
+ * `.claude/rules/`, so sync-framework never needs to touch these paths.
  */
 const PRESERVED_STATE_FILES = [
   ".software-teams/project.yaml",
@@ -20,39 +18,16 @@ const PRESERVED_STATE_FILES = [
   ".software-teams/state.yaml",
 ] as const;
 
-/**
- * Subdirectories that copy-framework.ts writes into a consumer's
- * `.software-teams/<sub>/` install (Phase B target — no `framework/`
- * wrapper). Kept in sync with COPIED_SUBDIRS in copy-framework.ts.
- * Phase D: `templates/` was removed from the copy list because no runtime
- * agent reads from it; this list shrinks accordingly so the drift detector
- * stops chasing files that should not exist on the consumer side.
- */
-const COPIED_SUBDIRS = ["rules"];
-
-/**
- * Enumerate package-side files that the consumer's `.software-teams/`
- * install holds copies of. Each path is keyed by the COPIED_SUBDIRS layout
- * so detectFrameworkChanges can compare source vs destination.
- */
+/** Enumerate canonical native rule files. */
 async function listFrameworkFiles(packageRoot: string): Promise<string[]> {
-  const out: string[] = [];
-  for (const sub of COPIED_SUBDIRS) {
-    const subDir = join(packageRoot, sub);
-    if (!existsSync(subDir)) continue;
-    const subGlob = new Bun.Glob("**/*");
-    for await (const file of subGlob.scan({ cwd: subDir })) {
-      out.push(`${sub}/${file}`);
-    }
-  }
-  out.sort();
-  return out;
+  return existsSync(join(packageRoot, "rules", "software-teams.md"))
+    ? ["software-teams.md"]
+    : [];
 }
 
 /**
- * Compare canonical package-side content against the consumer's
- * `.software-teams/<sub>/<file>` install and return the relative paths that
- * differ.
+ * Compare canonical native rules against the consumer's `.claude/rules/`
+ * install and return the filenames that differ.
  */
 export async function detectFrameworkChanges(
   cwd: string,
@@ -62,12 +37,12 @@ export async function detectFrameworkChanges(
   const changed: string[] = [];
   const files = await listFrameworkFiles(packageRoot);
   for (const file of files) {
-    const dest = join(cwd, ".software-teams", file);
+    const dest = join(cwd, ".claude", "rules", file);
     if (!existsSync(dest)) {
       missing.push(file);
       continue;
     }
-    const srcContent = await Bun.file(join(packageRoot, file)).text();
+    const srcContent = await Bun.file(join(packageRoot, "rules", file)).text();
     const destContent = await Bun.file(dest).text();
     if (srcContent !== destContent) changed.push(file);
   }
@@ -78,7 +53,7 @@ export const syncFrameworkCommand = defineCommand({
   meta: {
     name: "sync-framework",
     description:
-      "Refresh the .software-teams/framework/ snapshot from canonical framework/ and re-sync .claude/agents/",
+      "Refresh Software Teams rules, native skills, and generated Claude Code agents",
   },
   args: {
     "dry-run": {
@@ -96,7 +71,7 @@ export const syncFrameworkCommand = defineCommand({
   async run({ args }) {
     const cwd = process.cwd();
     const dryRun = args["dry-run"] === true;
-    const models = await loadModelMap(cwd);
+    const { models, efforts } = await loadAgentRouting(cwd);
 
     // Resolve the package root the same way copyFrameworkFiles does (two
     // levels above this file). The legacy `framework/` wrapper was retired in
@@ -111,31 +86,41 @@ export const syncFrameworkCommand = defineCommand({
     }
 
     consola.start(
-      `Refreshing .software-teams/framework/ from ${packageRoot}${dryRun ? " (dry-run)" : ""}`,
+      `Refreshing Software Teams payloads from ${packageRoot}${dryRun ? " (dry-run)" : ""}`,
     );
 
     const { missing, changed } = await detectFrameworkChanges(cwd, packageRoot);
-    const totalDelta = missing.length + changed.length;
+    const skillChanges = await detectSkillChanges(cwd, packageRoot);
+    const totalDelta = missing.length + changed.length
+      + skillChanges.missing.length + skillChanges.changed.length;
 
     if (totalDelta === 0) {
-      consola.success(".software-teams/framework/ is already up to date — no changes needed.");
+      consola.success("Rules and native skills are already up to date — no changes needed.");
       // Still re-sync agents for safety (idempotent).
       if (!dryRun) {
-        const conv = await convertAgents({ cwd, models });
+        const conv = await convertAgents({ cwd, models, efforts });
         consola.info(`Re-synced ${conv.written.length} agents to .claude/agents/`);
       }
       return;
     }
 
     if (missing.length > 0) {
-      consola.info(`${missing.length} missing file(s) in snapshot:`);
+      consola.info(`${missing.length} missing native rule file(s):`);
       for (const f of missing.slice(0, 20)) consola.info(`  + ${f}`);
       if (missing.length > 20) consola.info(`  … and ${missing.length - 20} more`);
     }
     if (changed.length > 0) {
-      consola.info(`${changed.length} drifted file(s):`);
+      consola.info(`${changed.length} drifted rule file(s):`);
       for (const f of changed.slice(0, 20)) consola.info(`  ~ ${f}`);
       if (changed.length > 20) consola.info(`  … and ${changed.length - 20} more`);
+    }
+    if (skillChanges.missing.length > 0) {
+      consola.info(`${skillChanges.missing.length} missing native skill file(s):`);
+      for (const f of skillChanges.missing.slice(0, 20)) consola.info(`  + ${f}`);
+    }
+    if (skillChanges.changed.length > 0) {
+      consola.info(`${skillChanges.changed.length} drifted native skill file(s):`);
+      for (const f of skillChanges.changed.slice(0, 20)) consola.info(`  ~ ${f}`);
     }
 
     if (dryRun) {
@@ -143,13 +128,13 @@ export const syncFrameworkCommand = defineCommand({
       return;
     }
 
-    // Reuse the canonical writer. force=true ensures all drifted files are
-    // overwritten. Project state (project.yaml, requirements.yaml,
-    // roadmap.yaml, state.yaml) is preserved because
+    // Reuse the canonical writer. Framework doctrine is refreshed while
+    // learned native rule categories remain user/team-owned. Project state
+    // (project.yaml, requirements.yaml, roadmap.yaml, state.yaml) is preserved because
     // copyFrameworkFiles() never writes to those paths.
     const projectType = await detectProjectType(cwd);
     await copyFrameworkFiles(cwd, projectType, true, false, packageRoot);
-    consola.success(`Refreshed .software-teams/framework/ (${totalDelta} files updated).`);
+    consola.success(`Refreshed rules and native skills (${totalDelta} files updated).`);
 
     // Verify state files were preserved (sanity log only — the writer cannot
     // touch these paths, but log it so operators are reassured).
@@ -162,7 +147,7 @@ export const syncFrameworkCommand = defineCommand({
 
     // Auto-rerun agent conversion so .claude/agents/ matches the refreshed
     // snapshot. One refresh = both layers synced.
-    const conv = await convertAgents({ cwd, models });
+    const conv = await convertAgents({ cwd, models, efforts });
     consola.success(
       `Re-synced ${conv.written.length} agent(s) to .claude/agents/${conv.errors.length > 0 ? ` (${conv.errors.length} error(s))` : ""}`,
     );

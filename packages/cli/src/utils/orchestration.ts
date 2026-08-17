@@ -4,8 +4,8 @@
  * After phase B, the action runner reads `<slug>.orchestration.md` to
  * discover the per-agent slices a three-tier plan declared, then instructs
  * the parent Claude to spawn one Task per slice (in parallel). This mirrors
- * how the local `/st:implement-plan` skill orchestrates — see
- * `commands/implement-plan.md` §3T.8 and `agents/...` AgentTeamsOrchestration.
+ * how the local `/st-implement-plan` skill orchestrates — see
+ * `skills/implement-plan/SKILL.md` §3T.8 and `agents/...` AgentTeamsOrchestration.
  *
  * The shape we need from a plan:
  *   - the path to the orchestration index

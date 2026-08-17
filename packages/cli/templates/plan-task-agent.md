@@ -19,7 +19,7 @@ tags: []
 
 # Agent routing (written by software-teams-planner via AgentRouter — see
 # framework/components/meta/AgentRouter.md). implement-plan reads `agent` and
-# passes it as `subagent_type` when spawning via the Task tool.
+# passes it as `subagent_type` when spawning via the Agent tool.
 agent: software-teams-{role}
 agent_rationale: "{Why this specialist was chosen for this slice}"
 ---

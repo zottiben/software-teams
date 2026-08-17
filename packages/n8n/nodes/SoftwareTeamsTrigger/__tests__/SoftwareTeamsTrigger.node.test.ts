@@ -57,12 +57,17 @@ describe("SoftwareTeamsTrigger node (T6 - AC5, R-02)", () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   describe("AC5 & AC6: Trigger source selection (ClickUp | Datadog | Prompt)", () => {
-    test("node declares softwareTeamsApi credential as required", () => {
-      const creds = node.description.credentials;
-      expect(creds).toBeTruthy();
-      const softwareTeamsCred = creds?.find((c) => c.name === "softwareTeamsApi");
-      expect(softwareTeamsCred).toBeTruthy();
-      expect(softwareTeamsCred?.required).toBeTrue();
+    test("credentials are least-privilege and conditional on the selected source", () => {
+      const clickup = node.description.credentials?.find(
+        (credential) => credential.name === "softwareTeamsClickUpApi",
+      );
+      const combined = node.description.credentials?.find(
+        (credential) => credential.name === "softwareTeamsApi",
+      );
+      expect(clickup?.required).toBeFalse();
+      expect(clickup?.displayOptions?.show?.source).toEqual(["clickup"]);
+      expect(combined?.required).toBeFalse();
+      expect(combined?.displayOptions?.show?.source).toEqual(["datadog"]);
     });
 
     test("node has source property with ClickUp, Datadog, and Prompt options", () => {

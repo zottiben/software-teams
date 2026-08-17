@@ -1,0 +1,83 @@
+---
+name: st-orchestrator-mode
+description: "Software Teams: Toggle Orchestrator-Only Mode on/off or report status. Restricts the main thread to read/plan/delegate; specialists do all mutations."
+allowed-tools: Read, Bash
+argument-hint: "<on | off | status>"
+disable-model-invocation: true
+---
+
+# Orchestrator-Only Mode toggle
+
+Toggle a per-project enforcement layer that restricts the MAIN Claude Code
+thread to read / plan / delegate only. Specialists invoked via the Agent
+tool are unaffected.
+
+## Usage
+
+- `/st-orchestrator-mode on` — enable. Creates `.claude/orchestrator-mode.md`,
+  appends `@.claude/orchestrator-mode.md` to `.claude/CLAUDE.md`, and
+  installs a PreToolUse hook in `.claude/settings.json` that blocks Edit,
+  Write, NotebookEdit, and the narrow set of code-mutating Bash commands
+  with exit 2.
+- `/st-orchestrator-mode off` — disable. Removes all three artefacts.
+- `/st-orchestrator-mode status` — report per-artefact state and detect drift.
+
+## What gets blocked when on
+
+The orchestrator is the head of the team: it manages and ships the work,
+but it must not author or destroy code directly. Only the following are
+blocked on the main thread:
+
+- `Edit`, `Write`, `NotebookEdit` — always blocked (they author file content).
+- Code-mutating Bash — `sed -i`, `tee `, `> ` redirect to real files, `>>`,
+  `rm `, `mv `, `cp `, `git reset --hard`, `git checkout -- `,
+  `git restore .`, `git clean -f`. These write file content in place or
+  destroy/revert the tree. Exact list lives in
+  `.claude/hooks/orchestrator-deny-bash.sh`.
+
+## What still works (manage and deliver freely)
+
+- `Read`, `Glob`, `Grep`, `Agent` — always allowed.
+- **Delivery & management Bash** — `git commit`, `git push`, `git rebase`,
+  `git branch -D`, `npm/bun/pnpm/yarn install|add|remove`, `make`,
+  `gh pr create|edit`, `gh issue create|close|edit`, `sudo`, and all
+  read-only Bash (`git log`, `git status`, `git diff`, `cat`, `grep`,
+  `find`, `ls`, …). Running the team's pipeline is the orchestrator's job.
+- All specialist agents spawned via Agent — their edits run in subagent
+  processes and are NOT subject to the main-thread hook.
+
+## Implementation
+
+Validate that `$ARGUMENTS` is one of `on`, `off`, or `status`. If not,
+print usage and stop:
+
+> "Usage: `/st-orchestrator-mode <on | off | status>`
+> Argument must be one of: on, off, status."
+
+Do NOT shell out with an invalid argument.
+
+Once validated, this skill shells out for the actual logic. Resolve the CLI
+per `${CLAUDE_SKILL_DIR}/../st-support/cli-invocation.md`, then run:
+
+    $ST_CLI orchestrator-mode $ARGUMENTS
+
+and pass the exit code back to the caller. Users developing this repo locally
+who have not installed the published package can substitute:
+
+    bun run <repo>/src/index.ts orchestrator-mode $ARGUMENTS
+
+The bun subcommand is the source of truth for all state mutations. The skill
+does not write any files directly.
+
+## Per-turn override
+
+There is none. To make a direct edit, toggle off first.
+
+## Scope
+
+Per-project only. The skill never writes to `~/.claude/` and never reads
+a user-global config. Each project decides its own posture.
+
+---
+
+**Task:** $ARGUMENTS

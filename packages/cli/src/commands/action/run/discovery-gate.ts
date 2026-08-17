@@ -15,7 +15,7 @@ import type { ParsedIntent } from "./types";
 /**
  * Spawn the pre-plan researcher and return its markdown findings.
  *
- * Mirrors `commands/create-plan.md` §4a: before the Planning Agent runs,
+ * Mirrors `skills/create-plan/SKILL.md` §4a: before the Planning Agent runs,
  * we spawn `software-teams-researcher` in `pre-plan-discovery` mode to
  * survey the workspace, surface codebase context, and report genuine
  * pre-plan questions the issue text doesn't pin down. The findings are
@@ -162,7 +162,7 @@ export function formatQuestionsCommentBody(opts: {
  *   - `{ findings: "", aborted: true }` — comment posted; caller MUST
  *     return / exit without running the planner.
  *
- * Mirrors `commands/create-plan.md` §4b ("Pre-Planning Questions
+ * Mirrors `skills/create-plan/SKILL.md` §4b ("Pre-Planning Questions
  * (Interactive Gate)") for the headless action context — AskUserQuestion
  * isn't available here, so we use issue comments as the human-in-loop
  * channel.

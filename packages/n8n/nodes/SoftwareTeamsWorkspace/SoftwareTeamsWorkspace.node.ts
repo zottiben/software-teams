@@ -8,6 +8,7 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -72,7 +73,7 @@ export class SoftwareTeamsWorkspace implements INodeType {
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
     credentials: [
-      { name: 'softwareTeamsApi', required: true },
+      { name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' },
     ],
     properties: [
       {
@@ -108,12 +109,19 @@ export class SoftwareTeamsWorkspace implements INodeType {
     usableAsTool: true,
   };
 
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+
+  methods = { credentialTest: softwareTeamsCredentialTest };
+
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
     const credentials = await this.getCredentials('softwareTeamsApi');
-    process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    // This node clones and prepares a workspace; it never spawns `claude`, so it
+    // needs no Anthropic credential. It previously set ANTHROPIC_API_KEY anyway,
+    // which was dead code and polluted the shared worker environment.
     const githubToken = (credentials.githubToken as string | undefined) || undefined;
 
     const itemCount = items.length > 0 ? items.length : 1;

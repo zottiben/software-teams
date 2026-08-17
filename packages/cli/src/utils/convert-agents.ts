@@ -10,9 +10,7 @@ import type { CatalogueEntry } from "./convert-agents/render";
 import {
   resolveAgainst,
   resolveDefaultSourceDir,
-  resolveDefaultRulesSource,
   writeCatalogue,
-  writeRules,
 } from "./convert-agents/io";
 
 export type { ConflictMode };
@@ -29,6 +27,7 @@ export interface ConvertAgentsOptions {
   onConflict?: ConflictMode;
   storage?: SoftwareTeamsStorage;
   models?: Record<string, string>;
+  efforts?: Record<string, string>;
 }
 
 export async function convertAgents(
@@ -74,6 +73,10 @@ export async function convertAgents(
       const fm = parsed.frontmatter as AgentFrontmatter;
       const key = fm.name.replace(/^software-teams-/, "");
       fm.model = opts.models?.[key] ?? fm.model;
+      // Config wins over frontmatter, and an agent absent from both stays
+      // silent so it inherits the model's default effort.
+      const effort = opts.efforts?.[key] ?? fm.effort;
+      if (effort) fm.effort = effort;
       const outName = `${fm.name}.md`;
       const outPath = join(targetDir, outName);
 
@@ -115,15 +118,13 @@ export async function convertAgents(
     }
   }
 
-  // Emit the catalogue and rules document alongside the per-agent files.
-  // `targetRoot` defaults to the parent of `targetDir` (i.e. `.claude/`).
+  // Emit the catalogue alongside per-agent files. Orchestration doctrine is a
+  // native `.claude/rules/software-teams.md` file installed by init/sync rather
+  // than a generated CLAUDE.md import.
   const targetRoot = dirname(targetDir);
-  const rulesSource = resolveDefaultRulesSource(cwd);
-
   if (catalogueEntries.length > 0) {
     await writeCatalogue(catalogueEntries, targetRoot, onConflict, dryRun, result);
   }
-  await writeRules(targetRoot, rulesSource, onConflict, dryRun, result);
 
   return result;
 }

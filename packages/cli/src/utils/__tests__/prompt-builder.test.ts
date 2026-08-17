@@ -122,19 +122,19 @@ describe("prompt-builder regression invariants", () => {
   describe("buildRulesBlock", () => {
     test("always includes general rules", () => {
       const result = buildRulesBlock("").join("\n");
-      expect(result).toContain("general.md");
+      expect(result).toContain(".claude/rules/general.md");
     });
 
     test("includes backend rules for PHP stack", () => {
       const result = buildRulesBlock("php, laravel").join("\n");
-      expect(result).toContain("backend.md");
-      expect(result).toContain("general.md");
+      expect(result).toContain(".claude/rules/backend.md");
+      expect(result).toContain(".claude/rules/general.md");
     });
 
     test("includes frontend rules for React stack", () => {
       const result = buildRulesBlock("react, typescript").join("\n");
-      expect(result).toContain("frontend.md");
-      expect(result).toContain("general.md");
+      expect(result).toContain(".claude/rules/frontend.md");
+      expect(result).toContain(".claude/rules/general.md");
     });
 
     test("includes testing rules for test stack", () => {
@@ -150,7 +150,7 @@ describe("prompt-builder regression invariants", () => {
     test("includes header with instructions", () => {
       const result = buildRulesBlock("typescript").join("\n");
       expect(result).toContain("## Rules");
-      expect(result).toMatch(/rules override defaults/i);
+      expect(result).toMatch(/load automatically by path/i);
     });
   });
 });

@@ -37,7 +37,7 @@ work, or any plan where a separate WHAT vs HOW boundary helps reviewers.
 | `plan.md` | Monolithic plan: frontmatter + objective + task manifest + verification |
 | `plan-task.md` | Per-task file referenced from `plan.md`'s `task_files:` |
 
-**Use single-tier when:** `/st:quick` flows, hotfixes, or plans with 1-3
+**Use single-tier when:** `/st-quick` flows, hotfixes, or plans with 1-3
 tasks where the three-tier ceremony exceeds the work.
 
 ## Project Scaffolding (unchanged)
@@ -49,7 +49,7 @@ tasks where the three-tier ceremony exceeds the work.
 | `roadmap.yaml` | Phase / plan ordering and milestones |
 | `summary.md` | Per-plan outcome record (written by software-teams-programmer post-execution) |
 | `CLAUDE-SHARED.md` | Shared context imported into the project's `CLAUDE.md` |
-| `RULES.md` | Per-project rule notes |
+| `../rules/*.md` | Native path-scoped team conventions and Software Teams doctrine |
 
 ## Authoring Notes
 

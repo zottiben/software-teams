@@ -7,6 +7,7 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
 
 import { parseCorrelationTag } from '@websitelabs/software-teams';
 import { deleteRunState } from '../../src/orchestration/run-state/global-store';
@@ -66,10 +67,7 @@ export class SoftwareTeamsCleanup implements INodeType {
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
     credentials: [
-      {
-        name: 'softwareTeamsApi',
-        required: true,
-      },
+      { name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' },
     ],
     properties: [
       {
@@ -133,6 +131,11 @@ export class SoftwareTeamsCleanup implements INodeType {
     ],
     usableAsTool: true,
   };
+
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+
+  methods = { credentialTest: softwareTeamsCredentialTest };
+
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();

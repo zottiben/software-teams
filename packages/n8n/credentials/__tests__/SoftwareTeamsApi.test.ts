@@ -31,11 +31,29 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
       expect(anthropicKeyProp).toBeTruthy();
     });
 
-    test("anthropicApiKey is required", () => {
-      const anthropicKeyProp = credential.properties.find(
-        (p) => p.name === "anthropicApiKey",
-      );
-      expect(anthropicKeyProp?.required).toBeTrue();
+    test("anthropicApiKey is optional and shown only in apiKey mode", () => {
+      // Auth is now a deliberate choice between a subscription OAuth token and
+      // an API key, rather than "whichever secret happens to be filled in".
+      // Requiring the key would force API billing on subscription users.
+      const prop = credential.properties.find((p) => p.name === "anthropicApiKey");
+      expect(prop?.required).toBeFalsy();
+      expect(prop?.displayOptions?.show?.authMode).toEqual(["apiKey"]);
+    });
+
+    test("claudeCodeOauthToken is the subscription credential", () => {
+      const prop = credential.properties.find((p) => p.name === "claudeCodeOauthToken");
+      expect(prop).toBeDefined();
+      expect(prop?.type).toBe("string");
+      expect(prop?.typeOptions?.password).toBeTrue();
+      expect(prop?.displayOptions?.show?.authMode).toEqual(["subscription"]);
+    });
+
+    test("authMode defaults to subscription", () => {
+      // The whole point of running a Claude Code instance per node is to bill a
+      // Claude plan rather than the API.
+      const prop = credential.properties.find((p) => p.name === "authMode");
+      expect(prop?.type).toBe("options");
+      expect(prop?.default).toBe("subscription");
     });
 
     test("anthropicApiKey type is 'string' with password: true (R-02)", () => {
@@ -57,9 +75,9 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
   });
 
   describe("Optional integration tokens (R-02 — secrets masked)", () => {
-    test("declares clickupApiKey property", () => {
+    test("does not mix ClickUp access into the Claude and output credential", () => {
       const clickupProp = credential.properties.find((p) => p.name === "clickupApiKey");
-      expect(clickupProp).toBeTruthy();
+      expect(clickupProp).toBeUndefined();
     });
 
     test("declares datadogApiKey property", () => {
@@ -87,7 +105,6 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
     test("all secret fields have password: true", () => {
       const secretFields = [
         "anthropicApiKey",
-        "clickupApiKey",
         "datadogApiKey",
         "datadogAppKey",
         "githubToken",
@@ -112,7 +129,7 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
       // All properties are for credentials, not node params
       for (const prop of credential.properties) {
         expect(prop.name).toBeTruthy();
-        expect(prop.type).toMatch(/string|password|dropdown|oauth2/i);
+        expect(prop.type).toMatch(/string|password|dropdown|oauth2|options/i);
       }
     });
   });
@@ -120,19 +137,21 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
   describe("Field types and defaults", () => {
     test("all secret fields are type 'string'", () => {
       for (const prop of credential.properties) {
+        // authMode is a mode selector, not a secret.
+        if (prop.name === "authMode") continue;
         expect(prop.type).toBe("string");
       }
     });
 
     test("all fields have default: '' (empty string)", () => {
       for (const prop of credential.properties) {
+        if (prop.name === "authMode") continue;
         expect(prop.default).toBe("");
       }
     });
 
     test("optional fields are not required", () => {
       const optionalFields = [
-        "clickupApiKey",
         "datadogApiKey",
         "datadogAppKey",
         "githubToken",
@@ -147,8 +166,8 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
   });
 
   describe("field count and naming", () => {
-    test("declares exactly 8 properties (1 required + 7 optional)", () => {
-      expect(credential.properties).toHaveLength(8);
+    test("declares exactly 9 properties (authMode + 2 auth secrets + 6 integrations)", () => {
+      expect(credential.properties).toHaveLength(9);
     });
 
     test("all property names follow camelCase convention", () => {
@@ -170,13 +189,6 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
       for (const prop of credential.properties) {
         expect(prop.description).toBeTruthy();
       }
-    });
-
-    test("clickupApiKey description mentions ClickUp and trigger/context", () => {
-      const clickupProp = credential.properties.find((p) => p.name === "clickupApiKey");
-      const desc = clickupProp?.description || "";
-      expect(desc.toLowerCase()).toContain("clickup");
-      expect(desc.toLowerCase()).toContain("trigger");
     });
 
     test("datadogApiKey description mentions Datadog and trigger/issue", () => {
@@ -239,7 +251,12 @@ describe("SoftwareTeamsApi credential type (AC8, AC9, R-02)", () => {
       // The node accesses them via this.getCredentials('softwareTeamsApi')
       // This test verifies the credential structure is separate from nodes.
       expect(credential.properties.every((p) => p.name)).toBeTrue();
-      expect(credential.properties.every((p) => p.typeOptions?.password)).toBeTrue();
+      // Every SECRET is password-masked. `authMode` is a mode selector rather
+      // than a secret, so it is excluded by name - not by relaxing the rule,
+      // which would let a real secret through unmasked.
+      const secrets = credential.properties.filter((p) => p.name !== "authMode");
+      expect(secrets.length).toBe(credential.properties.length - 1);
+      expect(secrets.every((p) => p.typeOptions?.password)).toBeTrue();
     });
 
     test("AC9: self-hosted constraint is documented in credential description", () => {

@@ -93,5 +93,4 @@ export type ComponentCategory =
   | "execution"
   | "planning"
   | "quality"
-  | "hooks"
   | "stacks";

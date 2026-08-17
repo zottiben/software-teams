@@ -6,6 +6,8 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
+import { authFromCredentials } from '../../src/execution/auth-from-credentials';
 import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -19,63 +21,44 @@ import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 import { cloneRepo, createWorktree, capturePortableChange, removeWorktree } from '../../src/repo/git';
 import { validateOwnerRepo, validateBranchName, validateCloneUrl } from '../../src/repo/validate';
 import type { RepoContext } from '../../src/repo/repo-context';
+import { SPECIALIST_OPTIONS } from '../../src/execution/specialists';
+
+interface AgentTurnOptions {
+  readonly model?: string;
+  readonly effort?: string;
+  readonly maxBudgetUsd?: number;
+  readonly maxTurns?: number;
+  readonly resumeSessionId?: string;
+  readonly auth?: { mode: 'subscription' | 'apiKey'; oauthToken?: string; apiKey?: string };
+}
 
 type RunAgentTurnFn = (
   input: NodeEnvelope,
   repoContext?: RepoContext,
   githubToken?: string,
+  options?: AgentTurnOptions,
 ) => Promise<NodeEnvelope>;
 
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
-const runAgentTurn: RunAgentTurnFn = (input, repoContext, githubToken) =>
+const runAgentTurn: RunAgentTurnFn = (input, repoContext, githubToken, options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require(SINGLE_TURN_MODULE) as { runAgentTurn: RunAgentTurnFn }).runAgentTurn(
     input,
     repoContext,
     githubToken,
+    options,
   );
 
-const SPECIALIST_OPTIONS: Array<{ name: string; value: string }> = [
-  { name: 'Architect', value: 'software-teams-architect' },
-  { name: 'Backend Engineer', value: 'software-teams-backend' },
-  { name: 'Codebase Mapper', value: 'software-teams-codebase-mapper' },
-  { name: 'Committer', value: 'software-teams-committer' },
-  { name: 'Debugger', value: 'software-teams-debugger' },
-  { name: 'Dev Planner', value: 'software-teams-dev-planner' },
-  { name: 'DevOps', value: 'software-teams-devops' },
-  { name: 'Feedback Learner', value: 'software-teams-feedback-learner' },
-  { name: 'Frontend Engineer', value: 'software-teams-frontend' },
-  { name: 'Game AI Engineer', value: 'software-teams-game-ai-engineer' },
-  { name: 'Game Art Pipeline', value: 'software-teams-game-art-pipeline' },
-  { name: 'Game Designer', value: 'software-teams-game-designer' },
-  { name: 'Game DevOps', value: 'software-teams-game-devops' },
-  { name: 'Game Engineer', value: 'software-teams-game-engineer' },
-  { name: 'Game Producer', value: 'software-teams-game-producer' },
-  { name: 'Game QA', value: 'software-teams-game-qa' },
-  { name: 'Game Tech Artist', value: 'software-teams-game-tech-artist' },
-  { name: 'Head of Engineering', value: 'software-teams-head-engineering' },
-  { name: 'Performance Analyst', value: 'software-teams-perf-analyst' },
-  { name: 'Phase Researcher', value: 'software-teams-phase-researcher' },
-  { name: 'Plan Checker', value: 'software-teams-plan-checker' },
-  { name: 'Planner', value: 'software-teams-planner' },
-  { name: 'PR Feedback', value: 'software-teams-pr-feedback' },
-  { name: 'PR Generator', value: 'software-teams-pr-generator' },
-  { name: 'Producer', value: 'software-teams-producer' },
-  { name: 'Product Lead', value: 'software-teams-product-lead' },
-  { name: 'Programmer', value: 'software-teams-programmer' },
-  { name: 'QA Tester', value: 'software-teams-qa-tester' },
-  { name: 'Quality Engineer', value: 'software-teams-quality' },
-  { name: 'Researcher', value: 'software-teams-researcher' },
-  { name: 'Security Engineer', value: 'software-teams-security' },
-  { name: 'UX Designer', value: 'software-teams-ux-designer' },
-  { name: 'Verifier', value: 'software-teams-verifier' },
-];
-
-const MODEL_OPTIONS: Array<{ name: string; value: string }> = [
-  { name: 'Claude Sonnet 4.5 (Default)', value: 'claude-sonnet-4-5' },
-  { name: 'Claude Opus 4', value: 'claude-opus-4-5' },
-  { name: 'Claude Haiku 3.5', value: 'claude-haiku-3-5' },
-];
+// Sourced from the shared CLI surface so the two nodes that offer a model
+// picker cannot drift apart. See shared/claude-code-surface.ts.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { N8N_MODEL_OPTIONS, N8N_DEFAULT_MODEL, N8N_EFFORT_OPTIONS } = require(
+  '@websitelabs/software-teams',
+) as {
+  N8N_MODEL_OPTIONS: Array<{ name: string; value: string }>;
+  N8N_DEFAULT_MODEL: string;
+  N8N_EFFORT_OPTIONS: Array<{ name: string; value: string }>;
+};
 
 /**
  * SoftwareTeamsAgent node.
@@ -109,7 +92,7 @@ export class SoftwareTeamsAgent implements INodeType {
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
     credentials: [
-      { name: 'softwareTeamsApi', required: true },
+      { name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' },
     ],
     properties: [
       {
@@ -117,7 +100,7 @@ export class SoftwareTeamsAgent implements INodeType {
         name: 'specialist',
         type: 'options',
         noDataExpression: true,
-        options: SPECIALIST_OPTIONS,
+        options: [...SPECIALIST_OPTIONS],
         default: 'software-teams-programmer',
         required: true,
         description:
@@ -151,22 +134,71 @@ export class SoftwareTeamsAgent implements INodeType {
         name: 'model',
         type: 'options',
         noDataExpression: true,
-        options: MODEL_OPTIONS,
-        default: 'claude-sonnet-4-5',
+        options: N8N_MODEL_OPTIONS,
+        default: N8N_DEFAULT_MODEL,
         description:
-          'Claude model to use for this turn. Injected via the ' +
-          'ANTHROPIC_DEFAULT_MODEL environment variable for the Claude CLI.',
+          'Claude model for this turn, passed to the Claude CLI as --model. ' +
+          'Aliases track the latest version of each family: Sonnet for daily work, ' +
+          'Opus for complex reasoning, Haiku for fast mechanical turns, Fable for ' +
+          'long autonomous work. Inherit uses the worker session default.',
+      },
+      {
+        displayName: 'Effort',
+        name: 'effort',
+        type: 'options',
+        noDataExpression: true,
+        options: N8N_EFFORT_OPTIONS,
+        default: '',
+        description:
+          'How thorough the agent is, independent of how capable the model makes it. ' +
+          'Passed to the Claude CLI as --effort. Leave on Model Default unless this ' +
+          'turn specifically needs more thoroughness or more speed.',
+      },
+      {
+        displayName: 'Max Budget USD',
+        name: 'maxBudgetUsd',
+        type: 'number',
+        default: 0,
+        typeOptions: { minValue: 0, numberPrecision: 2 },
+        description:
+          'Stop the turn once its estimated spend reaches this amount. 0 disables the ' +
+          'cap. Enforced between turns rather than mid-turn, so a run can overshoot: ' +
+          'treat it as a brake on a runaway agent, not a guarantee. On subscription ' +
+          'auth the figure is an estimate of equivalent API cost, since usage actually ' +
+          'draws on your plan allowance.',
+      },
+      {
+        displayName: 'Max Turns',
+        name: 'maxTurns',
+        type: 'number',
+        default: 0,
+        typeOptions: { minValue: 0 },
+        description:
+          'Stop the turn after this many agentic steps. 0 disables the cap. Useful as ' +
+          'a hard stop for unattended work where an agent could otherwise loop.',
       },
     ],
 		usableAsTool: true,
   };
+
+  /**
+   * Credential test, declared via `testedBy` on the credential entry above.
+   *
+   * Runs on the n8n worker, the only place that can answer what matters: is
+   * `claude` installed here, and does it authenticate as the configured mode?
+   */
+  methods = { credentialTest: softwareTeamsCredentialTest };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
     const credentials = await this.getCredentials('softwareTeamsApi');
-    process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    // Resolved and passed down, never written to process.env: an n8n worker is
+    // long-lived and shared, so a mutation there leaks into later executions.
+    // In subscription mode the spawn layer also strips ANTHROPIC_API_KEY, which
+    // would otherwise outrank the OAuth token and silently bill the API.
+    const auth = authFromCredentials(credentials);
     const githubToken = (credentials.githubToken as string | undefined) || undefined;
 
     const staticData = this.getWorkflowStaticData('global') as Record<string, unknown>;
@@ -177,11 +209,16 @@ export class SoftwareTeamsAgent implements INodeType {
       const specialist = this.getNodeParameter('specialist', i) as string;
       const prompt = this.getNodeParameter('prompt', i) as string;
       const contextRaw = this.getNodeParameter('context', i, '') as string;
-      const model = this.getNodeParameter('model', i, 'claude-sonnet-4-5') as string;
-
-      if (model) {
-        process.env['ANTHROPIC_DEFAULT_MODEL'] = model;
-      }
+      const model = this.getNodeParameter('model', i, N8N_DEFAULT_MODEL) as string;
+      const effort = this.getNodeParameter('effort', i, '') as string;
+      const maxBudgetUsd = this.getNodeParameter('maxBudgetUsd', i, 0) as number;
+      const maxTurns = this.getNodeParameter('maxTurns', i, 0) as number;
+      // 0 means "no cap" in the UI; the CLI has no such sentinel, so omit the
+      // flag entirely rather than passing a cap of zero.
+      const caps = {
+        ...(maxBudgetUsd > 0 ? { maxBudgetUsd } : {}),
+        ...(maxTurns > 0 ? { maxTurns } : {}),
+      };
 
       const upstream = (items[i]?.json ?? {}) as Record<string, unknown>;
 
@@ -209,9 +246,18 @@ export class SoftwareTeamsAgent implements INodeType {
             repoDescriptor,
             specialist,
             githubToken,
+            model,
+            effort,
+            auth,
+            caps,
           });
         } else {
-          result = await runAgentTurn(envelope, undefined, githubToken);
+          result = await runAgentTurn(envelope, undefined, githubToken, {
+            model,
+            effort,
+            auth,
+            ...caps,
+          });
         }
       } catch (err) {
         if (this.continueOnFail()) {
@@ -344,8 +390,12 @@ async function executeWithWorktree(opts: {
   readonly repoDescriptor: RepoDescriptor;
   readonly specialist: string;
   readonly githubToken: string | undefined;
+  readonly model: string | undefined;
+  readonly effort: string | undefined;
+  readonly auth: { mode: 'subscription' | 'apiKey'; oauthToken?: string; apiKey?: string };
+  readonly caps: { maxBudgetUsd?: number; maxTurns?: number };
 }): Promise<NodeEnvelope> {
-  const { envelope, repoDescriptor, specialist, githubToken } = opts;
+  const { envelope, repoDescriptor, specialist, githubToken, model, effort, auth, caps } = opts;
   const { cloneUrl, ownerRepo, baseBranch } = repoDescriptor;
 
   validateOwnerRepo(ownerRepo);
@@ -377,7 +427,12 @@ async function executeWithWorktree(opts: {
   };
 
   try {
-    const agentResult = await runAgentTurn(envelope, repoContext, githubToken);
+    const agentResult = await runAgentTurn(envelope, repoContext, githubToken, {
+      model,
+      effort,
+      auth,
+      ...caps,
+    });
     const changeRef = await capturePortableChange({ worktreePath, baseBranch });
     return changeRef ? { ...agentResult, changeRef } : agentResult;
   } finally {

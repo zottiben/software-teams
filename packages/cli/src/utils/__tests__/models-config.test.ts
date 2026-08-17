@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { loadModelMap } from "../models-config";
+import { loadAgentRouting, loadModelMap } from "../models-config";
 
 let tempDirs: string[] = [];
 
@@ -216,5 +216,171 @@ models:
     expect(result["planner"]).toBe("claude-opus-4-8");
     expect(result["programmer"]).toBe("claude-sonnet-4-6");
     expect(result["backend"]).toBe("claude-haiku-4-5");
+  });
+});
+
+describe("loadAgentRouting — the effort dial", () => {
+  async function writeConfig(yaml: string): Promise<string> {
+    const cwd = makeTempDir();
+    const configDir = join(cwd, ".software-teams", "config");
+    mkdirSync(configDir, { recursive: true });
+    await writeFile(join(configDir, "config.yaml"), yaml);
+    return cwd;
+  }
+
+  test("reads the active profile's nested effort map", async () => {
+    const cwd = await writeConfig(`
+models:
+  profile: balanced
+  profiles:
+    balanced:
+      planner: opus
+      debugger: sonnet
+      committer: haiku
+      effort:
+        debugger: high
+        committer: low
+  overrides: {}
+  effort_overrides: {}
+`);
+    const { models, efforts } = await loadAgentRouting(cwd);
+    expect(models["planner"]).toBe("opus");
+    expect(efforts["debugger"]).toBe("high");
+    expect(efforts["committer"]).toBe("low");
+  });
+
+  test("the nested effort map is not mistaken for a model entry", async () => {
+    // `effort:` sits inside the profile alongside agent→model pairs. Its value
+    // is an object, so it must be skipped by the model reader rather than
+    // landing in the map as an agent named "effort".
+    const cwd = await writeConfig(`
+models:
+  profile: balanced
+  profiles:
+    balanced:
+      planner: opus
+      effort:
+        planner: high
+  overrides: {}
+`);
+    const { models, efforts } = await loadAgentRouting(cwd);
+    expect(models["effort"]).toBeUndefined();
+    expect(Object.keys(models)).toEqual(["planner"]);
+    expect(efforts["planner"]).toBe("high");
+  });
+
+  test("effort is sparse: an agent with no entry stays absent, not defaulted", async () => {
+    const cwd = await writeConfig(`
+models:
+  profile: balanced
+  profiles:
+    balanced:
+      planner: opus
+      backend: sonnet
+      effort:
+        planner: high
+  overrides: {}
+`);
+    const { efforts } = await loadAgentRouting(cwd);
+    expect(efforts["planner"]).toBe("high");
+    // Absent means "inherit the model's default", which is the recommended
+    // setting for most work — it must not be filled in with a guess.
+    expect(efforts["backend"]).toBeUndefined();
+  });
+
+  test("effort_overrides beat the profile", async () => {
+    const cwd = await writeConfig(`
+models:
+  profile: balanced
+  profiles:
+    balanced:
+      debugger: sonnet
+      effort:
+        debugger: high
+  overrides: {}
+  effort_overrides:
+    debugger: max
+`);
+    const { efforts } = await loadAgentRouting(cwd);
+    expect(efforts["debugger"]).toBe("max");
+  });
+
+  test("a profile with no effort map yields no efforts, and never throws", async () => {
+    const cwd = await writeConfig(`
+models:
+  profile: balanced
+  profiles:
+    balanced:
+      planner: opus
+  overrides: {}
+`);
+    const { models, efforts } = await loadAgentRouting(cwd);
+    expect(models["planner"]).toBe("opus");
+    expect(efforts).toEqual({});
+  });
+
+  test("malformed YAML returns empty maps rather than throwing", async () => {
+    const cwd = await writeConfig("models:\n  profile: [unclosed\n");
+    await expect(loadAgentRouting(cwd)).resolves.toEqual({ models: {}, efforts: {} });
+  });
+});
+
+describe("packaged config.yaml — the shipped profiles", () => {
+  test("every profile's effort values are real effort levels", async () => {
+    const { parse } = await import("yaml");
+    const { readFileSync } = await import("node:fs");
+    const { EFFORT_LEVELS } = await import("../../shared/claude-code-surface");
+    const cfg = parse(readFileSync("config/config.yaml", "utf8"));
+
+    for (const [name, profile] of Object.entries(cfg.models.profiles)) {
+      const effort = (profile as Record<string, unknown>)["effort"];
+      if (!effort) continue;
+      for (const [agent, level] of Object.entries(effort as Record<string, string>)) {
+        expect(EFFORT_LEVELS, `${name}.effort.${agent}`).toContain(level);
+      }
+    }
+  });
+
+  test("effort stays sparse — most agents inherit the model default", async () => {
+    const { parse } = await import("yaml");
+    const { readFileSync } = await import("node:fs");
+    const cfg = parse(readFileSync("config/config.yaml", "utf8"));
+
+    for (const [name, profile] of Object.entries(cfg.models.profiles)) {
+      const p = profile as Record<string, unknown>;
+      const agentCount = Object.keys(p).filter((k) => k !== "effort").length;
+      const effortCount = Object.keys((p["effort"] ?? {}) as object).length;
+      // Guards against a future maintainer pre-populating every agent, which
+      // would override the model default everywhere and defeat the point.
+      expect(effortCount, `${name} pins effort on too many agents`).toBeLessThan(
+        agentCount / 2,
+      );
+    }
+  });
+});
+
+describe("every convertAgents call site threads both dials", () => {
+  // `convertAgents` takes `models` and `efforts` as separate optional options,
+  // so forgetting one is silent: the run succeeds and simply omits that dial.
+  // This bit: `sync-agents` was wired for effort while `init` and
+  // `sync-framework` were not, so a freshly-initialised project got models but
+  // no effort, and no test failed. Unit tests pass the options directly, so
+  // only a source-level check catches it.
+  test("no command calls convertAgents with models but without efforts", async () => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    const dir = "src/commands";
+    const offenders: string[] = [];
+
+    for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts"))) {
+      const source = readFileSync(join(dir, file), "utf8");
+      if (!source.includes("convertAgents(")) continue;
+      if (source.includes("models") && !source.includes("efforts")) {
+        offenders.push(file);
+      }
+    }
+
+    expect(offenders).toEqual([]);
   });
 });

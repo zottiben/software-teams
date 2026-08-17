@@ -6,6 +6,8 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
+import { authFromCredentials } from '../../src/execution/auth-from-credentials';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
@@ -19,6 +21,9 @@ type RunAgentTurnFn = (
   input: NodeEnvelope,
   repoContext?: RepoContext,
   githubToken?: string,
+  options?: {
+    readonly auth?: { mode: 'subscription' | 'apiKey'; oauthToken?: string; apiKey?: string };
+  },
 ) => Promise<NodeEnvelope>;
 
 type EnumerateAgentResultsFn = (state: import('../../src/orchestration/run-state/shapes').RunState) => import('../../src/orchestration/run-state/transitions').AgentResult[];
@@ -101,7 +106,7 @@ export class SoftwareTeamsFinaliser implements INodeType {
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
     credentials: [
-      { name: 'softwareTeamsApi', required: true },
+      { name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' },
     ],
     properties: [
       {
@@ -136,12 +141,19 @@ export class SoftwareTeamsFinaliser implements INodeType {
     usableAsTool: true,
   };
 
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+
+  methods = { credentialTest: softwareTeamsCredentialTest };
+
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
     const credentials = await this.getCredentials('softwareTeamsApi');
-    process.env['ANTHROPIC_API_KEY'] = credentials.anthropicApiKey as string;
+    // Resolved and passed down, never written to process.env: an n8n worker is
+    // long-lived and shared, so a mutation there leaks into later executions.
+    const auth = authFromCredentials(credentials);
     const githubToken = (credentials.githubToken as string | undefined) || undefined;
 
     if (!githubToken) {
@@ -238,7 +250,7 @@ export class SoftwareTeamsFinaliser implements INodeType {
               artifacts: [],
             };
 
-            await runAgentTurn(resolverEnvelope, repoContext, githubToken);
+            await runAgentTurn(resolverEnvelope, repoContext, githubToken, { auth });
           },
         });
 

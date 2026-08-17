@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { detectProjectType } from "../utils/detect-project";
 import { copyFrameworkFiles } from "../utils/copy-framework";
 import { convertAgents } from "../utils/convert-agents";
-import { loadModelMap } from "../utils/models-config";
+import { loadAgentRouting } from "../utils/models-config";
 import { updateGitignore } from "../utils/gitignore";
 
 export const initCommand = defineCommand({
@@ -35,7 +35,7 @@ export const initCommand = defineCommand({
     "state-only": {
       type: "boolean",
       description:
-        "Scaffold only `.software-teams/` — skip all `.claude/` command and agent generation (intended for plugin users who already have native commands/agents).",
+        "Scaffold only `.software-teams/` — skip all `.claude/` skill and agent generation (intended for plugin users who already have native skills/agents).",
       default: false,
     },
   },
@@ -50,7 +50,6 @@ export const initCommand = defineCommand({
 
     // Create directory structure
     const dirs = [
-      ...(!args["state-only"] ? [".claude/commands/st"] : []),
       ".software-teams/plans",
       ".software-teams/research",
       ".software-teams/codebase",
@@ -69,8 +68,8 @@ export const initCommand = defineCommand({
     const twoUp = join(import.meta.dir, "..", "..");
     const packageRoot = existsSync(join(oneUp, "package.json")) ? oneUp : twoUp;
 
-    // Copy doctrine subtrees (templates, rules) to .software-teams/<sub>/.
-    // The stateOnly flag suppresses all .claude/ writes inside copyFrameworkFiles.
+    // Install native `.claude/rules/` and framework infrastructure. State-only
+    // suppresses skills/agents but not rules: plugin users need project rules too.
     await copyFrameworkFiles(cwd, projectType, args.force, args.ci, undefined, args["state-only"]);
 
     // Seed config from the package's config/ dir and state from templates/.
@@ -111,14 +110,15 @@ export const initCommand = defineCommand({
           );
         }
       } else {
-        const models = await loadModelMap(cwd);
+        const { models, efforts } = await loadAgentRouting(cwd);
         const conv = await convertAgents({
           cwd,
+          efforts,
           // Resolve agent specs from the package's `agents/` dir.
           sourceDir: join(packageRoot, "agents"),
           targetDir: ".claude/agents",
-          // Init must not clobber a user's existing AGENTS.md, RULES.md,
-          // or hand-crafted .claude/agents/<name>.md files. The
+          // Init must not clobber a user's existing AGENTS.md or hand-crafted
+          // .claude/agents/<name>.md files. The
           // `preserve-user-owned` mode overwrites only files that carry
           // the AUTO-GENERATED banner (i.e. ones Software Teams owns).
           // `--force` reverts to the previous behaviour for users who
@@ -197,11 +197,11 @@ export const initCommand = defineCommand({
       consola.success("Software Teams initialised successfully!");
       consola.info("");
       consola.info("Get started:");
-      consola.info("  /st:create-plan \"your feature\"");
-      consola.info("  /st:review-plan          (quality-check a plan before approving)");
-      consola.info("  /st:quick \"small fix\"");
-      consola.info("  /st:statusline           (optional: plan/phase/task in your statusline — needs python3)");
-      consola.info("  /st:routines             (optional: schedule recurring ST tasks; unattended-run tips)");
+      consola.info("  /st-create-plan \"your feature\"");
+      consola.info("  /st-review-plan          (quality-check a plan before approving)");
+      consola.info("  /st-quick \"small fix\"");
+      consola.info("  /st-statusline           (optional: plan/phase/task in your statusline — needs python3)");
+      consola.info("  /st-routines             (optional: schedule recurring ST tasks; unattended-run tips)");
     }
   },
 });

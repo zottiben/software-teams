@@ -1,0 +1,12 @@
+# >>> Software Teams — generated artefacts (managed by 'software-teams init'); remove a line to version-control it >>>
+.software-teams/
+.claude/commands/st/
+.claude/agents/software-teams-*.md
+.claude/AGENTS.md
+.claude/RULES.md
+.claude/CLAUDE.md
+.claude/hooks/
+.claude/statusline/
+.claude/settings.json
+.claude/settings.local.json
+# <<< Software Teams <<<

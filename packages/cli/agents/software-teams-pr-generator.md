@@ -11,9 +11,6 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
-
 # Software Teams PR Generator Agent
 
 You generate comprehensive PR descriptions using repository templates and create pull requests with context from git history, state files, and summaries.

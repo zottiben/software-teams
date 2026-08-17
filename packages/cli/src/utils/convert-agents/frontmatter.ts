@@ -5,6 +5,20 @@ export interface AgentFrontmatter {
   description: string;
   model: string;
   tools: string[];
+  /**
+   * How thorough the agent is, independent of how capable `model` makes it.
+   * Optional and usually absent: an agent without it inherits the model's
+   * default effort, which is the recommended setting for most work.
+   */
+  effort?: string;
+  /**
+   * Persistent memory scope (`user` | `project` | `local`). Set on specialists
+   * whose value compounds with codebase familiarity, so findings survive the
+   * end of a spawn instead of being rediscovered every run.
+   */
+  memory?: string;
+  /** Runaway circuit breaker: turns before the subagent is stopped. */
+  maxTurns?: number;
   // Software Teams-only fields (preserved on input, dropped on output)
   category?: string;
   team?: string;
@@ -75,17 +89,32 @@ export function validateAgentFrontmatter(
   }
 }
 
-export function buildOutputFrontmatter(fm: AgentFrontmatter): {
+export interface OutputFrontmatter {
   name: string;
   description: string;
   model: string;
+  effort?: string;
+  memory?: string;
+  maxTurns?: number;
   tools: string[];
-} {
+}
+
+/**
+ * Build the Claude Code-facing frontmatter.
+ *
+ * `effort` is emitted only when set, so a spec that wants the model's default
+ * thoroughness stays silent about it rather than pinning a value.
+ */
+export function buildOutputFrontmatter(fm: AgentFrontmatter): OutputFrontmatter {
+  const tools = [...fm.tools].sort((a, b) => a.localeCompare(b));
   return {
     name: fm.name,
     description: fm.description,
     model: fm.model,
-    tools: [...fm.tools].sort((a, b) => a.localeCompare(b)),
+    ...(fm.effort ? { effort: fm.effort } : {}),
+    ...(fm.memory ? { memory: fm.memory } : {}),
+    ...(fm.maxTurns !== undefined ? { maxTurns: fm.maxTurns } : {}),
+    tools,
   };
 }
 

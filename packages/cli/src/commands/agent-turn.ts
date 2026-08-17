@@ -2,7 +2,7 @@
  * `agent-turn` verb — one specialist turn via `runAgentTurn`.
  *
  * Implements AC3 of plan 1-02-n8n-manual-cli: runs one specialist turn
- * (Task tool disabled) through the existing `runAgentTurn` engine and emits
+ * (Agent tool disabled) through the existing `runAgentTurn` engine and emits
  * the result envelope per the CLI-RECIPE.md contract (T1).
  *
  * This module is PURE WIRING — no execution logic lives here:
@@ -12,7 +12,7 @@
  *    n8n/src/execution/single-turn.ts). That engine already handles:
  *    · Claude binary detection (fails fast with status:error on missing binary — R-01)
  *    · Agent spec resolution and prompt assembly
- *    · Task tool exclusion (SINGLE_TURN_ALLOWED_TOOLS)
+ *    · Agent tool exclusion (SINGLE_TURN_ALLOWED_TOOLS)
  *    · NEEDS_INPUT marker detection (CONTRACT.md §5)
  *    · Exit-code → status mapping
  *
@@ -88,7 +88,7 @@ export const agentTurnCommand = defineCommand({
   meta: {
     name: "agent-turn",
     description:
-      "Run one specialist turn via the existing single-turn engine (Task tool disabled). " +
+      "Run one specialist turn via the existing single-turn engine (Agent tool disabled). " +
       "Reads a NodeEnvelope from --envelope or stdin, calls runAgentTurn, and emits the " +
       "result envelope. Exit codes: 0 (ok/needs-input), 1 (error), 2 (bad input).",
   },

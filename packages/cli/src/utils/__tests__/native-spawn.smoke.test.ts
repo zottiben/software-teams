@@ -30,7 +30,7 @@ const SMOKE_ENABLED = process.env.SOFTWARE_TEAMS_NATIVE_SPAWN_SMOKE === "1";
 
 describe("native-spawn round-trip smoke (env-gated)", () => {
   test.skipIf(!SMOKE_ENABLED)(
-    "Task subagent_type=\"software-teams-status\" prompt=\"echo OK\" returns a response containing 'OK' (manual)",
+    "Agent subagent_type=\"software-teams-status\" prompt=\"echo OK\" returns a response containing 'OK' (manual)",
     () => {
       // Placeholder: an in-process Claude Code Task dispatcher is not
       // available to the bun:test runner. When/if one becomes available,

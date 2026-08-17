@@ -33,28 +33,21 @@ import WaveComputation from "./planning/WaveComputation";
 // quality
 import PRReview from "./quality/PRReview";
 
-// hooks (Phase C — markdown sources retired)
-import Checkpoint from "./hooks/Checkpoint";
-import LintFixFrontend from "./hooks/LintFixFrontend";
-import OnPause from "./hooks/OnPause";
-import PreCommit from "./hooks/PreCommit";
-import SoftwareTeamsWorktreeCleanup from "./hooks/SoftwareTeamsWorktreeCleanup";
 
 // stacks (Phase C — markdown sources retired)
 import PhpLaravel from "./stacks/PhpLaravel";
 import ReactTypescript from "./stacks/ReactTypescript";
 
 /**
- * The category directories that house component modules. `hooks` and
- * `stacks` were added in Phase C alongside the markdown→TS migration
- * for those subtrees.
+ * The category directories that house component modules. The `hooks` category
+ * was retired once real hook scripts shipped in `templates/.claude/hooks/`;
+ * its recipe components were unreferenced by any spec, skill, or template.
  */
 export const categories: readonly ComponentCategory[] = [
   "meta",
   "execution",
   "planning",
   "quality",
-  "hooks",
   "stacks",
 ] as const;
 
@@ -78,11 +71,6 @@ export const registry: Readonly<Record<string, Component>> = Object.freeze({
   [TaskBreakdown.name]: TaskBreakdown,
   [WaveComputation.name]: WaveComputation,
   [PRReview.name]: PRReview,
-  [Checkpoint.name]: Checkpoint,
-  [LintFixFrontend.name]: LintFixFrontend,
-  [OnPause.name]: OnPause,
-  [PreCommit.name]: PreCommit,
-  [SoftwareTeamsWorktreeCleanup.name]: SoftwareTeamsWorktreeCleanup,
   [PhpLaravel.name]: PhpLaravel,
   [ReactTypescript.name]: ReactTypescript,
 });

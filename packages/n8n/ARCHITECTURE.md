@@ -18,18 +18,18 @@ TypeScript is written here.
 
 Software Teams runs today in three places: an interactive Claude Code session, the
 `software-teams …` CLI, and the GitHub-Actions headless runner (`action/`). Agent
-collaboration (Task tool / SendMessage) only works *inside* a live session — it
+collaboration (Agent tool / SendMessage) only works *inside* a live session — it
 cannot be split across processes. The teams want event-driven, composable agents
 on a visual canvas with Slack HITL. n8n is the substrate; each specialist becomes
 a node and agents hand off **node-to-node** over an explicit JSON contract rather
-than through Claude's in-session Task tool.
+than through Claude's in-session Agent tool.
 
 The grounding primitive already exists: `spawnClaude()` in
 [`src/utils/claude.ts`](../src/utils/claude.ts) runs
 `claude -p --output-format stream-json` via `Bun.spawn`, streams events, and
 returns `{ exitCode, response }`. The GHA path
 ([`src/commands/action/run.ts`](../src/commands/action/run.ts) ~L820–940) drives a
-**full, multi-turn session** with `Task` enabled and a conversation-history
+**full, multi-turn session** with `Agent` enabled and a conversation-history
 prompt. n8n nodes need the opposite: **one turn, Task disabled, structured I/O.**
 
 ---
@@ -84,8 +84,8 @@ in the n8n worker, built on `spawnClaude`. The contract for the wrapper
 
 1. **Single turn.** One `claude -p` call. No conversation loop; no follow-up turns
    inside the node. A multi-step workflow is multiple nodes, not multiple turns.
-2. **Task tool disabled.** The wrapper passes an `allowedTools` list that **omits
-   `Task`** — i.e. `DEFAULT_ALLOWED_TOOLS` minus `"Task"`. This is the mechanical
+2. **Agent tool disabled.** The wrapper passes an `allowedTools` list that **omits
+   `Agent`** — i.e. `DEFAULT_ALLOWED_TOOLS` minus `"Agent"`. This is the mechanical
    enforcement of "no internal sub-agent spawning": a node cannot fan out to
    sub-agents, so all multi-agent work flows over the n8n canvas (Decision C).
 3. **Agent selection.** The node's `agentId` (e.g. `software-teams-frontend`) selects a
@@ -116,9 +116,9 @@ primitive, not a refactor of `run.ts`.
 
 ---
 
-## Decision C — Canvas handoff replaces the native Task tool (AC4, addresses R-04)
+## Decision C — Canvas handoff replaces the native Agent tool (AC4, addresses R-04)
 
-With `Task` disabled inside every node, agent-to-agent collaboration is
+With `Agent` disabled inside every node, agent-to-agent collaboration is
 re-implemented as **n8n data flow**: node A's output port → node B's input port,
 both speaking the `NodeEnvelope` (`CONTRACT.md`). Handoff = the downstream node
 folds the upstream node's `result`/`artifacts` into its own `input.context`
@@ -712,9 +712,9 @@ the implemented nodes and the acceptance scenario.
   npm/custom-extensions install `resolveAgentSpecPath` returns `null` → `agentSpecBody` empty
   (`:198-209`) → every specialist runs an identical bare prompt.
 - **The bundled-spec set is unambiguous.** `SPECIALIST_OPTIONS`
-  (`SoftwareTeamsAgent.node.ts:30-64`) is EXACTLY 33 `software-teams-*` values; the repo
-  has EXACTLY 33 `.claude/agents/software-teams-*.md` files; a both-ways `comm` diff is
-  EMPTY. "Lean (only SPECIALIST_OPTIONS)" and "all 33" are the SAME set. There is no choice.
+  (`SoftwareTeamsAgent.node.ts:30-64`) is EXACTLY 34 `software-teams-*` values; the repo
+  has EXACTLY 34 `.claude/agents/software-teams-*.md` files; a both-ways `comm` diff is
+  EMPTY. "Lean (only SPECIALIST_OPTIONS)" and "all 34" are the SAME set. There is no choice.
 - **Packaging.** `package.json` has a real `main` (`dist/credentials/…`, 1-05) and the
   `n8n.nodes[]`/`n8n.credentials[]` registry, but NO `files` allowlist and NO `publishConfig`
   (`:1-58`), so `npm pack` would be incorrect/bloated and would omit the bundled specs.
@@ -861,7 +861,7 @@ function resolveAgentSpecPath(agentId: string): string | null {
   npm/custom-extensions install. This is checked FIRST so the shipped persona wins in
   production.
 - **Candidates 2 & 3 (dev layout, AC8):** climb 5 (`../../../../..`) from
-  `dist/src/execution` reaches the repo root `…/software-teams`, where `.claude/agents/` (33
+  `dist/src/execution` reaches the repo root `…/software-teams`, where `.claude/agents/` (34
   specs, confirmed) and an optional `agents/` live. This FIXES the climb-4 off-by-one (old
   `join(__dirname, "../../../..")` → `…/packages`). Dev resolution keeps working from a repo
   checkout. (R-28.)
@@ -874,11 +874,11 @@ persona bodies (AC9). `stripSpecFrontmatter` (`:143-150`) is unchanged.
 
 ---
 
-## Decision L — Bundled-spec SET: all 33 `software-teams-*` specs (== SPECIALIST_OPTIONS)
+## Decision L — Bundled-spec SET: all 34 `software-teams-*` specs (== SPECIALIST_OPTIONS)
 
-The set to ship is the 33 specialist specs at `.claude/agents/software-teams-*.md`. This
+The set to ship is the 34 specialist specs at `.claude/agents/software-teams-*.md`. This
 EQUALS `SPECIALIST_OPTIONS` one-to-one (empirically confirmed — the both-ways `comm` diff is
-empty), so **lean (only SPECIALIST_OPTIONS) == all 33; there is no "lean vs all 33" choice for
+empty), so **lean (only SPECIALIST_OPTIONS) == all 34; there is no "lean vs all 34" choice for
 T4 to make.** (R-29.)
 
 - **Source:** the tracked plugin specs at `packages/cli/agents/software-teams-*.md`. This is
@@ -973,7 +973,7 @@ no new node code, registry entry, build surface, or node-load-gate entry is adde
   `summarise`/`serialise`/`deserialise` are unchanged.
 - **Not published.** Publish-READY (`files`/`publishConfig` + correct `npm pack`) only.
 - **No new node for the entry affordance** — a Form-Trigger recipe, not a node (Decision O).
-- **No new "lean vs all 33" decision** — the set is the 33 `software-teams-*` specs (Decision L).
+- **No new "lean vs all 34" decision** — the set is the 34 `software-teams-*` specs (Decision L).
 
 ---
 
@@ -985,7 +985,7 @@ no new node code, registry entry, build surface, or node-load-gate entry is adde
 | **R-26** aggregation gate passes by mocking `getWorkflowStaticData` into one shared object | Decision J pins the global-store contract; T6 (not this slice) MUST exercise DISTINCT per-node objects (and a shared `'global'` object only for `('global')`) — a shared object for `('node')` across node names is forbidden and is itself the regression. |
 | **R-27** `'global'` static data behaves differently under queue mode | Decision J chose `'global'` BECAUSE it is n8n DB-backed and shared across workers (queue-mode-safe); the rejected wire path is moot. |
 | **R-28** `resolveAgentSpecPath` fixed for one layout regresses the other | Decision K pins an ORDERED candidate list covering BOTH layouts (installed `dist/agents/` first, dev repo-root `.claude/agents/`+`agents/` next); null degrade preserved. |
-| **R-29** bundled specs bloat the tarball / wrong set ships | Decision L: the set is the 33 `software-teams-*` specs == SPECIALIST_OPTIONS (no ambiguity); Decision N's `files` allowlist scopes the tarball to `dist` + docs only. |
+| **R-29** bundled specs bloat the tarball / wrong set ships | Decision L: the set is the 34 `software-teams-*` specs == SPECIALIST_OPTIONS (no ambiguity); Decision N's `files` allowlist scopes the tarball to `dist` + docs only. |
 | **R-30** entry affordance breaks the existing entry / `epic` semantics | Decision O: a Form-Trigger recipe + additive-only param ergonomics, NOT a new node; existing Manual Trigger entry unchanged; `epic` semantics preserved. |
 | **R-02** secrets leak via the new aggregation surface / tarball | Decision J persists ONLY terminal `status` + `changeRef` (no credentials enter run-state); Decision N's `files` allowlist excludes source/env/secret files; T8 audits run-state/global static data/summary/tarball. |
 
@@ -1123,7 +1123,7 @@ flow that carries any resumed envelope. The DAG remains forward-only (ADR-001 De
 ADR-002 Decision F).
 
 **Feedback categorisation:** the PR-Feedback node shells out to `feedback --json` (the existing
-CLI primitive from `packages/cli/src/commands/feedback.ts:132-133`) to headlessly categorise
+CLI primitive from `packages/cli/src/commands/feedback.ts:132-134`) to headlessly categorise
 the review comments into the `FeedbackComment[]` shape before emitting. This reuses existing
 tested logic — the node adds no new categorisation code.
 
@@ -1227,6 +1227,171 @@ The Cleanup node verifies merge status via the GitHub API before proceeding.
 - **No refactor of `SoftwareTeamsSlackHitl`.** It is preserved unchanged. `SoftwareTeamsHitl`
   is the additive multi-channel, multi-round replacement.
 - **No canvas wiring guide / example workflow JSON.** Deferred to a separate
-  `/st:create-dev-plan` follow-up after these gaps ship (spec Out of Scope).
+  `/st-create-dev-plan` follow-up after these gaps ship (spec Out of Scope).
 - **No new credential.** Discord and email tokens are additional fields on the existing
   `SoftwareTeamsApi` credential — no new credential type is introduced.
+
+---
+
+# ADR-006 - Execution engine v2 (subscription auth, real agent identity, typed results)
+
+Supersedes the spawn model in ADR-003 Decision B and the persona resolution in
+ADR-004 Decision K.
+
+## ADR-006 Decision A - Subscription OAuth is the default credential, and the API key is actively excluded
+
+**Context.** Running a Claude Code instance inside each node exists so that work
+bills a Claude subscription rather than the Anthropic API. That only holds if the
+spawned process actually authenticates with the subscription credential.
+
+**The hazard.** Claude Code's credential precedence puts `ANTHROPIC_API_KEY`
+*above* `CLAUDE_CODE_OAUTH_TOKEN`, and in `-p` mode the key is always used when
+present. An n8n worker with a stray key in its environment therefore bills every
+ticket to the API while the operator believes the subscription is in use. Nothing
+warns. The nodes previously made this certain rather than merely possible: each
+one wrote `process.env['ANTHROPIC_API_KEY']` from the credential, and the
+credential marked that key `required`.
+
+**Decision.**
+
+1. The credential offers an explicit `authMode` - `subscription` (default) or
+   `apiKey` - rather than inferring intent from whichever secret is populated.
+2. `buildAuthEnv` constructs the child environment from scratch and **deletes**
+   every higher-precedence credential variable in subscription mode
+   (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, and the three cloud-provider
+   switches). `assertAuthEnv` then re-checks the built environment, so the
+   silent-billing failure becomes a loud one at construction time.
+3. No node writes `process.env`. An n8n worker is long-lived and shared, so a
+   mutation there leaks into every later execution on that worker.
+4. The credential test runs `claude auth status` on the worker and asserts the
+   reported `authMethod` matches the selected mode. Asserting `loggedIn` alone
+   would pass for a worker quietly using the wrong credential.
+
+**Verified** in a clean `node:22-slim` container - no keychain, no credentials
+file, which is the worker shape. With a stray `ANTHROPIC_API_KEY` in the parent
+environment and an intentionally invalid OAuth token, the run fails with
+`401 OAuth access token is invalid`: the key was stripped and the OAuth token was
+genuinely the credential in use. A developer machine cannot verify this, because a
+local keychain login masks the result.
+
+**Consequence.** `--bare` is unavailable. It skips credential discovery along with
+hooks, skills, plugins, MCP, and CLAUDE.md, so it cannot read
+`CLAUDE_CODE_OAUTH_TOKEN` and requires an API key. Determinism on shared workers
+comes from `--setting-sources ''`, `--strict-mcp-config`, and
+`--exclude-dynamic-system-prompt-sections` instead.
+
+---
+
+## ADR-006 Decision B - Agent identity travels in `--agents`, not in the prompt
+
+**Context.** The engine used to locate a specialist's spec file, strip its
+frontmatter, and concatenate the body onto the user prompt. The spec's declared
+`tools`, `model`, and `effort` were discarded, and the agent's instructions
+arrived as user-turn text rather than as a system prompt.
+
+**Decision.** Build a real subagent definition and pass it as `--agents`, then
+select it with `--agent`. The spec body becomes the system prompt; `tools`,
+`model`, and `effort` are honoured by the harness; and `disallowedTools: [Agent]`
+holds each node to a single turn - enforced rather than merely un-approved, since
+`--allowedTools` only waives the permission prompt.
+
+**Consequence.** Spec resolution takes the repository being worked on as an
+explicit `baseDir`, so a project's own `.claude/agents/<name>.md` overrides the
+copy bundled with the node package. The previous implementation climbed five
+directories from `__dirname` to guess at a repo root, which held for exactly one
+installation layout.
+
+---
+
+# ADR-007 - Support-ticket ingestion and safe generic composition
+
+## Decision A - Manual and automatic ClickUp intake share one boundary
+
+`SupportTicket` is the only support-ingestion shape. `SoftwareTeamsTicket`
+normalises pasted/expression input or a task reference; `SoftwareTeamsClickUpTrigger`
+polls by workspace tag. Both call `createSupportEnvelope`, so source selection
+cannot create different PII, budget, audit, or first-agent behaviour.
+
+ClickUp uses a separate `SoftwareTeamsClickUpApi` credential. Ticket ingestion
+needs no Claude, GitHub, Slack, SMTP, or Datadog secret, and granting those to a
+poller violates least privilege. The older combined credential no longer carries
+a ClickUp token. API helpers receive the token as an argument and never mutate
+`process.env`; parallel jobs on one long-lived worker therefore cannot observe
+or replace one another's ClickUp credential.
+
+## Decision B - The tag trigger is a poller with boundary IDs, not timestamp alone
+
+ClickUp's workspace task query is the API surface that supports `tags[]` and
+`date_updated_gt`. Results are capped at 100 per page, while multiple tasks can
+share one millisecond. Persisting only the latest timestamp would lose the tail
+when `maxTickets` cuts through such a group, because the next strict-greater
+query excludes it.
+
+The trigger keeps two watermarks. The **emitted** timestamp plus IDs prevents a
+per-poll cap from losing tasks that share a millisecond. The **observed**
+timestamp plus IDs records the highest update fully listed from ClickUp. An
+ClickUp is asked for ascending update order and every returned page is checked
+for monotonic timestamps; if the server ignores that order the poll fails loudly
+instead of advancing a partial watermark. This makes a bounded contiguous prefix
+safe. At most three batches are buffered in static state and the rest remains in
+ClickUp. As capacity opens, narrow queries after the observed watermark refill
+the buffer without refetching the old backlog. One ticket
+that becomes inaccessible emits a recoverable error item and still advances the
+batch, rather than wedging the queue. Ticket context retains the 200 most recent
+comments and marks the history truncated rather than letting one large ticket
+wedge the queue. First activation defaults to "new tickets only" so publishing
+an example workflow cannot drain a historic tagged backlog. Backfill requires
+an explicit operator selection.
+
+## Decision C - One generic Claude Code node, safe by default
+
+`SoftwareTeamsClaudeCode` is the primary composition primitive. Agent identity,
+prompt, tool policy, output schema, model, effort, fallback models, turn cap,
+resume, and budget are parameters. Role-specific nodes remain only where they
+own real orchestration, repository, HITL, or output logic.
+
+The default tool policy replaces the agent spec with `Read`, `Glob`, and `Grep`.
+It excludes shell, writes, network, and nested agents. Repository writes, agent
+spec tools, and custom tools each require a visible non-default selection. All
+unattended runs use `permissionMode: dontAsk`, so an unapproved action fails
+rather than parking a worker on an invisible permission prompt.
+
+Ticket context is PII-scrubbed at ingestion, then instruction-sanitised and
+wrapped in an XML untrusted-input fence at execution. Matching closing tags in
+customer text are removed before fencing, so ticket comments cannot terminate
+the boundary early.
+
+Custom schema output is retained as `result.data` and projected onto stable
+`result.text`/status fields. Claude StructuredOutput rejects top-level `oneOf`,
+`allOf`, and `anyOf`, so the node rejects those combinations before spawning.
+`question` is required globally in the standard schema (empty unless needed),
+because conditional-required fields cannot be expressed on this surface.
+
+## Decision D - Budget and audit are cumulative envelope metadata
+
+Ticket intake sets `{ limitUsd, spentUsd: 0 }`. Each generic turn and HITL resume
+caps itself to the remaining amount, adds reported usage, and appends one
+non-secret event. Audit details contain policy, allowed-tool names, cost, and
+turn count only. Prompts, ticket bodies, result prose, API responses, and secrets
+are excluded to avoid creating a second sensitive-data store.
+
+HITL resume reads the previous event to restore the exact tool restriction,
+threads the selected auth mode, uses `dontAsk`, and passes the returned
+`sessionId` through `--resume`. Fresh runs no longer derive `--session-id` from
+`correlationId`: execution retries collided with an existing session. Claude now
+generates each fresh ID and the envelope carries it. A non-zero process exit is
+always an error even when its text is not recognised by the terminal classifier.
+## Decision E - Native project rules are explicit in deterministic workers
+
+Interactive Claude Code sessions and custom subagents load `.claude/rules/`
+natively, including path-scoped categories. n8n intentionally launches with
+`--setting-sources ""` so a worker's ambient project settings cannot alter a
+workflow. Enabling project settings merely to recover rules would violate that
+determinism.
+
+The packaged node therefore bundles the same canonical native rule files and
+appends only `software-teams.md`, `general.md`, and categories relevant to the
+selected specialist to its `--agents` system prompt. A host repository's
+`.claude/rules/` files win over bundled defaults. Frontmatter is removed before
+injection. This preserves one rule source while keeping worker settings and MCP
+configuration isolated.

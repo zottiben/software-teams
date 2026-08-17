@@ -3,7 +3,7 @@
 //
 // Preferred path: read .software-teams/persistence/spawn-ledger.jsonl
 // (populated by `software-teams spawn-log record` during
-// `/st:implement-plan`). This gives real per-spawn byte/token figures.
+// `/st-implement-plan`). This gives real per-spawn byte/token figures.
 //
 // Fallback path: static byte-count analysis of the plan artefacts. Used
 // when no ledger entries exist for the plan (e.g. running this script in
@@ -82,7 +82,7 @@ async function reportStatic(): Promise<void> {
   console.log(
     `Note: no ledger data found at ${LEDGER_PATH} for plan ${planId}. ` +
       `Falling back to static byte-count analysis. ` +
-      `Run \`software-teams spawn-log record ...\` during /st:implement-plan to capture real numbers.\n`,
+      `Run \`software-teams spawn-log record ...\` during /st-implement-plan to capture real numbers.\n`,
   );
   console.log(`Index: ${indexBytes} B (${tok(indexBytes)} tok)`);
   console.log(`Index narrative: ${narrativeBytes} B (${tok(narrativeBytes)} tok)`);

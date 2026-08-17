@@ -1,0 +1,488 @@
+{
+  "name": "Software Teams: Support Ticket Triage and Handoff",
+  "nodes": [
+    {
+      "id": "10000000-0000-4000-8000-000000000001",
+      "name": "Run Manually",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        120
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000002",
+      "name": "Manual Ticket",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsTicket",
+      "typeVersion": 1,
+      "position": [
+        240,
+        120
+      ],
+      "parameters": {
+        "source": "manual",
+        "ticketJson": "{\n  \"id\": \"NDP-34603\",\n  \"title\": \"Redacted completed support-ticket fixture\",\n  \"description\": \"Replace this synthetic body with an expression or paste a redacted ClickUp payload. The real ticket is fetched only during deferred staging verification.\",\n  \"status\": \"complete\",\n  \"priority\": \"normal\",\n  \"tags\": [\"support\"],\n  \"comments\": []\n}",
+        "clickupRef": "https://app.clickup.com/t/36826178/NDP-34603",
+        "workspaceId": "36826178",
+        "prompt": "Triage this support ticket. Classify it as a question, bug, change request, or escalation; identify the next safe action; and ask one specific question if information is missing.",
+        "agentId": "software-teams-support-triage",
+        "ticketBudgetUsd": 1
+      },
+      "notes": "Safe first run: this uses a synthetic redacted payload shaped after NDP-34603. To fetch the real completed ticket in staging, select ClickUp Task as Source; live verification is intentionally deferred until slice 9."
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000003",
+      "name": "Tagged ClickUp Tickets",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsClickUpTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        420
+      ],
+      "parameters": {
+        "workspaceId": "36826178",
+        "pickupTag": "software-teams",
+        "listIds": "",
+        "includeClosed": false,
+        "processExisting": false,
+        "maxTickets": 10,
+        "prompt": "Triage this support ticket. Classify it as a question, bug, change request, or escalation; identify the next safe action; and ask one specific question if information is missing.",
+        "agentId": "software-teams-support-triage",
+        "ticketBudgetUsd": 1
+      },
+      "credentials": {
+        "softwareTeamsClickUpApi": {
+          "id": "REPLACE_WITH_CLICKUP_CREDENTIAL_ID",
+          "name": "Software Teams ClickUp API"
+        }
+      },
+      "notes": "Keep the workflow inactive until manual verification is complete. First activation ignores the existing tagged backlog unless Process Existing Tagged Tickets on Activation is explicitly enabled."
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000004",
+      "name": "Triage",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsClaudeCode",
+      "typeVersion": 1,
+      "position": [
+        520,
+        260
+      ],
+      "parameters": {
+        "agentId": "software-teams-support-triage",
+        "prompt": "Classify the ticket and prepare the safest next action. Do not change customer, ticket, repository, or production state.",
+        "toolPolicy": "readOnly",
+        "schemaMode": "custom",
+        "outputSchema": "{\n  \"type\": \"object\",\n  \"additionalProperties\": false,\n  \"required\": [\n    \"status\",\n    \"summary\",\n    \"question\",\n    \"classification\",\n    \"nextAction\",\n    \"customerReply\",\n    \"internalNotes\",\n    \"confidence\"\n  ],\n  \"properties\": {\n    \"status\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"ok\",\n        \"needs-input\",\n        \"error\"\n      ]\n    },\n    \"summary\": {\n      \"type\": \"string\"\n    },\n    \"question\": {\n      \"type\": \"string\"\n    },\n    \"classification\": {\n      \"type\": \"string\",\n      \"enum\": [\n        \"question\",\n        \"bug\",\n        \"change-request\",\n        \"escalation\"\n      ]\n    },\n    \"nextAction\": {\n      \"type\": \"string\"\n    },\n    \"customerReply\": {\n      \"type\": \"string\"\n    },\n    \"internalNotes\": {\n      \"type\": \"string\"\n    },\n    \"confidence\": {\n      \"type\": \"number\",\n      \"minimum\": 0,\n      \"maximum\": 1\n    }\n  }\n}",
+        "model": "sonnet",
+        "effort": "",
+        "fallbackModel": "haiku",
+        "maxTurnBudgetUsd": 0,
+        "maxTurns": 8,
+        "resumeSession": true
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CLAUDE_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000005",
+      "name": "Route Classification",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        780,
+        260
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result.data.classification }}",
+                    "rightValue": "question",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "question"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result.data.classification }}",
+                    "rightValue": "bug",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "bug"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result.data.classification }}",
+                    "rightValue": "change-request",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "change-request"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result.data.classification }}",
+                    "rightValue": "escalation",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "escalation"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000006",
+      "name": "Draft Customer Answer",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsClaudeCode",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        40
+      ],
+      "parameters": {
+        "agentId": "software-teams-support-triage",
+        "prompt": "Draft the concise customer answer supported by the evidence. Return needs-input and ask for human approval before it is sent.",
+        "toolPolicy": "readOnly",
+        "schemaMode": "turn",
+        "model": "sonnet",
+        "effort": "",
+        "fallbackModel": "haiku",
+        "maxTurnBudgetUsd": 0,
+        "maxTurns": 6,
+        "resumeSession": true
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CLAUDE_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000007",
+      "name": "Prepare Bug Handoff",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsClaudeCode",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        180
+      ],
+      "parameters": {
+        "agentId": "software-teams-support-triage",
+        "prompt": "Prepare an engineering bug handoff containing confirmed symptoms, reproduction gaps, impact, and the smallest next investigation. Return needs-input and ask a human to approve the handoff.",
+        "toolPolicy": "readOnly",
+        "schemaMode": "turn",
+        "model": "sonnet",
+        "effort": "",
+        "fallbackModel": "haiku",
+        "maxTurnBudgetUsd": 0,
+        "maxTurns": 6,
+        "resumeSession": true
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CLAUDE_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000008",
+      "name": "Prepare Change Handoff",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsClaudeCode",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        320
+      ],
+      "parameters": {
+        "agentId": "software-teams-product-lead",
+        "prompt": "Prepare a product change-request handoff with user need, evidence, scope boundary, and open decisions. Return needs-input and ask a human to approve the handoff.",
+        "toolPolicy": "readOnly",
+        "schemaMode": "turn",
+        "model": "sonnet",
+        "effort": "",
+        "fallbackModel": "haiku",
+        "maxTurnBudgetUsd": 0,
+        "maxTurns": 6,
+        "resumeSession": true
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CLAUDE_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000009",
+      "name": "Prepare Escalation",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsClaudeCode",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        460
+      ],
+      "parameters": {
+        "agentId": "software-teams-support-triage",
+        "prompt": "Prepare a minimal escalation brief: reason, urgency, confirmed impact, sensitive-data warning, and who should own it. Return needs-input and ask the human to accept the escalation.",
+        "toolPolicy": "readOnly",
+        "schemaMode": "turn",
+        "model": "sonnet",
+        "effort": "high",
+        "fallbackModel": "haiku",
+        "maxTurnBudgetUsd": 0,
+        "maxTurns": 6,
+        "resumeSession": true
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CLAUDE_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      }
+    },
+    {
+      "id": "10000000-0000-4000-8000-000000000010",
+      "name": "Human Review",
+      "type": "@websitelabs/n8n-nodes-software-teams.softwareTeamsHitl",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        260
+      ],
+      "parameters": {
+        "channel": "notify",
+        "destination": "software-teams-support",
+        "waitTimeoutHours": 24
+      },
+      "credentials": {
+        "softwareTeamsApi": {
+          "id": "REPLACE_WITH_CLAUDE_CREDENTIAL_ID",
+          "name": "Software Teams API"
+        }
+      },
+      "notes": "Every customer-facing answer, bug/change handoff, and escalation reaches human review. Replace the channel and destination after the manual staging run succeeds."
+    }
+  ],
+  "connections": {
+    "Run Manually": {
+      "main": [
+        [
+          {
+            "node": "Manual Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Ticket": {
+      "main": [
+        [
+          {
+            "node": "Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tagged ClickUp Tickets": {
+      "main": [
+        [
+          {
+            "node": "Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage": {
+      "main": [
+        [
+          {
+            "node": "Route Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Classification": {
+      "main": [
+        [
+          {
+            "node": "Draft Customer Answer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Bug Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Change Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Customer Answer": {
+      "main": [
+        [
+          {
+            "node": "Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Bug Handoff": {
+      "main": [
+        [
+          {
+            "node": "Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Change Handoff": {
+      "main": [
+        [
+          {
+            "node": "Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Escalation": {
+      "main": [
+        [
+          {
+            "node": "Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "software-teams-support-example"
+  },
+  "tags": [
+    {
+      "name": "software-teams"
+    },
+    {
+      "name": "support"
+    },
+    {
+      "name": "example"
+    }
+  ]
+}

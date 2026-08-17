@@ -10,7 +10,7 @@
   Use three-tier when: >3 implementation tasks, cross-team work, or any plan
   whose orchestration would crowd out the spec.
 
-  Use single-tier (this plan.md + plan-task.md per task) for: `/st:quick`
+  Use single-tier (this plan.md + plan-task.md per task) for: `/st-quick`
   flows, hotfixes, and plans with 1-3 tasks where a separate SPEC tier adds
   more ceremony than clarity.
 

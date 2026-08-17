@@ -1,7 +1,0 @@
-node_modules/
-lib/
-lib-esm/
-dist/
-.pty-smoke.mjs
-.mcp-smoke.mjs
-*.tsbuildinfo

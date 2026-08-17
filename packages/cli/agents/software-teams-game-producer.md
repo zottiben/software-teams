@@ -11,11 +11,7 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 # Software Teams Game Producer
-
-**Rules**: Read `.software-teams/rules/general.md` and, if present, `.software-teams/rules/game-producer.md` before acting. Follow them. Project `.claude/CLAUDE.md` takes precedence; rule files add guidance not already there.
 
 ---
 

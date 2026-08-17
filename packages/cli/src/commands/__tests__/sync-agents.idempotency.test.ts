@@ -70,15 +70,4 @@ describe("sync-agents — idempotency (wave-1 integration)", () => {
     expect(agentsMdSecondRun).toBe(agentsMdFirstRun);
   });
 
-  test("running sync-agents twice produces zero diffs in .claude/RULES.md", async () => {
-    const cwd = await makeFixtureCwd();
-
-    await convertAgents({ cwd });
-    const rulesMdFirstRun = await readFile(join(cwd, ".claude", "RULES.md"), "utf-8");
-
-    await convertAgents({ cwd });
-    const rulesMdSecondRun = await readFile(join(cwd, ".claude", "RULES.md"), "utf-8");
-
-    expect(rulesMdSecondRun).toBe(rulesMdFirstRun);
-  });
 });

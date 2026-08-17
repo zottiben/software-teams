@@ -31,7 +31,7 @@
 # reply with feedback to refine, or say "approved" to finalise.
 #
 # Rules: Software Teams accumulates team rules across PRs automatically. New rules are
-# appended to .software-teams/rules/ only when the same guidance is NOT already in the
+# appended to .claude/rules/ only when the same guidance is NOT already in the
 # project's .claude/CLAUDE.md (or ./CLAUDE.md). By default rules live in the GitHub
 # Actions cache. Set SOFTWARE_TEAMS_COMMIT_RULES=true to persist them in git
 # (recommended — cache entries expire after 7 days of inactivity).
@@ -99,7 +99,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -114,7 +114,7 @@ jobs:
           bunx @websitelabs/software-teams@latest action bootstrap --matched-key "${{ steps.cache.outputs.cache-matched-key }}"
 
       # Fetch shared rules from an external repo if configured.
-      # This merges cross-project rules into the local .software-teams/rules/ before agents run.
+      # This merges cross-project rules into the local .claude/rules/ before agents run.
       # Lines that already appear in the project's CLAUDE.md are filtered out automatically.
       - name: Fetch shared rules
         if: vars.SOFTWARE_TEAMS_RULES_REPO != ''
@@ -178,7 +178,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -210,7 +210,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -264,7 +264,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -295,7 +295,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -322,7 +322,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -359,7 +359,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -387,7 +387,7 @@ jobs:
         with:
           path: |
             .software-teams/persistence/
-            .software-teams/rules/
+            .claude/rules/
             .software-teams/config/
             .software-teams/plans/
             .claude/
@@ -397,7 +397,7 @@ jobs:
       # Set repo variable SOFTWARE_TEAMS_COMMIT_RULES=true to enable.
       #
       # Where rules are committed:
-      #   - Same repo (default): .software-teams/rules/ on main
+      #   - Same repo (default): .claude/rules/ on main
       #   - External repo: set SOFTWARE_TEAMS_RULES_REPO (e.g. org/software-teams-rules)
       #     and SOFTWARE_TEAMS_RULES_TOKEN secret. Rules are stored under
       #     software-teams/rules/ in the external repo and merged (not replaced).

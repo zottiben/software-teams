@@ -90,10 +90,17 @@ export function extractClickUpId(text: string): string | null {
   return extractClickUpRef(text)?.taskId ?? null;
 }
 
+export interface ClickUpFetchOptions {
+  /** Pass explicitly on shared workers. Environment fallback exists for the CLI only. */
+  token?: string;
+  apiBase?: string;
+}
+
 export async function fetchClickUpTicket(
   ref: ClickUpRef | string,
+  options: ClickUpFetchOptions = {},
 ): Promise<ClickUpTicket | null> {
-  const token = process.env.CLICKUP_API_TOKEN;
+  const token = options.token ?? process.env.CLICKUP_API_TOKEN;
   if (!token) return null;
 
   // Normalise: accept a bare string for back-compat with older callers.
@@ -103,7 +110,9 @@ export async function fetchClickUpTicket(
   // Custom task IDs (URLs like `/t/{team_id}/{NDP-33700}`) need the
   // custom_task_ids=true + team_id=... query params; ClickUp 404s
   // without them. Plain task IDs work against the bare endpoint.
-  const clickupBase = (process.env.CLICKUP_API_BASE || "https://api.clickup.com").replace(/\/$/, "");
+  const clickupBase = (
+    options.apiBase ?? process.env.CLICKUP_API_BASE ?? "https://api.clickup.com"
+  ).replace(/\/$/, "");
   const url = teamId
     ? `${clickupBase}/api/v2/task/${encodeURIComponent(taskId)}?custom_task_ids=true&team_id=${encodeURIComponent(teamId)}`
     : `${clickupBase}/api/v2/task/${encodeURIComponent(taskId)}`;

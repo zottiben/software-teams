@@ -5,14 +5,12 @@ import { planCommand } from "./commands/plan";
 import { implementCommand } from "./commands/implement";
 import { statusCommand } from "./commands/status";
 import { componentCommand } from "./commands/component";
+import { validateFrontmatterCommand } from "./commands/validate-frontmatter";
 import { commitCommand } from "./commands/commit";
 import { prCommand } from "./commands/pr";
 import { reviewCommand } from "./commands/review";
 import { feedbackCommand } from "./commands/feedback";
 import { quickCommand } from "./commands/quick";
-import { worktreeCommand } from "./commands/worktree";
-import { worktreeRemoveCommand } from "./commands/worktree-remove";
-import { worktreeMergeCommand } from "./commands/worktree-merge";
 import { planReviewCommand } from "./commands/plan-review";
 import { planApproveCommand } from "./commands/plan-approve";
 import { actionCommand } from "./commands/action/index";
@@ -22,6 +20,7 @@ import { syncAgentsCommand } from "./commands/sync-agents";
 import { verifyCommand } from "./commands/verify";
 import { compileWorkflowCommand } from "./commands/compile-workflow";
 import { statuslineCommand } from "./commands/statusline";
+import { provisionWorktreeCommand } from "./commands/provision-worktree";
 import { syncFrameworkCommand } from "./commands/sync-framework";
 import { spawnLogCommand } from "./commands/spawn-log";
 import { roadmapCommand } from "./commands/roadmap";
@@ -47,14 +46,13 @@ const main = defineCommand({
     implement: implementCommand,
     status: statusCommand,
     component: componentCommand,
+    "validate-frontmatter": validateFrontmatterCommand,
     commit: commitCommand,
     pr: prCommand,
     review: reviewCommand,
     feedback: feedbackCommand,
     quick: quickCommand,
-    worktree: worktreeCommand,
-    "worktree-remove": worktreeRemoveCommand,
-    "worktree-merge": worktreeMergeCommand,
+    "provision-worktree": provisionWorktreeCommand,
     "plan-review": planReviewCommand,
     "plan-approve": planApproveCommand,
     action: actionCommand,

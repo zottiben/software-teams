@@ -170,7 +170,7 @@ async function status(): Promise<number> {
   } else {
     const majority = trueCount >= 2 ? "off" : "on";
     console.log(
-      `→ DRIFT — run /st:orchestrator-mode ${majority} to converge`,
+      `→ DRIFT — run /st-orchestrator-mode ${majority} to converge`,
     );
   }
 

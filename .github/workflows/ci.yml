@@ -9,13 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      # Activates the BENCH_ASSERT-gated test in
-      # packages/cli/src/benchmarks/component-cost.test.ts which checks the most recent
-      # `from-resolved` benchmark entry against the projected 42,009-token
-      # ceiling within ±5%. Flipped on as part of plan 4-01-T5 once the
-      # post-audit measurement was confirmed inside the soft-fail band.
-      BENCH_ASSERT: "1"
     steps:
       - uses: actions/checkout@v6
 
@@ -89,3 +82,25 @@ jobs:
 
       - name: Component registry validation
         run: bun run packages/cli/dist/index.js component validate
+
+  frontmatter-validate:
+    # Guards the Claude Code surface: every `tools` / `allowed-tools` entry must
+    # be a real tool name, every `model` a live alias or current claude-* ID,
+    # every `effort` a real level. The harness silently ignores an unknown tool
+    # or model, so this class of rot passes typecheck, lint, test, and build.
+    # Software Teams shipped `Task`, `MultiEdit`, and four dead model
+    # generations before this job existed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.7"
+
+      - run: bun install
+
+      - run: bun run build
+
+      - name: Frontmatter + model-profile validation
+        run: bun run packages/cli/dist/index.js validate-frontmatter

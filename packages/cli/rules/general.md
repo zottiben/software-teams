@@ -1,3 +1,3 @@
 # General Learnings
 
-<!-- Rules extracted from PR reviews about cross-cutting concerns, process, and conventions -->
+<!-- Cross-cutting team conventions extracted from PR reviews. This rule has no paths frontmatter so Claude loads it at session start and after compaction. -->

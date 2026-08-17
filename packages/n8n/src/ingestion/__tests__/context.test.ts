@@ -12,7 +12,7 @@ import {
  * Tests that:
  * 1. ClickUp context is fetched and formatted correctly
  * 2. Datadog context is fetched and formatted correctly
- * 3. Credentials are temporarily injected into env vars and restored
+ * 3. ClickUp credentials never mutate the shared worker environment
  * 4. Missing credentials return null gracefully
  * 5. Unfetchable context returns null
  */
@@ -76,65 +76,26 @@ describe("Ingestion context adapter (T6 - AC5, R-02)", () => {
       expect(context).toBeNull();
     });
 
-    test("temporarily injects CLICKUP_API_TOKEN and restores previous value", async () => {
-      const originalToken = "original-token-value";
-      process.env.CLICKUP_API_TOKEN = originalToken;
+    test("does not overwrite a worker-level CLICKUP_API_TOKEN", async () => {
+      process.env.CLICKUP_API_TOKEN = "worker-token";
 
-      const originalRequire = globalThis.require;
-      (globalThis as any).require = (path: string) => {
-        if (path.includes("clickup")) {
-          return {
-            fetchClickUpTicket: mock(async (ref: any) => {
-              // Inside the fetch, the token should be the credential token
-              expect(process.env.CLICKUP_API_TOKEN).toBe("credential-token");
-              return null;
-            }),
-            formatTicketAsContext: mockFormatTicketAsContext,
-          };
-        }
-        return originalRequire?.(path);
-      };
+      await buildClickUpContext(
+        { taskId: "NDP-789" },
+        { clickupApiKey: "credential-token" },
+      );
 
-      try {
-        await buildClickUpContext(
-          { taskId: "NDP-789" },
-          { clickupApiKey: "credential-token" },
-        );
-
-        // Token should be restored after the call
-        expect(process.env.CLICKUP_API_TOKEN).toBe(originalToken);
-      } finally {
-        (globalThis as any).require = originalRequire;
-      }
+      expect(process.env.CLICKUP_API_TOKEN).toBe("worker-token");
     });
 
-    test("cleans up env var if it was undefined before the call", async () => {
-      // Ensure CLICKUP_API_TOKEN starts undefined
+    test("does not create CLICKUP_API_TOKEN when the worker has none", async () => {
       delete process.env.CLICKUP_API_TOKEN;
+
+      await buildClickUpContext(
+        { taskId: "NDP-111" },
+        { clickupApiKey: "credential-token" },
+      );
+
       expect(process.env.CLICKUP_API_TOKEN).toBeUndefined();
-
-      const originalRequire = globalThis.require;
-      (globalThis as any).require = (path: string) => {
-        if (path.includes("clickup")) {
-          return {
-            fetchClickUpTicket: mock(async () => null),
-            formatTicketAsContext: mockFormatTicketAsContext,
-          };
-        }
-        return originalRequire?.(path);
-      };
-
-      try {
-        await buildClickUpContext(
-          { taskId: "NDP-111" },
-          { clickupApiKey: "token" },
-        );
-
-        // Should be undefined again (cleaned up, not left with our token)
-        expect(process.env.CLICKUP_API_TOKEN).toBeUndefined();
-      } finally {
-        (globalThis as any).require = originalRequire;
-      }
     });
 
     test("returns null when fetch returns null", async () => {

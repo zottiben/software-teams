@@ -36,7 +36,7 @@
 #   Orchestrator-Only Mode keeps the MAIN thread free to MANAGE and DELIVER
 #   the work via Bash — commit, push, open PRs, install deps, run builds and
 #   tests, etc. What it must NOT do is AUTHOR or DESTROY code directly; that
-#   is delegated to specialists via the Task tool. So this hook blocks only
+#   is delegated to specialists via the Agent tool. So this hook blocks only
 #   the tools/commands that write, overwrite, delete, move, or revert source.
 #
 #   Non-Bash tools (always blocked when this hook is installed):
@@ -107,7 +107,7 @@ fi
 # ── Teammate exemption ──────────────────────────────────────────────────────
 # Agent Teams (TeamCreate / `claude agents`) spawn full Claude Code processes
 # in tmux panes. They load the project's .claude/settings.json — so they
-# inherit this hook — but they are NOT Task subagents, so no agent_id is set.
+# inherit this hook — but they are NOT Agent subagents, so no agent_id is set.
 # Claude Code marks teammate processes via the env vars below; bash hooks
 # inherit the parent process env, so we can detect the case here. The same
 # detection set is used inside the Claude Code binary to recognise
@@ -123,7 +123,7 @@ fi
 # ── Branch on tool name ──────────────────────────────────────────────────────
 case "$tool" in
   Edit|Write|NotebookEdit)
-    printf "orchestrator-mode: Tool '%s' is blocked while Orchestrator-Only Mode is on.\nDelegate to a specialist via the Task tool, or run:\n  /st:orchestrator-mode off\nto disable the hook.\n" "$tool" >&2
+    printf "orchestrator-mode: Tool '%s' is blocked while Orchestrator-Only Mode is on.\nDelegate to a specialist via the Agent tool, or run:\n  /st:orchestrator-mode off\nto disable the hook.\n" "$tool" >&2
     exit 2
     ;;
 
@@ -161,7 +161,7 @@ case "$tool" in
 
     deny() {
       local pattern="$1"
-      printf "orchestrator-mode: Bash command matched deny pattern '%s'.\nThis writes or destroys code directly — delegate it to a specialist via the\nTask tool, or run:\n  /st:orchestrator-mode off\nto disable the hook. (Delivery commands — git commit/push, installs, make,\ngh, read-only git — are allowed.)\n" "$pattern" >&2
+      printf "orchestrator-mode: Bash command matched deny pattern '%s'.\nThis writes or destroys code directly — delegate it to a specialist via the\nAgent tool, or run:\n  /st:orchestrator-mode off\nto disable the hook. (Delivery commands — git commit/push, installs, make,\ngh, read-only git — are allowed.)\n" "$pattern" >&2
       exit 2
     }
 

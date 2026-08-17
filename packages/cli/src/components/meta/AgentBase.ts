@@ -119,7 +119,7 @@ You are now active as {agent-name}. {Action verb} as requested.
       description: "File operation rules and structured return format for sandboxed agents",
       body: `## File Operations
 
-You are spawned with \`mode: "acceptEdits"\` and a scoped \`allowedTools\` allowlist (declared in \`.claude/settings.json\` and mirrored in \`src/utils/claude.ts\`). The allowlist covers Read/Write/Edit/MultiEdit/Glob/Grep/Task plus scoped \`Bash(bun:*)\`, \`Bash(git:*)\`, \`Bash(gh:*)\`, \`Bash(npm:*)\`, \`Bash(npx:*)\`, \`Bash(mkdir:*)\`, \`Bash(rm:*)\`, \`Bash(software-teams:*)\`. All standard tools work within that scope:
+You are spawned with \`mode: "acceptEdits"\` and a scoped allowlist (declared under \`permissions.allow\` in \`.claude/settings.json\` and mirrored in \`src/shared/agent-tools.ts\`). The allowlist covers Read/Write/Edit/Glob/Grep/Agent plus scoped \`Bash(bun:*)\`, \`Bash(git:*)\`, \`Bash(gh:*)\`, \`Bash(npm:*)\`, \`Bash(npx:*)\`, \`Bash(mkdir:*)\`, \`Bash(rm:*)\`, \`Bash(software-teams:*)\`. All standard tools work within that scope:
 
 | Operation | Tool / Method | Notes |
 |-----------|--------------|-------|

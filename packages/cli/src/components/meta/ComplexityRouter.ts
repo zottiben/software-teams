@@ -47,7 +47,7 @@ reasoning: "{why this mode was chosen}"
     SingleAgentMode: {
       name: "SingleAgentMode",
       description: "How to spawn a single specialist agent for simple plans",
-      body: `Spawn one specialist agent directly via Task tool, **natively by name**.
+      body: `Spawn one specialist agent directly via Agent tool, **natively by name**.
 
 > **Three-tier plans (post-T9/T10):** when the plan has an \`orchestration.md\`
 > artefact, single-agent mode loads SPEC + ORCHESTRATION as the **orchestrator
@@ -55,7 +55,7 @@ reasoning: "{why this mode was chosen}"
 > per-task spawn it makes downstream still loads ONLY the per-agent slice
 > (\`{slug}.T{n}.md\`) plus the SPEC sections cited in the slice's
 > \`**Read first:**\` line — never the full SPEC, never the full task list. See
-> \`framework/commands/implement-plan.md\` Three-Tier Execution Loop.
+> \`skills/implement-plan/SKILL.md\` Three-Tier Execution Loop.
 
 > **Single-tier plans (legacy):** the primary agent loads the full
 > \`{slug}.plan.md\` index and reads each \`{slug}.T{n}.md\` task file as it
@@ -102,7 +102,7 @@ automatically when spawned by name — do NOT inject identity preamble in the
 prompt. Software Teams specialists are placed there by \`software-teams sync-agents\`, which converts
 the canonical specs in \`framework/agents/software-teams-*.md\` to the Claude Code format.
 
-No TeamCreate, no TaskCreate, no cross-agent coordination.
+No teammates, no TaskCreate, no cross-agent coordination.
 
 <!-- lint-allow: legacy-injection -->
 ### Legacy fallback (no pins)
@@ -117,7 +117,7 @@ software-teams-backend / software-teams-frontend spec inside the prompt as a las
       name: "AgentTeamsMode",
       description: "How to run full Agent Teams orchestration for complex plans",
       body: `Follow full orchestration from \`the AgentTeamsOrchestration component\`:
-TeamCreate → TaskCreate per plan task → spawn specialists per tech-stack routing → wave-based coordination → collect deferred ops → shutdown → TeamDelete.`,
+TaskCreate per plan task → spawn teammates per tech-stack routing → wave-based coordination → collect deferred ops → session exit cleans up.`,
     },
     Usage: {
       name: "Usage",

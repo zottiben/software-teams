@@ -1,0 +1,17 @@
+{
+  "node": "n8n-nodes-software-teams.softwareTeamsClaudeCode",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI", "Development"],
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://github.com/websitelabs/software-teams/tree/main/packages/n8n"
+      }
+    ]
+  },
+  "alias": ["claude code", "agent", "specialist", "structured output", "software teams"],
+  "subcategories": {
+    "AI": ["Agents"]
+  }
+}

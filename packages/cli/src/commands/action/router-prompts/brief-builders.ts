@@ -4,9 +4,9 @@ import { buildPrePlanDiscoveryBrief } from "./discovery-brief";
 
 export { buildPrePlanDiscoveryBrief };
 
-import selfReferenceStyleFragment from "../../../../commands/_shared/self-reference-style.md" with { type: "text" };
-import planThreeTierArtifactsFragment from "../../../../commands/_shared/plan-three-tier-artifacts.md" with { type: "text" };
-import prTemplateConcisenessFragment from "../../../../commands/_shared/pr-template-conciseness.md" with { type: "text" };
+import selfReferenceStyleFragment from "../../../../skills/st-support/self-reference-style.md" with { type: "text" };
+import planThreeTierArtifactsFragment from "../../../../skills/st-support/plan-three-tier-artifacts.md" with { type: "text" };
+import prTemplateConcisenessFragment from "../../../../skills/st-support/pr-template-conciseness.md" with { type: "text" };
 
 export function buildSubagentBrief(ctx: ActionContext): string {
   const { flow, repo, issueNumber, userRequest, conversationHistory, featureBranch } = ctx;
@@ -304,7 +304,7 @@ export function buildImplementBrief(ctx: ActionContext): string[] {
   return [
     `## Implementation Task`,
     ...planPathLines,
-    `4. Implement each task directly via Edit/Write — do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Task tool — execute every slice in this single context.)`,
+    `4. Implement each task directly via Edit/Write — do NOT modify \`.software-teams/\` or \`.claude/\`. (You don't have the Agent tool — execute every slice in this single context.)`,
     `5. Update \`state.yaml\` \`current_plan.completed_tasks\` as you finish each task.`,
     ``,
     `Stage source files only and commit with a conventional message. See the auto-commit block below for branch + push instructions.`,

@@ -6,11 +6,25 @@ import {
   NodeConnectionTypes,
   NodeOperationError,
 } from 'n8n-workflow';
+import { softwareTeamsCredentialTest } from '../../src/execution/verify-credential';
+import { authFromCredentials } from '../../src/execution/auth-from-credentials';
+import {
+  applyTurnAccounting,
+  buildBudgetExhaustedEnvelope,
+  resumePolicyFromAudit,
+  turnBudget,
+} from '../../src/execution/generic-turn';
+import type { AgentTurnOptions } from '../../src/execution/single-turn';
 import type { NodeEnvelope } from '@websitelabs/software-teams';
 import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 
 // n8n tsconfig (module: commonjs) cannot statically resolve single-turn.ts.
-type RunAgentTurnFn = (input: NodeEnvelope) => Promise<NodeEnvelope>;
+type RunAgentTurnFn = (
+  input: NodeEnvelope,
+  repoContext?: undefined,
+  githubToken?: undefined,
+  options?: AgentTurnOptions,
+) => Promise<NodeEnvelope>;
 const SINGLE_TURN_MODULE: string = '../../src/execution/single-turn';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { runAgentTurn } = require(SINGLE_TURN_MODULE) as {
@@ -85,7 +99,7 @@ export class SoftwareTeamsSlackHitl implements INodeType {
     defaults: { name: 'Software Teams Slack HITL' },
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
-    credentials: [{ name: 'softwareTeamsApi', required: true }],
+    credentials: [{ name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' }],
     properties: [
       {
         displayName: 'Slack Channel',
@@ -112,12 +126,18 @@ export class SoftwareTeamsSlackHitl implements INodeType {
 		usableAsTool: true,
   };
 
+  /** Credential test, declared via `testedBy` above. Shared so the nodes cannot drift. */
+
+  methods = { credentialTest: softwareTeamsCredentialTest };
+
+
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
     const returnData: INodeExecutionData[] = [];
 
     // Credentials (R-02: NEVER written to output)
     const credentials = await this.getCredentials('softwareTeamsApi');
+    const auth = authFromCredentials(credentials);
     const slackToken = credentials['slackBotToken'] as string | undefined;
     const slackChannel = this.getNodeParameter('slackChannel', 0, '') as string;
     const waitTimeoutHours = this.getNodeParameter('waitTimeoutHours', 0, 24) as number;
@@ -191,15 +211,40 @@ export class SoftwareTeamsSlackHitl implements INodeType {
             result: { text: '' },
           };
 
-          const agentResult = await runAgentTurn(resumeEnvelope).catch((err: unknown) => {
-            throw new NodeOperationError(
-              this.getNode(),
-              `HITL resume: runAgentTurn failed: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-              { itemIndex: i },
-            );
-          });
+          const resumePolicy = resumePolicyFromAudit(resumeEnvelope);
+          const remainingBudget = turnBudget(resumeEnvelope, 0);
+          const resumed = remainingBudget === 0 && resumeEnvelope.budget
+            ? buildBudgetExhaustedEnvelope(
+                resumeEnvelope,
+                resumeEnvelope.agentId,
+                resumeEnvelope.input.prompt,
+              )
+            : await runAgentTurn(resumeEnvelope, undefined, undefined, {
+                auth,
+                ...(remainingBudget !== undefined ? { maxBudgetUsd: remainingBudget } : {}),
+                maxTurns: 8,
+                ...(resumeEnvelope.sessionId
+                  ? { resumeSessionId: resumeEnvelope.sessionId }
+                  : {}),
+                ...(resumePolicy.tools ? { tools: resumePolicy.tools } : {}),
+                permissionMode: 'dontAsk',
+                requireAgentDefinition: true,
+              }).catch((err: unknown) => {
+                throw new NodeOperationError(
+                  this.getNode(),
+                  `HITL resume: runAgentTurn failed: ${
+                    err instanceof Error ? err.message : String(err)
+                  }`,
+                  { itemIndex: i },
+                );
+              });
+          const agentResult = remainingBudget === 0 && resumeEnvelope.budget
+            ? resumed
+            : applyTurnAccounting(resumed, resumeEnvelope, {
+                policy: resumePolicy.policy,
+                tools: resumePolicy.tools,
+                permissionMode: 'dontAsk',
+              });
 
           // Clean up persisted state after successful resume (idempotent, non-fatal).
           try {

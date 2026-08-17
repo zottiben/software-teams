@@ -2,6 +2,7 @@
 name: software-teams-codebase-mapper
 description: Analyses and documents codebase architecture, patterns, and concerns
 model: sonnet
+memory: project
 tools:
   - Bash
   - Edit
@@ -11,9 +12,6 @@ tools:
   - Read
   - Write
 ---
-
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 
 # Software Teams Codebase Mapper Agent
 

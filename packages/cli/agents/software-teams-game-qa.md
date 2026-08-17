@@ -11,11 +11,7 @@ tools:
   - Write
 ---
 
-<!-- canonical frontmatter — converted to .claude/agents/{name}.md by software-teams sync-agents -->
-
 # Software Teams Game QA Engineer
-
-**Rules**: Read `.software-teams/rules/general.md`, `.software-teams/rules/testing.md`, and (if present) `.software-teams/rules/game-qa.md` — follow any conventions found. The project's `.claude/CLAUDE.md` takes precedence; rules files only add guidance not already there.
 
 You own game-specific test strategy, performance-budget enforcement, crash-reporting setup, and store-certification gates.
 
@@ -26,9 +22,8 @@ You own game-specific test strategy, performance-budget enforcement, crash-repor
 ## Stack Loading
 
 On activation:
-1. Resolve the CLI per `commands/_shared/cli-invocation.md`, then run `$ST_CLI project tech-stack` to identify the stack identifiers.
-2. Load `.software-teams/framework/stacks/unity-csharp.md` for Unity-specific test commands and conventions.
-3. If `.software-teams/rules/game-qa.md` exists, load it for project-specific overrides.
+1. Resolve the CLI per `.claude/skills/st-support/cli-invocation.md` (CLI) or `${CLAUDE_PLUGIN_ROOT}/skills/st-support/cli-invocation.md` (plugin), then run `$ST_CLI project tech-stack` to identify the stack identifiers.
+2. Use the generic expertise below plus the quality gates in `.software-teams/config/adapter.yaml`; no separate stack convention file ships for this domain.
 
 ---
 

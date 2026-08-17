@@ -19,15 +19,22 @@ describe("runAgentTurn — single-turn execution adapter (AC2, AC3, AC9)", () =>
     };
   });
 
-  describe("AC2: Task tool disabled in allowedTools", () => {
-    test("SINGLE_TURN_ALLOWED_TOOLS excludes Task (enforces AC2)", async () => {
-      // The constraint that each n8n Agent node runs exactly ONE specialist turn
-      // with no internal sub-agent spawning is enforced by the SINGLE_TURN_ALLOWED_TOOLS
-      // constant which omits "Task" from the allowed tools list.
+  describe("AC2: Agent tool removed from the tool pool", () => {
+    test("the spawning tool is withheld, not merely left un-approved (enforces AC2)", async () => {
+      // Each n8n Agent node runs exactly ONE specialist turn with no internal
+      // sub-agent spawning.
+      //
+      // This used to assert only that SINGLE_TURN_ALLOWED_TOOLS omits "Task",
+      // which was doubly wrong: "Task" is not a Claude Code tool (the spawning
+      // tool is "Agent"), so the assertion passed vacuously, and omission from
+      // --allowedTools waives the permission prompt rather than removing the
+      // tool. Enforcement needs --disallowedTools.
+      const { SINGLE_TURN_ALLOWED_TOOLS, SINGLE_TURN_DISALLOWED_TOOLS } = await import(
+        "../../../../cli/src/utils/claude"
+      );
 
-      // Import and check the constant directly
-      const { SINGLE_TURN_ALLOWED_TOOLS } = await import("../../../../cli/src/utils/claude");
-      expect(SINGLE_TURN_ALLOWED_TOOLS.includes("Task")).toBeFalse();
+      expect(SINGLE_TURN_ALLOWED_TOOLS).not.toContain("Agent");
+      expect(SINGLE_TURN_DISALLOWED_TOOLS).toContain("Agent");
       expect(SINGLE_TURN_ALLOWED_TOOLS).toContain("Read");
       expect(SINGLE_TURN_ALLOWED_TOOLS).toContain("Write");
     });

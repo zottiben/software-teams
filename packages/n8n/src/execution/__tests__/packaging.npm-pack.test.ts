@@ -18,6 +18,9 @@ const NODE_BASENAMES = [
   "SoftwareTeamsPrFeedback",
   "SoftwareTeamsHitl",
   "SoftwareTeamsCleanup",
+  "SoftwareTeamsTicket",
+  "SoftwareTeamsClickUpTrigger",
+  "SoftwareTeamsClaudeCode",
 ];
 
 const tarState = { files: [] as string[], packDir: "" };
@@ -67,39 +70,54 @@ describe("npm pack — publish-ready tarball contents (AC7, AC10)", () => {
   });
 
   describe("tarball CONTAINS dist nodes + credential (AC10)", () => {
-    test("all ten built node bundles are packed", () => {
+    test("all thirteen built node bundles are packed", () => {
       for (const base of NODE_BASENAMES) {
         const expected = `dist/nodes/${base}/${base}.node.js`;
         expect(tarState.files).toContain(expected);
       }
     });
 
-    test("exactly ten *.node.js entries ship (no more, no fewer)", () => {
+    test("exactly thirteen *.node.js entries ship (no more, no fewer)", () => {
       const nodeJs = tarState.files.filter((p) => p.endsWith(".node.js"));
-      expect(nodeJs.length).toBe(10);
+      expect(nodeJs.length).toBe(13);
     });
 
-    test("the credential entry-point is packed", () => {
+    test("both credential entry-points and the support workflow are packed", () => {
       expect(tarState.files).toContain(
         "dist/credentials/SoftwareTeamsApi.credentials.js",
       );
+      expect(tarState.files).toContain(
+        "dist/credentials/SoftwareTeamsClickUpApi.credentials.js",
+      );
+      expect(tarState.files).toContain("examples/support-ticket.workflow.json");
     });
   });
 
-  describe("tarball CONTAINS the 33 bundled specialist specs (AC7)", () => {
+  describe("tarball CONTAINS the 34 bundled specialist specs (AC7)", () => {
     test("every repo software-teams-* spec ships under dist/agents", () => {
       const specs = repoSpecNames();
-      expect(specs.length).toBe(33);
+      expect(specs.length).toBe(34);
       for (const spec of specs) {
         expect(tarState.files).toContain(`dist/agents/${spec}`);
       }
     });
 
-    test("exactly 33 dist/agents/*.md specs are packed", () => {
+    test("exactly 34 agent specs and six native rules are packed", () => {
       const packedSpecs = tarState.files.filter(
         (p) => p.startsWith("dist/agents/") && p.endsWith(".md"),
       );
-      expect(packedSpecs.length).toBe(33);
+      const packedRules = tarState.files.filter(
+        (p) => p.startsWith("dist/rules/") && p.endsWith(".md"),
+      );
+      expect(packedSpecs.length).toBe(34);
+      expect(packedRules.sort()).toEqual([
+        "dist/rules/backend.md",
+        "dist/rules/devops.md",
+        "dist/rules/frontend.md",
+        "dist/rules/general.md",
+        "dist/rules/software-teams.md",
+        "dist/rules/testing.md",
+      ]);
     });
   });
 
@@ -119,11 +137,12 @@ describe("npm pack — publish-ready tarball contents (AC7, AC10)", () => {
       expect(tests).toEqual([]);
     });
 
-    test("no examples/ or scripts/ dev dirs are packed", () => {
-      const dev = tarState.files.filter(
-        (p) => p.startsWith("examples/") || p.startsWith("scripts/"),
-      );
-      expect(dev).toEqual([]);
+    test("only importable workflow JSON ships from examples, and scripts stay excluded", () => {
+      const scripts = tarState.files.filter((p) => p.startsWith("scripts/"));
+      expect(scripts).toEqual([]);
+      const examples = tarState.files.filter((p) => p.startsWith("examples/"));
+      expect(examples.length).toBeGreaterThan(0);
+      expect(examples.every((path) => path.endsWith(".workflow.json"))).toBeTrue();
     });
 
     test("no tsconfig / eslint dev config is packed", () => {

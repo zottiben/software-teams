@@ -44,7 +44,7 @@ function agentContext(opts: {
       if (name === "specialist") return opts.specialist;
       if (name === "prompt") return "do it";
       if (name === "context") return "";
-      if (name === "model") return "claude-sonnet-4-5";
+      if (name === "model") return "sonnet";
       return "";
     },
     getCredentials: async () => ({ anthropicApiKey: "sk-test", githubToken: undefined }),
