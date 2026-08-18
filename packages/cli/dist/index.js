@@ -10235,7 +10235,7 @@ ${payload?.result ?? ""}`;
 // lib/shared/claude-code-surface.js
 var require_claude_code_surface = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.N8N_MODEL_OPTIONS = exports.STRUCTURED_OUTPUT_TOOL = exports.RETIRED_MODEL_PREFIXES = exports.MEMORY_SCOPES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
+  exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.STE_RESPONSE_STYLE = exports.N8N_MODEL_OPTIONS = exports.STRUCTURED_OUTPUT_TOOL = exports.RETIRED_MODEL_PREFIXES = exports.MEMORY_SCOPES = exports.EFFORT_LEVELS = exports.MODEL_ALIASES = exports.RETIRED_TOOL_REPLACEMENTS = exports.SUBAGENT_STRIPPED_TOOLS = exports.CLAUDE_CODE_TOOLS = undefined;
   exports.retiredModelReplacement = retiredModelReplacement2;
   exports.isValidModel = isValidModel2;
   exports.isValidToolName = isValidToolName2;
@@ -10345,9 +10345,31 @@ var require_claude_code_surface = __commonJS((exports) => {
     { name: "Haiku (Latest)", value: "haiku" },
     { name: "Fable (Latest)", value: "fable" },
     { name: "Claude Opus 5", value: "claude-opus-5" },
+    { name: "Claude Opus 4.8", value: "claude-opus-4-8" },
+    { name: "Claude Opus 4.7", value: "claude-opus-4-7" },
+    { name: "Claude Opus 4.6", value: "claude-opus-4-6" },
     { name: "Claude Sonnet 5", value: "claude-sonnet-5" },
+    { name: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" },
+    { name: "Claude Fable 5", value: "claude-fable-5" },
     { name: "Claude Haiku 4.5", value: "claude-haiku-4-5" }
   ];
+  exports.STE_RESPONSE_STYLE = `## Response language
+
+Write all prose in Simplified Technical English (the ASD-STE100 writing rules).
+
+- Give one instruction per sentence. Keep instructions to 20 words, descriptions to 25.
+- Use the active voice, and name the actor.
+- Use simple tenses. Prefer the present.
+- Keep articles: write "the file", not "file".
+- Use one term for one thing. Never vary a word for style.
+- Prefer a verb to a noun made from a verb: "if the build fails", not "on build failure".
+- Do not use an -ing form where a simple verb works.
+- Do not use slang, idiom, metaphor, or humour.
+- In a warning, state the condition first and the action second.
+- Keep a paragraph to six sentences or fewer.
+
+This governs prose only. Reproduce identifiers, code, commands, file paths, error
+messages, and quoted output exactly as they are. Never simplify evidence.`;
   exports.N8N_DEFAULT_MODEL = "sonnet";
   exports.N8N_EFFORT_OPTIONS = [
     { name: "Model Default", value: "" },
@@ -10388,7 +10410,7 @@ var require_envelope = __commonJS((exports) => {
 // lib/n8n-api.js
 var require_n8n_api = __commonJS((exports) => {
   Object.defineProperty(exports, "__esModule", { value: true });
-  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.STRUCTURED_OUTPUT_TOOL = exports.withStructuredOutput = exports.isValidToolName = exports.isValidModel = exports.N8N_MODEL_OPTIONS = exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.totalCostUsd = exports.isRetryableLater = exports.classifyResult = exports.ClaudeAuthError = exports.describeAuthMismatch = exports.assertAuthEnv = exports.buildAuthEnv = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
+  exports.parseCorrelationTag = exports.buildCorrelationTag = exports.CORRELATION_TAG_PREFIX = exports.slugify = exports.STRUCTURED_OUTPUT_TOOL = exports.withStructuredOutput = exports.isValidToolName = exports.isValidModel = exports.STE_RESPONSE_STYLE = exports.N8N_MODEL_OPTIONS = exports.N8N_EFFORT_OPTIONS = exports.N8N_DEFAULT_MODEL = exports.MODEL_ALIASES = exports.EFFORT_LEVELS = exports.CLAUDE_CODE_TOOLS = exports.totalCostUsd = exports.isRetryableLater = exports.classifyResult = exports.ClaudeAuthError = exports.describeAuthMismatch = exports.assertAuthEnv = exports.buildAuthEnv = exports.SINGLE_TURN_DISALLOWED_TOOLS = exports.SINGLE_TURN_ALLOWED_TOOLS = exports.DEFAULT_ALLOWED_TOOLS = exports.fenceUserInput = exports.sanitizeUserInput = exports.scrubPII = exports.formatDatadogAsContext = exports.fetchDatadogIssue = exports.extractDatadogIssue = exports.formatTicketAsContext = exports.fetchClickUpTicket = exports.extractClickUpId = exports.extractClickUpRef = undefined;
   var clickup_1 = require_clickup();
   Object.defineProperty(exports, "extractClickUpRef", { enumerable: true, get: function() {
     return clickup_1.extractClickUpRef;
@@ -10474,6 +10496,9 @@ var require_n8n_api = __commonJS((exports) => {
   } });
   Object.defineProperty(exports, "N8N_MODEL_OPTIONS", { enumerable: true, get: function() {
     return claude_code_surface_1.N8N_MODEL_OPTIONS;
+  } });
+  Object.defineProperty(exports, "STE_RESPONSE_STYLE", { enumerable: true, get: function() {
+    return claude_code_surface_1.STE_RESPONSE_STYLE;
   } });
   Object.defineProperty(exports, "isValidModel", { enumerable: true, get: function() {
     return claude_code_surface_1.isValidModel;
@@ -14885,6 +14910,119 @@ function tryResolve(ref) {
   }
 }
 
+// src/shared/claude-code-surface.ts
+var CLAUDE_CODE_TOOLS = [
+  "Agent",
+  "Artifact",
+  "AskUserQuestion",
+  "Bash",
+  "CronCreate",
+  "CronDelete",
+  "CronList",
+  "Edit",
+  "EndConversation",
+  "EnterPlanMode",
+  "EnterWorktree",
+  "ExitPlanMode",
+  "ExitWorktree",
+  "Glob",
+  "Grep",
+  "LSP",
+  "ListAgents",
+  "ListMcpResourcesTool",
+  "Monitor",
+  "NotebookEdit",
+  "PowerShell",
+  "PushNotification",
+  "Read",
+  "ReadMcpResourceTool",
+  "RemoteTrigger",
+  "ReportFindings",
+  "ScheduleWakeup",
+  "SendMessage",
+  "SendUserFile",
+  "ShareOnboardingGuide",
+  "Skill",
+  "StructuredOutput",
+  "TaskCreate",
+  "TaskGet",
+  "TaskList",
+  "TaskOutput",
+  "TaskStop",
+  "TaskUpdate",
+  "TodoWrite",
+  "ToolSearch",
+  "WaitForMcpServers",
+  "WebFetch",
+  "WebSearch",
+  "Workflow",
+  "Write"
+];
+var SUBAGENT_STRIPPED_TOOLS = [
+  "AskUserQuestion",
+  "EndConversation",
+  "EnterPlanMode",
+  "ScheduleWakeup",
+  "TaskOutput",
+  "WaitForMcpServers",
+  "Workflow"
+];
+var RETIRED_TOOL_REPLACEMENTS = {
+  Task: "Agent",
+  MultiEdit: "Edit"
+};
+var MODEL_ALIASES = [
+  "default",
+  "best",
+  "fable",
+  "opus",
+  "sonnet",
+  "haiku",
+  "opus[1m]",
+  "sonnet[1m]",
+  "opusplan",
+  "inherit"
+];
+var EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+var MEMORY_SCOPES = ["user", "project", "local"];
+var RETIRED_MODEL_PREFIXES = {
+  "claude-opus-3": "opus",
+  "claude-opus-4": "opus",
+  "claude-sonnet-3": "sonnet",
+  "claude-sonnet-4": "sonnet",
+  "claude-haiku-3": "haiku",
+  "claude-3": "haiku",
+  "claude-2": "sonnet",
+  "claude-instant": "haiku"
+};
+function retiredModelReplacement(value) {
+  const hit = Object.keys(RETIRED_MODEL_PREFIXES).find((prefix) => value.startsWith(prefix));
+  return hit ? RETIRED_MODEL_PREFIXES[hit] : undefined;
+}
+function isValidModel(value) {
+  return MODEL_ALIASES.includes(value) || value.startsWith("claude-");
+}
+function isValidToolName(value) {
+  return CLAUDE_CODE_TOOLS.includes(value);
+}
+var STE_RESPONSE_STYLE = `## Response language
+
+Write all prose in Simplified Technical English (the ASD-STE100 writing rules).
+
+- Give one instruction per sentence. Keep instructions to 20 words, descriptions to 25.
+- Use the active voice, and name the actor.
+- Use simple tenses. Prefer the present.
+- Keep articles: write "the file", not "file".
+- Use one term for one thing. Never vary a word for style.
+- Prefer a verb to a noun made from a verb: "if the build fails", not "on build failure".
+- Do not use an -ing form where a simple verb works.
+- Do not use slang, idiom, metaphor, or humour.
+- In a warning, state the condition first and the action second.
+- Keep a paragraph to six sentences or fewer.
+
+This governs prose only. Reproduce identifiers, code, commands, file paths, error
+messages, and quoted output exactly as they are. Never simplify evidence.`;
+
 // src/utils/convert-agents/render.ts
 var ST_TAG_RE = /@ST:([A-Za-z][A-Za-z0-9-]*)(?::([A-Za-z][A-Za-z0-9-]*))?/g;
 function expandComponentTags(body) {
@@ -14911,6 +15049,8 @@ function renderAgentOutput(parsed, sourcePath) {
     banner,
     "",
     body,
+    "",
+    STE_RESPONSE_STYLE,
     "",
     footer,
     ""
@@ -16918,104 +17058,6 @@ var import_yaml10 = __toESM(require_dist(), 1);
 // src/utils/validate-frontmatter.ts
 import { readdir as readdir2, readFile } from "fs/promises";
 import { join as join18 } from "path";
-
-// src/shared/claude-code-surface.ts
-var CLAUDE_CODE_TOOLS = [
-  "Agent",
-  "Artifact",
-  "AskUserQuestion",
-  "Bash",
-  "CronCreate",
-  "CronDelete",
-  "CronList",
-  "Edit",
-  "EndConversation",
-  "EnterPlanMode",
-  "EnterWorktree",
-  "ExitPlanMode",
-  "ExitWorktree",
-  "Glob",
-  "Grep",
-  "LSP",
-  "ListAgents",
-  "ListMcpResourcesTool",
-  "Monitor",
-  "NotebookEdit",
-  "PowerShell",
-  "PushNotification",
-  "Read",
-  "ReadMcpResourceTool",
-  "RemoteTrigger",
-  "ReportFindings",
-  "ScheduleWakeup",
-  "SendMessage",
-  "SendUserFile",
-  "ShareOnboardingGuide",
-  "Skill",
-  "StructuredOutput",
-  "TaskCreate",
-  "TaskGet",
-  "TaskList",
-  "TaskOutput",
-  "TaskStop",
-  "TaskUpdate",
-  "TodoWrite",
-  "ToolSearch",
-  "WaitForMcpServers",
-  "WebFetch",
-  "WebSearch",
-  "Workflow",
-  "Write"
-];
-var SUBAGENT_STRIPPED_TOOLS = [
-  "AskUserQuestion",
-  "EndConversation",
-  "EnterPlanMode",
-  "ScheduleWakeup",
-  "TaskOutput",
-  "WaitForMcpServers",
-  "Workflow"
-];
-var RETIRED_TOOL_REPLACEMENTS = {
-  Task: "Agent",
-  MultiEdit: "Edit"
-};
-var MODEL_ALIASES = [
-  "default",
-  "best",
-  "fable",
-  "opus",
-  "sonnet",
-  "haiku",
-  "opus[1m]",
-  "sonnet[1m]",
-  "opusplan",
-  "inherit"
-];
-var EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
-var MEMORY_SCOPES = ["user", "project", "local"];
-var RETIRED_MODEL_PREFIXES = {
-  "claude-opus-3": "opus",
-  "claude-opus-4": "opus",
-  "claude-sonnet-3": "sonnet",
-  "claude-sonnet-4": "sonnet",
-  "claude-haiku-3": "haiku",
-  "claude-3": "haiku",
-  "claude-2": "sonnet",
-  "claude-instant": "haiku"
-};
-function retiredModelReplacement(value) {
-  const hit = Object.keys(RETIRED_MODEL_PREFIXES).find((prefix) => value.startsWith(prefix));
-  return hit ? RETIRED_MODEL_PREFIXES[hit] : undefined;
-}
-function isValidModel(value) {
-  return MODEL_ALIASES.includes(value) || value.startsWith("claude-");
-}
-function isValidToolName(value) {
-  return CLAUDE_CODE_TOOLS.includes(value);
-}
-
-// src/utils/validate-frontmatter.ts
 var FRONTMATTER_RE3 = /^---\r?\n([\s\S]*?)\r?\n---/;
 function parseFrontmatter2(source) {
   const match = FRONTMATTER_RE3.exec(source);
@@ -24108,9 +24150,9 @@ function buildAgentDefinition(opts) {
   if (!agentPrompt)
     return null;
   const ruleContext = loadNativeRuleContext(opts.agentId, opts.baseDir);
-  const prompt2 = ruleContext ? `${agentPrompt}
+  const prompt2 = [agentPrompt, ruleContext, sharedApi.STE_RESPONSE_STYLE].filter(Boolean).join(`
 
-${ruleContext}` : agentPrompt;
+`);
   const definition = {
     description: typeof meta["description"] === "string" ? meta["description"] : opts.agentId,
     prompt: prompt2
@@ -24231,6 +24273,9 @@ async function spawnClaude2(prompt2, opts) {
   for (const tool of opts.allowedTools ?? SINGLE_TURN_ALLOWED_TOOLS2) {
     args.push("--allowedTools", tool);
   }
+  for (const rule of opts.mcpAllowedTools ?? []) {
+    args.push("--allowedTools", rule);
+  }
   for (const tool of opts.disallowedTools ?? SINGLE_TURN_DISALLOWED_TOOLS2) {
     args.push("--disallowedTools", tool);
   }
@@ -24248,6 +24293,9 @@ async function spawnClaude2(prompt2, opts) {
     args.push("--json-schema", opts.jsonSchema);
   if (opts.resumeSessionId)
     args.push("--resume", opts.resumeSessionId);
+  const mcpDir = opts.mcpConfig ? await writeMcpConfig(opts.mcpConfig) : undefined;
+  if (mcpDir)
+    args.push("--mcp-config", mcpDir.path);
   const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
   if (!useStdin)
     args.push("--", prompt2);
@@ -24256,7 +24304,7 @@ async function spawnClaude2(prompt2, opts) {
     assertAuthEnv(opts.auth.mode, spawnEnv);
   if (opts.githubToken)
     spawnEnv["GITHUB_TOKEN"] = opts.githubToken;
-  return new Promise((resolve13, reject) => {
+  const spawned = new Promise((resolve13, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts.cwd ?? process.cwd(),
       env: spawnEnv,
@@ -24278,6 +24326,27 @@ ${chunks.err}`.trim();
     });
     proc.on("error", reject);
   });
+  try {
+    return await spawned;
+  } finally {
+    await mcpDir?.cleanup();
+  }
+}
+async function writeMcpConfig(json) {
+  const { mkdtemp, writeFile: writeFile5, rm: rm2 } = await import("fs/promises");
+  const { tmpdir: tmpdir3 } = await import("os");
+  const { join: join37 } = await import("path");
+  const dir = await mkdtemp(join37(tmpdir3(), "software-teams-mcp-"));
+  const path = join37(dir, "mcp-config.json");
+  await writeFile5(path, json, { mode: 384 });
+  return {
+    path,
+    cleanup: async () => {
+      await rm2(dir, { recursive: true, force: true }).catch(() => {
+        return;
+      });
+    }
+  };
 }
 function extractResultPayload(stdout2) {
   const trimmed = stdout2.trim();
@@ -24306,20 +24375,30 @@ function extractResultPayload(stdout2) {
 }
 function assemblePrompt(input) {
   const fencedPrompt = fenceUserInput2("user-task", sanitizeUserInput2(input.prompt, 1e4));
-  if (!isNonEmptyContext(input.context))
-    return `## Task
-${fencedPrompt}`;
+  if (!isNonEmptyContext(input.context)) {
+    return {
+      text: `## Task
+${fencedPrompt}`,
+      contextIncluded: false,
+      contextTruncated: false
+    };
+  }
   const contextJson = JSON.stringify(input.context, null, 2);
   const contextLimit = 50000;
   const notice = `
 [upstream context truncated at 50000 characters]`;
-  const boundedContext = contextJson.length > contextLimit ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}` : contextJson;
+  const contextTruncated = contextJson.length > contextLimit;
+  const boundedContext = contextTruncated ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}` : contextJson;
   const fencedContext = fenceUserInput2("upstream-context", sanitizeUserInput2(boundedContext, contextLimit));
-  return `## Upstream context
+  return {
+    text: `## Upstream context
 ${fencedContext}
 
 ## Task
-${fencedPrompt}`;
+${fencedPrompt}`,
+    contextIncluded: true,
+    contextTruncated
+  };
 }
 function isNonEmptyContext(ctx) {
   if (ctx === null || ctx === undefined)
@@ -24346,6 +24425,7 @@ function withoutTurnMetadata(input) {
   const copy = { ...input };
   delete copy.usage;
   delete copy.sessionId;
+  delete copy.turn;
   return copy;
 }
 function statusFor(state, reportedStatus) {
@@ -24395,7 +24475,8 @@ async function runAgentTurn(input, repoContext, githubToken, options) {
     return buildErrorEnvelope(input, `Agent spec not found for "${input.agentId}". Sync or bundle the specialist before running it.`);
   }
   const schema = options?.jsonSchema ?? TURN_RESULT_SCHEMA;
-  const spawnResult = await spawnClaude2(assemblePrompt(input.input), {
+  const assembled = assemblePrompt(input.input);
+  const spawnResult = await spawnClaude2(assembled.text, {
     agentId: definition ? input.agentId : undefined,
     agentsJson: definition ? JSON.stringify({ [input.agentId]: definition }) : undefined,
     model: options?.model,
@@ -24410,7 +24491,8 @@ async function runAgentTurn(input, repoContext, githubToken, options) {
     cwd: repoContext?.worktreePath,
     permissionMode: options?.permissionMode,
     githubToken,
-    auth: options?.auth
+    auth: options?.auth,
+    ...options?.mcp ? { mcpConfig: options.mcp.json, mcpAllowedTools: options.mcp.allowedTools } : {}
   }).catch((err) => ({
     _error: err instanceof Error ? err.message : String(err)
   }));
@@ -24437,6 +24519,16 @@ async function runAgentTurn(input, repoContext, githubToken, options) {
       ...projection.data !== undefined ? { data: projection.data } : {}
     },
     artifacts: [...input.artifacts]
+  };
+  envelope.turn = {
+    agentId: input.agentId,
+    promptChars: assembled.text.length,
+    contextIncluded: assembled.contextIncluded,
+    contextTruncated: assembled.contextTruncated,
+    ...options?.model ? { model: options.model } : {},
+    ...options?.effort ? { effort: options.effort } : {},
+    ...definition?.tools ? { tools: [...definition.tools] } : {},
+    ...options?.mcp?.allowedTools.length ? { mcpTools: [...options.mcp.allowedTools] } : {}
   };
   const usage = usageFrom(payload);
   if (usage)
@@ -25260,7 +25352,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "1.0.0",
+  version: "1.0.1",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {

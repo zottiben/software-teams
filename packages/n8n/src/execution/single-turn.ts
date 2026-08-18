@@ -93,6 +93,13 @@ export interface AgentTurnOptions {
   requireAgentDefinition?: boolean;
   /** Credential for the spawned process. Defaults to inheriting the worker's environment. */
   auth?: AuthOptions;
+  /** MCP servers for this turn, plus the permission rules that make them callable. */
+  mcp?: {
+    /** Credential-bearing config JSON. Written to a private file, never to argv. */
+    readonly json: string;
+    /** `mcp__<server>__*` rules appended to the turn's allowlist. */
+    readonly allowedTools: readonly string[];
+  };
 }
 
 async function findClaude(): Promise<string> {
@@ -152,6 +159,8 @@ async function spawnClaude(
     permissionMode?: string;
     githubToken?: string;
     auth?: AuthOptions;
+    mcpConfig?: string;
+    mcpAllowedTools?: readonly string[];
   },
 ): Promise<SpawnOutcome> {
   const claudePath = await findClaude();
@@ -178,6 +187,11 @@ async function spawnClaude(
   for (const tool of opts.allowedTools ?? SINGLE_TURN_ALLOWED_TOOLS) {
     args.push("--allowedTools", tool);
   }
+  // A configured MCP server is useless unless its tools are also permitted:
+  // `dontAsk` turns an unpermitted call into a failure rather than a prompt.
+  for (const rule of opts.mcpAllowedTools ?? []) {
+    args.push("--allowedTools", rule);
+  }
   // `--allowedTools` only waives the permission prompt; removing a tool needs
   // `--disallowedTools`.
   for (const tool of opts.disallowedTools ?? SINGLE_TURN_DISALLOWED_TOOLS) {
@@ -196,6 +210,12 @@ async function spawnClaude(
   // session ID made ordinary execution retries collide with the first run.
   if (opts.resumeSessionId) args.push("--resume", opts.resumeSessionId);
 
+  // `--mcp-config` also accepts a JSON string, but argv is world-readable via
+  // /proc on a shared worker and these configs carry API tokens. A private
+  // file in a per-spawn directory keeps them off the process table.
+  const mcpDir = opts.mcpConfig ? await writeMcpConfig(opts.mcpConfig) : undefined;
+  if (mcpDir) args.push("--mcp-config", mcpDir.path);
+
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) args.push("--", prompt);
 
@@ -207,7 +227,7 @@ async function spawnClaude(
   if (opts.auth) assertAuthEnv(opts.auth.mode, spawnEnv);
   if (opts.githubToken) spawnEnv["GITHUB_TOKEN"] = opts.githubToken;
 
-  return new Promise<SpawnOutcome>((resolve, reject) => {
+  const spawned = new Promise<SpawnOutcome>((resolve, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts.cwd ?? process.cwd(),
       env: spawnEnv,
@@ -236,6 +256,36 @@ async function spawnClaude(
 
     proc.on("error", reject);
   });
+
+  try {
+    return await spawned;
+  } finally {
+    await mcpDir?.cleanup();
+  }
+}
+
+/**
+ * Write an MCP config to a private per-spawn directory.
+ *
+ * Mode 0600 on the file and 0700 on the directory, so a co-tenant process in
+ * the same container cannot read the credentials it carries.
+ */
+async function writeMcpConfig(
+  json: string,
+): Promise<{ path: string; cleanup: () => Promise<void> }> {
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const dir = await mkdtemp(join(tmpdir(), "software-teams-mcp-"));
+  const path = join(dir, "mcp-config.json");
+  await writeFile(path, json, { mode: 0o600 });
+  return {
+    path,
+    cleanup: async () => {
+      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    },
+  };
 }
 
 /**
@@ -281,21 +331,38 @@ export function extractResultPayload(stdout: string): ClaudeResultPayload | unde
  * truncates; `fenceUserInput` wraps with XML so the model cannot be tricked by
  * overrides.
  */
-function assemblePrompt(input: NodeEnvelope["input"]): string {
+interface AssembledPrompt {
+  readonly text: string;
+  readonly contextIncluded: boolean;
+  readonly contextTruncated: boolean;
+}
+
+function assemblePrompt(input: NodeEnvelope["input"]): AssembledPrompt {
   const fencedPrompt = fenceUserInput("user-task", sanitizeUserInput(input.prompt, 10_000));
-  if (!isNonEmptyContext(input.context)) return `## Task\n${fencedPrompt}`;
+  if (!isNonEmptyContext(input.context)) {
+    return {
+      text: `## Task\n${fencedPrompt}`,
+      contextIncluded: false,
+      contextTruncated: false,
+    };
+  }
 
   const contextJson = JSON.stringify(input.context, null, 2);
   const contextLimit = 50_000;
   const notice = "\n[upstream context truncated at 50000 characters]";
-  const boundedContext = contextJson.length > contextLimit
+  const contextTruncated = contextJson.length > contextLimit;
+  const boundedContext = contextTruncated
     ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}`
     : contextJson;
   const fencedContext = fenceUserInput(
     "upstream-context",
     sanitizeUserInput(boundedContext, contextLimit),
   );
-  return `## Upstream context\n${fencedContext}\n\n## Task\n${fencedPrompt}`;
+  return {
+    text: `## Upstream context\n${fencedContext}\n\n## Task\n${fencedPrompt}`,
+    contextIncluded: true,
+    contextTruncated,
+  };
 }
 
 /** Ingestion boundary: context arrives as `unknown` from NodeEnvelope.input.context. */
@@ -327,6 +394,7 @@ export function withoutTurnMetadata(input: NodeEnvelope): NodeEnvelope {
   const copy = { ...input };
   delete copy.usage;
   delete copy.sessionId;
+  delete copy.turn;
   return copy;
 }
 
@@ -425,7 +493,8 @@ export async function runAgentTurn(
   }
 
   const schema = options?.jsonSchema ?? TURN_RESULT_SCHEMA;
-  const spawnResult = await spawnClaude(assemblePrompt(input.input), {
+  const assembled = assemblePrompt(input.input);
+  const spawnResult = await spawnClaude(assembled.text, {
     agentId: definition ? input.agentId : undefined,
     agentsJson: definition ? JSON.stringify({ [input.agentId]: definition }) : undefined,
     model: options?.model,
@@ -441,6 +510,9 @@ export async function runAgentTurn(
     permissionMode: options?.permissionMode,
     githubToken,
     auth: options?.auth,
+    ...(options?.mcp
+      ? { mcpConfig: options.mcp.json, mcpAllowedTools: options.mcp.allowedTools }
+      : {}),
   }).catch((err: unknown) => ({
     _error: err instanceof Error ? err.message : String(err),
   }));
@@ -487,6 +559,23 @@ export async function runAgentTurn(
       ...(projection.data !== undefined ? { data: projection.data } : {}),
     },
     artifacts: [...input.artifacts],
+  };
+
+  // How this turn was actually set up, as opposed to what the canvas shows.
+  // The resolved instruction is already on the envelope at input.prompt, so
+  // this deliberately records the SHAPE of the request rather than repeating
+  // its text: the assembled prompt embeds up to 50k of upstream context, and
+  // duplicating that onto an envelope which is then handed to the next node
+  // would compound at every hop.
+  envelope.turn = {
+    agentId: input.agentId,
+    promptChars: assembled.text.length,
+    contextIncluded: assembled.contextIncluded,
+    contextTruncated: assembled.contextTruncated,
+    ...(options?.model ? { model: options.model } : {}),
+    ...(options?.effort ? { effort: options.effort } : {}),
+    ...(definition?.tools ? { tools: [...definition.tools] } : {}),
+    ...(options?.mcp?.allowedTools.length ? { mcpTools: [...options.mcp.allowedTools] } : {}),
   };
 
   const usage = usageFrom(payload);

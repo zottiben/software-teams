@@ -10,6 +10,8 @@
  * token in Claude Code's credential precedence.
  */
 
+import { parseMcpConfig } from "./mcp-config";
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharedApi = require("@websitelabs/software-teams") as {
   buildAuthEnv: (
@@ -58,6 +60,33 @@ export const softwareTeamsCredentialTest = {
     });
 
     return { status: result.ok ? "OK" : "Error", message: result.message };
+  },
+};
+
+/**
+ * Credential test for the MCP servers credential.
+ *
+ * Deliberately offline. Reaching out to each declared server would need the
+ * worker to have network egress to all of them at edit time, and a server
+ * being briefly unreachable is not the same as a credential being wrong. What
+ * an operator actually gets wrong is the JSON shape, so that is what is checked.
+ */
+export const softwareTeamsMcpCredentialTest = {
+  async softwareTeamsMcpApiTest(credential: {
+    data?: Record<string, unknown>;
+  }): Promise<{ status: "OK" | "Error"; message: string }> {
+    const raw = (credential.data ?? {})["mcpServers"];
+    try {
+      const { servers } = parseMcpConfig(typeof raw === "string" ? raw : JSON.stringify(raw ?? ""));
+      return {
+        status: "OK",
+        message:
+          `Configuration is valid: ${servers.length} server(s) - ${servers.join(", ")}. ` +
+          "Turns run with --strict-mcp-config, so these are the only servers an agent will see.",
+      };
+    } catch (err) {
+      return { status: "Error", message: err instanceof Error ? err.message : String(err) };
+    }
   },
 };
 

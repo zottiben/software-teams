@@ -7,7 +7,10 @@ import type {
 } from "n8n-workflow";
 import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 import type { NodeEnvelope } from "@websitelabs/software-teams";
-import { softwareTeamsCredentialTest } from "../../src/execution/verify-credential";
+import {
+  softwareTeamsCredentialTest,
+  softwareTeamsMcpCredentialTest,
+} from "../../src/execution/verify-credential";
 import { authFromCredentials } from "../../src/execution/auth-from-credentials";
 import {
   applyTurnAccounting,
@@ -18,7 +21,12 @@ import {
   turnBudget,
   type GenericToolPolicy,
 } from "../../src/execution/generic-turn";
-import { SPECIALIST_OPTIONS } from "../../src/execution/specialists";
+import { mcpAllowRules, parseMcpConfig } from "../../src/execution/mcp-config";
+import {
+  DEFAULT_SPECIALIST,
+  SPECIALISTS,
+  SPECIALIST_OPTIONS,
+} from "../../src/execution/specialists";
 import { TURN_RESULT_SCHEMA } from "../../src/execution/envelope-schema";
 import { isNodeEnvelope } from "../../src/orchestration/run-state/persistence";
 import { toDataObject, fromDataObject } from "../../src/n8n-cast";
@@ -78,12 +86,20 @@ export class SoftwareTeamsClaudeCode implements INodeType {
     description:
       "Run any bundled specialist for one typed Claude Code turn. Defaults to read-only tools, " +
       "permissionMode dontAsk, bounded turns, and the remaining cumulative ticket budget.",
-    subtitle: '={{ $parameter["agentId"] }}',
+    // Shows the resolved prompt, not the expression that produced it, so a
+    // glance at the canvas says what the turn actually asks for.
+    subtitle: '={{ $parameter["agentId"] }}: {{ $parameter["prompt"] }}',
     defaults: { name: "Software Teams Claude Code" },
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
     credentials: [
       { name: "softwareTeamsApi", required: true, testedBy: "softwareTeamsApiTest" },
+      {
+        name: "softwareTeamsMcpApi",
+        required: true,
+        testedBy: "softwareTeamsMcpApiTest",
+        displayOptions: { show: { useMcpServers: [true] } },
+      },
     ],
     usableAsTool: true,
     properties: [
@@ -93,19 +109,26 @@ export class SoftwareTeamsClaudeCode implements INodeType {
         type: "options",
         noDataExpression: true,
         options: [...SPECIALIST_OPTIONS],
-        default: "software-teams-support-triage",
+        default: DEFAULT_SPECIALIST,
         required: true,
         description: "Bundled specialist whose spec becomes this turn's system prompt",
       },
-      {
+      // One Prompt per agent, so selecting an agent prefills a task written for
+      // it. n8n resolves the default from whichever definition its
+      // displayOptions currently match; this is the same shape n8n's own
+      // ClickUp node uses to vary `operation` per resource.
+      ...SPECIALISTS.map((specialist) => ({
         displayName: "Prompt",
         name: "prompt",
-        type: "string",
-        typeOptions: { rows: 5 },
-        default: "={{ $json.input.prompt }}",
+        type: "string" as const,
+        typeOptions: { rows: 6 },
+        default: specialist.defaultPrompt,
         required: true,
-        description: "Task for this turn. The upstream ticket and previous result remain in context.",
-      },
+        displayOptions: { show: { agentId: [specialist.value] } },
+        description:
+          `Task for this ${specialist.name} turn. Prefilled for the agent and safe to ` +
+          "edit. The upstream ticket and previous result stay in context regardless.",
+      })),
       {
         displayName: "Tool Access",
         name: "toolPolicy",
@@ -145,6 +168,17 @@ export class SoftwareTeamsClaudeCode implements INodeType {
         displayOptions: { show: { toolPolicy: ["custom"] } },
         description:
           "Canonical Claude Code tool names. StructuredOutput is added automatically; Agent is always forbidden.",
+      },
+      {
+        displayName: "Use MCP Servers",
+        name: "useMcpServers",
+        type: "boolean",
+        noDataExpression: true,
+        default: false,
+        description:
+          "Whether to give this turn the MCP servers from a Software Teams MCP Servers credential. " +
+          "Every tool of each configured server is allowed, unless Tool Access is Custom, " +
+          "in which case list the mcp__<server>__<tool> rules you want yourself.",
       },
       {
         displayName: "Output Schema",
@@ -221,7 +255,9 @@ export class SoftwareTeamsClaudeCode implements INodeType {
     ],
   };
 
-  methods = { credentialTest: softwareTeamsCredentialTest };
+  methods = {
+    credentialTest: { ...softwareTeamsCredentialTest, ...softwareTeamsMcpCredentialTest },
+  };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
@@ -253,6 +289,22 @@ export class SoftwareTeamsClaudeCode implements INodeType {
         const policy = this.getNodeParameter("toolPolicy", itemIndex) as GenericToolPolicy;
         const customTools = this.getNodeParameter("customTools", itemIndex, "") as string;
         const tools = resolveToolPolicy(policy, customTools);
+        const useMcpServers = this.getNodeParameter("useMcpServers", itemIndex, false) as boolean;
+        const mcpConfig = useMcpServers
+          ? parseMcpConfig(
+              stringifyParameter(
+                (await this.getCredentials("softwareTeamsMcpApi"))["mcpServers"],
+              ),
+            )
+          : undefined;
+        // Custom mode is an explicit allowlist, so it stays authoritative: an
+        // operator narrowing to two ClickUp tools must not silently get all of them.
+        const mcp = mcpConfig
+          ? {
+              json: mcpConfig.json,
+              allowedTools: policy === "custom" ? [] : mcpAllowRules(mcpConfig.servers),
+            }
+          : undefined;
         const schemaMode = this.getNodeParameter("schemaMode", itemIndex) as "turn" | "custom";
         const schema = schemaMode === "custom"
           ? parseOutputSchema(stringifyParameter(this.getNodeParameter("outputSchema", itemIndex)))
@@ -280,6 +332,7 @@ export class SoftwareTeamsClaudeCode implements INodeType {
                 : {}),
               ...(tools ? { tools } : {}),
               ...(schema ? { jsonSchema: schema } : {}),
+              ...(mcp ? { mcp } : {}),
               permissionMode: "dontAsk",
               requireAgentDefinition: true,
             });
@@ -289,6 +342,7 @@ export class SoftwareTeamsClaudeCode implements INodeType {
               policy,
               tools,
               permissionMode: "dontAsk",
+              ...(mcpConfig ? { mcpServers: mcpConfig.servers } : {}),
             });
 
         output.push({

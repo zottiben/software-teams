@@ -1,4 +1,5 @@
 import type { NodeEnvelope } from "@websitelabs/software-teams";
+import { assertMcpToolRule, isMcpToolRule } from "./mcp-config";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { isValidToolName } = require("@websitelabs/software-teams") as {
@@ -41,6 +42,12 @@ export function resolveToolPolicy(
 
   const unique = [...new Set(tools)];
   for (const tool of unique) {
+    // MCP tools are named by their server, so they are not in the built-in
+    // catalogue and have to be validated by shape instead.
+    if (isMcpToolRule(tool)) {
+      assertMcpToolRule(tool);
+      continue;
+    }
     const base = /^([A-Za-z][A-Za-z0-9]*)(?:\(.*\))?$/.exec(tool)?.[1] ?? tool;
     if (!isValidToolName(base)) throw new Error(`Unknown Claude Code tool "${tool}"`);
     if (base === "Agent") {
@@ -128,6 +135,7 @@ export function applyTurnAccounting(
     readonly policy: GenericToolPolicy;
     readonly tools: readonly string[] | undefined;
     readonly permissionMode: "dontAsk";
+    readonly mcpServers?: readonly string[];
     readonly now?: string;
   },
 ): NodeEnvelope {
@@ -145,6 +153,9 @@ export function applyTurnAccounting(
     costUsd,
     turns: result.usage?.turns ?? 0,
   };
+  // Names only. The config itself carries tokens and must never aggregate onto
+  // the envelope (R-02).
+  if (options.mcpServers?.length) details["mcpServers"] = [...options.mcpServers];
 
   return {
     ...result,
