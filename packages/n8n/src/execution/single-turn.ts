@@ -93,6 +93,13 @@ export interface AgentTurnOptions {
   requireAgentDefinition?: boolean;
   /** Credential for the spawned process. Defaults to inheriting the worker's environment. */
   auth?: AuthOptions;
+  /** MCP servers for this turn, plus the permission rules that make them callable. */
+  mcp?: {
+    /** Credential-bearing config JSON. Written to a private file, never to argv. */
+    readonly json: string;
+    /** `mcp__<server>__*` rules appended to the turn's allowlist. */
+    readonly allowedTools: readonly string[];
+  };
 }
 
 async function findClaude(): Promise<string> {
@@ -152,6 +159,8 @@ async function spawnClaude(
     permissionMode?: string;
     githubToken?: string;
     auth?: AuthOptions;
+    mcpConfig?: string;
+    mcpAllowedTools?: readonly string[];
   },
 ): Promise<SpawnOutcome> {
   const claudePath = await findClaude();
@@ -178,6 +187,11 @@ async function spawnClaude(
   for (const tool of opts.allowedTools ?? SINGLE_TURN_ALLOWED_TOOLS) {
     args.push("--allowedTools", tool);
   }
+  // A configured MCP server is useless unless its tools are also permitted:
+  // `dontAsk` turns an unpermitted call into a failure rather than a prompt.
+  for (const rule of opts.mcpAllowedTools ?? []) {
+    args.push("--allowedTools", rule);
+  }
   // `--allowedTools` only waives the permission prompt; removing a tool needs
   // `--disallowedTools`.
   for (const tool of opts.disallowedTools ?? SINGLE_TURN_DISALLOWED_TOOLS) {
@@ -196,6 +210,12 @@ async function spawnClaude(
   // session ID made ordinary execution retries collide with the first run.
   if (opts.resumeSessionId) args.push("--resume", opts.resumeSessionId);
 
+  // `--mcp-config` also accepts a JSON string, but argv is world-readable via
+  // /proc on a shared worker and these configs carry API tokens. A private
+  // file in a per-spawn directory keeps them off the process table.
+  const mcpDir = opts.mcpConfig ? await writeMcpConfig(opts.mcpConfig) : undefined;
+  if (mcpDir) args.push("--mcp-config", mcpDir.path);
+
   const useStdin = prompt.length >= PROMPT_LENGTH_THRESHOLD;
   if (!useStdin) args.push("--", prompt);
 
@@ -207,7 +227,7 @@ async function spawnClaude(
   if (opts.auth) assertAuthEnv(opts.auth.mode, spawnEnv);
   if (opts.githubToken) spawnEnv["GITHUB_TOKEN"] = opts.githubToken;
 
-  return new Promise<SpawnOutcome>((resolve, reject) => {
+  const spawned = new Promise<SpawnOutcome>((resolve, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts.cwd ?? process.cwd(),
       env: spawnEnv,
@@ -236,6 +256,36 @@ async function spawnClaude(
 
     proc.on("error", reject);
   });
+
+  try {
+    return await spawned;
+  } finally {
+    await mcpDir?.cleanup();
+  }
+}
+
+/**
+ * Write an MCP config to a private per-spawn directory.
+ *
+ * Mode 0600 on the file and 0700 on the directory, so a co-tenant process in
+ * the same container cannot read the credentials it carries.
+ */
+async function writeMcpConfig(
+  json: string,
+): Promise<{ path: string; cleanup: () => Promise<void> }> {
+  const { mkdtemp, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const dir = await mkdtemp(join(tmpdir(), "software-teams-mcp-"));
+  const path = join(dir, "mcp-config.json");
+  await writeFile(path, json, { mode: 0o600 });
+  return {
+    path,
+    cleanup: async () => {
+      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    },
+  };
 }
 
 /**
@@ -441,6 +491,9 @@ export async function runAgentTurn(
     permissionMode: options?.permissionMode,
     githubToken,
     auth: options?.auth,
+    ...(options?.mcp
+      ? { mcpConfig: options.mcp.json, mcpAllowedTools: options.mcp.allowedTools }
+      : {}),
   }).catch((err: unknown) => ({
     _error: err instanceof Error ? err.message : String(err),
   }));

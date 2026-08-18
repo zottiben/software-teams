@@ -7,7 +7,10 @@ import type {
 } from "n8n-workflow";
 import { NodeConnectionTypes, NodeOperationError } from "n8n-workflow";
 import type { NodeEnvelope } from "@websitelabs/software-teams";
-import { softwareTeamsCredentialTest } from "../../src/execution/verify-credential";
+import {
+  softwareTeamsCredentialTest,
+  softwareTeamsMcpCredentialTest,
+} from "../../src/execution/verify-credential";
 import { authFromCredentials } from "../../src/execution/auth-from-credentials";
 import {
   applyTurnAccounting,
@@ -18,6 +21,7 @@ import {
   turnBudget,
   type GenericToolPolicy,
 } from "../../src/execution/generic-turn";
+import { mcpAllowRules, parseMcpConfig } from "../../src/execution/mcp-config";
 import { SPECIALIST_OPTIONS } from "../../src/execution/specialists";
 import { TURN_RESULT_SCHEMA } from "../../src/execution/envelope-schema";
 import { isNodeEnvelope } from "../../src/orchestration/run-state/persistence";
@@ -84,6 +88,12 @@ export class SoftwareTeamsClaudeCode implements INodeType {
     outputs: [NodeConnectionTypes.Main],
     credentials: [
       { name: "softwareTeamsApi", required: true, testedBy: "softwareTeamsApiTest" },
+      {
+        name: "softwareTeamsMcpApi",
+        required: true,
+        testedBy: "softwareTeamsMcpApiTest",
+        displayOptions: { show: { useMcpServers: [true] } },
+      },
     ],
     usableAsTool: true,
     properties: [
@@ -145,6 +155,17 @@ export class SoftwareTeamsClaudeCode implements INodeType {
         displayOptions: { show: { toolPolicy: ["custom"] } },
         description:
           "Canonical Claude Code tool names. StructuredOutput is added automatically; Agent is always forbidden.",
+      },
+      {
+        displayName: "Use MCP Servers",
+        name: "useMcpServers",
+        type: "boolean",
+        noDataExpression: true,
+        default: false,
+        description:
+          "Whether to give this turn the MCP servers from a Software Teams MCP Servers credential. " +
+          "Every tool of each configured server is allowed, unless Tool Access is Custom, " +
+          "in which case list the mcp__<server>__<tool> rules you want yourself.",
       },
       {
         displayName: "Output Schema",
@@ -221,7 +242,9 @@ export class SoftwareTeamsClaudeCode implements INodeType {
     ],
   };
 
-  methods = { credentialTest: softwareTeamsCredentialTest };
+  methods = {
+    credentialTest: { ...softwareTeamsCredentialTest, ...softwareTeamsMcpCredentialTest },
+  };
 
   async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
     const items = this.getInputData();
@@ -253,6 +276,22 @@ export class SoftwareTeamsClaudeCode implements INodeType {
         const policy = this.getNodeParameter("toolPolicy", itemIndex) as GenericToolPolicy;
         const customTools = this.getNodeParameter("customTools", itemIndex, "") as string;
         const tools = resolveToolPolicy(policy, customTools);
+        const useMcpServers = this.getNodeParameter("useMcpServers", itemIndex, false) as boolean;
+        const mcpConfig = useMcpServers
+          ? parseMcpConfig(
+              stringifyParameter(
+                (await this.getCredentials("softwareTeamsMcpApi"))["mcpServers"],
+              ),
+            )
+          : undefined;
+        // Custom mode is an explicit allowlist, so it stays authoritative: an
+        // operator narrowing to two ClickUp tools must not silently get all of them.
+        const mcp = mcpConfig
+          ? {
+              json: mcpConfig.json,
+              allowedTools: policy === "custom" ? [] : mcpAllowRules(mcpConfig.servers),
+            }
+          : undefined;
         const schemaMode = this.getNodeParameter("schemaMode", itemIndex) as "turn" | "custom";
         const schema = schemaMode === "custom"
           ? parseOutputSchema(stringifyParameter(this.getNodeParameter("outputSchema", itemIndex)))
@@ -280,6 +319,7 @@ export class SoftwareTeamsClaudeCode implements INodeType {
                 : {}),
               ...(tools ? { tools } : {}),
               ...(schema ? { jsonSchema: schema } : {}),
+              ...(mcp ? { mcp } : {}),
               permissionMode: "dontAsk",
               requireAgentDefinition: true,
             });
@@ -289,6 +329,7 @@ export class SoftwareTeamsClaudeCode implements INodeType {
               policy,
               tools,
               permissionMode: "dontAsk",
+              ...(mcpConfig ? { mcpServers: mcpConfig.servers } : {}),
             });
 
         output.push({

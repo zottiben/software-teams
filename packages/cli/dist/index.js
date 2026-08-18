@@ -24231,6 +24231,9 @@ async function spawnClaude2(prompt2, opts) {
   for (const tool of opts.allowedTools ?? SINGLE_TURN_ALLOWED_TOOLS2) {
     args.push("--allowedTools", tool);
   }
+  for (const rule of opts.mcpAllowedTools ?? []) {
+    args.push("--allowedTools", rule);
+  }
   for (const tool of opts.disallowedTools ?? SINGLE_TURN_DISALLOWED_TOOLS2) {
     args.push("--disallowedTools", tool);
   }
@@ -24248,6 +24251,9 @@ async function spawnClaude2(prompt2, opts) {
     args.push("--json-schema", opts.jsonSchema);
   if (opts.resumeSessionId)
     args.push("--resume", opts.resumeSessionId);
+  const mcpDir = opts.mcpConfig ? await writeMcpConfig(opts.mcpConfig) : undefined;
+  if (mcpDir)
+    args.push("--mcp-config", mcpDir.path);
   const useStdin = prompt2.length >= PROMPT_LENGTH_THRESHOLD2;
   if (!useStdin)
     args.push("--", prompt2);
@@ -24256,7 +24262,7 @@ async function spawnClaude2(prompt2, opts) {
     assertAuthEnv(opts.auth.mode, spawnEnv);
   if (opts.githubToken)
     spawnEnv["GITHUB_TOKEN"] = opts.githubToken;
-  return new Promise((resolve13, reject) => {
+  const spawned = new Promise((resolve13, reject) => {
     const proc = spawn(claudePath, args, {
       cwd: opts.cwd ?? process.cwd(),
       env: spawnEnv,
@@ -24278,6 +24284,27 @@ ${chunks.err}`.trim();
     });
     proc.on("error", reject);
   });
+  try {
+    return await spawned;
+  } finally {
+    await mcpDir?.cleanup();
+  }
+}
+async function writeMcpConfig(json) {
+  const { mkdtemp, writeFile: writeFile5, rm: rm2 } = await import("fs/promises");
+  const { tmpdir: tmpdir3 } = await import("os");
+  const { join: join37 } = await import("path");
+  const dir = await mkdtemp(join37(tmpdir3(), "software-teams-mcp-"));
+  const path = join37(dir, "mcp-config.json");
+  await writeFile5(path, json, { mode: 384 });
+  return {
+    path,
+    cleanup: async () => {
+      await rm2(dir, { recursive: true, force: true }).catch(() => {
+        return;
+      });
+    }
+  };
 }
 function extractResultPayload(stdout2) {
   const trimmed = stdout2.trim();
@@ -24410,7 +24437,8 @@ async function runAgentTurn(input, repoContext, githubToken, options) {
     cwd: repoContext?.worktreePath,
     permissionMode: options?.permissionMode,
     githubToken,
-    auth: options?.auth
+    auth: options?.auth,
+    ...options?.mcp ? { mcpConfig: options.mcp.json, mcpAllowedTools: options.mcp.allowedTools } : {}
   }).catch((err) => ({
     _error: err instanceof Error ? err.message : String(err)
   }));
@@ -25260,7 +25288,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "1.0.0",
+  version: "1.0.1",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {
