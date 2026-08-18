@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 const sharedApi = require("@websitelabs/software-teams") as {
   withStructuredOutput: (tools: readonly string[]) => string[];
   SINGLE_TURN_DISALLOWED_TOOLS: readonly string[];
+  STE_RESPONSE_STYLE: string;
 };
 
 /**
@@ -173,7 +174,12 @@ export function buildAgentDefinition(opts: {
   const agentPrompt = stripBanners(body);
   if (!agentPrompt) return null;
   const ruleContext = loadNativeRuleContext(opts.agentId, opts.baseDir);
-  const prompt = ruleContext ? `${agentPrompt}\n\n${ruleContext}` : agentPrompt;
+  // n8n bundles the RAW specs, not the plugin's rendered copies, so the style
+  // has to be appended here too. Last, after the rules, because a trailing
+  // instruction is the one a model is most likely to hold onto.
+  const prompt = [agentPrompt, ruleContext, sharedApi.STE_RESPONSE_STYLE]
+    .filter(Boolean)
+    .join("\n\n");
 
   const definition: AgentDefinition = {
     description: typeof meta["description"] === "string" ? meta["description"] : opts.agentId,

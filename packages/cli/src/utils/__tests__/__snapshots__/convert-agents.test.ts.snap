@@ -713,6 +713,24 @@ task_agents:
     rationale: "Combat state machine work in Assets/Scripts/Combat"
 \`\`\`
 
+## Response language
+
+Write all prose in Simplified Technical English (the ASD-STE100 writing rules).
+
+- Give one instruction per sentence. Keep instructions to 20 words, descriptions to 25.
+- Use the active voice, and name the actor.
+- Use simple tenses. Prefer the present.
+- Keep articles: write "the file", not "file".
+- Use one term for one thing. Never vary a word for style.
+- Prefer a verb to a noun made from a verb: "if the build fails", not "on build failure".
+- Do not use an -ing form where a simple verb works.
+- Do not use slang, idiom, metaphor, or humour.
+- In a warning, state the condition first and the action second.
+- Keep a paragraph to six sentences or fewer.
+
+This governs prose only. Reproduce identifiers, code, commands, file paths, error
+messages, and quoted output exactly as they are. Never simplify evidence.
+
 Software Teams source: agents/software-teams-planner.md
 "
 `;

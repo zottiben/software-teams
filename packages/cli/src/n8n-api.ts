@@ -61,6 +61,7 @@ export {
   N8N_DEFAULT_MODEL,
   N8N_EFFORT_OPTIONS,
   N8N_MODEL_OPTIONS,
+  STE_RESPONSE_STYLE,
   isValidModel,
   isValidToolName,
   withStructuredOutput,

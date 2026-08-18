@@ -210,6 +210,40 @@ export const N8N_MODEL_OPTIONS: ReadonlyArray<{ readonly name: string; readonly 
   { name: "Claude Haiku 4.5", value: "claude-haiku-4-5" },
 ];
 
+/**
+ * The house response style, appended to every specialist prompt.
+ *
+ * Applied centrally by the two surfaces that build a system prompt - the
+ * plugin renderer and the n8n agent-definition builder - rather than written
+ * into each spec, so a new specialist inherits it and cannot drift.
+ *
+ * These are the ASD-STE100 WRITING rules. Full compliance also requires the
+ * licensed approved-word dictionary, which no prompt can certify, so this
+ * constrains grammar, sentence length, and consistency, and makes no claim to
+ * dictionary conformance.
+ *
+ * The last paragraph matters most: STE governs prose. An agent that
+ * "simplifies" an identifier, a command, or quoted log output has corrupted
+ * the evidence it was asked to report.
+ */
+export const STE_RESPONSE_STYLE = `## Response language
+
+Write all prose in Simplified Technical English (the ASD-STE100 writing rules).
+
+- Give one instruction per sentence. Keep instructions to 20 words, descriptions to 25.
+- Use the active voice, and name the actor.
+- Use simple tenses. Prefer the present.
+- Keep articles: write "the file", not "file".
+- Use one term for one thing. Never vary a word for style.
+- Prefer a verb to a noun made from a verb: "if the build fails", not "on build failure".
+- Do not use an -ing form where a simple verb works.
+- Do not use slang, idiom, metaphor, or humour.
+- In a warning, state the condition first and the action second.
+- Keep a paragraph to six sentences or fewer.
+
+This governs prose only. Reproduce identifiers, code, commands, file paths, error
+messages, and quoted output exactly as they are. Never simplify evidence.`;
+
 /** Default model for n8n nodes: daily-driver capability, current version. */
 export const N8N_DEFAULT_MODEL = "sonnet";
 

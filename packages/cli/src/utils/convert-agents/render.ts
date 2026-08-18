@@ -1,5 +1,6 @@
 import { stringify as stringifyYaml } from "yaml";
 import { getComponent } from "../../components/resolve";
+import { STE_RESPONSE_STYLE } from "../../shared/claude-code-surface";
 import type { AgentFrontmatter, ParsedAgentFile } from "./frontmatter";
 import { buildOutputFrontmatter } from "./frontmatter";
 
@@ -29,6 +30,9 @@ export function renderAgentOutput(parsed: ParsedAgentFile, sourcePath: string): 
     parsed.body.replace(/^\s+/, "").replace(/\s+$/, ""),
   );
 
+  // Appended here rather than written into each spec, so every specialist
+  // inherits the same style and a new one cannot be added without it. Last,
+  // because a trailing instruction is the one a model is most likely to hold.
   return [
     "---",
     yamlBody,
@@ -37,6 +41,8 @@ export function renderAgentOutput(parsed: ParsedAgentFile, sourcePath: string): 
     banner,
     "",
     body,
+    "",
+    STE_RESPONSE_STYLE,
     "",
     footer,
     "",
