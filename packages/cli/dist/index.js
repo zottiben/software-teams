@@ -10345,7 +10345,12 @@ var require_claude_code_surface = __commonJS((exports) => {
     { name: "Haiku (Latest)", value: "haiku" },
     { name: "Fable (Latest)", value: "fable" },
     { name: "Claude Opus 5", value: "claude-opus-5" },
+    { name: "Claude Opus 4.8", value: "claude-opus-4-8" },
+    { name: "Claude Opus 4.7", value: "claude-opus-4-7" },
+    { name: "Claude Opus 4.6", value: "claude-opus-4-6" },
     { name: "Claude Sonnet 5", value: "claude-sonnet-5" },
+    { name: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" },
+    { name: "Claude Fable 5", value: "claude-fable-5" },
     { name: "Claude Haiku 4.5", value: "claude-haiku-4-5" }
   ];
   exports.N8N_DEFAULT_MODEL = "sonnet";
@@ -24333,20 +24338,30 @@ function extractResultPayload(stdout2) {
 }
 function assemblePrompt(input) {
   const fencedPrompt = fenceUserInput2("user-task", sanitizeUserInput2(input.prompt, 1e4));
-  if (!isNonEmptyContext(input.context))
-    return `## Task
-${fencedPrompt}`;
+  if (!isNonEmptyContext(input.context)) {
+    return {
+      text: `## Task
+${fencedPrompt}`,
+      contextIncluded: false,
+      contextTruncated: false
+    };
+  }
   const contextJson = JSON.stringify(input.context, null, 2);
   const contextLimit = 50000;
   const notice = `
 [upstream context truncated at 50000 characters]`;
-  const boundedContext = contextJson.length > contextLimit ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}` : contextJson;
+  const contextTruncated = contextJson.length > contextLimit;
+  const boundedContext = contextTruncated ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}` : contextJson;
   const fencedContext = fenceUserInput2("upstream-context", sanitizeUserInput2(boundedContext, contextLimit));
-  return `## Upstream context
+  return {
+    text: `## Upstream context
 ${fencedContext}
 
 ## Task
-${fencedPrompt}`;
+${fencedPrompt}`,
+    contextIncluded: true,
+    contextTruncated
+  };
 }
 function isNonEmptyContext(ctx) {
   if (ctx === null || ctx === undefined)
@@ -24373,6 +24388,7 @@ function withoutTurnMetadata(input) {
   const copy = { ...input };
   delete copy.usage;
   delete copy.sessionId;
+  delete copy.turn;
   return copy;
 }
 function statusFor(state, reportedStatus) {
@@ -24422,7 +24438,8 @@ async function runAgentTurn(input, repoContext, githubToken, options) {
     return buildErrorEnvelope(input, `Agent spec not found for "${input.agentId}". Sync or bundle the specialist before running it.`);
   }
   const schema = options?.jsonSchema ?? TURN_RESULT_SCHEMA;
-  const spawnResult = await spawnClaude2(assemblePrompt(input.input), {
+  const assembled = assemblePrompt(input.input);
+  const spawnResult = await spawnClaude2(assembled.text, {
     agentId: definition ? input.agentId : undefined,
     agentsJson: definition ? JSON.stringify({ [input.agentId]: definition }) : undefined,
     model: options?.model,
@@ -24465,6 +24482,16 @@ async function runAgentTurn(input, repoContext, githubToken, options) {
       ...projection.data !== undefined ? { data: projection.data } : {}
     },
     artifacts: [...input.artifacts]
+  };
+  envelope.turn = {
+    agentId: input.agentId,
+    promptChars: assembled.text.length,
+    contextIncluded: assembled.contextIncluded,
+    contextTruncated: assembled.contextTruncated,
+    ...options?.model ? { model: options.model } : {},
+    ...options?.effort ? { effort: options.effort } : {},
+    ...definition?.tools ? { tools: [...definition.tools] } : {},
+    ...options?.mcp?.allowedTools.length ? { mcpTools: [...options.mcp.allowedTools] } : {}
   };
   const usage = usageFrom(payload);
   if (usage)

@@ -22,7 +22,11 @@ import {
   type GenericToolPolicy,
 } from "../../src/execution/generic-turn";
 import { mcpAllowRules, parseMcpConfig } from "../../src/execution/mcp-config";
-import { SPECIALIST_OPTIONS } from "../../src/execution/specialists";
+import {
+  DEFAULT_SPECIALIST,
+  SPECIALISTS,
+  SPECIALIST_OPTIONS,
+} from "../../src/execution/specialists";
 import { TURN_RESULT_SCHEMA } from "../../src/execution/envelope-schema";
 import { isNodeEnvelope } from "../../src/orchestration/run-state/persistence";
 import { toDataObject, fromDataObject } from "../../src/n8n-cast";
@@ -82,7 +86,9 @@ export class SoftwareTeamsClaudeCode implements INodeType {
     description:
       "Run any bundled specialist for one typed Claude Code turn. Defaults to read-only tools, " +
       "permissionMode dontAsk, bounded turns, and the remaining cumulative ticket budget.",
-    subtitle: '={{ $parameter["agentId"] }}',
+    // Shows the resolved prompt, not the expression that produced it, so a
+    // glance at the canvas says what the turn actually asks for.
+    subtitle: '={{ $parameter["agentId"] }}: {{ $parameter["prompt"] }}',
     defaults: { name: "Software Teams Claude Code" },
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
@@ -103,19 +109,26 @@ export class SoftwareTeamsClaudeCode implements INodeType {
         type: "options",
         noDataExpression: true,
         options: [...SPECIALIST_OPTIONS],
-        default: "software-teams-support-triage",
+        default: DEFAULT_SPECIALIST,
         required: true,
         description: "Bundled specialist whose spec becomes this turn's system prompt",
       },
-      {
+      // One Prompt per agent, so selecting an agent prefills a task written for
+      // it. n8n resolves the default from whichever definition its
+      // displayOptions currently match; this is the same shape n8n's own
+      // ClickUp node uses to vary `operation` per resource.
+      ...SPECIALISTS.map((specialist) => ({
         displayName: "Prompt",
         name: "prompt",
-        type: "string",
-        typeOptions: { rows: 5 },
-        default: "={{ $json.input.prompt }}",
+        type: "string" as const,
+        typeOptions: { rows: 6 },
+        default: specialist.defaultPrompt,
         required: true,
-        description: "Task for this turn. The upstream ticket and previous result remain in context.",
-      },
+        displayOptions: { show: { agentId: [specialist.value] } },
+        description:
+          `Task for this ${specialist.name} turn. Prefilled for the agent and safe to ` +
+          "edit. The upstream ticket and previous result stay in context regardless.",
+      })),
       {
         displayName: "Tool Access",
         name: "toolPolicy",

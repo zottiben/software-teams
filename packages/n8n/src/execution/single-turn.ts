@@ -331,21 +331,38 @@ export function extractResultPayload(stdout: string): ClaudeResultPayload | unde
  * truncates; `fenceUserInput` wraps with XML so the model cannot be tricked by
  * overrides.
  */
-function assemblePrompt(input: NodeEnvelope["input"]): string {
+interface AssembledPrompt {
+  readonly text: string;
+  readonly contextIncluded: boolean;
+  readonly contextTruncated: boolean;
+}
+
+function assemblePrompt(input: NodeEnvelope["input"]): AssembledPrompt {
   const fencedPrompt = fenceUserInput("user-task", sanitizeUserInput(input.prompt, 10_000));
-  if (!isNonEmptyContext(input.context)) return `## Task\n${fencedPrompt}`;
+  if (!isNonEmptyContext(input.context)) {
+    return {
+      text: `## Task\n${fencedPrompt}`,
+      contextIncluded: false,
+      contextTruncated: false,
+    };
+  }
 
   const contextJson = JSON.stringify(input.context, null, 2);
   const contextLimit = 50_000;
   const notice = "\n[upstream context truncated at 50000 characters]";
-  const boundedContext = contextJson.length > contextLimit
+  const contextTruncated = contextJson.length > contextLimit;
+  const boundedContext = contextTruncated
     ? `${contextJson.slice(0, contextLimit - notice.length)}${notice}`
     : contextJson;
   const fencedContext = fenceUserInput(
     "upstream-context",
     sanitizeUserInput(boundedContext, contextLimit),
   );
-  return `## Upstream context\n${fencedContext}\n\n## Task\n${fencedPrompt}`;
+  return {
+    text: `## Upstream context\n${fencedContext}\n\n## Task\n${fencedPrompt}`,
+    contextIncluded: true,
+    contextTruncated,
+  };
 }
 
 /** Ingestion boundary: context arrives as `unknown` from NodeEnvelope.input.context. */
@@ -377,6 +394,7 @@ export function withoutTurnMetadata(input: NodeEnvelope): NodeEnvelope {
   const copy = { ...input };
   delete copy.usage;
   delete copy.sessionId;
+  delete copy.turn;
   return copy;
 }
 
@@ -475,7 +493,8 @@ export async function runAgentTurn(
   }
 
   const schema = options?.jsonSchema ?? TURN_RESULT_SCHEMA;
-  const spawnResult = await spawnClaude(assemblePrompt(input.input), {
+  const assembled = assemblePrompt(input.input);
+  const spawnResult = await spawnClaude(assembled.text, {
     agentId: definition ? input.agentId : undefined,
     agentsJson: definition ? JSON.stringify({ [input.agentId]: definition }) : undefined,
     model: options?.model,
@@ -540,6 +559,23 @@ export async function runAgentTurn(
       ...(projection.data !== undefined ? { data: projection.data } : {}),
     },
     artifacts: [...input.artifacts],
+  };
+
+  // How this turn was actually set up, as opposed to what the canvas shows.
+  // The resolved instruction is already on the envelope at input.prompt, so
+  // this deliberately records the SHAPE of the request rather than repeating
+  // its text: the assembled prompt embeds up to 50k of upstream context, and
+  // duplicating that onto an envelope which is then handed to the next node
+  // would compound at every hop.
+  envelope.turn = {
+    agentId: input.agentId,
+    promptChars: assembled.text.length,
+    contextIncluded: assembled.contextIncluded,
+    contextTruncated: assembled.contextTruncated,
+    ...(options?.model ? { model: options.model } : {}),
+    ...(options?.effort ? { effort: options.effort } : {}),
+    ...(definition?.tools ? { tools: [...definition.tools] } : {}),
+    ...(options?.mcp?.allowedTools.length ? { mcpTools: [...options.mcp.allowedTools] } : {}),
   };
 
   const usage = usageFrom(payload);

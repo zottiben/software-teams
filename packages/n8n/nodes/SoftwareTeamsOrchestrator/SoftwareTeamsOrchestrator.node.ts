@@ -28,6 +28,17 @@ import {
 } from '../../src/orchestration/run-state';
 import { toDataObject } from '../../src/n8n-cast';
 
+/**
+ * Prefill for the epic field: an upstream Ticket Intake envelope's title and
+ * description, falling back to the envelope prompt so the node stays usable
+ * when fed by hand or by a non-ticket trigger.
+ *
+ * One literal rather than a concatenation because the n8n node linter only
+ * recognises a `default` it can read statically.
+ */
+const EPIC_FROM_TICKET =
+  '={{ $json.input?.context?.ticket ? [$json.input.context.ticket.title, $json.input.context.ticket.description].filter(Boolean).join("\n\n") : ($json.input?.prompt || "") }}';
+
 // n8n tsconfig (module: commonjs) cannot statically resolve single-turn.ts — its
 // require path prevents TypeScript from type-checking the Bun import chain here.
 // The orchestration core (run-state.ts) is Bun-free and IS imported statically
@@ -119,12 +130,16 @@ export class SoftwareTeamsOrchestrator implements INodeType {
         name: 'epic',
         type: 'string',
         typeOptions: { rows: 5 },
-        default: '',
+        // Prefilled from an upstream Ticket Intake envelope: its title and
+        // description are the goal, and falling back to input.prompt keeps the
+        // node usable when it is fed by hand or by a non-ticket trigger.
+        default: EPIC_FROM_TICKET,
         required: true,
         description:
           'The epic, sprint goal, or project to break down into a waved task ' +
-          'plan. Supports n8n expressions — e.g. pull it from an upstream ' +
-          "trigger with {{ $json.input.prompt }}.",
+          'plan. Prefilled from an upstream Ticket Intake node (its ticket title ' +
+          'and description), falling back to the envelope prompt. Safe to edit, ' +
+          'and supports n8n expressions.',
       },
       {
         displayName: 'Correlation ID',

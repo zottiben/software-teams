@@ -21,7 +21,7 @@ import { toDataObject, fromDataObject } from '../../src/n8n-cast';
 import { cloneRepo, createWorktree, capturePortableChange, removeWorktree } from '../../src/repo/git';
 import { validateOwnerRepo, validateBranchName, validateCloneUrl } from '../../src/repo/validate';
 import type { RepoContext } from '../../src/repo/repo-context';
-import { SPECIALIST_OPTIONS } from '../../src/execution/specialists';
+import { SPECIALISTS, SPECIALIST_OPTIONS } from '../../src/execution/specialists';
 
 interface AgentTurnOptions {
   readonly model?: string;
@@ -87,7 +87,9 @@ export class SoftwareTeamsAgent implements INodeType {
     description:
       'Run a Software Teams specialist agent for one turn. ' +
       'Emits a NodeEnvelope; wire multiple Agent nodes A→B for multi-agent handoff.',
-    subtitle: '={{ $parameter["specialist"] }}',
+    // Shows the resolved prompt, not the expression that produced it, so a
+    // glance at the canvas says what the turn actually asks for.
+    subtitle: '={{ $parameter["specialist"] }}: {{ $parameter["prompt"] }}',
     defaults: { name: 'Software Teams Agent' },
     inputs: [NodeConnectionTypes.Main],
     outputs: [NodeConnectionTypes.Main],
@@ -107,17 +109,22 @@ export class SoftwareTeamsAgent implements INodeType {
           'The Software Teams specialist to invoke for this turn. ' +
           'Matches a name in agents/*.md.',
       },
-      {
+      // One Prompt per specialist, so selecting one prefills a task written for
+      // it. n8n resolves the default from whichever definition its
+      // displayOptions currently match; this is the same shape n8n's own
+      // ClickUp node uses to vary `operation` per resource.
+      ...SPECIALISTS.map((specialist) => ({
         displayName: 'Prompt',
         name: 'prompt',
-        type: 'string',
-        typeOptions: { rows: 5 },
-        default: '',
+        type: 'string' as const,
+        typeOptions: { rows: 6 },
+        default: specialist.defaultPrompt,
         required: true,
+        displayOptions: { show: { specialist: [specialist.value] } },
         description:
-          'The task instruction for this specialist turn (the `input.prompt` ' +
-          'field of the NodeEnvelope). Supports n8n expressions.',
-      },
+          `The task for this ${specialist.name} turn (the \`input.prompt\` field of the ` +
+          'NodeEnvelope). Prefilled for the specialist, safe to edit, supports expressions.',
+      })),
       {
         displayName: 'Context (JSON)',
         name: 'context',

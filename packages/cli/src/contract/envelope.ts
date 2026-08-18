@@ -184,6 +184,35 @@ export interface NodeEnvelope {
     terminalReason?: string;
   };
 
+  /** How the turn that produced this envelope was set up. Additive, optional -
+   *  written by the execution engine, absent on envelopes that never reached
+   *  the model. Non-secret, and reset at each hop like `usage`.
+   *
+   *  Exists so a node is inspectable: the canvas shows an expression and the
+   *  result shows a conclusion, which leaves no way to see what was actually
+   *  asked or with what access. The resolved instruction is already on the
+   *  envelope at `input.prompt`, so this records the SHAPE of the request -
+   *  size and access - rather than repeating its text, which would compound
+   *  at every handoff. */
+  turn?: {
+    /** Specialist that ran, which may differ from a downstream node's target. */
+    agentId: string;
+    /** Size of the fully assembled prompt, instruction plus fenced context. */
+    promptChars: number;
+    /** Whether upstream context was folded into the prompt at all. */
+    contextIncluded: boolean;
+    /** Whether that context hit the 50000-character bound and was cut. */
+    contextTruncated: boolean;
+    /** Model actually requested for the turn, when one was pinned. */
+    model?: string;
+    /** Effort actually requested, when one was pinned. */
+    effort?: string;
+    /** Tools the turn was permitted to use. */
+    tools?: string[];
+    /** MCP permission rules granted, e.g. `mcp__clickup__*`. Names only. */
+    mcpTools?: string[];
+  };
+
   /** The Claude Code session this turn ran in. Additive, optional. Carried so a
    *  later turn can `--resume` the same conversation rather than replaying a
    *  fresh one — which is what makes a human-in-the-loop answer land in the

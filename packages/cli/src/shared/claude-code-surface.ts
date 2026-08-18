@@ -184,10 +184,15 @@ export function withStructuredOutput(tools: readonly string[]): string[] {
 /**
  * Model choices offered by the n8n node dropdowns.
  *
- * Shared so the list cannot drift between nodes, which is how two of them ended
- * up offering `claude-opus-4-5` - an ID that never existed. Aliases lead
- * because they track the current version; the pinned IDs below them are for
- * callers who need a fixed one. Names are title case for the n8n node linter.
+ * Shared so the list cannot drift between nodes. Aliases lead because they
+ * track the current version; the pinned IDs below them are for callers who
+ * need a fixed one, including the interim releases, which is what you reach
+ * for when a workflow has been tuned against one model's behaviour and should
+ * not follow an alias forward.
+ *
+ * Every value here was checked against the CLI before being listed. An earlier
+ * revision shipped an ID no model answered to, which fails only at run time.
+ * Names are title case for the n8n node linter.
  */
 export const N8N_MODEL_OPTIONS: ReadonlyArray<{ readonly name: string; readonly value: string }> = [
   { name: "Inherit Session Default", value: "" },
@@ -196,7 +201,12 @@ export const N8N_MODEL_OPTIONS: ReadonlyArray<{ readonly name: string; readonly 
   { name: "Haiku (Latest)", value: "haiku" },
   { name: "Fable (Latest)", value: "fable" },
   { name: "Claude Opus 5", value: "claude-opus-5" },
+  { name: "Claude Opus 4.8", value: "claude-opus-4-8" },
+  { name: "Claude Opus 4.7", value: "claude-opus-4-7" },
+  { name: "Claude Opus 4.6", value: "claude-opus-4-6" },
   { name: "Claude Sonnet 5", value: "claude-sonnet-5" },
+  { name: "Claude Sonnet 4.6", value: "claude-sonnet-4-6" },
+  { name: "Claude Fable 5", value: "claude-fable-5" },
   { name: "Claude Haiku 4.5", value: "claude-haiku-4-5" },
 ];
 
