@@ -85,6 +85,22 @@ export class SoftwareTeamsOutput implements INodeType {
         description: 'The target branch the pull request will merge into',
       },
       {
+        displayName: 'Open as Draft',
+        name: 'draft',
+        type: 'boolean',
+        default: false,
+        displayOptions: {
+          show: {
+            mode: ['pr'],
+          },
+        },
+        description:
+          'Whether to open the pull request as a draft. A stacked run trickles out one PR per ' +
+          'slice as it finishes, so a slice that has not cleared the review loop still becomes ' +
+          'visible; draft is what keeps that from reading as finished work, because GitHub ' +
+          'blocks merging a draft and does not request reviewers.',
+      },
+      {
         displayName: 'Title',
         name: 'title',
         type: 'string',
@@ -155,6 +171,7 @@ export class SoftwareTeamsOutput implements INodeType {
         const rawRepo = (this.getNodeParameter('targetRepo', i) as string).trim();
         const baseBranch =
           ((this.getNodeParameter('baseBranch', i, 'main') as string) || 'main').trim();
+        const draft = this.getNodeParameter('draft', i, false) as boolean;
         const titleParam = ((this.getNodeParameter('title', i, '') as string) || '').trim();
         const issueLabelsParam =
           ((this.getNodeParameter('issueLabels', i, '') as string) || '').trim();
@@ -181,6 +198,7 @@ export class SoftwareTeamsOutput implements INodeType {
           title,
           body,
           baseBranch,
+          draft,
           issueLabelsParam,
           githubToken,
         });
@@ -239,6 +257,7 @@ interface ResolveOutputRefParams {
   title: string;
   body: string;
   baseBranch: string;
+  draft: boolean;
   issueLabelsParam: string;
   githubToken: string;
 }
@@ -278,6 +297,7 @@ async function resolveOutputRef(p: ResolveOutputRefParams): Promise<OutputRefRes
         head: headBranch,
         base: p.baseBranch,
         token: p.githubToken,
+        draft: p.draft,
       });
       return { outputUrl: ref.url, outputType: 'pr' };
     } catch (err) {

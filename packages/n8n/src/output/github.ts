@@ -14,6 +14,15 @@ export interface CreatePrInput {
   base: string;
   /** GitHub token — from softwareTeamsApi credential only (R-02). */
   token: string;
+  /**
+   * Open the PR as a draft.
+   *
+   * A stacked run trickles a PR out per slice as it finishes, so a slice that
+   * has not passed the review loop still becomes visible. Draft is what stops
+   * that being mistaken for finished work: GitHub blocks merging a draft, and
+   * it does not request reviewers.
+   */
+  draft?: boolean;
 }
 
 export interface CreateIssueInput {
@@ -72,10 +81,12 @@ async function ghPost(
 export async function createPullRequest(
   input: CreatePrInput,
 ): Promise<GitHubCreatedRef> {
-  const { owner, repo, title, body, head, base, token } = input;
+  const { owner, repo, title, body, head, base, token, draft } = input;
   const data = await ghPost(
     `/repos/${owner}/${repo}/pulls`,
-    { title, body, head, base },
+    // Only sent when true: some GitHub plans reject `draft` outright, so an
+    // unconditional false would break PR creation for those repos.
+    { title, body, head, base, ...(draft ? { draft: true } : {}) },
     token,
   );
   return { url: data.html_url, number: data.number };
