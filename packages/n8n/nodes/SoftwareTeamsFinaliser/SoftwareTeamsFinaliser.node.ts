@@ -44,6 +44,22 @@ function buildFeatureBranchName(correlationId: string): string {
   return `feat/st-run-${correlationId.slice(0, 8)}`;
 }
 
+/** Shared integration branch every slice PR targets. */
+export function buildEpicBranchName(correlationId: string): string {
+  return `epic/st-${correlationId.slice(0, 8)}`;
+}
+
+/**
+ * Branch for one slice.
+ *
+ * Kept short on purpose: a long branch name stops Argo building a review
+ * environment for the PR, which is where browser-visible behaviour gets checked.
+ */
+export function buildSliceBranchName(correlationId: string, taskId: string): string {
+  const slug = taskId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `feat/st-${correlationId.slice(0, 6)}-${slug}`.slice(0, 35);
+}
+
 function buildBranchUrl(ownerRepo: string, branchName: string): string {
   return `https://github.com/${ownerRepo}/tree/${branchName}`;
 }
@@ -98,9 +114,10 @@ export class SoftwareTeamsFinaliser implements INodeType {
     version: 1,
     description:
       'Terminal node for Software Teams repo-execution workflows (ADR-002). ' +
-      'Reads aggregated run-state, merges all agent changes with bounded conflict ' +
-      'resolution (≤3 resolver turns), pushes a feature branch, emits a branch ' +
-      'artifact, and synthesises a run summary.',
+      'Reads aggregated run-state and turns agent changes into pushed branches. ' +
+      'Merged strategy squashes every change onto one feature branch; stacked ' +
+      'strategy pushes one branch per slice off a shared epic branch and emits ' +
+      'one item each, so PRs trickle out instead of arriving as one large review.',
     subtitle: '={{ $parameter["ownerRepo"] }}',
     defaults: { name: 'Software Teams Finaliser' },
     inputs: [NodeConnectionTypes.Main],
@@ -109,6 +126,46 @@ export class SoftwareTeamsFinaliser implements INodeType {
       { name: 'softwareTeamsApi', required: true, testedBy: 'softwareTeamsApiTest' },
     ],
     properties: [
+      {
+        displayName: 'Strategy',
+        name: 'strategy',
+        type: 'options',
+        noDataExpression: true,
+        options: [
+          {
+            name: 'Merged (One Branch)',
+            value: 'merged',
+            description:
+              'Merge every agent change onto a single feature branch with bounded conflict ' +
+              'resolution. One branch artifact, so one pull request.',
+          },
+          {
+            name: 'Stacked (One Branch per Slice)',
+            value: 'stacked',
+            description:
+              'Push one branch per completed task off a shared epic branch and emit one item ' +
+              'each, so a downstream Output node opens a pull request per slice against the ' +
+              'epic. Reviewers get small PRs as work lands instead of one large one at the end.',
+          },
+        ],
+        default: 'merged',
+        description: 'How agent changes become branches',
+      },
+      {
+        displayName: 'Epic Branch',
+        name: 'epicBranch',
+        type: 'string',
+        default: '',
+        placeholder: 'Leave blank to derive from the correlation ID',
+        displayOptions: {
+          show: {
+            strategy: ['stacked'],
+          },
+        },
+        description:
+          'Shared integration branch that every slice branches off and every slice PR targets. ' +
+          'Created off the base branch when absent. Blank derives epic/st-{correlationId}.',
+      },
       {
         displayName: 'Target Repository',
         name: 'ownerRepo',
@@ -217,6 +274,103 @@ export class SoftwareTeamsFinaliser implements INodeType {
           : cloneUrl;
 
         await cloneRepo({ cloneUrl: authenticatedCloneUrl, branch: baseBranch, destDir: repoDir });
+
+        const strategy = this.getNodeParameter('strategy', i, 'merged') as string;
+
+        if (strategy === 'stacked') {
+          const epicBranch = validateBranchName(
+            ((this.getNodeParameter('epicBranch', i, '') as string) || '').trim() ||
+              buildEpicBranchName(correlationId),
+          );
+          const slices = agentResults.filter((r) => r.changeRef !== undefined);
+
+          if (slices.length === 0) {
+            throw new NodeOperationError(
+              this.getNode(),
+              `No agent produced a change for correlationId "${correlationId}", so there is ` +
+                'nothing to stack. Check that the Agent nodes ran and recorded a changeRef.',
+              { itemIndex: i },
+            );
+          }
+
+          // The epic branch is created empty off the base so every slice has a
+          // target that exists before its PR is opened. Pushing it is idempotent
+          // enough for a re-run: an existing branch at the same commit is a no-op.
+          await applyAndResolve({
+            repoDir,
+            branchName: epicBranch,
+            baseBranch,
+            changeRefs: [],
+            resolver: async () => undefined,
+          });
+          await pushBranch({ repoDir, branchName: epicBranch, remote: 'origin', githubToken });
+
+          for (const slice of slices) {
+            const sliceBranch = validateBranchName(
+              buildSliceBranchName(correlationId, slice.taskId),
+            );
+
+            // Each slice applies only its OWN change onto the epic branch, so a
+            // conflict here means two slices genuinely touched the same lines
+            // rather than the run simply having many changes.
+            const sliceMerge = await applyAndResolve({
+              repoDir,
+              branchName: sliceBranch,
+              baseBranch: epicBranch,
+              changeRefs: [slice.changeRef!],
+              resolver: async () => undefined,
+            });
+
+            if (sliceMerge.kind === 'bounded-failure') {
+              returnData.push({
+                json: toDataObject({
+                  ...envelope,
+                  agentId: 'software-teams-finaliser',
+                  status: 'error',
+                  result: {
+                    text:
+                      `Slice "${slice.taskId}" did not apply cleanly onto ${epicBranch}. ` +
+                      `Conflicting files: ${sliceMerge.conflictingFiles.join(', ')}. ` +
+                      'Another slice has touched the same lines, so a human must decide.',
+                  },
+                }),
+                pairedItem: { item: i },
+              });
+              continue;
+            }
+
+            await pushBranch({ repoDir, branchName: sliceBranch, remote: 'origin', githubToken });
+
+            returnData.push({
+              json: toDataObject({
+                ...envelope,
+                agentId: 'software-teams-finaliser',
+                status: 'ok',
+                input: {
+                  ...envelope.input,
+                  // Output titles the PR from here, and the review loop reads it
+                  // to know which slice a finding belongs to.
+                  context: { ...(envelope.input.context as object | null), taskId: slice.taskId },
+                },
+                result: {
+                  text: `Slice "${slice.taskId}" (${slice.agent}) pushed to ${sliceBranch}.`,
+                },
+                artifacts: [
+                  ...envelope.artifacts,
+                  { type: 'branch', url: buildBranchUrl(ownerRepo, sliceBranch) },
+                ],
+                // Output reads the base from here, so slice PRs target the epic
+                // branch rather than the trunk and the stack stays reviewable.
+                ...(envelope.repo
+                  ? { repo: { ...envelope.repo, baseBranch: epicBranch } }
+                  : {}),
+              }),
+              pairedItem: { item: i },
+            });
+          }
+
+          continue;
+        }
 
         const branchName = buildFeatureBranchName(correlationId);
 

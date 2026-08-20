@@ -1,6 +1,6 @@
 {
   "name": "@websitelabs/n8n-nodes-software-teams",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Software Teams specialist agents as n8n community nodes. Self-hosted only; requires the claude binary and a Claude subscription OAuth token or Anthropic API key.",
   "author": {
     "name": "WebsiteLabs"
