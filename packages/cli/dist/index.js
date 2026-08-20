@@ -25173,8 +25173,8 @@ async function ghPost(path, body, token) {
   return data;
 }
 async function createPullRequest(input) {
-  const { owner, repo, title, body, head, base, token } = input;
-  const data = await ghPost(`/repos/${owner}/${repo}/pulls`, { title, body, head, base }, token);
+  const { owner, repo, title, body, head, base, token, draft } = input;
+  const data = await ghPost(`/repos/${owner}/${repo}/pulls`, { title, body, head, base, ...draft ? { draft: true } : {} }, token);
   return { url: data.html_url, number: data.number };
 }
 async function createIssue(input) {
@@ -25352,7 +25352,7 @@ var outputCommand = defineCommand({
 // package.json
 var package_default = {
   name: "@websitelabs/software-teams",
-  version: "1.0.1",
+  version: "1.1.0",
   description: "Software Teams -  Skills and Agents to help with Software Development",
   type: "module",
   bin: {

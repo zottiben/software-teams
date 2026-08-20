@@ -73,7 +73,7 @@ n8n UI from a `claude setup-token` token.
 
 ## Gotchas learned this session
 
-**Staging n8n (`n8n.stg.nodifi.cloud`, v2.22.6)**
+**Staging n8n (host in `.mcp.json`, local-only; v2.22.6)**
 
 - Community packages are **env-managed** (`N8N_COMMUNITY_PACKAGES_MANAGED_BY_ENV=true`),
   so the Community Nodes UI is read-only. The package cannot be installed by clicking;
@@ -85,7 +85,7 @@ n8n UI from a `claude setup-token` token.
   explicitly to `true` in `config.yaml.tftpl` for that reason.
 - `N8N_COMMUNITY_PACKAGES` wants a **JSON string**, not a YAML list - hence
   `jsonencode([for pkg in var.community_packages : { name = pkg }])` in `helm.tf`.
-- Instance-level MCP is enabled: `https://n8n.stg.nodifi.cloud/mcp-server/http`,
+- Instance-level MCP is enabled at `/mcp-server/http` on the staging host,
   **Bearer** auth (probe returns `401` + `WWW-Authenticate: Bearer realm="n8n MCP Server"`).
 - Navigating to `/settings/api` bounced the session to a sign-in wall; expect to re-auth.
 
